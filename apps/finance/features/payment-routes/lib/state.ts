@@ -625,9 +625,13 @@ export function setLegField(
   };
 }
 
-function createDefaultFixedFee(currencyId: string): PaymentRouteFee {
+function createDefaultFixedFee(
+  currencyId: string,
+  chargeToCustomer = false,
+): PaymentRouteFee {
   return {
     amountMinor: "100",
+    chargeToCustomer,
     currencyId,
     id: createId("route-fee"),
     kind: "fixed",
@@ -635,9 +639,13 @@ function createDefaultFixedFee(currencyId: string): PaymentRouteFee {
   };
 }
 
-function createDefaultAdditionalFee(currencyId: string): PaymentRouteFee {
+function createDefaultAdditionalFee(
+  currencyId: string,
+  chargeToCustomer = false,
+): PaymentRouteFee {
   return {
     amountMinor: "100",
+    chargeToCustomer,
     currencyId,
     id: createId("route-fee"),
     kind: "fixed",
@@ -645,8 +653,9 @@ function createDefaultAdditionalFee(currencyId: string): PaymentRouteFee {
   };
 }
 
-function createDefaultPercentFee(): PaymentRouteFee {
+function createDefaultPercentFee(chargeToCustomer = false): PaymentRouteFee {
   return {
+    chargeToCustomer,
     id: createId("route-fee"),
     kind: "percent",
     label: "Комиссия",
@@ -969,13 +978,14 @@ export function changeFeeKind(input: {
   }
 
   if (input.nextKind === "percent") {
-    return createDefaultPercentFee();
+    return createDefaultPercentFee(input.fee.chargeToCustomer);
   }
 
   return createDefaultFixedFee(
     input.fee.kind === "fixed" && input.fee.currencyId
       ? input.fee.currencyId
       : input.fallbackCurrencyId,
+    input.fee.chargeToCustomer,
   );
 }
 

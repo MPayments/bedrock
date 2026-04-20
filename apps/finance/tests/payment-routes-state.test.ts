@@ -385,7 +385,16 @@ describe("payment route editor state", () => {
       additionalFees: [],
       amountInMinor: "1200000",
       amountOutMinor: "1188000",
+      chargedFeeTotals: [
+        {
+          amountMinor: "12000",
+          currencyId: USD.id,
+        },
+      ],
+      cleanAmountOutMinor: "1200000",
+      clientTotalInMinor: "1200000",
       computedAt: "2026-04-16T08:00:00.000Z",
+      costPriceInMinor: "1200000",
       currencyInId: USD.id,
       currencyOutId: USD.id,
       feeTotals: [
@@ -395,12 +404,14 @@ describe("payment route editor state", () => {
         },
       ],
       grossAmountOutMinor: "1200000",
+      internalFeeTotals: [],
       legs: [
         {
           asOf: "2026-04-16T08:00:00.000Z",
           fees: [
             {
               amountMinor: "12000",
+              chargeToCustomer: true,
               currencyId: USD.id,
               id: "fee-1",
               inputImpactCurrencyId: USD.id,
@@ -409,6 +420,7 @@ describe("payment route editor state", () => {
               label: "Bank fee",
               outputImpactCurrencyId: USD.id,
               outputImpactMinor: "12000",
+              routeInputImpactMinor: "12000",
             },
           ],
           fromCurrencyId: USD.id,
@@ -431,5 +443,13 @@ describe("payment route editor state", () => {
     expect(next.draft.amountInMinor).toBe("1200000");
     expect(next.draft.amountOutMinor).toBe("1188000");
     expect(next.calculation?.netAmountOutMinor).toBe("1188000");
+  });
+
+  it("creates additional fees unchecked for client pricing by default", () => {
+    const seed = createPaymentRouteSeed(OPTIONS)!;
+    const next = addAdditionalFee(seed);
+
+    expect(next.draft.additionalFees).toHaveLength(1);
+    expect(next.draft.additionalFees[0]?.chargeToCustomer).toBe(false);
   });
 });

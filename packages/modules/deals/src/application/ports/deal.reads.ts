@@ -6,6 +6,7 @@ import type {
   DealCalculationHistoryItem,
   DealDetails,
   DealFundingResolution,
+  DealPricingContext,
   DealTraceProjection,
   DealWorkflowProjection,
   PortalDealListProjection,
@@ -27,6 +28,7 @@ export interface DealReads {
   findAttachmentIngestionByFileAssetId(
     fileAssetId: string,
   ): Promise<DealAttachmentIngestion | null>;
+  findPricingContextByDealId(dealId: string): Promise<DealPricingContext>;
   findPortalProjectionById(id: string): Promise<PortalDealProjection | null>;
   findTraceById(id: string): Promise<DealTraceProjection | null>;
   findWorkflowById(id: string): Promise<DealWorkflowProjection | null>;

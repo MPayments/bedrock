@@ -2055,17 +2055,33 @@ export default function DealDetailPage() {
               <DealPricingTab
                 acceptedQuote={data.workbench.acceptedQuote}
                 activeCalculationId={data.deal.calculationId}
+                amountCurrencyCode={
+                  quoteRequest?.amountSide === "source"
+                    ? data.sourceCurrency?.code ?? null
+                    : data.currency?.code ?? null
+                }
+                amountCurrencyPrecision={
+                  quoteRequest?.amountSide === "source"
+                    ? data.sourceCurrency?.precision ?? 2
+                    : data.currency?.precision ?? 2
+                }
                 calculation={data.calculation}
                 calculationDisabledReason={calculationDisabledReason}
                 calculationHistory={data.calculationHistory}
+                currencyOptions={data.currencyOptions}
+                dealId={dealId}
+                initialRequestedAmount={quoteRequest?.amount ?? ""}
                 isAcceptingQuoteId={isAcceptingQuoteId}
                 isCreatingCalculation={isCreatingCalculation}
-                isCreatingQuote={isCreatingQuote}
                 onAcceptQuote={handleAcceptQuote}
                 onCreateCalculation={handleOpenCreateCalculationDialog}
-                onCreateQuote={handleOpenQuoteDialog}
+                onError={showError}
+                onReload={loadDeal}
+                pricingContext={data.workbench.pricing.context}
                 quoteAmountSide={quoteRequest?.amountSide ?? "source"}
                 quoteCreationDisabledReason={quoteCreationDisabledReason}
+                targetCurrencyCode={data.currency?.code ?? null}
+                targetCurrencyPrecision={data.currency?.precision ?? 2}
                 quotes={data.workbench.pricing.quotes}
               />
             }

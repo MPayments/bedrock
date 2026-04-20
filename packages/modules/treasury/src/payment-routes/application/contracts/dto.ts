@@ -13,6 +13,7 @@ import {
 
 const PaymentRouteCalculationFeeSharedSchema = z.object({
   amountMinor: z.string(),
+  chargeToCustomer: z.boolean(),
   currencyId: z.uuid(),
   id: z.string().trim().min(1),
   inputImpactCurrencyId: z.uuid(),
@@ -20,6 +21,7 @@ const PaymentRouteCalculationFeeSharedSchema = z.object({
   label: z.string().trim().min(1).optional(),
   outputImpactCurrencyId: z.uuid(),
   outputImpactMinor: z.string(),
+  routeInputImpactMinor: z.string(),
 });
 
 const PaymentRouteCalculationPercentFeeSchema =
@@ -64,11 +66,16 @@ export const PaymentRouteCalculationSchema = z.object({
   additionalFees: z.array(PaymentRouteCalculationFeeSchema),
   amountInMinor: z.string(),
   amountOutMinor: z.string(),
+  chargedFeeTotals: z.array(PaymentRouteAmountTotalSchema),
+  cleanAmountOutMinor: z.string(),
+  clientTotalInMinor: z.string(),
   computedAt: z.iso.datetime(),
+  costPriceInMinor: z.string(),
   currencyInId: z.uuid(),
   currencyOutId: z.uuid(),
   feeTotals: z.array(PaymentRouteAmountTotalSchema),
   grossAmountOutMinor: z.string(),
+  internalFeeTotals: z.array(PaymentRouteAmountTotalSchema),
   legs: z.array(PaymentRouteCalculationLegSchema),
   lockedSide: PaymentRouteLockedSideSchema,
   netAmountOutMinor: z.string(),

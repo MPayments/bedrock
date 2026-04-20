@@ -164,6 +164,7 @@ export const PaymentRouteParticipantRefSchema = z.union([
 export const PaymentRouteFeeSchema = z
   .object({
     amountMinor: nonNegativeMinorStringSchema.optional(),
+    chargeToCustomer: z.boolean().default(false),
     currencyId: z.uuid().nullable().optional(),
     id: z.string().trim().min(1),
     kind: PaymentRouteFeeKindSchema,

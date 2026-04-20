@@ -23,7 +23,10 @@ import {
   organizations,
 } from "@bedrock/parties/schema";
 
-import type { DealIntakeDraft } from "../../application/contracts/dto";
+import type {
+  DealIntakeDraft,
+  DealPricingContextSnapshot,
+} from "../../application/contracts/dto";
 import {
   DEAL_ATTACHMENT_INGESTION_STATUS_VALUES,
   DEAL_APPROVAL_STATUS_VALUES,
@@ -160,6 +163,25 @@ export const dealIntakeSnapshots = pgTable(
       sql`((snapshot -> 'externalBeneficiary' ->> 'beneficiaryCounterpartyId'))`,
     ),
   ],
+);
+
+export const dealPricingContexts = pgTable(
+  "deal_pricing_contexts",
+  {
+    dealId: uuid("deal_id")
+      .primaryKey()
+      .references(() => deals.id, { onDelete: "cascade" }),
+    revision: integer("revision").notNull(),
+    snapshot: jsonb("snapshot").$type<DealPricingContextSnapshot>().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`)
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [index("deal_pricing_contexts_revision_idx").on(table.revision)],
 );
 
 export const dealCalculationLinks = pgTable(

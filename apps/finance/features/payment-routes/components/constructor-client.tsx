@@ -28,7 +28,7 @@ import type { PaymentRouteTemplate } from "@bedrock/treasury/contracts";
 
 import {
   formatCurrencyMinorAmount,
-  getPaymentRouteRateLines,
+  getPaymentRouteBaseRateLines,
 } from "../lib/format";
 import {
   createPaymentRouteTemplate,
@@ -41,9 +41,11 @@ import {
   syncPaymentRouteDraftRequisites,
 } from "../lib/requisites";
 import {
-  getPaymentRouteAdditionalFeeTotals,
-  getPaymentRoutePureAmountOutMinor,
-  getPaymentRouteTotalClientCostInMinor,
+  getPaymentRouteChargedFeeTotals,
+  getPaymentRouteCleanAmountOutMinor,
+  getPaymentRouteClientTotalInMinor,
+  getPaymentRouteCostPriceInMinor,
+  getPaymentRouteInternalFeeTotals,
 } from "../lib/cost-summary";
 import {
   applyCalculation,
@@ -116,6 +118,22 @@ function createInitialState(
   }
 
   return createPaymentRouteSeed(options);
+}
+
+function formatTotalsSummary(
+  amountTotals: { amountMinor: string; currencyId: string }[],
+  options: PaymentRouteConstructorOptions,
+) {
+  return amountTotals
+    .map((amountTotal) =>
+      formatCurrencyMinorAmount(
+        amountTotal.amountMinor,
+        options.currencies.find(
+          (currency) => currency.id === amountTotal.currencyId,
+        ) ?? null,
+      ),
+    )
+    .join(" • ");
 }
 
 export function PaymentRouteConstructorClient({
@@ -269,41 +287,27 @@ export function PaymentRouteConstructorClient({
         (currency) => currency.id === editorState.draft.currencyOutId,
       ) ?? null)
     : null;
-  const totalClientCostInMinor = getPaymentRouteTotalClientCostInMinor(
+  const clientTotalInMinor = getPaymentRouteClientTotalInMinor(
     editorState?.calculation ?? null,
   );
-  const pureAmountOutMinor = getPaymentRoutePureAmountOutMinor(
+  const cleanAmountOutMinor = getPaymentRouteCleanAmountOutMinor(
     editorState?.calculation ?? null,
   );
-  const rateLines = editorState?.calculation
-    ? getPaymentRouteRateLines({
-        amountInMinor: editorState.calculation.amountInMinor,
-        cleanAmountOutMinor:
-          pureAmountOutMinor ?? editorState.calculation.amountOutMinor,
-        costInclusiveAmountInMinor: totalClientCostInMinor,
-        effectiveAmountOutMinor: editorState.calculation.amountOutMinor,
-        currencyIn,
-        currencyOut,
-      })
-    : {
-        cleanForward: null,
-        cleanReverse: null,
-        effectiveForward: null,
-        effectiveReverse: null,
-      };
-  const additionalFeeTotals = getPaymentRouteAdditionalFeeTotals(
+  const costPriceInMinor = getPaymentRouteCostPriceInMinor(
     editorState?.calculation ?? null,
   );
-  const additionalFeeSummary = additionalFeeTotals
-    .map((feeTotal) =>
-      formatCurrencyMinorAmount(
-        feeTotal.amountMinor,
-        options.currencies.find(
-          (currency) => currency.id === feeTotal.currencyId,
-        ) ?? null,
-      ),
-    )
-    .join(" • ");
+  const chargedFeeTotals = getPaymentRouteChargedFeeTotals(
+    editorState?.calculation ?? null,
+  );
+  const internalFeeTotals = getPaymentRouteInternalFeeTotals(
+    editorState?.calculation ?? null,
+  );
+  const baseRateLines = getPaymentRouteBaseRateLines({
+    calculation: editorState?.calculation ?? null,
+    currencies: options.currencies,
+  });
+  const chargedFeeSummary = formatTotalsSummary(chargedFeeTotals, options);
+  const internalFeeSummary = formatTotalsSummary(internalFeeTotals, options);
   const displayAmountOut =
     editorState?.calculation?.amountOutMinor ??
     editorState?.draft.amountOutMinor ??
@@ -608,41 +612,39 @@ export function PaymentRouteConstructorClient({
 
                 <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-muted/20 px-4 py-3 text-sm">
                   <div className="space-y-1">
-                    <div className="font-medium">Курс</div>
+                    <div className="font-medium">Экономика шаблона</div>
                     <div className="text-muted-foreground">
-                      {rateLines.cleanForward ? (
+                      {baseRateLines.baseForward ? (
                         <>
-                          {rateLines.cleanForward ? (
+                          {baseRateLines.baseForward ? (
                             <div>
-                              Прямой чистый курс: {rateLines.cleanForward}
+                              Базовый курс маршрута: {baseRateLines.baseForward}
                             </div>
                           ) : null}
-                          {rateLines.cleanReverse ? (
+                          {baseRateLines.baseReverse ? (
                             <div>
-                              Обратный чистый курс: {rateLines.cleanReverse}
-                            </div>
-                          ) : null}
-                          {rateLines.effectiveForward ? (
-                            <div>
-                              Прямой курс с себестоимостью:{" "}
-                              {rateLines.effectiveForward}
-                            </div>
-                          ) : null}
-                          {rateLines.effectiveReverse ? (
-                            <div>
-                              Обратный курс с себестоимостью:{" "}
-                              {rateLines.effectiveReverse}
+                              Обратный базовый курс: {baseRateLines.baseReverse}
                             </div>
                           ) : null}
                         </>
                       ) : (
-                        "После предварительного расчета здесь появится текущий маршрутный курс."
+                        "После предварительного расчета здесь появится composed base rate по leg'ам."
                       )}
                     </div>
-                    {additionalFeeTotals.length > 0 ? (
-                      <div className="text-xs text-amber-700">
-                        Доплаты сверх маршрута оплачиваются отдельно:{" "}
-                        {additionalFeeSummary}.
+                    {chargedFeeSummary ? (
+                      <div className="text-xs text-emerald-700">
+                        В цену клиента включено: {chargedFeeSummary}.
+                        {clientTotalInMinor
+                          ? ` Клиент оплатит ${formatCurrencyMinorAmount(clientTotalInMinor, currencyIn)}.`
+                          : ""}
+                      </div>
+                    ) : null}
+                    {internalFeeSummary ? (
+                      <div className="text-xs text-sky-700">
+                        Только в себестоимости: {internalFeeSummary}.
+                        {costPriceInMinor
+                          ? ` Себестоимость маршрута ${formatCurrencyMinorAmount(costPriceInMinor, currencyIn)}.`
+                          : ""}
                       </div>
                     ) : null}
                   </div>
@@ -729,20 +731,44 @@ export function PaymentRouteConstructorClient({
 
             <div className="min-h-0 flex-1 px-4 py-4 sm:px-6">
               <div className="mx-auto flex h-full max-w-[1800px] flex-col gap-4">
-                <div className="grid gap-3 rounded-2xl border border-border/70 bg-background/80 px-4 py-3 text-sm shadow-sm lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.4fr)]">
+                <div className="grid gap-3 rounded-2xl border border-border/70 bg-background/80 px-4 py-3 text-sm shadow-sm lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.4fr)]">
                   <div className="space-y-1">
                     <div className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                      Доплаты сверх маршрута
+                      В цене клиента
                     </div>
-                    {additionalFeeTotals.length > 0 ? (
+                    {chargedFeeSummary ? (
                       <div className="font-semibold">
-                        {additionalFeeSummary}
+                        {chargedFeeSummary}
                       </div>
                     ) : (
                       <div className="font-medium text-muted-foreground">
-                        Нет отдельных доплат
+                        Нет включенных расходов
                       </div>
                     )}
+                    {clientTotalInMinor ? (
+                      <div className="text-xs text-muted-foreground">
+                        Клиент оплатит{" "}
+                        {formatCurrencyMinorAmount(clientTotalInMinor, currencyIn)}
+                      </div>
+                    ) : null}
+                  </div>
+                  <div className="space-y-1">
+                    <div className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                      Себестоимость
+                    </div>
+                    {internalFeeSummary ? (
+                      <div className="font-semibold">{internalFeeSummary}</div>
+                    ) : (
+                      <div className="font-medium text-muted-foreground">
+                        Нет внутренних расходов
+                      </div>
+                    )}
+                    {costPriceInMinor ? (
+                      <div className="text-xs text-muted-foreground">
+                        Маршрут стоит{" "}
+                        {formatCurrencyMinorAmount(costPriceInMinor, currencyIn)}
+                      </div>
+                    ) : null}
                   </div>
                   <div className="space-y-1">
                     <div className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
@@ -754,44 +780,26 @@ export function PaymentRouteConstructorClient({
                   </div>
                   <div className="space-y-1">
                     <div className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                      Курс
+                      Экономика шаблона
                     </div>
                     <div className="space-y-1 font-medium">
-                      {rateLines.cleanForward ? (
+                      {baseRateLines.baseForward ? (
                         <>
-                          {rateLines.cleanForward ? (
+                          {baseRateLines.baseForward ? (
                             <div>
-                              Прямой чистый курс: {rateLines.cleanForward}
+                              Базовый курс маршрута: {baseRateLines.baseForward}
                             </div>
                           ) : null}
-                          {rateLines.cleanReverse ? (
+                          {baseRateLines.baseReverse ? (
                             <div>
-                              Обратный чистый курс: {rateLines.cleanReverse}
-                            </div>
-                          ) : null}
-                          {rateLines.effectiveForward ? (
-                            <div>
-                              Прямой курс с себестоимостью:{" "}
-                              {rateLines.effectiveForward}
-                            </div>
-                          ) : null}
-                          {rateLines.effectiveReverse ? (
-                            <div>
-                              Обратный курс с себестоимостью:{" "}
-                              {rateLines.effectiveReverse}
+                              Обратный базовый курс: {baseRateLines.baseReverse}
                             </div>
                           ) : null}
                         </>
                       ) : (
-                        "После предварительного расчета здесь появится текущий маршрутный курс."
+                        "После предварительного расчета здесь появится composed base rate по leg'ам."
                       )}
                     </div>
-                    {additionalFeeTotals.length > 0 ? (
-                      <div className="text-xs text-amber-700">
-                        Доплаты сверх маршрута оплачиваются отдельно:{" "}
-                        {additionalFeeSummary}.
-                      </div>
-                    ) : null}
                     {previewError ? (
                       <div className="text-sm text-red-600">{previewError}</div>
                     ) : null}

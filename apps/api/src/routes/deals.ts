@@ -7,20 +7,28 @@ import {
 } from "@bedrock/calculations/contracts";
 import {
   AssignDealAgentInputSchema,
+  AttachDealPricingRouteRequestSchema,
   CloseDealInputSchema,
+  CreateDealPricingQuoteInputSchema,
   CreateDealLegOperationInputSchema,
   CreateDealDraftInputSchema,
   DealAttachmentIngestionSchema,
   DealCalculationHistoryItemSchema,
   DealDetailsSchema,
+  DealPricingContextSchema,
+  DealPricingPreviewSchema,
+  DealPricingQuoteResultSchema,
+  DealPricingRouteListSchema,
   DealWorkflowProjectionSchema,
   RequestDealExecutionInputSchema,
   DealTraceSchema,
+  PreviewDealPricingInputSchema,
   ReplaceDealIntakeInputSchema,
   ResolveDealExecutionBlockerInputSchema,
   TransitionDealStatusInputSchema,
   UpdateDealAgreementInputSchema,
   UpdateDealCommentInputSchema,
+  UpdateDealPricingContextInputSchema,
   UpdateDealLegStateInputSchema,
 } from "@bedrock/deals/contracts";
 import {
@@ -31,10 +39,10 @@ import {
 import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
 import { ValidationError } from "@bedrock/shared/core/errors";
 import {
-  PreviewQuoteInputSchema,
-  QuotePreviewResponseSchema,
   QuoteListItemSchema,
+  QuotePreviewResponseSchema,
   QuoteSchema,
+  PreviewQuoteInputSchema,
 } from "@bedrock/treasury/contracts";
 import {
   CrmDealBoardProjectionSchema,
@@ -77,6 +85,37 @@ import {
   serializeQuoteListItem,
   serializeQuotePreview,
 } from "./internal/treasury-quote-dto";
+
+function serializeDealPricingPreview(
+  preview: Awaited<ReturnType<AppContext["dealPricingWorkflow"]["preview"]>>,
+) {
+  return {
+    benchmarks: preview.benchmarks,
+    formulaTrace: preview.formulaTrace,
+    fundingSummary: preview.fundingSummary,
+    pricingMode: preview.pricingMode,
+    profitability: preview.profitability,
+    quotePreview: serializeQuotePreview(preview.quotePreview),
+    routePreview: preview.routePreview,
+  };
+}
+
+function serializeDealPricingQuoteResult(
+  result: Awaited<ReturnType<AppContext["dealPricingWorkflow"]["createQuote"]>>,
+) {
+  return {
+    benchmarks: result.benchmarks,
+    formulaTrace: result.formulaTrace,
+    pricingMode: result.pricingMode,
+    profitability: result.profitability,
+    quote: {
+      ...serializeQuote(result.quote),
+      benchmarks: result.benchmarks,
+      formulaTrace: result.formulaTrace,
+      profitability: result.profitability,
+    },
+  };
+}
 
 export function dealsRoutes(ctx: AppContext) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();
@@ -1230,6 +1269,188 @@ export function dealsRoutes(ctx: AppContext) {
     },
   });
 
+  const listDealPricingRoutesRoute = createRoute({
+    middleware: [requirePermission({ deals: ["list"] })],
+    method: "get",
+    path: "/{id}/pricing/routes",
+    tags: ["Deals"],
+    summary: "List recommended payment routes for deal pricing",
+    request: {
+      params: IdParamSchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: DealPricingRouteListSchema,
+          },
+        },
+        description: "Recommended deal pricing routes",
+      },
+    },
+  });
+
+  const attachDealPricingRouteRoute = createRoute({
+    middleware: [requirePermission({ deals: ["update"] })],
+    method: "post",
+    path: "/{id}/pricing/route/attach",
+    tags: ["Deals"],
+    summary: "Attach a payment route template to a deal pricing context",
+    request: {
+      params: IdParamSchema,
+      body: {
+        content: {
+          "application/json": {
+            schema: AttachDealPricingRouteRequestSchema,
+          },
+        },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: DealPricingContextSchema,
+          },
+        },
+        description: "Updated deal pricing context",
+      },
+    },
+  });
+
+  const detachDealPricingRouteRoute = createRoute({
+    middleware: [requirePermission({ deals: ["update"] })],
+    method: "delete",
+    path: "/{id}/pricing/route",
+    tags: ["Deals"],
+    summary: "Detach the attached payment route from a deal pricing context",
+    request: {
+      params: IdParamSchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: DealPricingContextSchema,
+          },
+        },
+        description: "Updated deal pricing context",
+      },
+    },
+  });
+
+  const updateDealPricingContextRoute = createRoute({
+    middleware: [requirePermission({ deals: ["update"] })],
+    method: "patch",
+    path: "/{id}/pricing/context",
+    tags: ["Deals"],
+    summary: "Update deal pricing context economics and funding adjustments",
+    request: {
+      params: IdParamSchema,
+      body: {
+        content: {
+          "application/json": {
+            schema: UpdateDealPricingContextInputSchema,
+          },
+        },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: DealPricingContextSchema,
+          },
+        },
+        description: "Updated deal pricing context",
+      },
+      409: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Revision conflict",
+      },
+    },
+  });
+
+  const previewDealPricingRoute = createRoute({
+    middleware: [requirePermission({ deals: ["update"] })],
+    method: "post",
+    path: "/{id}/pricing/preview",
+    tags: ["Deals"],
+    summary: "Preview deal pricing using an attached route or auto cross fallback",
+    request: {
+      params: IdParamSchema,
+      body: {
+        content: {
+          "application/json": {
+            schema: PreviewDealPricingInputSchema,
+          },
+        },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: DealPricingPreviewSchema,
+          },
+        },
+        description: "Deal pricing preview",
+      },
+      409: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Revision conflict",
+      },
+    },
+  });
+
+  const createDealPricingQuoteRoute = createRoute({
+    middleware: [requirePermission({ deals: ["update"] })],
+    method: "post",
+    path: "/{id}/pricing/quotes",
+    tags: ["Deals"],
+    summary: "Create a treasury quote from the current deal pricing context",
+    request: {
+      params: IdParamSchema,
+      body: {
+        content: {
+          "application/json": {
+            schema: CreateDealPricingQuoteInputSchema,
+          },
+        },
+        required: true,
+      },
+    },
+    responses: {
+      201: {
+        content: {
+          "application/json": {
+            schema: DealPricingQuoteResultSchema,
+          },
+        },
+        description: "Created deal pricing quote",
+      },
+      409: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Revision conflict",
+      },
+    },
+  });
+
   const listFormalDocumentsRoute = createRoute({
     middleware: [requirePermission({ deals: ["list"] })],
     method: "get",
@@ -1993,6 +2214,106 @@ export function dealsRoutes(ctx: AppContext) {
         });
 
         return jsonOk(c, serializeQuotePreview(result));
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(listDealPricingRoutesRoute, async (c) => {
+      try {
+        const { id } = c.req.valid("param");
+        const result = await ctx.dealPricingWorkflow.listRoutes({
+          dealId: id,
+        });
+
+        return jsonOk(c, result);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(attachDealPricingRouteRoute, async (c) => {
+      try {
+        const { id } = c.req.valid("param");
+        const body = c.req.valid("json");
+        const result = await ctx.dealPricingWorkflow.attachRoute({
+          dealId: id,
+          routeTemplateId: body.routeTemplateId,
+        });
+
+        return jsonOk(c, result);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(detachDealPricingRouteRoute, async (c) => {
+      try {
+        const { id } = c.req.valid("param");
+        const result = await ctx.dealPricingWorkflow.detachRoute({
+          dealId: id,
+        });
+
+        return jsonOk(c, result);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(updateDealPricingContextRoute, async (c) => {
+      try {
+        const { id } = c.req.valid("param");
+        const body = c.req.valid("json");
+        const result = await ctx.dealPricingWorkflow.updateContext({
+          dealId: id,
+          patch: body,
+        });
+
+        return jsonOk(c, result);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(previewDealPricingRoute, async (c) => {
+      try {
+        const { id } = c.req.valid("param");
+        const body = c.req.valid("json");
+        const result = await ctx.dealPricingWorkflow.preview({
+          ...body,
+          dealId: id,
+        });
+
+        return jsonOk(c, serializeDealPricingPreview(result));
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(createDealPricingQuoteRoute, async (c) => {
+      try {
+        const { id } = c.req.valid("param");
+        const body = c.req.valid("json");
+        const result = await withRequiredIdempotency(c, (idempotencyKey) =>
+          ctx.dealPricingWorkflow.createQuote({
+            ...body,
+            dealId: id,
+            idempotencyKey,
+          }),
+        );
+
+        if (result instanceof Response) {
+          return result;
+        }
+
+        await ctx.dealsModule.deals.commands.appendTimelineEvent({
+          actorUserId: c.get("user")!.id,
+          dealId: id,
+          payload: {
+            expiresAt: result.quote.expiresAt,
+            pricingMode: result.pricingMode,
+            quoteId: result.quote.id,
+          },
+          sourceRef: `quote:${result.quote.id}:created`,
+          type: "quote_created",
+          visibility: "internal",
+        });
+
+        return jsonOk(c, serializeDealPricingQuoteResult(result), 201);
       } catch (error) {
         return handleRouteError(c, error);
       }

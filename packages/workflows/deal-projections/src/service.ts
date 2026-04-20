@@ -1012,10 +1012,10 @@ async function toPortalIntakeSummary(
   const currencyCodes = await resolvePortalIntakeCurrencyCodes(workflow, deps);
 
   return {
-    contractNumber: workflow.intake.incomingReceipt.contractNumber,
+    contractNumber: workflow.intake.incomingReceipt?.contractNumber ?? null,
     customerNote: workflow.intake.common.customerNote,
-    expectedAmount: workflow.intake.incomingReceipt.expectedAmount,
-    invoiceNumber: workflow.intake.incomingReceipt.invoiceNumber,
+    expectedAmount: workflow.intake.incomingReceipt?.expectedAmount ?? null,
+    invoiceNumber: workflow.intake.incomingReceipt?.invoiceNumber ?? null,
     purpose: workflow.intake.moneyRequest.purpose,
     requestedExecutionDate: workflow.intake.common.requestedExecutionDate,
     sourceAmount: workflow.intake.moneyRequest.sourceAmount,
@@ -1110,7 +1110,19 @@ function toCrmDealCustomerContext(
 }
 
 function isQuoteEligible(workflow: DealWorkflowProjection) {
-  return workflow.executionPlan.some((leg) => leg.kind === "convert");
+  const sourceCurrencyId = workflow.intake.moneyRequest.sourceCurrencyId;
+  const targetCurrencyId = workflow.intake.moneyRequest.targetCurrencyId;
+  const requestedAmount =
+    workflow.intake.type === "payment"
+      ? workflow.intake.incomingReceipt?.expectedAmount
+      : workflow.intake.moneyRequest.sourceAmount;
+
+  return Boolean(
+    sourceCurrencyId &&
+      targetCurrencyId &&
+      sourceCurrencyId !== targetCurrencyId &&
+      requestedAmount,
+  );
 }
 
 function buildFundingMessage(workflow: DealWorkflowProjection) {
@@ -1143,7 +1155,7 @@ function buildFinanceQuoteRequestContext(workflow: DealWorkflowProjection) {
     return {
       fundingMessage: buildFundingMessage(workflow),
       fundingResolution: workflow.fundingResolution,
-      quoteAmount: workflow.intake.incomingReceipt.expectedAmount ?? null,
+      quoteAmount: workflow.intake.incomingReceipt?.expectedAmount ?? null,
       quoteAmountSide: "target" as const,
       sourceCurrencyId: workflow.intake.moneyRequest.sourceCurrencyId ?? null,
       targetCurrencyId: workflow.intake.moneyRequest.targetCurrencyId ?? null,
@@ -1967,6 +1979,7 @@ export function createDealProjectionsWorkflow(
       calculationsHistory,
       customer,
       internalEntity,
+      pricingContext,
     ] = await Promise.all([
       deps.agreements.agreements.queries.findById(workflow.summary.agreementId),
       applicantCounterpartyId
@@ -1981,6 +1994,7 @@ export function createDealProjectionsWorkflow(
             internalEntityOrganizationId,
           )
         : Promise.resolve(null),
+      deps.deals.deals.queries.findPricingContextByDealId({ dealId }),
     ]);
 
     const [
@@ -2076,6 +2090,7 @@ export function createDealProjectionsWorkflow(
       participants: workflow.participants,
       pricing: {
         calculationHistory: calculationsHistory,
+        context: pricingContext,
         currentCalculation,
         quoteEligibility: isQuoteEligible(workflow),
         quotes: quotesResult.data.map(serializeCrmPricingQuote),

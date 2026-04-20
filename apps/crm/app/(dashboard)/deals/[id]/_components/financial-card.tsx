@@ -40,7 +40,7 @@ export function FinancialCard({
       <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <CardTitle className="flex items-center gap-2">
           <Wallet className="h-5 w-5 text-muted-foreground" />
-          Расчет
+          Расчет по принятой котировке
         </CardTitle>
         <div className="flex flex-wrap items-center gap-2">
           {calculationHistory.length > 0 && (
@@ -86,7 +86,7 @@ export function FinancialCard({
             disabled={Boolean(disabledReason) || isCreating}
           >
             <Plus className="mr-2 h-4 w-4" />
-            {calculation ? "Новая версия" : "Создать расчет"}
+            {calculation ? "Зафиксировать новую версию" : "Зафиксировать расчет"}
           </Button>
         </div>
       </CardHeader>
@@ -97,120 +97,130 @@ export function FinancialCard({
           </div>
         )}
         {calculation ? (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div>
-              <div className="text-sm font-medium text-muted-foreground">
-                Валюта расчета
-              </div>
-              <div className="text-base">{calculation.currencyCode}</div>
+          <div className="space-y-4">
+            <div className="text-sm text-muted-foreground">
+              Это зафиксированная версия расчета для исполнения и учета. Live-preview
+              на вкладке цены не создает новую расчетную версию автоматически.
             </div>
-            <div>
-              <div className="text-sm font-medium text-muted-foreground">
-                Договорная комиссия
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div>
+                <div className="text-sm font-medium text-muted-foreground">
+                  Валюта расчета
+                </div>
+                <div className="text-base">{calculation.currencyCode}</div>
               </div>
-              <div className="text-base">
-                {calculation.agreementFeePercentage}% (
-                {formatCurrency(
-                  calculation.agreementFeeAmount,
-                  calculation.currencyCode,
-                )}
-                )
+              <div>
+                <div className="text-sm font-medium text-muted-foreground">
+                  Договорная комиссия
+                </div>
+                <div className="text-base">
+                  {calculation.agreementFeePercentage}% (
+                  {formatCurrency(
+                    calculation.agreementFeeAmount,
+                    calculation.currencyCode,
+                  )}
+                  )
+                </div>
               </div>
-            </div>
-            <div>
-              <div className="text-sm font-medium text-muted-foreground">
-                Надбавка к котировке
+              <div>
+                <div className="text-sm font-medium text-muted-foreground">
+                  Надбавка к котировке
+                </div>
+                <div className="text-base">
+                  {calculation.quoteMarkupPercentage}% (
+                  {formatCurrency(
+                    calculation.quoteMarkupAmount,
+                    calculation.currencyCode,
+                  )}
+                  )
+                </div>
               </div>
-              <div className="text-base">
-                {calculation.quoteMarkupPercentage}% (
-                {formatCurrency(
-                  calculation.quoteMarkupAmount,
-                  calculation.currencyCode,
-                )}
-                )
+              <div>
+                <div className="text-sm font-medium text-muted-foreground">
+                  Суммарная комиссия
+                </div>
+                <div className="text-base">
+                  {calculation.totalFeePercentage}% (
+                  {formatCurrency(
+                    calculation.totalFeeAmount,
+                    calculation.currencyCode,
+                  )}
+                  )
+                </div>
               </div>
-            </div>
-            <div>
-              <div className="text-sm font-medium text-muted-foreground">
-                Суммарная комиссия
+              <div>
+                <div className="text-sm font-medium text-muted-foreground">
+                  Итого к списанию
+                </div>
+                <div className="text-base font-semibold text-primary">
+                  {formatCurrency(
+                    calculation.totalAmount,
+                    calculation.currencyCode,
+                  )}
+                </div>
               </div>
-              <div className="text-base">
-                {calculation.totalFeePercentage}% (
-                {formatCurrency(
-                  calculation.totalFeeAmount,
-                  calculation.currencyCode,
-                )}
-                )
+              <div>
+                <div className="text-sm font-medium text-muted-foreground">
+                  Финальный курс клиента
+                </div>
+                <div className="text-base">{calculation.finalRate}</div>
               </div>
-            </div>
-            <div>
-              <div className="text-sm font-medium text-muted-foreground">
-                Итого к списанию
+              <div>
+                <div className="text-sm font-medium text-muted-foreground">
+                  Доп. расходы
+                </div>
+                <div className="text-base">
+                  {formatCurrency(
+                    calculation.additionalExpenses,
+                    calculation.additionalExpensesCurrencyCode ??
+                      calculation.baseCurrencyCode,
+                  )}
+                </div>
               </div>
-              <div className="text-base font-semibold text-primary">
-                {formatCurrency(
-                  calculation.totalAmount,
-                  calculation.currencyCode,
-                )}
+              <div>
+                <div className="text-sm font-medium text-muted-foreground">
+                  Фиксированная комиссия
+                </div>
+                <div className="text-base">
+                  {calculation.fixedFeeAmount && calculation.fixedFeeCurrencyCode
+                    ? formatCurrency(
+                        calculation.fixedFeeAmount,
+                        calculation.fixedFeeCurrencyCode,
+                      )
+                    : "Нет"}
+                </div>
               </div>
-            </div>
-            <div>
-              <div className="text-sm font-medium text-muted-foreground">
-                Финальный курс клиента
-              </div>
-              <div className="text-base">{calculation.finalRate}</div>
-            </div>
-            <div>
-              <div className="text-sm font-medium text-muted-foreground">
-                Доп. расходы
-              </div>
-              <div className="text-base">
-                {formatCurrency(
-                  calculation.additionalExpenses,
-                  calculation.additionalExpensesCurrencyCode ??
+              <div>
+                <div className="text-sm font-medium text-muted-foreground">
+                  Комиссия в базе
+                </div>
+                <div className="text-base">
+                  {formatCurrency(
+                    calculation.totalFeeAmountInBase,
                     calculation.baseCurrencyCode,
-                )}
+                  )}
+                </div>
               </div>
-            </div>
-            <div>
-              <div className="text-sm font-medium text-muted-foreground">
-                Фиксированная комиссия
-              </div>
-              <div className="text-base">
-                {calculation.fixedFeeAmount && calculation.fixedFeeCurrencyCode
-                  ? formatCurrency(
-                      calculation.fixedFeeAmount,
-                      calculation.fixedFeeCurrencyCode,
-                    )
-                  : "Нет"}
-              </div>
-            </div>
-            <div>
-              <div className="text-sm font-medium text-muted-foreground">
-                Комиссия в базе
-              </div>
-              <div className="text-base">
-                {formatCurrency(
-                  calculation.totalFeeAmountInBase,
-                  calculation.baseCurrencyCode,
-                )}
-              </div>
-            </div>
-            <div>
-              <div className="text-sm font-medium text-muted-foreground">
-                Оригинальная сумма
-              </div>
-              <div className="text-lg font-bold text-primary">
-                {formatCurrency(
-                  calculation.originalAmount,
-                  calculation.currencyCode,
-                )}
+              <div>
+                <div className="text-sm font-medium text-muted-foreground">
+                  Оригинальная сумма
+                </div>
+                <div className="text-lg font-bold text-primary">
+                  {formatCurrency(
+                    calculation.originalAmount,
+                    calculation.currencyCode,
+                  )}
+                </div>
               </div>
             </div>
           </div>
         ) : (
-          <div className="text-sm text-muted-foreground">
-            Расчет к сделке не привязан.
+          <div className="space-y-2 text-sm text-muted-foreground">
+            <div>Расчет к сделке пока не привязан.</div>
+            <div>
+              Зафиксируйте расчет после принятия котировки, чтобы создать версию
+              для исполнения и учета.
+            </div>
           </div>
         )}
       </CardContent>

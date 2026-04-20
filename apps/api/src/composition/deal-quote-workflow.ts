@@ -209,7 +209,10 @@ export function createDealQuoteWorkflow(deps: DealQuoteWorkflowDeps) {
 
       const quoteAdditionalExpensesByCurrency = quoteDetails.financialLines.reduce(
         (totals, line) => {
-          if (line.bucket !== "pass_through") {
+          if (
+            line.bucket !== "pass_through" ||
+            line.metadata?.embeddedInRoute === "true"
+          ) {
             return totals;
           }
 

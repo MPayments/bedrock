@@ -1,4 +1,7 @@
-import type { DealIntakeDraft } from "../contracts/dto";
+import type {
+  DealIntakeDraft,
+  DealPricingContextSnapshot,
+} from "../contracts/dto";
 import type {
   DealAttachmentIngestionStatus,
   DealApprovalStatus,
@@ -33,6 +36,12 @@ export interface CreateDealIntakeSnapshotStoredInput {
   dealId: string;
   revision: number;
   snapshot: DealIntakeDraft;
+}
+
+export interface CreateDealPricingContextStoredInput {
+  dealId: string;
+  revision: number;
+  snapshot: DealPricingContextSnapshot;
 }
 
 export interface CreateDealLegStoredInput {
@@ -152,6 +161,9 @@ export interface DealStore {
   createDealIntakeSnapshot(
     input: CreateDealIntakeSnapshotStoredInput,
   ): Promise<void>;
+  createDealPricingContext(
+    input: CreateDealPricingContextStoredInput,
+  ): Promise<void>;
   createDealLegOperationLinks(
     input: CreateDealLegOperationLinkStoredInput[],
   ): Promise<void>;
@@ -191,6 +203,12 @@ export interface DealStore {
     expectedRevision: number;
     nextRevision: number;
     snapshot: DealIntakeDraft;
+  }): Promise<boolean>;
+  replaceDealPricingContext(input: {
+    dealId: string;
+    expectedRevision: number;
+    nextRevision: number;
+    snapshot: DealPricingContextSnapshot;
   }): Promise<boolean>;
   setDealRoot(input: {
     agreementId?: string;

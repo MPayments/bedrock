@@ -7,6 +7,7 @@ import {
   DealBankInstructionSnapshotSchema,
   DealCalculationHistoryItemSchema,
   DealCounterpartySnapshotSchema,
+  DealPricingContextSchema,
   DealRelatedFormalDocumentSchema,
   DealRelatedQuoteSchema,
   DealSummarySchema,
@@ -139,6 +140,7 @@ export type CrmDealCustomerContext = z.infer<
 
 export const DealPricingSummarySchema = z.object({
   calculationHistory: z.array(DealCalculationHistoryItemSchema),
+  context: DealPricingContextSchema,
   currentCalculation: CalculationDetailsSchema.nullable(),
   quoteEligibility: z.boolean(),
   quotes: z.array(QuoteSchema),

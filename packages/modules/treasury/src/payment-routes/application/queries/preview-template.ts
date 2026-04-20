@@ -21,6 +21,7 @@ export class PreviewPaymentRouteQuery {
     const validated = PreviewPaymentRouteInputSchema.parse(input);
 
     return previewPaymentRoute({
+      asOf: validated.asOf,
       currencies: this.currencies,
       draft: validated.draft,
       getCrossRate: this.getCrossRate,

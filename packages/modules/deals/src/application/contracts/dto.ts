@@ -5,6 +5,13 @@ import {
   createPaginatedListSchema,
   type PaginatedList,
 } from "@bedrock/shared/core/pagination";
+import {
+  PaymentRouteCalculationSchema,
+  PaymentRouteDraftSchema,
+  PaymentRouteTemplateListItemSchema,
+  QuotePreviewResponseSchema,
+  QuoteSchema,
+} from "@bedrock/treasury/contracts";
 
 import {
   DealAttachmentIngestionStatusSchema,
@@ -28,9 +35,18 @@ import {
 const DecimalStringSchema = z
   .string()
   .trim()
+  .transform((value) => value.replace(",", "."))
   .refine(isDecimalString);
 
 const nullableDecimalStringSchema = DecimalStringSchema.nullable();
+const signedMinorAmountStringSchema = z
+  .string()
+  .trim()
+  .regex(/^-?(0|[1-9]\d*)$/u, "Must be an integer string");
+const signedDecimalStringSchema = z
+  .string()
+  .trim()
+  .regex(/^-?(0|[1-9]\d*)(\.\d+)?$/u, "Must be a decimal string");
 
 export const DealCounterpartySnapshotSchema = z.object({
   country: z.string().nullable(),
@@ -231,6 +247,207 @@ export const DealTransitionReadinessSchema = z.object({
 export type DealTransitionReadiness = z.infer<
   typeof DealTransitionReadinessSchema
 >;
+
+export const DealFundingAdjustmentKindSchema = z.enum([
+  "available_balance",
+  "reconciliation_adjustment",
+  "already_funded",
+  "manual_offset",
+]);
+
+export type DealFundingAdjustmentKind = z.infer<
+  typeof DealFundingAdjustmentKindSchema
+>;
+
+export const DealFundingAdjustmentSchema = z.object({
+  amountMinor: signedMinorAmountStringSchema,
+  currencyId: z.uuid(),
+  id: z.uuid(),
+  kind: DealFundingAdjustmentKindSchema,
+  label: z.string().trim().min(1).max(255),
+});
+
+export type DealFundingAdjustment = z.infer<
+  typeof DealFundingAdjustmentSchema
+>;
+
+export const DealPricingCommercialDraftSchema = z.object({
+  fixedFeeAmount: nullableDecimalStringSchema.optional().default(null),
+  fixedFeeCurrency: z.string().trim().min(1).max(16).nullable().default(null),
+  quoteMarkupPercent: nullableDecimalStringSchema.optional().default(null),
+});
+
+export type DealPricingCommercialDraft = z.infer<
+  typeof DealPricingCommercialDraftSchema
+>;
+
+export const DealPricingRouteAttachmentSchema = z.object({
+  attachedAt: z.coerce.date(),
+  snapshot: PaymentRouteDraftSchema,
+  templateId: z.uuid(),
+  templateName: z.string().trim().min(1),
+});
+
+export type DealPricingRouteAttachment = z.infer<
+  typeof DealPricingRouteAttachmentSchema
+>;
+
+export const DealPricingContextSnapshotSchema = z.object({
+  commercialDraft: DealPricingCommercialDraftSchema,
+  fundingAdjustments: z.array(DealFundingAdjustmentSchema),
+  routeAttachment: DealPricingRouteAttachmentSchema.nullable(),
+});
+
+export type DealPricingContextSnapshot = z.infer<
+  typeof DealPricingContextSnapshotSchema
+>;
+
+export const DealPricingContextSchema = DealPricingContextSnapshotSchema.extend({
+  revision: z.number().int().positive(),
+});
+
+export type DealPricingContext = z.infer<typeof DealPricingContextSchema>;
+
+export const DealPricingModeSchema = z.enum(["auto_cross", "explicit_route"]);
+
+export type DealPricingMode = z.infer<typeof DealPricingModeSchema>;
+
+export const DealFundingPositionSchema = z.object({
+  adjustmentTotalMinor: signedMinorAmountStringSchema.or(z.literal("0")),
+  currencyCode: z.string().trim().min(1).max(16),
+  currencyId: z.uuid(),
+  netFundingNeedMinor: signedMinorAmountStringSchema.or(z.literal("0")),
+  requiredMinor: z.string().trim().regex(/^(0|[1-9]\d*)$/u),
+});
+
+export type DealFundingPosition = z.infer<typeof DealFundingPositionSchema>;
+
+export const DealFundingSummarySchema = z.object({
+  positions: z.array(DealFundingPositionSchema),
+});
+
+export type DealFundingSummary = z.infer<typeof DealFundingSummarySchema>;
+
+export const DealPricingRateSourceKindSchema = z.enum([
+  "market",
+  "route",
+  "client",
+  "cost",
+]);
+
+export type DealPricingRateSourceKind = z.infer<
+  typeof DealPricingRateSourceKindSchema
+>;
+
+export const DealPricingRateSnapshotSchema = z.object({
+  asOf: z.coerce.date(),
+  baseCurrency: z.string().trim().min(1).max(16),
+  quoteCurrency: z.string().trim().min(1).max(16),
+  rateDen: z.string().trim().regex(/^(0|[1-9]\d*)$/u),
+  rateNum: z.string().trim().regex(/^(0|[1-9]\d*)$/u),
+  sourceKind: DealPricingRateSourceKindSchema,
+  sourceLabel: z.string().trim().min(1).max(255).nullable().default(null),
+});
+
+export type DealPricingRateSnapshot = z.infer<
+  typeof DealPricingRateSnapshotSchema
+>;
+
+export const DealPricingBenchmarksSchema = z.object({
+  client: DealPricingRateSnapshotSchema,
+  cost: DealPricingRateSnapshotSchema.nullable(),
+  market: DealPricingRateSnapshotSchema,
+  pricingBase: z.enum(["route_benchmark", "market_benchmark"]),
+  routeBase: DealPricingRateSnapshotSchema.nullable(),
+});
+
+export type DealPricingBenchmarks = z.infer<
+  typeof DealPricingBenchmarksSchema
+>;
+
+export const DealPricingProfitabilitySchema = z.object({
+  commercialRevenueMinor: signedMinorAmountStringSchema.or(z.literal("0")),
+  costPriceMinor: signedMinorAmountStringSchema.or(z.literal("0")),
+  currency: z.string().trim().min(1).max(16),
+  customerPrincipalMinor: signedMinorAmountStringSchema.or(z.literal("0")),
+  customerTotalMinor: signedMinorAmountStringSchema.or(z.literal("0")),
+  passThroughMinor: signedMinorAmountStringSchema.or(z.literal("0")),
+  profitMinor: signedMinorAmountStringSchema.or(z.literal("0")),
+  profitPercentOnCost: signedDecimalStringSchema,
+});
+
+export type DealPricingProfitability = z.infer<
+  typeof DealPricingProfitabilitySchema
+>;
+
+export const DealPricingFormulaLineSchema = z.object({
+  currency: z.string().trim().min(1).max(16).nullable().default(null),
+  expression: z.string().trim().min(1),
+  kind: z.enum(["equation", "note"]),
+  label: z.string().trim().min(1),
+  metadata: z.record(z.string(), z.unknown()).default({}),
+  result: z.string().trim().min(1),
+});
+
+export type DealPricingFormulaLine = z.infer<
+  typeof DealPricingFormulaLineSchema
+>;
+
+export const DealPricingFormulaSectionSchema = z.object({
+  kind: z.enum(["client_pricing", "route_execution", "funding"]),
+  lines: z.array(DealPricingFormulaLineSchema),
+  title: z.string().trim().min(1),
+});
+
+export type DealPricingFormulaSection = z.infer<
+  typeof DealPricingFormulaSectionSchema
+>;
+
+export const DealPricingFormulaTraceSchema = z.object({
+  sections: z.array(DealPricingFormulaSectionSchema),
+});
+
+export type DealPricingFormulaTrace = z.infer<
+  typeof DealPricingFormulaTraceSchema
+>;
+
+export const DealPricingQuoteSchema = QuoteSchema.extend({
+  benchmarks: DealPricingBenchmarksSchema.nullable().default(null),
+  formulaTrace: DealPricingFormulaTraceSchema.nullable().default(null),
+  profitability: DealPricingProfitabilitySchema.nullable().default(null),
+});
+
+export type DealPricingQuote = z.infer<typeof DealPricingQuoteSchema>;
+
+export const DealPricingPreviewSchema = z.object({
+  benchmarks: DealPricingBenchmarksSchema,
+  formulaTrace: DealPricingFormulaTraceSchema,
+  fundingSummary: DealFundingSummarySchema,
+  pricingMode: DealPricingModeSchema,
+  profitability: DealPricingProfitabilitySchema.nullable(),
+  quotePreview: QuotePreviewResponseSchema,
+  routePreview: PaymentRouteCalculationSchema.nullable(),
+});
+
+export type DealPricingPreview = z.infer<typeof DealPricingPreviewSchema>;
+
+export const DealPricingQuoteResultSchema = z.object({
+  benchmarks: DealPricingBenchmarksSchema,
+  formulaTrace: DealPricingFormulaTraceSchema,
+  pricingMode: DealPricingModeSchema,
+  profitability: DealPricingProfitabilitySchema.nullable(),
+  quote: DealPricingQuoteSchema,
+});
+
+export type DealPricingQuoteResult = z.infer<
+  typeof DealPricingQuoteResultSchema
+>;
+
+export const DealPricingRouteListSchema = z.array(
+  PaymentRouteTemplateListItemSchema,
+);
+
+export type DealPricingRouteList = z.infer<typeof DealPricingRouteListSchema>;
 
 export const DealRelatedQuoteSchema = z.object({
   expiresAt: z.date().nullable(),

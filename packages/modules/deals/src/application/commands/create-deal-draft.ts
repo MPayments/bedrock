@@ -22,6 +22,7 @@ import type {
   DealAgreementReference,
   DealReferencesPort,
 } from "../ports/references.port";
+import { createDefaultDealPricingContextSnapshot } from "../shared/pricing-context";
 import {
   buildDealLegRows,
   buildDealOperationalPositionRows,
@@ -198,6 +199,11 @@ export class CreateDealDraftCommand {
             dealId,
             revision: 1,
             snapshot: validated.intake,
+          });
+          await tx.dealStore.createDealPricingContext({
+            dealId,
+            revision: 1,
+            snapshot: createDefaultDealPricingContextSnapshot(),
           });
           await tx.dealStore.replaceDealLegs({
             dealId,

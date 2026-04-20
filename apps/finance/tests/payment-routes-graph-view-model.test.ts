@@ -108,7 +108,16 @@ describe("payment route graph view model", () => {
       additionalFees: [],
       amountInMinor: "1200000",
       amountOutMinor: "1188000",
+      chargedFeeTotals: [
+        {
+          amountMinor: "12000",
+          currencyId: OPTIONS.currencies[0]!.id,
+        },
+      ],
+      cleanAmountOutMinor: "1200000",
+      clientTotalInMinor: "1200000",
       computedAt: "2026-04-16T08:00:00.000Z",
+      costPriceInMinor: "1200000",
       currencyInId: OPTIONS.currencies[0]!.id,
       currencyOutId: OPTIONS.currencies[0]!.id,
       feeTotals: [
@@ -118,12 +127,14 @@ describe("payment route graph view model", () => {
         },
       ],
       grossAmountOutMinor: "1200000",
+      internalFeeTotals: [],
       legs: [
         {
           asOf: "2026-04-16T08:00:00.000Z",
           fees: [
             {
               amountMinor: "12000",
+              chargeToCustomer: true,
               currencyId: OPTIONS.currencies[0]!.id,
               id: "fee-1",
               inputImpactCurrencyId: OPTIONS.currencies[0]!.id,
@@ -132,6 +143,7 @@ describe("payment route graph view model", () => {
               label: "Bank fee",
               outputImpactCurrencyId: OPTIONS.currencies[0]!.id,
               outputImpactMinor: "12000",
+              routeInputImpactMinor: "12000",
             },
           ],
           fromCurrencyId: OPTIONS.currencies[0]!.id,

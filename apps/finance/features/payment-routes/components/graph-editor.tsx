@@ -646,6 +646,7 @@ function PaymentRouteGraphInspector({
                     ...currentLeg.fees,
                     {
                       amountMinor: "100",
+                      chargeToCustomer: false,
                       currencyId: leg.fromCurrencyId,
                       id: `route-fee-${crypto.randomUUID()}`,
                       kind: "fixed",

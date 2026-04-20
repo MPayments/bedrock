@@ -85,6 +85,10 @@ import { createApiAgreementsModule } from "./agreements-module";
 import { createApiCalculationsModule } from "./calculations-module";
 import type { ApiCoreServices } from "./core";
 import {
+  createDealPricingWorkflow,
+  type DealPricingWorkflow,
+} from "./deal-pricing-workflow";
+import {
   createDealQuoteWorkflow,
   type DealQuoteWorkflow,
 } from "./deal-quote-workflow";
@@ -115,6 +119,7 @@ export interface ApiApplicationServices {
   treasuryModule: TreasuryModule;
   dealAttachmentIngestionWorkflow: DealAttachmentIngestionWorkflow;
   dealExecutionWorkflow: DealExecutionWorkflow;
+  dealPricingWorkflow: DealPricingWorkflow;
   dealQuoteWorkflow: DealQuoteWorkflow;
   dealProjectionsWorkflow: DealProjectionsWorkflow;
   reconciliationAdjustmentsWorkflow: ReconciliationAdjustmentsWorkflow;
@@ -259,6 +264,12 @@ export function createApplicationServices(
   const dealQuoteWorkflow = createDealQuoteWorkflow({
     agreements: agreementsModule,
     calculations: calculationsModule,
+    currencies: currenciesService,
+    deals: dealsModule,
+    treasury: treasuryModule,
+  });
+  const dealPricingWorkflow = createDealPricingWorkflow({
+    agreements: agreementsModule,
     currencies: currenciesService,
     deals: dealsModule,
     treasury: treasuryModule,
@@ -650,6 +661,7 @@ export function createApplicationServices(
     treasuryModule,
     dealAttachmentIngestionWorkflow,
     dealExecutionWorkflow,
+    dealPricingWorkflow,
     dealQuoteWorkflow,
     dealProjectionsWorkflow,
     reconciliationAdjustmentsWorkflow,

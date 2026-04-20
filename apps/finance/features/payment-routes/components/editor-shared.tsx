@@ -10,6 +10,7 @@ import {
 } from "@bedrock/sdk-ui/components/alert";
 import { Badge } from "@bedrock/sdk-ui/components/badge";
 import { Button } from "@bedrock/sdk-ui/components/button";
+import { Checkbox } from "@bedrock/sdk-ui/components/checkbox";
 import { ButtonGroup } from "@bedrock/sdk-ui/components/button-group";
 import {
   Field,
@@ -683,6 +684,7 @@ export function FeeListEditor({
                       value={fee.percentage ?? "0.10"}
                       onCommit={(percentage) =>
                         onChange(fee.id, (current) => ({
+                          chargeToCustomer: current.chargeToCustomer,
                           id: current.id,
                           kind: "percent",
                           label: current.label,
@@ -700,6 +702,19 @@ export function FeeListEditor({
                 >
                   Удалить
                 </Button>
+              </div>
+              <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
+                <Checkbox
+                  aria-label="Включать расход в цену клиента"
+                  checked={fee.chargeToCustomer}
+                  onCheckedChange={(checked) =>
+                    onChange(fee.id, (current) => ({
+                      ...current,
+                      chargeToCustomer: Boolean(checked),
+                    }))
+                  }
+                />
+                <span>Включать в цену клиента</span>
               </div>
             </div>
           );

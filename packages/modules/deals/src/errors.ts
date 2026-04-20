@@ -21,6 +21,14 @@ export class DealRevisionConflictError extends InvalidStateError {
   }
 }
 
+export class DealPricingContextRevisionConflictError extends InvalidStateError {
+  constructor(dealId: string, expectedRevision: number) {
+    super(
+      `Deal ${dealId} pricing context revision conflict: expected revision ${expectedRevision}`,
+    );
+  }
+}
+
 export class DealAgreementCustomerMismatchError extends ValidationError {
   constructor(agreementId: string, customerId: string) {
     super(

@@ -10,6 +10,7 @@ import {
   dealLegs,
   dealLegOperationLinks,
   dealOperationalPositions,
+  dealPricingContexts,
   dealParticipants,
   deals,
   dealQuoteAcceptances,
@@ -21,6 +22,7 @@ import type {
   CreateDealIntakeSnapshotStoredInput,
   CreateDealLegOperationLinkStoredInput,
   CreateDealLegStoredInput,
+  CreateDealPricingContextStoredInput,
   CreateDealParticipantStoredInput,
   CreateDealQuoteAcceptanceStoredInput,
   CreateDealRootInput,
@@ -143,6 +145,16 @@ export class DrizzleDealStore implements DealStore {
     });
   }
 
+  async createDealPricingContext(
+    input: CreateDealPricingContextStoredInput,
+  ): Promise<void> {
+    await this.db.insert(dealPricingContexts).values({
+      dealId: input.dealId,
+      revision: input.revision,
+      snapshot: input.snapshot,
+    });
+  }
+
   async createDealLegOperationLinks(
     input: CreateDealLegOperationLinkStoredInput[],
   ): Promise<void> {
@@ -185,6 +197,29 @@ export class DrizzleDealStore implements DealStore {
         ),
       )
       .returning({ dealId: dealIntakeSnapshots.dealId });
+
+    return updated.length > 0;
+  }
+
+  async replaceDealPricingContext(input: {
+    dealId: string;
+    expectedRevision: number;
+    nextRevision: number;
+    snapshot: CreateDealPricingContextStoredInput["snapshot"];
+  }): Promise<boolean> {
+    const updated = await this.db
+      .update(dealPricingContexts)
+      .set({
+        revision: input.nextRevision,
+        snapshot: input.snapshot,
+      })
+      .where(
+        and(
+          eq(dealPricingContexts.dealId, input.dealId),
+          eq(dealPricingContexts.revision, input.expectedRevision),
+        ),
+      )
+      .returning({ dealId: dealPricingContexts.dealId });
 
     return updated.length > 0;
   }

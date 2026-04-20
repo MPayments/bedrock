@@ -25,7 +25,11 @@ vi.mock("../../src/auth", () => ({
   },
 }));
 
-import { DealNotFoundError, DealTransitionBlockedError } from "@bedrock/deals";
+import {
+  DealNotFoundError,
+  DealPricingContextRevisionConflictError,
+  DealTransitionBlockedError,
+} from "@bedrock/deals";
 
 import { dealsRoutes } from "../../src/routes/deals";
 
@@ -443,6 +447,223 @@ function createFinanceWorkspaceProjection() {
   } as const;
 }
 
+function createDealPricingRouteCandidate() {
+  return {
+    createdAt: "2026-04-19T09:00:00.000Z",
+    currencyInId: "00000000-0000-4000-8000-000000000006",
+    currencyOutId: "00000000-0000-4000-8000-000000000007",
+    destinationEndpoint: {
+      binding: "abstract",
+      displayName: "Beneficiary",
+      entityId: null,
+      entityKind: null,
+      requisiteId: null,
+      role: "destination",
+    },
+    hopCount: 1,
+    id: "00000000-0000-4000-8000-000000000301",
+    lastCalculation: null,
+    name: "RUB via AED to USD",
+    snapshotPolicy: "clone_on_attach",
+    sourceEndpoint: {
+      binding: "abstract",
+      displayName: "Client",
+      entityId: null,
+      entityKind: null,
+      requisiteId: null,
+      role: "source",
+    },
+    status: "active",
+    updatedAt: "2026-04-19T10:00:00.000Z",
+  } as const;
+}
+
+function createDealPricingPreview() {
+  return {
+    benchmarks: {
+      client: {
+        asOf: "2026-04-19T09:58:00.000Z",
+        baseCurrency: "RUB",
+        quoteCurrency: "USD",
+        rateDen: "79005226",
+        rateNum: "101819387",
+        sourceKind: "client" as const,
+        sourceLabel: "Курс клиенту",
+      },
+      cost: {
+        asOf: "2026-04-19T09:58:00.000Z",
+        baseCurrency: "RUB",
+        quoteCurrency: "USD",
+        rateDen: "79005526",
+        rateNum: "101819387",
+        sourceKind: "cost" as const,
+        sourceLabel: "Курс себестоимости",
+      },
+      market: {
+        asOf: "2026-04-19T09:58:00.000Z",
+        baseCurrency: "RUB",
+        quoteCurrency: "USD",
+        rateDen: "78926300",
+        rateNum: "1000000",
+        sourceKind: "market" as const,
+        sourceLabel: "Рыночный курс",
+      },
+      pricingBase: "route_benchmark" as const,
+      routeBase: {
+        asOf: "2026-04-19T09:58:00.000Z",
+        baseCurrency: "RUB",
+        quoteCurrency: "USD",
+        rateDen: "36700",
+        rateNum: "47300",
+        sourceKind: "route" as const,
+        sourceLabel: "Базовый курс маршрута",
+      },
+    },
+    formulaTrace: {
+      sections: [
+        {
+          kind: "client_pricing" as const,
+          lines: [
+            {
+              currency: "USD",
+              expression: "790 052.26 RUB / 77.59 = 10 181.94 USD",
+              kind: "equation" as const,
+              label: "Цена клиенту",
+              metadata: {},
+              result: "10 181.94 USD",
+            },
+          ],
+          title: "Цена клиенту",
+        },
+      ],
+    },
+    fundingSummary: {
+      positions: [
+        {
+          adjustmentTotalMinor: "0",
+          currencyCode: "RUB",
+          currencyId: "00000000-0000-4000-8000-000000000006",
+          netFundingNeedMinor: "79005226",
+          requiredMinor: "79005226",
+        },
+      ],
+    },
+    pricingMode: "explicit_route" as const,
+    profitability: {
+      commercialRevenueMinor: "197513",
+      costPriceMinor: "79005526",
+      currency: "RUB",
+      customerPrincipalMinor: "79005226",
+      customerTotalMinor: "79005376",
+      passThroughMinor: "150",
+      profitMinor: "197213",
+      profitPercentOnCost: "0.25",
+    },
+    quotePreview: {
+      commercialTerms: {
+        agreementFeeBps: 125n,
+        agreementVersionId: "agreement-version-1",
+        fixedFeeAmountMinor: 1500n,
+        fixedFeeCurrency: "USD",
+        quoteMarkupBps: 25n,
+        totalFeeBps: 150n,
+      },
+      dealDirection: null,
+      dealForm: null,
+      expiresAt: new Date("2026-04-19T10:58:00.000Z"),
+      feeComponents: [],
+      financialLines: [
+        {
+          amountMinor: 300n,
+          bucket: "provider_fee_expense",
+          currency: "RUB",
+          source: "manual",
+        },
+      ],
+      fromAmountMinor: 79005226n,
+      fromCurrency: "RUB",
+      legs: [],
+      pricingMode: "explicit_route" as const,
+      pricingTrace: {},
+      rateDen: 79005226n,
+      rateNum: 101819387n,
+      toAmountMinor: 101819387n,
+      toCurrency: "USD",
+    },
+    routePreview: {
+      additionalFees: [],
+      amountInMinor: "79005226",
+      amountOutMinor: "101819387",
+      chargedFeeTotals: [],
+      cleanAmountOutMinor: "101819387",
+      clientTotalInMinor: "79005226",
+      computedAt: "2026-04-19T09:58:00.000Z",
+      costPriceInMinor: "79005526",
+      currencyInId: "00000000-0000-4000-8000-000000000006",
+      currencyOutId: "00000000-0000-4000-8000-000000000007",
+      feeTotals: [
+        {
+          amountMinor: "300",
+          currencyId: "00000000-0000-4000-8000-000000000006",
+        },
+      ],
+      grossAmountOutMinor: "101819387",
+      internalFeeTotals: [
+        {
+          amountMinor: "300",
+          currencyId: "00000000-0000-4000-8000-000000000006",
+        },
+      ],
+      legs: [],
+      lockedSide: "currency_in" as const,
+      netAmountOutMinor: "101819387",
+    },
+  };
+}
+
+function createDealPricingQuoteResult() {
+  return {
+    benchmarks: createDealPricingPreview().benchmarks,
+    formulaTrace: createDealPricingPreview().formulaTrace,
+    pricingMode: "explicit_route" as const,
+    profitability: createDealPricingPreview().profitability,
+    quote: {
+      benchmarks: createDealPricingPreview().benchmarks,
+      commercialTerms: {
+        agreementFeeBps: 125n,
+        agreementVersionId: "agreement-version-1",
+        fixedFeeAmountMinor: 1500n,
+        fixedFeeCurrency: "USD",
+        quoteMarkupBps: 25n,
+        totalFeeBps: 150n,
+      },
+      createdAt: new Date("2026-04-19T09:58:00.000Z"),
+      dealDirection: null,
+      dealForm: null,
+      dealId: "00000000-0000-4000-8000-000000000010",
+      expiresAt: new Date("2026-04-19T10:58:00.000Z"),
+      fromAmountMinor: 79005226n,
+      fromCurrency: "RUB",
+      fromCurrencyId: "00000000-0000-4000-8000-000000000006",
+      id: "00000000-0000-4000-8000-000000000302",
+      idempotencyKey: "pricing-quote-1",
+      formulaTrace: createDealPricingPreview().formulaTrace,
+      pricingMode: "explicit_route" as const,
+      pricingTrace: {},
+      profitability: createDealPricingPreview().profitability,
+      rateDen: 79005226n,
+      rateNum: 101819387n,
+      status: "active" as const,
+      toAmountMinor: 101819387n,
+      toCurrency: "USD",
+      toCurrencyId: "00000000-0000-4000-8000-000000000007",
+      usedAt: null,
+      usedByRef: null,
+      usedDocumentId: null,
+    },
+  };
+}
+
 function createTestApp() {
   const dealsModule = createDealsModuleStub();
   const agreementsModule = {
@@ -464,6 +685,14 @@ function createTestApp() {
   };
   const dealQuoteWorkflow = {
     createCalculationFromAcceptedQuote: vi.fn(),
+  };
+  const dealPricingWorkflow = {
+    attachRoute: vi.fn(),
+    createQuote: vi.fn(),
+    detachRoute: vi.fn(),
+    listRoutes: vi.fn(),
+    preview: vi.fn(),
+    updateContext: vi.fn(),
   };
   const dealExecutionWorkflow = {
     closeDeal: vi.fn(),
@@ -545,6 +774,7 @@ function createTestApp() {
     dealsRoutes({
       dealProjectionsWorkflow,
       dealExecutionWorkflow,
+      dealPricingWorkflow,
       dealQuoteWorkflow,
       dealsModule,
       agreementsModule,
@@ -563,6 +793,7 @@ function createTestApp() {
     app,
     dealProjectionsWorkflow,
     dealExecutionWorkflow,
+    dealPricingWorkflow,
     dealQuoteWorkflow,
     dealsModule,
     agreementsModule,
@@ -927,6 +1158,157 @@ describe("deals routes", () => {
         }),
       }),
     );
+  });
+
+  it("lists recommended payment routes for deal pricing", async () => {
+    const { app, dealPricingWorkflow } = createTestApp();
+    dealPricingWorkflow.listRoutes.mockResolvedValue([
+      createDealPricingRouteCandidate(),
+    ]);
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/pricing/routes",
+    );
+
+    expect(response.status).toBe(200);
+    expect(dealPricingWorkflow.listRoutes).toHaveBeenCalledWith({
+      dealId: "00000000-0000-4000-8000-000000000010",
+    });
+    await expect(response.json()).resolves.toMatchObject([
+      {
+        id: "00000000-0000-4000-8000-000000000301",
+        name: "RUB via AED to USD",
+      },
+    ]);
+  });
+
+  it("previews deal pricing through the route pricing workflow", async () => {
+    const { app, dealPricingWorkflow } = createTestApp();
+    dealPricingWorkflow.preview.mockResolvedValue(createDealPricingPreview());
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/pricing/preview",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          amountMinor: "79005226",
+          amountSide: "source",
+          asOf: "2026-04-19T09:58:00.000Z",
+          expectedRevision: 3,
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(dealPricingWorkflow.preview).toHaveBeenCalledWith({
+      amountMinor: "79005226",
+      amountSide: "source",
+      asOf: new Date("2026-04-19T09:58:00.000Z"),
+      dealId: "00000000-0000-4000-8000-000000000010",
+      expectedRevision: 3,
+    });
+    await expect(response.json()).resolves.toMatchObject({
+      fundingSummary: {
+        positions: [
+          {
+            currencyCode: "RUB",
+            netFundingNeedMinor: "79005226",
+          },
+        ],
+      },
+      pricingMode: "explicit_route",
+      quotePreview: {
+        financialLines: [
+          {
+            amountMinor: "300",
+            bucket: "provider_fee_expense",
+          },
+        ],
+      },
+    });
+  });
+
+  it("creates a deal pricing quote and appends a timeline event", async () => {
+    const { app, dealPricingWorkflow, dealsModule } = createTestApp();
+    dealPricingWorkflow.createQuote.mockResolvedValue(
+      createDealPricingQuoteResult(),
+    );
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/pricing/quotes",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "idempotency-key": "pricing-quote-1",
+        },
+        body: JSON.stringify({
+          amountMinor: "79005226",
+          amountSide: "source",
+          asOf: "2026-04-19T09:58:00.000Z",
+          expectedRevision: 3,
+        }),
+      },
+    );
+
+    expect(response.status).toBe(201);
+    expect(dealPricingWorkflow.createQuote).toHaveBeenCalledWith({
+      amountMinor: "79005226",
+      amountSide: "source",
+      asOf: new Date("2026-04-19T09:58:00.000Z"),
+      dealId: "00000000-0000-4000-8000-000000000010",
+      expectedRevision: 3,
+      idempotencyKey: "pricing-quote-1",
+    });
+    expect(dealsModule.deals.commands.appendTimelineEvent).toHaveBeenCalledWith({
+      actorUserId: "user-1",
+      dealId: "00000000-0000-4000-8000-000000000010",
+      payload: {
+        expiresAt: new Date("2026-04-19T10:58:00.000Z"),
+        pricingMode: "explicit_route",
+        quoteId: "00000000-0000-4000-8000-000000000302",
+      },
+      sourceRef: "quote:00000000-0000-4000-8000-000000000302:created",
+      type: "quote_created",
+      visibility: "internal",
+    });
+    await expect(response.json()).resolves.toMatchObject({
+      pricingMode: "explicit_route",
+      quote: {
+        id: "00000000-0000-4000-8000-000000000302",
+      },
+    });
+  });
+
+  it("returns 409 for stale pricing context updates", async () => {
+    const { app, dealPricingWorkflow } = createTestApp();
+    dealPricingWorkflow.updateContext.mockRejectedValue(
+      new DealPricingContextRevisionConflictError(
+        "00000000-0000-4000-8000-000000000010",
+        3,
+      ),
+    );
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/pricing/context",
+      {
+        method: "PATCH",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          commercialDraft: {
+            quoteMarkupPercent: "0.25",
+          },
+          expectedRevision: 3,
+        }),
+      },
+    );
+
+    expect(response.status).toBe(409);
   });
 
   it("normalizes decimal agreement fee bps before previewing a deal quote", async () => {

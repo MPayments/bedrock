@@ -67,6 +67,7 @@ function createDraft() {
         fees: [
           {
             amountMinor: "100",
+            chargeToCustomer: false,
             currencyId: IDS.usd,
             id: "fee-1",
             kind: "fixed",
@@ -133,7 +134,16 @@ function createCalculation() {
     additionalFees: [],
     amountInMinor: "10000",
     amountOutMinor: "9900",
+    chargedFeeTotals: [
+      {
+        amountMinor: "100",
+        currencyId: IDS.usd,
+      },
+    ],
+    cleanAmountOutMinor: "10000",
+    clientTotalInMinor: "10000",
     computedAt: NOW,
+    costPriceInMinor: "10000",
     currencyInId: IDS.usd,
     currencyOutId: IDS.usd,
     feeTotals: [
@@ -143,12 +153,14 @@ function createCalculation() {
       },
     ],
     grossAmountOutMinor: "10000",
+    internalFeeTotals: [],
     legs: [
       {
         asOf: NOW,
         fees: [
           {
             amountMinor: "100",
+            chargeToCustomer: true,
             currencyId: IDS.usd,
             id: "fee-1",
             inputImpactCurrencyId: IDS.usd,

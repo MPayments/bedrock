@@ -29,6 +29,7 @@ import {
   dealIntakeSnapshots,
   dealLegs,
   dealLegOperationLinks,
+  dealPricingContexts,
   dealParticipants,
   deals,
   dealTimelineEvents,
@@ -41,6 +42,7 @@ import type {
   DealDetails,
   DealFundingResolution,
   DealIntakeDraft,
+  DealPricingContext,
   DealQuoteAcceptance,
   DealTimelineEvent,
   DealTraceProjection,
@@ -55,6 +57,7 @@ import type {
   DealFundingAssessmentPort,
   DealReads,
 } from "../../application/ports/deal.reads";
+import { normalizeStoredDealPricingContext } from "../../application/shared/pricing-context";
 import { getPrimaryDealAmountFields } from "../../application/shared/primary-amount-fields";
 import { buildDealOperationalState } from "../../domain/operational-state";
 import { listDealTransitionReadiness } from "../../domain/transition-policy";
@@ -339,6 +342,11 @@ interface DealQuoteRow {
   usedDocumentId: string | null;
 }
 
+interface DealPricingContextRow {
+  revision: number;
+  snapshot: unknown;
+}
+
 export interface DealTraceDocumentRow {
   approvalStatus: string;
   dealId: string | null;
@@ -430,6 +438,21 @@ export class DrizzleDealReads implements DealReads {
     return uniqueIds
       .map((id) => rowById.get(id) ?? null)
       .filter((row): row is DealSummaryRow => row !== null);
+  }
+
+  private async loadPricingContextRow(
+    dealId: string,
+  ): Promise<DealPricingContextRow | null> {
+    const [row] = await this.db
+      .select({
+        revision: dealPricingContexts.revision,
+        snapshot: dealPricingContexts.snapshot,
+      })
+      .from(dealPricingContexts)
+      .where(eq(dealPricingContexts.dealId, dealId))
+      .limit(1);
+
+    return row ?? null;
   }
 
   private async loadWorkflowParticipants(
@@ -917,6 +940,15 @@ export class DrizzleDealReads implements DealReads {
     return Promise.all(
       summaries.map((summary) => this.buildWorkflowProjectionFromSummary(summary)),
     );
+  }
+
+  async findPricingContextByDealId(dealId: string): Promise<DealPricingContext> {
+    const row = await this.loadPricingContextRow(dealId);
+
+    return normalizeStoredDealPricingContext({
+      revision: row?.revision,
+      snapshot: row?.snapshot,
+    });
   }
 
   async findAttachmentIngestionByFileAssetId(

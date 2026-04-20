@@ -1,10 +1,13 @@
 import { z } from "zod";
 
 import { trimToNull } from "@bedrock/shared/core";
+import { PaymentRouteDraftSchema } from "@bedrock/treasury/contracts";
 
 import {
   DealAttachmentIngestionNormalizedPayloadSchema,
+  DealFundingAdjustmentSchema,
   DealIntakeDraftSchema,
+  DealPricingCommercialDraftSchema,
   DealSettlementDestinationModeSchema,
 } from "./dto";
 import {
@@ -141,6 +144,80 @@ export const UpdateDealCommentInputSchema = z.object({
 });
 
 export type UpdateDealCommentInput = z.infer<typeof UpdateDealCommentInputSchema>;
+
+export const AttachDealPricingRouteInputSchema = z.object({
+  snapshot: PaymentRouteDraftSchema,
+  templateId: z.uuid(),
+  templateName: z.string().trim().min(1),
+});
+
+export type AttachDealPricingRouteInput = z.infer<
+  typeof AttachDealPricingRouteInputSchema
+>;
+
+export const AttachDealPricingRouteRequestSchema = z.object({
+  routeTemplateId: z.uuid(),
+});
+
+export type AttachDealPricingRouteRequest = z.infer<
+  typeof AttachDealPricingRouteRequestSchema
+>;
+
+export const DetachDealPricingRouteInputSchema = z.object({});
+
+export type DetachDealPricingRouteInput = z.infer<
+  typeof DetachDealPricingRouteInputSchema
+>;
+
+export const UpdateDealPricingContextInputSchema = z
+  .object({
+    commercialDraft: DealPricingCommercialDraftSchema.partial().optional(),
+    expectedRevision: z.number().int().positive(),
+    fundingAdjustments: z.array(DealFundingAdjustmentSchema).optional(),
+  })
+  .refine(
+    (value) =>
+      value.commercialDraft !== undefined ||
+      value.fundingAdjustments !== undefined,
+    {
+      message:
+        "At least one of commercialDraft or fundingAdjustments must be provided",
+      path: ["commercialDraft"],
+    },
+  );
+
+export type UpdateDealPricingContextInput = z.infer<
+  typeof UpdateDealPricingContextInputSchema
+>;
+
+const positiveMinorAmountStringSchema = z
+  .string()
+  .trim()
+  .regex(/^(0|[1-9]\d*)$/u, "Must be a positive integer string")
+  .refine((value) => value !== "0", {
+    message: "Must be greater than zero",
+  });
+
+export const DealPricingAmountSideSchema = z.enum(["source", "target"]);
+
+export type DealPricingAmountSide = z.infer<typeof DealPricingAmountSideSchema>;
+
+export const PreviewDealPricingInputSchema = z.object({
+  amountMinor: positiveMinorAmountStringSchema,
+  amountSide: DealPricingAmountSideSchema,
+  asOf: z.coerce.date(),
+  expectedRevision: z.number().int().positive(),
+});
+
+export type PreviewDealPricingInput = z.infer<
+  typeof PreviewDealPricingInputSchema
+>;
+
+export const CreateDealPricingQuoteInputSchema = PreviewDealPricingInputSchema;
+
+export type CreateDealPricingQuoteInput = z.infer<
+  typeof CreateDealPricingQuoteInputSchema
+>;
 
 export const LinkDealCalculationFromAcceptedQuoteInputSchema = z.object({
   calculationId: z.uuid(),

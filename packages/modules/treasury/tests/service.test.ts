@@ -871,6 +871,88 @@ describe("createTreasuryTestService", () => {
         ]);
     });
 
+    it("previews explicit-route quotes with same-currency steps and bigint manual lines", async () => {
+        const db = {
+            select: vi.fn(),
+            transaction: vi.fn(async () => {
+                throw new Error("previewQuote must not open a transaction");
+            }),
+        } as any;
+        const feesService = {
+            calculateQuoteFeeComponents: vi.fn(async () => []),
+        } as any;
+        const service = createTreasuryTestService({
+            persistence: createPersistenceContext(db),
+            feesService,
+            currenciesService: createMockCurrenciesService(),
+        });
+
+        const preview = await service.quotes.previewQuote({
+            mode: "explicit_route",
+            fromCurrency: "RUB",
+            toCurrency: "USD",
+            fromAmountMinor: 10_000n,
+            asOf: new Date("2026-02-14T00:00:00Z"),
+            pricingTrace: { version: "v1", mode: "explicit_route" },
+            manualFinancialLines: [{
+                id: "line-1",
+                bucket: "pass_through",
+                currency: "RUB",
+                amountMinor: 150n,
+                source: "manual",
+            }],
+            legs: [
+                {
+                    fromCurrency: "RUB",
+                    toCurrency: "RUB",
+                    rateNum: 95n,
+                    rateDen: 100n,
+                    sourceKind: "derived",
+                },
+                {
+                    fromCurrency: "RUB",
+                    toCurrency: "USD",
+                    rateNum: 1n,
+                    rateDen: 10n,
+                    sourceKind: "market",
+                },
+            ],
+        });
+
+        expect(preview).toMatchObject({
+            fromCurrency: "RUB",
+            toCurrency: "USD",
+            fromAmountMinor: 10_000n,
+            toAmountMinor: 950n,
+            pricingMode: "explicit_route",
+        });
+        expect(preview.legs).toEqual([
+            expect.objectContaining({
+                idx: 1,
+                fromCurrency: "RUB",
+                toCurrency: "RUB",
+                fromAmountMinor: 10_000n,
+                toAmountMinor: 9_500n,
+            }),
+            expect.objectContaining({
+                idx: 2,
+                fromCurrency: "RUB",
+                toCurrency: "USD",
+                fromAmountMinor: 9_500n,
+                toAmountMinor: 950n,
+            }),
+        ]);
+        expect(preview.financialLines).toEqual([
+            expect.objectContaining({
+                bucket: "pass_through",
+                currency: "RUB",
+                amountMinor: 150n,
+                source: "manual",
+            }),
+        ]);
+        expect(db.transaction).not.toHaveBeenCalled();
+    });
+
     it("returns quote details with legs, persisted fee snapshot, and pricing trace", async () => {
         const quote = makeQuote({ idempotencyKey: "idem-details-1" });
         const legs = [

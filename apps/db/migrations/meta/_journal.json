@@ -50,6 +50,55 @@
       "when": 1776370800000,
       "tag": "0006_loud_kingpin",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1776506400000,
+      "tag": "0007_kindly_hardball",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1776507600000,
+      "tag": "0008_gifted_lilandra",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1776511200000,
+      "tag": "0009_mellow_intake_bridge",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1776511800000,
+      "tag": "0010_relaxed_legacy_deal_header",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1776605400000,
+      "tag": "0011_deal_quote_acceptances_bridge",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1776606600000,
+      "tag": "0012_deal_timeline_event_type_bridge",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1776607200000,
+      "tag": "0013_deal_status_bridge",
+      "breakpoints": true
     }
   ]
 }

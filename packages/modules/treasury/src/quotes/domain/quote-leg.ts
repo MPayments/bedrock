@@ -43,14 +43,6 @@ function normalizeSnapshot(snapshot: QuoteLegSnapshot): QuoteLegSnapshot {
   const fromCurrency = normalizeCurrency(snapshot.fromCurrency, "fromCurrency");
   const toCurrency = normalizeCurrency(snapshot.toCurrency, "toCurrency");
 
-  invariant(
-    fromCurrency !== toCurrency,
-    "Quote leg currencies must be different",
-    {
-      code: "treasury.quote_leg.same_currency",
-      meta: { fromCurrency, toCurrency },
-    },
-  );
   invariant(snapshot.idx > 0, "Quote leg idx must be positive", {
     code: "treasury.quote_leg.idx_invalid",
     meta: { idx: snapshot.idx },

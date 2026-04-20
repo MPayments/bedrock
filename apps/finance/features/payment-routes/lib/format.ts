@@ -1,5 +1,6 @@
-import { minorToAmountString, toMinorAmountString } from "@bedrock/shared/money";
+import { formatFractionDecimal, minorToAmountString, toMinorAmountString } from "@bedrock/shared/money";
 import { mulDivRoundHalfUp } from "@bedrock/shared/money/math";
+import type { PaymentRouteCalculation } from "@bedrock/treasury/contracts";
 
 export type PaymentRouteCurrencyOption = {
   code: string;
@@ -99,15 +100,17 @@ export function formatExactCurrencyRatio(input: {
 }
 
 export function getPaymentRouteRateLines(input: {
-  amountInMinor: string;
+  cleanAmountInMinor: string;
   cleanAmountOutMinor: string;
-  costInclusiveAmountInMinor?: string | null;
-  effectiveAmountOutMinor: string;
+  clientAmountOutMinor: string;
+  clientTotalInMinor?: string | null;
+  costAmountOutMinor: string;
+  costPriceInMinor?: string | null;
   currencyIn: PaymentRouteCurrencyOption | null | undefined;
   currencyOut: PaymentRouteCurrencyOption | null | undefined;
 }) {
   const cleanForward = formatCurrencyRatio({
-    amountInMinor: input.amountInMinor,
+    amountInMinor: input.cleanAmountInMinor,
     amountOutMinor: input.cleanAmountOutMinor,
     currencyIn: input.currencyIn,
     currencyOut: input.currencyOut,
@@ -116,26 +119,44 @@ export function getPaymentRouteRateLines(input: {
     input.currencyIn && input.currencyOut
       ? formatCurrencyRatio({
           amountInMinor: input.cleanAmountOutMinor,
-          amountOutMinor: input.amountInMinor,
+          amountOutMinor: input.cleanAmountInMinor,
           currencyIn: input.currencyOut,
           currencyOut: input.currencyIn,
         })
       : null;
 
-  const effectiveForward =
-    input.costInclusiveAmountInMinor && input.currencyIn && input.currencyOut
+  const clientForward =
+    input.clientTotalInMinor && input.currencyIn && input.currencyOut
       ? formatCurrencyRatio({
-          amountInMinor: input.costInclusiveAmountInMinor,
-          amountOutMinor: input.effectiveAmountOutMinor,
+          amountInMinor: input.clientTotalInMinor,
+          amountOutMinor: input.clientAmountOutMinor,
           currencyIn: input.currencyIn,
           currencyOut: input.currencyOut,
         })
       : null;
-  const effectiveReverse =
-    input.costInclusiveAmountInMinor && input.currencyIn && input.currencyOut
+  const clientReverse =
+    input.clientTotalInMinor && input.currencyIn && input.currencyOut
       ? formatCurrencyRatio({
-          amountInMinor: input.effectiveAmountOutMinor,
-          amountOutMinor: input.costInclusiveAmountInMinor,
+          amountInMinor: input.clientAmountOutMinor,
+          amountOutMinor: input.clientTotalInMinor,
+          currencyIn: input.currencyOut,
+          currencyOut: input.currencyIn,
+        })
+      : null;
+  const costForward =
+    input.costPriceInMinor && input.currencyIn && input.currencyOut
+      ? formatCurrencyRatio({
+          amountInMinor: input.costPriceInMinor,
+          amountOutMinor: input.costAmountOutMinor,
+          currencyIn: input.currencyIn,
+          currencyOut: input.currencyOut,
+        })
+      : null;
+  const costReverse =
+    input.costPriceInMinor && input.currencyIn && input.currencyOut
+      ? formatCurrencyRatio({
+          amountInMinor: input.costAmountOutMinor,
+          amountOutMinor: input.costPriceInMinor,
           currencyIn: input.currencyOut,
           currencyOut: input.currencyIn,
         })
@@ -144,8 +165,88 @@ export function getPaymentRouteRateLines(input: {
   return {
     cleanForward,
     cleanReverse,
-    effectiveForward,
-    effectiveReverse,
+    clientForward,
+    clientReverse,
+    costForward,
+    costReverse,
+  };
+}
+
+export function getPaymentRouteBaseRateLines(input: {
+  calculation: PaymentRouteCalculation | null;
+  currencies: PaymentRouteCurrencyOption[];
+}) {
+  const calculation = input.calculation;
+
+  if (!calculation) {
+    return {
+      baseForward: null,
+      baseReverse: null,
+    };
+  }
+
+  const currencyIn =
+    input.currencies.find((currency) => currency.id === calculation.currencyInId) ??
+    null;
+  const currencyOut =
+    input.currencies.find((currency) => currency.id === calculation.currencyOutId) ??
+    null;
+
+  if (!currencyIn || !currencyOut) {
+    return {
+      baseForward: null,
+      baseReverse: null,
+    };
+  }
+
+  let numerator = 1n;
+  let denominator = 1n;
+
+  for (const leg of calculation.legs) {
+    const fromCurrency =
+      input.currencies.find((currency) => currency.id === leg.fromCurrencyId) ??
+      null;
+    const toCurrency =
+      input.currencies.find((currency) => currency.id === leg.toCurrencyId) ??
+      null;
+
+    if (!fromCurrency || !toCurrency) {
+      return {
+        baseForward: null,
+        baseReverse: null,
+      };
+    }
+
+    numerator *=
+      BigInt(leg.rateNum) * 10n ** BigInt(fromCurrency.precision);
+    denominator *=
+      BigInt(leg.rateDen) * 10n ** BigInt(toCurrency.precision);
+  }
+
+  if (numerator <= 0n || denominator <= 0n) {
+    return {
+      baseForward: null,
+      baseReverse: null,
+    };
+  }
+
+  return {
+    baseForward: `1 ${currencyIn.code} ~= ${formatFractionDecimal(
+      numerator.toString(),
+      denominator.toString(),
+      {
+        scale: 6,
+        trimTrailingZeros: true,
+      },
+    )} ${currencyOut.code}`,
+    baseReverse: `1 ${currencyOut.code} ~= ${formatFractionDecimal(
+      denominator.toString(),
+      numerator.toString(),
+      {
+        scale: 6,
+        trimTrailingZeros: true,
+      },
+    )} ${currencyIn.code}`,
   };
 }
 

@@ -35,6 +35,7 @@ export {
   dealOperationalPositionKindEnum,
   dealOperationalPositions,
   dealOperationalPositionStateEnum,
+  dealPricingContexts,
   deals,
   dealQuoteAcceptances,
   dealStatusEnum,

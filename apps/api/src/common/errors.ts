@@ -29,6 +29,29 @@ function resolveErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+function formatZodIssuePath(path: PropertyKey[]) {
+  if (path.length === 0) {
+    return null;
+  }
+
+  return path
+    .map((segment) =>
+      typeof segment === "number" ? `[${segment}]` : String(segment),
+    )
+    .join(".");
+}
+
+function formatZodErrorMessage(error: z.ZodError): string {
+  const [firstIssue] = error.issues;
+
+  if (!firstIssue) {
+    return "Validation error";
+  }
+
+  const path = formatZodIssuePath(firstIssue.path);
+  return path ? `${path}: ${firstIssue.message}` : firstIssue.message;
+}
+
 function buildErrorBody(error: unknown) {
   const payload: {
     code?: string;
@@ -64,7 +87,10 @@ function buildErrorBody(error: unknown) {
 export function handleRouteError(c: Context, error: unknown): any {
   if (error instanceof z.ZodError) {
     return c.json(
-      { error: "Validation error", details: z.treeifyError(error) },
+      {
+        error: formatZodErrorMessage(error),
+        details: z.treeifyError(error),
+      },
       400,
     );
   }

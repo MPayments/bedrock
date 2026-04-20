@@ -67,7 +67,13 @@ function normalizeRecordDraft(
 function normalizeRecordCalculation(
   calculation: PaymentRouteTemplateRecord["lastCalculation"],
 ): PaymentRouteCalculation | null {
-  return calculation ? PaymentRouteCalculationSchema.parse(calculation) : null;
+  if (!calculation) {
+    return null;
+  }
+
+  const parsed = PaymentRouteCalculationSchema.safeParse(calculation);
+
+  return parsed.success ? parsed.data : null;
 }
 
 export function mapPaymentRouteTemplateRecord(

@@ -542,13 +542,63 @@ export type ApiQuoteCommercialTerms = {
   totalFeeBps: string;
 };
 
+export type ApiDealPricingRateSnapshot = {
+  asOf: string;
+  baseCurrency: string;
+  quoteCurrency: string;
+  rateDen: string;
+  rateNum: string;
+  sourceKind: "market" | "route" | "client" | "cost";
+  sourceLabel: string | null;
+};
+
+export type ApiDealPricingBenchmarks = {
+  client: ApiDealPricingRateSnapshot;
+  cost: ApiDealPricingRateSnapshot | null;
+  market: ApiDealPricingRateSnapshot;
+  pricingBase: "route_benchmark" | "market_benchmark";
+  routeBase: ApiDealPricingRateSnapshot | null;
+};
+
+export type ApiDealPricingProfitability = {
+  commercialRevenueMinor: string;
+  costPriceMinor: string;
+  currency: string;
+  customerPrincipalMinor: string;
+  customerTotalMinor: string;
+  passThroughMinor: string;
+  profitMinor: string;
+  profitPercentOnCost: string;
+};
+
+export type ApiDealPricingFormulaLine = {
+  currency: string | null;
+  expression: string;
+  kind: "equation" | "note";
+  label: string;
+  metadata: Record<string, unknown>;
+  result: string;
+};
+
+export type ApiDealPricingFormulaSection = {
+  kind: "client_pricing" | "route_execution" | "funding";
+  lines: ApiDealPricingFormulaLine[];
+  title: string;
+};
+
+export type ApiDealPricingFormulaTrace = {
+  sections: ApiDealPricingFormulaSection[];
+};
+
 export type ApiDealPricingQuote = {
+  benchmarks?: ApiDealPricingBenchmarks | null;
   commercialTerms: ApiQuoteCommercialTerms | null;
   createdAt: string;
   dealDirection: string | null;
   dealForm: string | null;
   dealId: string | null;
   expiresAt: string;
+  formulaTrace?: ApiDealPricingFormulaTrace | null;
   fromAmountMinor: string;
   fromCurrency: string;
   fromCurrencyId: string;
@@ -556,6 +606,7 @@ export type ApiDealPricingQuote = {
   idempotencyKey: string;
   pricingMode: string;
   pricingTrace: Record<string, unknown>;
+  profitability?: ApiDealPricingProfitability | null;
   rateDen: string;
   rateNum: string;
   status: string;
@@ -573,31 +624,30 @@ export type ApiQuotePreview = {
   dealForm: string | null;
   expiresAt: string;
   feeComponents: {
-    accountDirection: "payable" | "receivable" | "neutral";
     amountMinor: string;
-    appliesTo: "from" | "to";
-    chargingParty: "customer" | "provider" | "internal";
-    collectionMode: "embedded_in_rate" | "off_quote" | "upfront";
     currency: string;
-    description: string | null;
     kind: string;
     metadata: Record<string, unknown>;
-    recipientPartyRef: string | null;
+    memo?: string;
     source: string;
   }[];
   financialLines: {
-    accountDirection: "debit" | "credit";
     amountMinor: string;
-    currency: string;
-    kind:
+    bucket:
+      | "adjustment"
       | "provider_payable"
+      | "provider_fee_expense"
       | "provider_receivable"
       | "customer_payable"
       | "customer_receivable"
       | "fee_revenue"
       | "spread_revenue"
       | "pass_through";
+    currency: string;
+    memo?: string;
     metadata: Record<string, unknown>;
+    settlementMode?: "in_ledger" | "separate_payment_order";
+    source: string;
   }[];
   fromAmount: string;
   fromAmountMinor: string;
@@ -622,6 +672,194 @@ export type ApiQuotePreview = {
   toAmount: string;
   toAmountMinor: string;
   toCurrency: string;
+};
+
+export type ApiDealFundingAdjustment = {
+  amountMinor: string;
+  currencyId: string;
+  id: string;
+  kind:
+    | "available_balance"
+    | "reconciliation_adjustment"
+    | "already_funded"
+    | "manual_offset";
+  label: string;
+};
+
+export type ApiDealPricingCommercialDraft = {
+  fixedFeeAmount: string | null;
+  fixedFeeCurrency: string | null;
+  quoteMarkupPercent: string | null;
+};
+
+export type ApiPaymentRouteFee = {
+  amountMinor?: string;
+  chargeToCustomer: boolean;
+  currencyId?: string | null;
+  id: string;
+  kind: "fixed" | "percent";
+  label?: string;
+  percentage?: string;
+};
+
+export type ApiPaymentRouteDraft = {
+  additionalFees: ApiPaymentRouteFee[];
+  amountInMinor: string;
+  amountOutMinor: string;
+  currencyInId: string;
+  currencyOutId: string;
+  legs: Array<{
+    feeIds?: string[];
+    fees?: ApiPaymentRouteFee[];
+    id: string;
+    fromCurrencyId: string;
+    idx: number;
+    ratePairId?: string | null;
+    rateSide?: "inverse" | "normal";
+    rateSourceKind?: string;
+    toCurrencyId: string;
+  }>;
+  lockedSide: "currency_in" | "currency_out";
+  participants: Array<{
+    binding: "abstract" | "bound";
+    displayName: string;
+    entityId: string | null;
+    entityKind: "customer" | "counterparty" | "organization" | null;
+    nodeId: string;
+    requisiteId: string | null;
+    role: "source" | "hop" | "destination";
+  }>;
+};
+
+export type ApiDealPricingRouteAttachment = {
+  attachedAt: string;
+  snapshot: ApiPaymentRouteDraft;
+  templateId: string;
+  templateName: string;
+};
+
+export type ApiDealPricingContext = {
+  commercialDraft: ApiDealPricingCommercialDraft;
+  fundingAdjustments: ApiDealFundingAdjustment[];
+  revision: number;
+  routeAttachment: ApiDealPricingRouteAttachment | null;
+};
+
+export type ApiPaymentRouteCalculation = {
+  additionalFees: Array<{
+    amountMinor: string;
+    chargeToCustomer: boolean;
+    currencyId: string;
+    id: string;
+    inputImpactCurrencyId: string;
+    inputImpactMinor: string;
+    label?: string;
+    outputImpactCurrencyId: string;
+    outputImpactMinor: string;
+    routeInputImpactMinor: string;
+    kind: "fixed" | "percent";
+    percentage?: string;
+  }>;
+  amountInMinor: string;
+  amountOutMinor: string;
+  chargedFeeTotals: Array<{ amountMinor: string; currencyId: string }>;
+  cleanAmountOutMinor: string;
+  clientTotalInMinor: string;
+  computedAt: string;
+  costPriceInMinor: string;
+  currencyInId: string;
+  currencyOutId: string;
+  feeTotals: Array<{ amountMinor: string; currencyId: string }>;
+  grossAmountOutMinor: string;
+  internalFeeTotals: Array<{ amountMinor: string; currencyId: string }>;
+  legs: Array<{
+    asOf: string;
+    fees: Array<{
+      amountMinor: string;
+      chargeToCustomer: boolean;
+      currencyId: string;
+      id: string;
+      inputImpactCurrencyId: string;
+      inputImpactMinor: string;
+      label?: string;
+      outputImpactCurrencyId: string;
+      outputImpactMinor: string;
+      routeInputImpactMinor: string;
+      kind: "fixed" | "percent";
+      percentage?: string;
+    }>;
+    fromCurrencyId: string;
+    grossOutputMinor: string;
+    id: string;
+    idx: number;
+    inputAmountMinor: string;
+    netOutputMinor: string;
+    rateDen: string;
+    rateNum: string;
+    rateSource: string;
+    toCurrencyId: string;
+  }>;
+  lockedSide: "currency_in" | "currency_out";
+  netAmountOutMinor: string;
+};
+
+export type ApiDealFundingPosition = {
+  adjustmentTotalMinor: string;
+  currencyCode: string;
+  currencyId: string;
+  netFundingNeedMinor: string;
+  requiredMinor: string;
+};
+
+export type ApiDealPricingPreview = {
+  benchmarks: ApiDealPricingBenchmarks;
+  formulaTrace: ApiDealPricingFormulaTrace;
+  fundingSummary: {
+    positions: ApiDealFundingPosition[];
+  };
+  pricingMode: "auto_cross" | "explicit_route";
+  profitability: ApiDealPricingProfitability | null;
+  quotePreview: ApiQuotePreview;
+  routePreview: ApiPaymentRouteCalculation | null;
+};
+
+export type ApiDealPricingQuoteResult = {
+  benchmarks: ApiDealPricingBenchmarks;
+  formulaTrace: ApiDealPricingFormulaTrace;
+  pricingMode: "auto_cross" | "explicit_route";
+  profitability: ApiDealPricingProfitability | null;
+  quote: ApiDealPricingQuote;
+};
+
+export type ApiDealPricingRouteCandidate = {
+  createdAt: string;
+  currencyInId: string;
+  currencyOutId: string;
+  destinationEndpoint: {
+    binding: "abstract" | "bound";
+    displayName: string;
+    entityId: string | null;
+    entityKind: "customer" | "counterparty" | "organization" | null;
+    nodeId: string;
+    requisiteId: string | null;
+    role: "source" | "hop" | "destination";
+  };
+  hopCount: number;
+  id: string;
+  lastCalculation: ApiPaymentRouteCalculation | null;
+  name: string;
+  snapshotPolicy: string;
+  sourceEndpoint: {
+    binding: "abstract" | "bound";
+    displayName: string;
+    entityId: string | null;
+    entityKind: "customer" | "counterparty" | "organization" | null;
+    nodeId: string;
+    requisiteId: string | null;
+    role: "source" | "hop" | "destination";
+  };
+  status: string;
+  updatedAt: string;
 };
 
 export type CalculationView = {
@@ -733,6 +971,7 @@ export type ApiCrmDealWorkbenchProjection = {
   participants: ApiDealWorkflowParticipant[];
   pricing: {
     calculationHistory: ApiDealCalculationHistoryItem[];
+    context: ApiDealPricingContext;
     currentCalculation: ApiCalculationDetails | null;
     quoteEligibility: boolean;
     quotes: ApiDealPricingQuote[];
