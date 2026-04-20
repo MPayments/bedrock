@@ -22,8 +22,8 @@ import {
 
 import {
   resolveCounterpartyBreadcrumbLabel,
-} from "@/components/app/crm-breadcrumbs";
-import { useCrmBreadcrumbs } from "@/components/app/crm-breadcrumbs-provider";
+} from "@/components/app/breadcrumbs";
+import { useCrmBreadcrumbs } from "@/components/app/breadcrumbs-provider";
 import { CustomerCounterpartyEditor } from "../../components/customer-counterparty-editor";
 import { getCustomerWorkspace } from "../../lib/customer-workspace-api";
 

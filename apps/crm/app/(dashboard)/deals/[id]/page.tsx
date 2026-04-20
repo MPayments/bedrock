@@ -16,8 +16,8 @@ import {
 
 import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
 
-import { formatDealBreadcrumbLabel } from "@/components/app/crm-breadcrumbs";
-import { useCrmBreadcrumbs } from "@/components/app/crm-breadcrumbs-provider";
+import { formatDealBreadcrumbLabel } from "@/components/app/breadcrumbs";
+import { useCrmBreadcrumbs } from "@/components/app/breadcrumbs-provider";
 import { API_BASE_URL } from "@/lib/constants";
 import { loadApplicantRequisites as loadApplicantRequisiteOptions } from "@/lib/applicant-requisites";
 import { AgreementCard } from "./_components/agreement-card";

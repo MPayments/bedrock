@@ -10,7 +10,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 
 import {
   buildBreadcrumbOverrideLookup,
@@ -21,7 +21,7 @@ import {
   type BreadcrumbOverrideState,
   type CrmBreadcrumbItem,
   upsertBreadcrumbOverrides,
-} from "./crm-breadcrumbs";
+} from "./breadcrumbs";
 
 type BreadcrumbRegistry = {
   register: (registrationId: string, overrides: BreadcrumbOverride[]) => void;
@@ -39,6 +39,7 @@ export function CrmBreadcrumbsProvider({
   children: ReactNode;
 }>) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [registrations, setRegistrations] = useState<BreadcrumbOverrideState>(
     {},
   );
@@ -62,9 +63,10 @@ export function CrmBreadcrumbsProvider({
     () => buildBreadcrumbOverrideLookup(registrations),
     [registrations],
   );
+  const searchParamsString = searchParams.toString();
   const items = useMemo(
-    () => buildCrmBreadcrumbs(pathname ?? "/", overrideLookup),
-    [overrideLookup, pathname],
+    () => buildCrmBreadcrumbs(pathname ?? "/", overrideLookup, searchParamsString),
+    [overrideLookup, pathname, searchParamsString],
   );
   const registry = useMemo(
     () => ({ register, unregister }),

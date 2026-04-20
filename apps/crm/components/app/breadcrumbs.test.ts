@@ -8,14 +8,17 @@ import {
   type BreadcrumbOverrideState,
   resolveCounterpartyBreadcrumbLabel,
   upsertBreadcrumbOverrides,
-} from "./crm-breadcrumbs";
+} from "./breadcrumbs";
 
 function summarizeBreadcrumbs(
   pathname: string,
   overrides?: Record<string, string>,
+  searchParams?: string,
 ) {
-  return buildCrmBreadcrumbs(pathname, overrides).map((item) => ({
+  return buildCrmBreadcrumbs(pathname, overrides, searchParams).map((item) => ({
     href: item.href,
+    icon: item.icon,
+    iconOnly: item.iconOnly ?? false,
     label: item.label,
   }));
 }
@@ -25,6 +28,8 @@ describe("buildCrmBreadcrumbs", () => {
     expect(summarizeBreadcrumbs("/")).toEqual([
       {
         href: "/",
+        icon: "home",
+        iconOnly: true,
         label: "Главная",
       },
     ]);
@@ -32,51 +37,137 @@ describe("buildCrmBreadcrumbs", () => {
 
   it("builds static dashboard and admin trails", () => {
     expect(summarizeBreadcrumbs("/reports/customers")).toEqual([
-      { href: "/", label: "Главная" },
-      { href: null, label: "Отчёты" },
-      { href: "/reports/customers", label: "По клиентам" },
+      { href: "/", icon: "home", iconOnly: true, label: "Главная" },
+      { href: null, icon: "reports", iconOnly: false, label: "Отчёты" },
+      {
+        href: "/reports/customers",
+        icon: "reports",
+        iconOnly: false,
+        label: "По клиентам",
+      },
     ]);
 
     expect(summarizeBreadcrumbs("/admin/users/new")).toEqual([
-      { href: "/", label: "Главная" },
-      { href: "/admin/users", label: "Пользователи" },
-      { href: "/admin/users/new", label: "Новый пользователь" },
+      { href: "/", icon: "home", iconOnly: true, label: "Главная" },
+      {
+        href: "/admin/users",
+        icon: "user",
+        iconOnly: false,
+        label: "Пользователи",
+      },
+      {
+        href: "/admin/users/new",
+        icon: "user",
+        iconOnly: false,
+        label: "Новый пользователь",
+      },
     ]);
 
     expect(summarizeBreadcrumbs("/customers/new")).toEqual([
-      { href: "/", label: "Главная" },
-      { href: "/customers", label: "Клиенты" },
-      { href: "/customers/new", label: "Новый клиент" },
+      { href: "/", icon: "home", iconOnly: true, label: "Главная" },
+      {
+        href: "/customers",
+        icon: "customer",
+        iconOnly: false,
+        label: "Клиенты",
+      },
+      {
+        href: "/customers/new",
+        icon: "customer",
+        iconOnly: false,
+        label: "Новый клиент",
+      },
     ]);
   });
 
   it("uses semantic fallbacks for dynamic routes without overrides", () => {
     expect(summarizeBreadcrumbs("/deals/deal-1")).toEqual([
-      { href: "/", label: "Главная" },
-      { href: "/deals", label: "Сделки" },
-      { href: "/deals/deal-1", label: "Сделка" },
+      { href: "/", icon: "home", iconOnly: true, label: "Главная" },
+      { href: "/deals", icon: "deal", iconOnly: false, label: "Сделки" },
+      {
+        href: "/deals/deal-1",
+        icon: "deal",
+        iconOnly: false,
+        label: "Сделка",
+      },
     ]);
 
     expect(
       summarizeBreadcrumbs("/customers/customer-1/counterparties/counterparty-1"),
     ).toEqual([
-      { href: "/", label: "Главная" },
-      { href: "/customers", label: "Клиенты" },
-      { href: "/customers/customer-1", label: "Клиент" },
+      { href: "/", icon: "home", iconOnly: true, label: "Главная" },
+      {
+        href: "/customers",
+        icon: "customer",
+        iconOnly: false,
+        label: "Клиенты",
+      },
+      {
+        href: "/customers/customer-1",
+        icon: "customer",
+        iconOnly: false,
+        label: "Клиент",
+      },
       {
         href: "/customers/customer-1/counterparties",
+        icon: "counterparty",
+        iconOnly: false,
         label: "Субъекты сделки",
       },
       {
         href: "/customers/customer-1/counterparties/counterparty-1",
+        icon: "counterparty",
+        iconOnly: false,
         label: "Контрагент",
       },
     ]);
 
     expect(summarizeBreadcrumbs("/admin/organizations/org-1")).toEqual([
-      { href: "/", label: "Главная" },
-      { href: "/admin/organizations", label: "Юрлица" },
-      { href: "/admin/organizations/org-1", label: "Юрлицо" },
+      { href: "/", icon: "home", iconOnly: true, label: "Главная" },
+      {
+        href: "/admin/organizations",
+        icon: "organization",
+        iconOnly: false,
+        label: "Юрлица",
+      },
+      {
+        href: "/admin/organizations/org-1",
+        icon: "organization",
+        iconOnly: false,
+        label: "Юрлицо",
+      },
+    ]);
+  });
+
+  it("adds a tab breadcrumb for customer documents", () => {
+    expect(
+      summarizeBreadcrumbs(
+        "/customers/customer-1",
+        {
+          "/customers/customer-1": "Acme Trade",
+        },
+        "tab=documents",
+      ),
+    ).toEqual([
+      { href: "/", icon: "home", iconOnly: true, label: "Главная" },
+      {
+        href: "/customers",
+        icon: "customer",
+        iconOnly: false,
+        label: "Клиенты",
+      },
+      {
+        href: "/customers/customer-1",
+        icon: "customer",
+        iconOnly: false,
+        label: "Acme Trade",
+      },
+      {
+        href: "/customers/customer-1?tab=documents",
+        icon: "documents",
+        iconOnly: false,
+        label: "Документы",
+      },
     ]);
   });
 
@@ -100,15 +191,29 @@ describe("buildCrmBreadcrumbs", () => {
         buildBreadcrumbOverrideLookup(state),
       ),
     ).toEqual([
-      { href: "/", label: "Главная" },
-      { href: "/customers", label: "Клиенты" },
-      { href: "/customers/customer-1", label: "Acme Trade" },
+      { href: "/", icon: "home", iconOnly: true, label: "Главная" },
+      {
+        href: "/customers",
+        icon: "customer",
+        iconOnly: false,
+        label: "Клиенты",
+      },
+      {
+        href: "/customers/customer-1",
+        icon: "customer",
+        iconOnly: false,
+        label: "Acme Trade",
+      },
       {
         href: "/customers/customer-1/counterparties",
+        icon: "counterparty",
+        iconOnly: false,
         label: "Субъекты сделки",
       },
       {
         href: "/customers/customer-1/counterparties/counterparty-1",
+        icon: "counterparty",
+        iconOnly: false,
         label: "Beta Export",
       },
     ]);
@@ -121,15 +226,29 @@ describe("buildCrmBreadcrumbs", () => {
         buildBreadcrumbOverrideLookup(state),
       ),
     ).toEqual([
-      { href: "/", label: "Главная" },
-      { href: "/customers", label: "Клиенты" },
-      { href: "/customers/customer-1", label: "Клиент" },
+      { href: "/", icon: "home", iconOnly: true, label: "Главная" },
+      {
+        href: "/customers",
+        icon: "customer",
+        iconOnly: false,
+        label: "Клиенты",
+      },
+      {
+        href: "/customers/customer-1",
+        icon: "customer",
+        iconOnly: false,
+        label: "Клиент",
+      },
       {
         href: "/customers/customer-1/counterparties",
+        icon: "counterparty",
+        iconOnly: false,
         label: "Субъекты сделки",
       },
       {
         href: "/customers/customer-1/counterparties/counterparty-1",
+        icon: "counterparty",
+        iconOnly: false,
         label: "Контрагент",
       },
     ]);

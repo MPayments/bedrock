@@ -1,6 +1,19 @@
 "use client";
 
-import { ChevronDown, Minus } from "lucide-react";
+import {
+  BarChart3,
+  Building2,
+  CalendarDays,
+  ChevronDown,
+  FileSignature,
+  FileText,
+  Handshake,
+  House,
+  Landmark,
+  Minus,
+  UserRound,
+  Users,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -26,7 +39,7 @@ import {
   AvatarImage,
 } from "@bedrock/sdk-ui/components/avatar";
 
-import { useCrmBreadcrumbTrail } from "@/components/app/crm-breadcrumbs-provider";
+import { useCrmBreadcrumbTrail } from "@/components/app/breadcrumbs-provider";
 import {
   NavigationMenu,
   NavigationMenuItem,
@@ -37,7 +50,10 @@ import {
 import { signOut } from "@/lib/auth-client";
 import { PORTAL_BASE_URL } from "@/lib/constants";
 import type { UserSessionSnapshot } from "@/lib/auth/types";
-import type { CrmBreadcrumbItem } from "./crm-breadcrumbs";
+import type {
+  CrmBreadcrumbIconName,
+  CrmBreadcrumbItem,
+} from "./breadcrumbs";
 
 type CurrencyCode = "USD" | "EUR" | "CNY";
 type HeaderRateSource = "cbr" | "investing";
@@ -59,6 +75,19 @@ type RatePairsResponseDto = {
 const HEADER_CURRENCIES = ["USD", "EUR", "CNY"] as const;
 const HEADER_SOURCES = ["cbr", "investing"] as const;
 const HEADER_RATES_POLL_INTERVAL_MS = 60_000;
+const BREADCRUMB_ICON_MAP: Record<CrmBreadcrumbIconName, typeof House> = {
+  agreements: FileSignature,
+  calendar: CalendarDays,
+  counterparty: Building2,
+  customer: Users,
+  deal: Handshake,
+  documents: FileText,
+  home: House,
+  organization: Building2,
+  reports: BarChart3,
+  requisites: Landmark,
+  user: UserRound,
+};
 
 function isHeaderCurrency(value: string): value is CurrencyCode {
   return HEADER_CURRENCIES.includes(value as CurrencyCode);
@@ -398,18 +427,36 @@ function HeaderBreadcrumbs({ items }: { items: CrmBreadcrumbItem[] }) {
       <BreadcrumbList>
         {items.map((item, index) => {
           const isLast = index === items.length - 1;
+          const Icon = BREADCRUMB_ICON_MAP[item.icon];
+          const content = (
+            <>
+              <Icon className="size-4 shrink-0" />
+              {item.iconOnly ? (
+                <span className="sr-only">{item.label}</span>
+              ) : (
+                <span>{item.label}</span>
+              )}
+            </>
+          );
 
           return (
             <span key={`${item.href ?? item.label}-${index}`} className="contents">
               <BreadcrumbItem>
                 {isLast ? (
-                  <BreadcrumbPage>{item.label}</BreadcrumbPage>
+                  <BreadcrumbPage className="inline-flex items-center gap-1.5">
+                    {content}
+                  </BreadcrumbPage>
                 ) : item.href ? (
-                  <BreadcrumbLink render={<Link href={item.href} />}>
-                    {item.label}
+                  <BreadcrumbLink
+                    render={<Link href={item.href} />}
+                    className="inline-flex items-center gap-1.5"
+                  >
+                    {content}
                   </BreadcrumbLink>
                 ) : (
-                  <span className="text-muted-foreground">{item.label}</span>
+                  <span className="text-muted-foreground inline-flex items-center gap-1.5">
+                    {content}
+                  </span>
                 )}
               </BreadcrumbItem>
               {!isLast && <BreadcrumbSeparator />}

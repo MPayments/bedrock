@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from "@bedrock/sdk-ui/components/select";
 
-import { useCrmBreadcrumbs } from "@/components/app/crm-breadcrumbs-provider";
+import { useCrmBreadcrumbs } from "@/components/app/breadcrumbs-provider";
 import { OrganizationBankRequisitesWorkspace } from "./_components/organization-bank-requisites-workspace";
 import { OrganizationCanonicalEditor } from "./_components/organization-canonical-editor";
 import { OrganizationFilesWorkspace } from "./_components/organization-files-workspace";

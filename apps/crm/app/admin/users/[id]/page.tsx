@@ -16,7 +16,7 @@ import { UserGeneralForm } from "@bedrock/sdk-users-ui/components/user-general-f
 import { UserHeader } from "@bedrock/sdk-users-ui/components/user-header";
 import { UserPasswordForm } from "@bedrock/sdk-users-ui/components/user-password-form";
 
-import { useCrmBreadcrumbs } from "@/components/app/crm-breadcrumbs-provider";
+import { useCrmBreadcrumbs } from "@/components/app/breadcrumbs-provider";
 import { apiClient } from "@/lib/api/browser-client";
 import { executeApiMutation } from "@/lib/api/mutation";
 

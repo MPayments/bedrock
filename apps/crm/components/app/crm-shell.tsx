@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { AppHeader } from "@/components/app/header";
 import type { UserSessionSnapshot } from "@/lib/auth/types";
 
-import { CrmBreadcrumbsProvider } from "./crm-breadcrumbs-provider";
+import { CrmBreadcrumbsProvider } from "./breadcrumbs-provider";
 
 export function CrmShell({
   children,

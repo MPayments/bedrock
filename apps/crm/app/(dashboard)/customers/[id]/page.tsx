@@ -77,7 +77,7 @@ import {
 } from "@bedrock/sdk-ui/components/tabs";
 
 import { NewContractDialog, type ContractDialogInitialValues } from "@/components/dashboard/NewContractDialog";
-import { useCrmBreadcrumbs } from "@/components/app/crm-breadcrumbs-provider";
+import { useCrmBreadcrumbs } from "@/components/app/breadcrumbs-provider";
 import {
   AlertDialog,
   AlertDialogAction,

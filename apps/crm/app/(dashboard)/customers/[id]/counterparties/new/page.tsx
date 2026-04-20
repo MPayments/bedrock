@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from "@bedrock/sdk-ui/components/select";
 
-import { useCrmBreadcrumbs } from "@/components/app/crm-breadcrumbs-provider";
+import { useCrmBreadcrumbs } from "@/components/app/breadcrumbs-provider";
 import { CustomerCounterpartyCreateEditor } from "../../components/customer-counterparty-create-editor";
 import {
   buildCustomerCounterpartyDetailsHref,
