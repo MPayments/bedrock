@@ -172,10 +172,19 @@ export type CrmDealWorkbenchEditability = z.infer<
 >;
 
 export const CrmDealAssigneeSchema = z.object({
+  displayName: z.string().nullable(),
   userId: z.string().nullable(),
 });
 
 export type CrmDealAssignee = z.infer<typeof CrmDealAssigneeSchema>;
+
+export const CrmDealApprovalSchema = DealApprovalSchema.extend({
+  approvalRoleLabel: z.string(),
+  decidedByDisplayName: z.string().nullable(),
+  requestedByDisplayName: z.string().nullable(),
+});
+
+export type CrmDealApproval = z.infer<typeof CrmDealApprovalSchema>;
 
 export const CrmDealEvidenceRequirementStateSchema = z.enum([
   "missing",
@@ -243,7 +252,7 @@ export type CrmDealDocumentRequirement = z.infer<
 export const CrmDealWorkbenchProjectionSchema = z.object({
   acceptedQuote: DealWorkflowProjectionSchema.shape.acceptedQuote,
   actions: CrmDealWorkbenchActionsSchema,
-  approvals: z.array(DealApprovalSchema),
+  approvals: z.array(CrmDealApprovalSchema),
   assignee: CrmDealAssigneeSchema,
   beneficiaryDraft: CrmDealBeneficiaryDraftSchema,
   comment: z.string().nullable(),
@@ -374,6 +383,7 @@ export const CrmDealListItemSchema = z.object({
   agentName: z.string(),
   comment: z.string().optional(),
   feePercentage: z.number(),
+  netMarginInBase: z.number().nullable(),
 });
 
 export type CrmDealListItem = z.infer<typeof CrmDealListItemSchema>;

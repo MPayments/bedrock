@@ -14,6 +14,8 @@ import type {
   DealWorkflowParticipant,
 } from "../application/contracts/dto";
 import type {
+  DealLegKind,
+  DealParticipantRole,
   DealSectionId,
   DealStatus,
   DealType,
@@ -215,44 +217,84 @@ export function isRequiredDealSectionComplete(
   return requiredSections.every((sectionId) => byId.get(sectionId)?.complete);
 }
 
+export function getDealLegPartyRoles(
+  dealType: DealType,
+  kind: DealLegKind,
+): { fromRole: DealParticipantRole | null; toRole: DealParticipantRole | null } {
+  switch (kind) {
+    case "collect":
+      if (dealType === "exporter_settlement") {
+        return { fromRole: "external_payer", toRole: "internal_entity" };
+      }
+      return { fromRole: "customer", toRole: "internal_entity" };
+    case "convert":
+      return { fromRole: "internal_entity", toRole: "internal_entity" };
+    case "transit_hold":
+      return { fromRole: "internal_entity", toRole: "internal_entity" };
+    case "payout":
+      if (dealType === "currency_exchange") {
+        return { fromRole: "internal_entity", toRole: "customer" };
+      }
+      if (dealType === "exporter_settlement") {
+        return { fromRole: "internal_entity", toRole: "applicant" };
+      }
+      return { fromRole: "internal_entity", toRole: "external_beneficiary" };
+    case "settle_exporter":
+      return { fromRole: "internal_entity", toRole: "applicant" };
+  }
+}
+
 function createLeg(
   idx: number,
   kind: (typeof DEAL_LEG_KIND_VALUES)[number],
+  dealType: DealType,
 ): DealWorkflowLeg {
+  const { fromRole, toRole } = getDealLegPartyRoles(dealType, kind);
   return {
+    amountMinor: null,
+    currencyCode: null,
+    fromPartyName: null,
+    fromRole,
     id: null,
     idx,
     kind,
     operationRefs: [],
     state: "pending",
+    toPartyName: null,
+    toRole,
   };
 }
 
 export function buildDealExecutionPlan(intake: DealIntakeDraft): DealWorkflowLeg[] {
   const hasConvert = dealIntakeHasConvertLeg(intake);
+  const t = intake.type;
 
-  switch (intake.type) {
+  switch (t) {
     case "payment":
       return [
-        createLeg(1, "collect"),
-        ...(hasConvert ? [createLeg(2, "convert")] : []),
-        createLeg(hasConvert ? 3 : 2, "payout"),
+        createLeg(1, "collect", t),
+        ...(hasConvert ? [createLeg(2, "convert", t)] : []),
+        createLeg(hasConvert ? 3 : 2, "payout", t),
       ];
     case "currency_exchange":
-      return [createLeg(1, "collect"), createLeg(2, "convert"), createLeg(3, "payout")];
+      return [
+        createLeg(1, "collect", t),
+        createLeg(2, "convert", t),
+        createLeg(3, "payout", t),
+      ];
     case "currency_transit":
       return [
-        createLeg(1, "collect"),
-        ...(hasConvert ? [createLeg(2, "convert")] : []),
-        createLeg(hasConvert ? 3 : 2, "transit_hold"),
-        createLeg(hasConvert ? 4 : 3, "payout"),
+        createLeg(1, "collect", t),
+        ...(hasConvert ? [createLeg(2, "convert", t)] : []),
+        createLeg(hasConvert ? 3 : 2, "transit_hold", t),
+        createLeg(hasConvert ? 4 : 3, "payout", t),
       ];
     case "exporter_settlement":
       return [
-        createLeg(1, "payout"),
-        createLeg(2, "collect"),
-        ...(hasConvert ? [createLeg(3, "convert")] : []),
-        createLeg(hasConvert ? 4 : 3, "settle_exporter"),
+        createLeg(1, "payout", t),
+        createLeg(2, "collect", t),
+        ...(hasConvert ? [createLeg(3, "convert", t)] : []),
+        createLeg(hasConvert ? 4 : 3, "settle_exporter", t),
       ];
   }
 }

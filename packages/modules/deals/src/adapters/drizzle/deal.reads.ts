@@ -548,11 +548,17 @@ export class DrizzleDealReads implements DealReads {
     }
 
     return rows.map((row) => ({
+      amountMinor: null,
+      currencyCode: null,
+      fromPartyName: null,
+      fromRole: null,
       id: row.id,
       idx: row.idx,
       kind: row.kind,
       operationRefs: operationRefsByLegId.get(row.id) ?? [],
       state: row.state,
+      toPartyName: null,
+      toRole: null,
     }));
   }
 

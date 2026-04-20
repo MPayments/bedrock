@@ -78,12 +78,25 @@ export type ApiDealLegOperationRef = {
   sourceRef: string;
 };
 
+export type ApiDealParticipantRole =
+  | "customer"
+  | "applicant"
+  | "internal_entity"
+  | "external_payer"
+  | "external_beneficiary";
+
 export type ApiDealWorkflowLeg = {
+  amountMinor: string | null;
+  currencyCode: string | null;
+  fromPartyName: string | null;
+  fromRole: ApiDealParticipantRole | null;
   id: string | null;
   idx: number;
   kind: DealLegKind;
   operationRefs: ApiDealLegOperationRef[];
   state: DealLegState;
+  toPartyName: string | null;
+  toRole: ApiDealParticipantRole | null;
 };
 
 export type ApiDealTransitionBlocker = {
@@ -683,8 +696,15 @@ export type ApiCrmDealWorkbenchProjection = {
     canReassignAssignee: boolean;
     canUploadAttachment: boolean;
   };
-  approvals: ApiDealDetails["approvals"];
+  approvals: Array<
+    ApiDealDetails["approvals"][number] & {
+      approvalRoleLabel: string;
+      decidedByDisplayName: string | null;
+      requestedByDisplayName: string | null;
+    }
+  >;
   assignee: {
+    displayName: string | null;
     userId: string | null;
   };
   beneficiaryDraft: {

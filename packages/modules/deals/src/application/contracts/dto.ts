@@ -164,11 +164,17 @@ export const DealLegOperationRefSchema = z.object({
 export type DealLegOperationRef = z.infer<typeof DealLegOperationRefSchema>;
 
 export const DealWorkflowLegSchema = z.object({
+  amountMinor: z.string().nullable().default(null),
+  currencyCode: z.string().nullable().default(null),
+  fromPartyName: z.string().nullable().default(null),
+  fromRole: DealParticipantRoleSchema.nullable().default(null),
   id: z.uuid().nullable().default(null),
   idx: z.number().int().positive(),
   kind: DealLegKindSchema,
   operationRefs: z.array(DealLegOperationRefSchema).default([]),
   state: DealLegStateSchema,
+  toPartyName: z.string().nullable().default(null),
+  toRole: DealParticipantRoleSchema.nullable().default(null),
 });
 
 export type DealWorkflowLeg = z.infer<typeof DealWorkflowLegSchema>;

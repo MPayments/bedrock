@@ -436,7 +436,7 @@ export function CalculationDialog({
             onClick={onSubmit}
             disabled={isCreating || Boolean(disabledReason)}
           >
-            {isCreating ? loadingLabel : submitLabel}
+            {isCreating ? loadingLabel : disabledReason}
           </Button>
         </DialogFooter>
       </DialogContent>

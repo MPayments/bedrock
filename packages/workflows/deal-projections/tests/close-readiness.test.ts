@@ -22,6 +22,10 @@ function createLeg(input: {
   state?: "blocked" | "done" | "pending" | "ready" | "skipped";
 }) {
   return {
+    amountMinor: null,
+    currencyCode: null,
+    fromPartyName: null,
+    fromRole: null,
     id: input.id,
     idx: input.idx,
     kind: input.kind,
@@ -44,6 +48,8 @@ function createLeg(input: {
         ]
       : [],
     state: input.state ?? "ready",
+    toPartyName: null,
+    toRole: null,
   };
 }
 

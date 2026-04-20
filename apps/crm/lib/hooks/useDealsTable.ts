@@ -34,6 +34,7 @@ export interface DealsRow {
   agentName: string;
   comment?: string;
   feePercentage: number;
+  netMarginInBase: number | null;
 }
 
 export interface DealsResponse {

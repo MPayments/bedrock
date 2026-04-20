@@ -1,7 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   VisibilityState,
   getCoreRowModel,
@@ -9,9 +8,8 @@ import {
 } from "@tanstack/react-table";
 import { useSession } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, Plus } from "lucide-react";
+import { Download, Filter, Plus } from "lucide-react";
 
-import { Card, CardContent } from "@bedrock/sdk-ui/components/card";
 import { Button } from "@bedrock/sdk-ui/components/button";
 
 import { DataTable } from "@bedrock/sdk-tables-ui/components/data-table";
@@ -22,14 +20,16 @@ import { ClientCombobox } from "@/components/dashboard/ClientCombobox";
 import { AgentCombobox } from "@/components/dashboard/AgentCombobox";
 import { DataTableTextFilter } from "@bedrock/sdk-tables-ui/components/data-table-text-filter";
 
-import { useDealsTable } from "@/lib/hooks/useDealsTable";
+import {
+  DealStatus,
+  useDealsTable,
+} from "@/lib/hooks/useDealsTable";
 import { API_BASE_URL } from "@/lib/constants";
 import { formatCurrency } from "@/lib/utils/currency";
 import {
   createDealsColumns,
   getDefaultColumnVisibility,
   CURRENCY_OPTIONS,
-  STATUS_OPTIONS,
 } from "@/components/dashboard/dealsColumns";
 import { NewDealDialog } from "./_components/new-deal-dialog";
 
@@ -43,12 +43,80 @@ type CrmBoardProjection = {
   };
 };
 
+type SegValue =
+  | "all"
+  | "pricing"
+  | "calculating"
+  | "approval"
+  | "funding"
+  | "settled";
+
+const SEG_TO_STATUSES: Record<SegValue, DealStatus[] | null> = {
+  all: null,
+  pricing: ["draft"],
+  calculating: ["submitted"],
+  approval: ["preparing_documents"],
+  funding: ["awaiting_funds", "awaiting_payment", "closing_documents"],
+  settled: ["done", "rejected", "cancelled"],
+};
+
+function Kpi({
+  label,
+  value,
+  sub,
+  tone,
+}: {
+  label: string;
+  value: string | number;
+  sub?: string;
+  tone?: "pos" | "warn";
+}) {
+  return (
+    <div className="kpi-card">
+      <div className="kpi-label">{label}</div>
+      <div className={`kpi-value${tone ? ` ${tone}` : ""}`}>{value}</div>
+      {sub ? <div className="kpi-sub">{sub}</div> : null}
+    </div>
+  );
+}
+
+function Segmented({
+  value,
+  onChange,
+  options,
+}: {
+  value: SegValue;
+  onChange: (v: SegValue) => void;
+  options: { value: SegValue; label: string; count?: number }[];
+}) {
+  return (
+    <div className="segmented" role="tablist">
+      {options.map((o) => (
+        <button
+          key={o.value}
+          type="button"
+          role="tab"
+          aria-selected={value === o.value}
+          className={`segmented-item${value === o.value ? " active" : ""}`}
+          onClick={() => onChange(o.value)}
+        >
+          {o.label}
+          {typeof o.count === "number" ? (
+            <span className="segmented-count">{o.count}</span>
+          ) : null}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function DealsPage() {
   const router = useRouter();
   const { data: session } = useSession();
   const isAdmin = session?.user?.role === "admin";
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [board, setBoard] = useState<CrmBoardProjection | null>(null);
+  const [segStatus, setSegStatus] = useState<SegValue>("all");
 
   // Используем хук для управления состоянием таблицы
   const {
@@ -75,10 +143,9 @@ export default function DealsPage() {
   // Используем переиспользуемые колонки
   const columns = useMemo(() => createDealsColumns(), []);
 
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({
-    ...getDefaultColumnVisibility(isAdmin),
-    closedAt: true, // На странице сделок показываем дату закрытия
-  });
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(
+    getDefaultColumnVisibility(isAdmin),
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -144,150 +211,169 @@ export default function DealsPage() {
     manualFiltering: true,
   });
 
+  // Sync segmented control → status column filter
+  useEffect(() => {
+    const statusCol = table.getColumn("status");
+    if (!statusCol) return;
+    const mapped = SEG_TO_STATUSES[segStatus];
+    statusCol.setFilterValue(mapped ?? undefined);
+  }, [segStatus, table]);
+
+  const totalAmountDisplay = statistics.baseCurrencyCode
+    ? formatCurrency(
+        statistics.totalAmountInBase,
+        statistics.baseCurrencyCode,
+      )
+    : "—";
+
   return (
-    <div className="space-y-4">
-      {/* Заголовок с кнопками */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="outline" size="sm" onClick={() => router.back()}>
-            <ChevronLeft className="mr-2 h-4 w-4" /> Назад
-          </Button>
-          <h1 className="text-2xl font-bold">Сделки</h1>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="flex flex-col items-end text-sm">
-            <div className="font-medium text-muted-foreground">
-              Активных:{" "}
-              <span className="font-bold text-foreground">
-                {statistics.activeCount}
-              </span>{" "}
-              / Завершено:{" "}
-              <span className="font-bold text-foreground">
-                {statistics.doneCount}
-              </span>
-            </div>
-            <div className="font-medium text-muted-foreground">
-              Общая сумма:{" "}
-              <span className="font-bold text-foreground">
-                {statistics.baseCurrencyCode
-                  ? formatCurrency(
-                      statistics.totalAmountInBase,
-                      statistics.baseCurrencyCode,
-                    )
-                  : "Смешанные валюты"}
-              </span>
-            </div>
+    <div className="space-y-5">
+      {/* 1. Page head */}
+      <div className="flex items-end justify-between gap-4">
+        <div>
+          <h1 className="text-[22px] font-semibold leading-tight tracking-tight">
+            Сделки
+          </h1>
+          <div className="mt-1 text-[13px] text-muted-foreground">
+            Pipeline · {statistics.totalCount} сделок · {totalAmountDisplay}{" "}
+            итого
           </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm">
+            <Download /> Экспорт
+          </Button>
+          <Button variant="outline" size="sm">
+            <Filter /> Фильтры
+          </Button>
           <Button
+            size="sm"
             data-testid="crm-new-deal-button"
             onClick={() => setIsCreateDialogOpen(true)}
           >
-            <Plus className="mr-2 h-4 w-4" />
-            Новая сделка
+            <Plus /> Новая сделка
           </Button>
         </div>
       </div>
 
-      {board ? (
-        <div className="grid gap-3 md:grid-cols-5">
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-xs text-muted-foreground">Черновики</div>
-              <div className="mt-1 text-2xl font-semibold">{board.counts.drafts}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-xs text-muted-foreground">Прайсинг</div>
-              <div className="mt-1 text-2xl font-semibold">{board.counts.pricing}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-xs text-muted-foreground">Документы</div>
-              <div className="mt-1 text-2xl font-semibold">{board.counts.documents}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-xs text-muted-foreground">Активные</div>
-              <div className="mt-1 text-2xl font-semibold">{board.counts.active}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-xs text-muted-foreground">Блокеры</div>
-              <div className="mt-1 text-2xl font-semibold">
-                {board.counts.execution_blocked}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      ) : null}
+      {/* 2. KPI grid */}
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <Kpi
+          label="АКТИВНЫЕ"
+          value={board?.counts.active ?? statistics.activeCount}
+          sub="сделок"
+        />
+        <Kpi
+          label="БЛОКЕРЫ"
+          value={board?.counts.execution_blocked ?? 0}
+          sub="требуют внимания"
+        />
+        <Kpi
+          label="ОБЪЁМ"
+          value={totalAmountDisplay}
+          sub={statistics.baseCurrencyCode ?? "смешанные валюты"}
+        />
+        <Kpi
+          label="ЗАВЕРШЕНО"
+          value={statistics.doneCount}
+          sub="сделок"
+        />
+      </div>
 
-      <Card>
-        <CardContent className="space-y-4">
-          {error && (
-            <div className="rounded-md bg-red-50 p-4 text-sm text-red-800">
-              {error}
+      {/* 3. Table card */}
+      <div className="deals-table overflow-hidden rounded-lg border bg-card">
+        {error && (
+          <div className="border-b bg-red-50 px-4 py-2.5 text-sm text-red-800">
+            {error}
+          </div>
+        )}
+
+        {/* Toolbar row 1: segmented status + view options */}
+        <div className="flex items-center justify-between gap-3 border-b px-3.5 py-2.5">
+          <Segmented
+            value={segStatus}
+            onChange={setSegStatus}
+            options={[
+              { value: "all", label: "Все", count: statistics.totalCount },
+              {
+                value: "pricing",
+                label: "Прайсинг",
+                count: board?.counts.drafts,
+              },
+              {
+                value: "calculating",
+                label: "Расчёт",
+                count: board?.counts.pricing,
+              },
+              {
+                value: "approval",
+                label: "Согласование",
+                count: board?.counts.documents,
+              },
+              {
+                value: "funding",
+                label: "Исполнение",
+                count: board?.counts.active,
+              },
+              {
+                value: "settled",
+                label: "Завершены",
+                count: statistics.doneCount,
+              },
+            ]}
+          />
+          <DataTableViewOptions table={table} />
+        </div>
+
+        {/* Toolbar row 2: filters */}
+        <div className="flex flex-wrap items-center gap-2 border-b bg-muted/30 px-3.5 py-2.5">
+          <ClientCombobox
+            value={selectedClientId}
+            onValueChange={setSelectedClientId}
+            placeholder="Выбрать клиента..."
+            className="w-[250px]"
+          />
+          {isAdmin && (
+            <AgentCombobox
+              value={selectedAgentId}
+              onValueChange={setSelectedAgentId}
+              placeholder="Выбрать агента..."
+              className="w-[250px]"
+            />
+          )}
+          <DataTableTextFilter
+            column={table.getColumn("comment")}
+            title="Поиск по комментарию"
+          />
+          <DataTableFacetedMultiFilter
+            column={table.getColumn("currency")}
+            title="Валюта"
+            options={CURRENCY_OPTIONS}
+          />
+        </div>
+
+        {/* Table body */}
+        <div className="relative">
+          {loading && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/80">
+              <div className="text-sm text-muted-foreground">Загрузка...</div>
             </div>
           )}
-
-          <div className="relative">
-            {loading && (
-              <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/80">
-                <div className="text-sm text-muted-foreground">Загрузка...</div>
-              </div>
-            )}
-            <DataTable
-              table={table}
-              onRowDoubleClick={(row) =>
-                router.push(`/deals/${row.original.id}`)
-              }
-              contextMenuItems={(row) => [
-                {
-                  label: "Открыть",
-                  onClick: () => router.push(`/deals/${row.original.id}`),
-                },
-              ]}
-            >
-              <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-                <div className="flex flex-1 flex-wrap items-center gap-2">
-                  <ClientCombobox
-                    value={selectedClientId}
-                    onValueChange={setSelectedClientId}
-                    placeholder="Выбрать клиента..."
-                    className="w-[250px]"
-                  />
-                  {isAdmin && (
-                    <AgentCombobox
-                      value={selectedAgentId}
-                      onValueChange={setSelectedAgentId}
-                      placeholder="Выбрать агента..."
-                      className="w-[250px]"
-                    />
-                  )}
-                  <DataTableTextFilter
-                    column={table.getColumn("comment")}
-                    title="Поиск по комментарию"
-                  />
-                  <DataTableFacetedMultiFilter
-                    column={table.getColumn("status")}
-                    title="Статус"
-                    options={STATUS_OPTIONS}
-                  />
-                  <DataTableFacetedMultiFilter
-                    column={table.getColumn("currency")}
-                    title="Валюта"
-                    options={CURRENCY_OPTIONS}
-                  />
-                </div>
-                <DataTableViewOptions table={table} />
-              </div>
-            </DataTable>
-          </div>
-        </CardContent>
-      </Card>
+          <DataTable
+            table={table}
+            className="dt-flat"
+            onRowDoubleClick={(row) =>
+              router.push(`/deals/${row.original.id}`)
+            }
+            contextMenuItems={(row) => [
+              {
+                label: "Открыть",
+                onClick: () => router.push(`/deals/${row.original.id}`),
+              },
+            ]}
+          />
+        </div>
+      </div>
 
       <NewDealDialog
         open={isCreateDialogOpen}

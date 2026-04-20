@@ -170,7 +170,7 @@ export function AppHeader({ session }: { session: UserSessionSnapshot }) {
   return (
     <>
       <div className="w-full bg-background border-b">
-        <header className="flex justify-between py-2  max-w-[1920px] mx-auto px-4 items-center">
+        <header className="flex justify-between py-2 max-w-[1440px] mx-auto px-6 items-center">
           <Link href="/" className="flex items-center gap-3">
             <div className="flex justify-center py-1 bg-background">
               <h1 className="text-xl font-bold">

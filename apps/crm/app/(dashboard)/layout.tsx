@@ -12,7 +12,7 @@ export default async function DashboardLayout({
   return (
     <>
       <AppHeader session={session} />
-      <main className="mx-auto max-w-[1920px] p-4">{children}</main>
+      <main className="mx-auto max-w-[1440px] px-6 py-6">{children}</main>
     </>
   );
 }

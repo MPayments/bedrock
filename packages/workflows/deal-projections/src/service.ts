@@ -4,6 +4,8 @@ import type { CurrenciesService } from "@bedrock/currencies";
 import { canDealWriteTreasuryOrFormalDocuments } from "@bedrock/deals";
 import type { DealsModule as DealsModuleRoot } from "@bedrock/deals";
 import type {
+  DealApproval,
+  DealApprovalType,
   DealOperationalPosition,
   DealTimelineEvent,
   DealType,
@@ -25,6 +27,7 @@ import type { TreasuryModule } from "@bedrock/treasury";
 import type {
   QuoteListItem,
   TreasuryInstruction,
+  TreasuryOperation,
   TreasuryOperationKind,
 } from "@bedrock/treasury/contracts";
 
@@ -33,6 +36,7 @@ import {
   deriveFinanceDealStage,
 } from "./close-readiness";
 import type {
+  CrmDealApproval,
   CrmDealByStatusItem,
   CrmDealBoardProjection,
   CrmDealBoardStage,
@@ -230,6 +234,17 @@ function buildCrmDealMoneySummary(input: {
     ? parseMinorOrZero(input.calculation.currentSnapshot.totalFeeBps, 2)
     : 0;
 
+  let netMarginInBase: number | null = null;
+  if (input.calculation && input.baseCurrency) {
+    const snap = input.calculation.currentSnapshot;
+    const feeBig = BigInt(snap.totalFeeAmountInBaseMinor);
+    const expensesBig = BigInt(snap.additionalExpensesInBaseMinor);
+    const diff = feeBig - expensesBig;
+    const absDiff = diff < 0n ? -diff : diff;
+    const absDecimal = parseMinorOrZero(absDiff, input.baseCurrency.precision);
+    netMarginInBase = diff < 0n ? -absDecimal : absDecimal;
+  }
+
   return {
     amount,
     amountInBase,
@@ -238,6 +253,7 @@ function buildCrmDealMoneySummary(input: {
     baseCurrencyCode: input.baseCurrency?.code ?? currencyCode,
     currencyCode,
     feePercentage,
+    netMarginInBase,
   };
 }
 
@@ -325,6 +341,122 @@ function getInternalEntityParticipant(workflow: DealWorkflowProjection) {
   return workflow.participants.find(
     (participant) => participant.role === "internal_entity",
   );
+}
+
+function enrichDealExecutionPlanWithParticipants(
+  plan: DealWorkflowProjection["executionPlan"],
+  participants: DealWorkflowProjection["participants"],
+): DealWorkflowProjection["executionPlan"] {
+  const nameByRole = new Map<string, string | null>();
+  for (const participant of participants) {
+    if (!nameByRole.has(participant.role)) {
+      nameByRole.set(participant.role, participant.displayName);
+    }
+  }
+  return plan.map((leg) => ({
+    ...leg,
+    fromPartyName: leg.fromRole
+      ? (nameByRole.get(leg.fromRole) ?? null)
+      : null,
+    toPartyName: leg.toRole ? (nameByRole.get(leg.toRole) ?? null) : null,
+  }));
+}
+
+function enrichDealExecutionPlanWithOperations(
+  plan: DealWorkflowProjection["executionPlan"],
+  operationsById: Map<string, TreasuryOperation>,
+  currencyCodeById: Map<string, string | null>,
+  workflow: DealWorkflowProjection,
+): DealWorkflowProjection["executionPlan"] {
+  const intakeSourceAmount =
+    workflow.intake.moneyRequest.sourceAmount ?? null;
+  const intakeSourceCurrencyId =
+    workflow.intake.moneyRequest.sourceCurrencyId ?? null;
+  const intakeSourceCurrencyCode = intakeSourceCurrencyId
+    ? (currencyCodeById.get(intakeSourceCurrencyId) ?? null)
+    : null;
+
+  return plan.map((leg) => {
+    const ref = leg.operationRefs[0] ?? null;
+    const op = ref ? (operationsById.get(ref.operationId) ?? null) : null;
+    const fromOperation = op
+      ? {
+          amountMinor: op.amountMinor,
+          currencyCode: op.currencyId
+            ? (currencyCodeById.get(op.currencyId) ?? null)
+            : null,
+        }
+      : null;
+
+    if (fromOperation && fromOperation.amountMinor) {
+      return {
+        ...leg,
+        amountMinor: fromOperation.amountMinor,
+        currencyCode: fromOperation.currencyCode,
+      };
+    }
+
+    if (
+      (leg.kind === "collect" || leg.kind === "transit_hold") &&
+      intakeSourceAmount
+    ) {
+      return {
+        ...leg,
+        amountMinor: intakeSourceAmount,
+        currencyCode: intakeSourceCurrencyCode,
+      };
+    }
+
+    return leg;
+  });
+}
+
+const APPROVAL_ROLE_LABEL_BY_TYPE: Record<DealApprovalType, string> = {
+  commercial: "COMMERCIAL",
+  compliance: "COMPLIANCE",
+  operations: "OPERATIONS",
+};
+
+async function enrichDealApprovalsWithDisplayNames(
+  approvals: DealApproval[],
+  deps: Pick<DealProjectionsWorkflowDeps, "iam">,
+): Promise<CrmDealApproval[]> {
+  const userIds = new Set<string>();
+  for (const approval of approvals) {
+    if (approval.requestedBy) userIds.add(approval.requestedBy);
+    if (approval.decidedBy) userIds.add(approval.decidedBy);
+  }
+  if (userIds.size === 0) {
+    return approvals.map((approval) => ({
+      ...approval,
+      approvalRoleLabel:
+        APPROVAL_ROLE_LABEL_BY_TYPE[approval.approvalType] ??
+        approval.approvalType.toUpperCase(),
+      decidedByDisplayName: null,
+      requestedByDisplayName: null,
+    }));
+  }
+  const entries = await Promise.all(
+    Array.from(userIds).map(
+      async (userId): Promise<readonly [string, string | null]> => {
+        const user = await deps.iam.queries.findById(userId);
+        return [userId, user?.name ?? null] as const;
+      },
+    ),
+  );
+  const nameById = new Map(entries);
+  return approvals.map((approval) => ({
+    ...approval,
+    approvalRoleLabel:
+      APPROVAL_ROLE_LABEL_BY_TYPE[approval.approvalType] ??
+      approval.approvalType.toUpperCase(),
+    decidedByDisplayName: approval.decidedBy
+      ? (nameById.get(approval.decidedBy) ?? null)
+      : null,
+    requestedByDisplayName: approval.requestedBy
+      ? (nameById.get(approval.requestedBy) ?? null)
+      : null,
+  }));
 }
 
 function serializeCrmPricingQuote(quote: TreasuryQuoteRecord): QuoteListItem {
@@ -1574,6 +1706,7 @@ export function createDealProjectionsWorkflow(
           currency: monetary.currencyCode,
           feePercentage: monetary.feePercentage,
           id: deal.id,
+          netMarginInBase: monetary.netMarginInBase,
           status: deal.status,
           updatedAt: deal.updatedAt.toISOString(),
         };
@@ -1988,6 +2121,7 @@ export function createDealProjectionsWorkflow(
       currentCalculation,
       internalEntityRequisite,
       quotesResult,
+      operationsResult,
     ] = await Promise.all([
       customerId
         ? (async () => {
@@ -2026,6 +2160,13 @@ export function createDealProjectionsWorkflow(
         sortBy: "createdAt",
         sortOrder: "desc",
       }),
+      deps.treasury.operations.queries.list({
+        dealId,
+        limit: MAX_QUERY_LIST_LIMIT,
+        offset: 0,
+        sortBy: "createdAt",
+        sortOrder: "desc",
+      }),
     ]);
 
     const internalEntityRequisiteProvider = internalEntityRequisite?.providerId
@@ -2033,6 +2174,23 @@ export function createDealProjectionsWorkflow(
           internalEntityRequisite.providerId,
         )
       : null;
+
+    const operationsById = new Map(
+      operationsResult.data.map((op) => [op.id, op] as const),
+    );
+    const legCurrencyIds = new Set<string>();
+    for (const op of operationsResult.data) {
+      if (op.currencyId) legCurrencyIds.add(op.currencyId);
+    }
+    const legCurrencyEntries = await Promise.all(
+      Array.from(legCurrencyIds).map(
+        async (id): Promise<readonly [string, string | null]> => {
+          const currency = await deps.currencies.findById(id);
+          return [id, currency?.code ?? null] as const;
+        },
+      ),
+    );
+    const legCurrencyCodeById = new Map(legCurrencyEntries);
 
     const actions = buildCrmWorkbenchActions(workflow);
     const editability = buildCrmWorkbenchEditability(workflow);
@@ -2045,12 +2203,29 @@ export function createDealProjectionsWorkflow(
       workflow,
     });
     const documentRequirements = buildCrmDocumentRequirements(workflow);
+    const assigneeDetails = workflow.summary.agentId
+      ? await deps.iam.queries.findById(workflow.summary.agentId)
+      : null;
+    const executionPlan = enrichDealExecutionPlanWithOperations(
+      enrichDealExecutionPlanWithParticipants(
+        workflow.executionPlan,
+        workflow.participants,
+      ),
+      operationsById,
+      legCurrencyCodeById,
+      workflow,
+    );
+    const approvals = await enrichDealApprovalsWithDisplayNames(
+      detail.approvals,
+      deps,
+    );
 
     return {
       acceptedQuote: workflow.acceptedQuote,
       actions,
-      approvals: detail.approvals,
+      approvals,
       assignee: {
+        displayName: assigneeDetails?.name ?? null,
         userId: workflow.summary.agentId,
       },
       beneficiaryDraft,
@@ -2069,7 +2244,7 @@ export function createDealProjectionsWorkflow(
       documentRequirements,
       editability,
       evidenceRequirements,
-      executionPlan: workflow.executionPlan,
+      executionPlan,
       intake: workflow.intake,
       nextAction: workflow.nextAction,
       operationalState: workflow.operationalState,

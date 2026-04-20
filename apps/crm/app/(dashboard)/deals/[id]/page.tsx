@@ -15,30 +15,35 @@ import {
 } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 
-import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
+import { formatCompactId } from "@bedrock/shared/core/uuid";
 import { Button } from "@bedrock/sdk-ui/components/button";
+import { toast } from "@bedrock/sdk-ui/components/sonner";
 
 import { API_BASE_URL } from "@/lib/constants";
 import { loadApplicantRequisites as loadApplicantRequisiteOptions } from "@/lib/applicant-requisites";
-import { AgreementCard } from "./_components/agreement-card";
 import { CalculationDialog } from "./_components/calculation-dialog";
 import { CreateCalculationDialog } from "./_components/create-calculation-dialog";
-import { DealDocumentsTab } from "./_components/deal-documents-tab";
-import { DealManagementCard } from "./_components/deal-management-card";
-import { DealTimelineCard } from "./_components/deal-timeline-card";
+import { ApprovalPane } from "./_components/approval-pane";
+import { CalculatingPane } from "./_components/calculating-pane";
+import { FundingPane } from "./_components/funding-pane";
+import { PricingPane } from "./_components/pricing-pane";
+import { SettledPane } from "./_components/settled-pane";
+import { KeyDatesSidebarCard } from "./_components/key-dates-sidebar-card";
+import { PartiesSidebarCard } from "./_components/parties-sidebar-card";
 import {
-  DealTabs,
   DEFAULT_DEAL_PAGE_TAB,
   isDealPageTab,
   type DealPageTab,
 } from "./_components/deal-tabs";
-import { DealExecutionTab } from "./_components/deal-execution-tab";
+import {
+  DealStageTrack,
+  DEAL_STAGE_ORDER,
+  StageViewingBanner,
+  currentStageIndexFromStatus,
+  type DealStageKey,
+} from "./_components/deal-stage-track";
 import { DealHeader } from "./_components/deal-header";
-import { DealIntakeTab } from "./_components/deal-intake-tab";
-import { DealOverviewTab } from "./_components/deal-overview-tab";
-import { DealPricingTab } from "./_components/deal-pricing-tab";
 import { ErrorDialog } from "./_components/error-dialog";
-import { UploadAttachmentDialog } from "./_components/upload-attachment-dialog";
 import {
   formatDealWorkflowMessage,
   getDealWorkflowMessageTone,
@@ -77,9 +82,24 @@ import type {
   ApiRequisiteProvider,
   CalculationHistoryView,
   CalculationView,
-  DealLegState,
   DealStatus,
 } from "./_components/types";
+
+const STAGE_TO_TAB: Record<DealStageKey, DealPageTab> = {
+  pricing: "intake",
+  calculating: "pricing",
+  approval: "documents",
+  funding: "execution",
+  settled: "overview",
+};
+
+const TAB_TO_STAGE: Record<DealPageTab, DealStageKey> = {
+  intake: "pricing",
+  pricing: "calculating",
+  documents: "approval",
+  execution: "funding",
+  overview: "settled",
+};
 
 type DealPageData = {
   agreement: ApiAgreementDetails;
@@ -98,15 +118,6 @@ type DealPageData = {
   workbench: ApiCrmDealWorkbenchProjection;
   workflow: ApiDealWorkflowProjection;
   currencyOptions: ApiCurrencyOption[];
-};
-
-type DealAgreementOption = {
-  currentVersion: {
-    contractNumber: string | null;
-    versionNumber: number;
-  };
-  id: string;
-  isActive: boolean;
 };
 
 async function parseErrorMessage(response: Response, fallback: string) {
@@ -778,10 +789,6 @@ export default function DealDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
-  const [isUpdatingLegKey, setIsUpdatingLegKey] = useState<string | null>(null);
-  const [isEditingComment, setIsEditingComment] = useState(false);
-  const [commentValue, setCommentValue] = useState("");
-  const [isSavingComment, setIsSavingComment] = useState(false);
   const [draftIntake, setDraftIntake] = useState<CrmDealIntakeDraft | null>(
     null,
   );
@@ -790,28 +797,7 @@ export default function DealDetailPage() {
   const [applicantRequisites, setApplicantRequisites] = useState<
     CrmApplicantRequisiteOption[]
   >([]);
-  const [agreementOptions, setAgreementOptions] = useState<
-    DealAgreementOption[]
-  >([]);
   const [isSavingIntake, setIsSavingIntake] = useState(false);
-  const [isUpdatingAgreement, setIsUpdatingAgreement] = useState(false);
-  const [isUpdatingAssignee, setIsUpdatingAssignee] = useState(false);
-  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
-  const [uploadFile, setUploadFile] = useState<File | null>(null);
-  const [uploadDescription, setUploadDescription] = useState("");
-  const [uploadPurpose, setUploadPurpose] = useState<
-    "invoice" | "contract" | "other"
-  >("other");
-  const [uploadVisibility, setUploadVisibility] = useState<
-    "customer_safe" | "internal"
-  >("internal");
-  const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
-  const [reingestingAttachmentId, setReingestingAttachmentId] = useState<
-    string | null
-  >(null);
-  const [deletingAttachmentId, setDeletingAttachmentId] = useState<
-    string | null
-  >(null);
   const [errorDialog, setErrorDialog] = useState<{
     isOpen: boolean;
     message: string;
@@ -851,10 +837,20 @@ export default function DealDetailPage() {
     formatDateTimeInput(new Date()),
   );
 
-  const activeTab = useMemo<DealPageTab>(() => {
+  const explicitTab = useMemo<DealPageTab | null>(() => {
     const tabParam = searchParams.get("tab");
-    return isDealPageTab(tabParam) ? tabParam : DEFAULT_DEAL_PAGE_TAB;
+    return isDealPageTab(tabParam) ? tabParam : null;
   }, [searchParams]);
+
+  const viewStage = useMemo<DealStageKey>(() => {
+    if (explicitTab) return TAB_TO_STAGE[explicitTab];
+    if (data)
+      return (
+        DEAL_STAGE_ORDER[currentStageIndexFromStatus(data.deal.status)] ??
+        "pricing"
+      );
+    return "pricing";
+  }, [data, explicitTab]);
 
   const acceptedQuoteDetails = useMemo(() => {
     if (!data) {
@@ -970,6 +966,13 @@ export default function DealDetailPage() {
     [pathname, router, searchParams],
   );
 
+  const handleStageChange = useCallback(
+    (stage: DealStageKey) => {
+      handleTabChange(STAGE_TO_TAB[stage]);
+    },
+    [handleTabChange],
+  );
+
   const loadDeal = useCallback(async () => {
     if (!dealId) {
       return;
@@ -994,12 +997,6 @@ export default function DealDetailPage() {
         throw new Error("Не удалось собрать контекст сделки для CRM.");
       }
 
-      const customerId =
-        workbench.context.customer?.customer.id ??
-        workbench.participants.find(
-          (participant) => participant.role === "customer",
-        )?.customerId ??
-        null;
       const applicantCounterpartyId =
         workbench.intake.common.applicantCounterpartyId ?? null;
 
@@ -1008,7 +1005,6 @@ export default function DealDetailPage() {
         sourceCurrency,
         calculation,
         currencyOptions,
-        agreementsPayload,
         applicantRequisitesPayload,
       ] = await Promise.all([
         deal.currencyId
@@ -1027,11 +1023,6 @@ export default function DealDetailPage() {
             )
           : Promise.resolve(null),
         fetchCurrencyOptions(),
-        customerId
-          ? fetchJson<{ data: DealAgreementOption[] }>(
-              `${API_BASE_URL}/agreements?customerId=${customerId}&limit=${MAX_QUERY_LIST_LIMIT}&offset=0`,
-            )
-          : Promise.resolve({ data: [] }),
         applicantCounterpartyId
           ? loadApplicantRequisiteOptions(applicantCounterpartyId)
           : Promise.resolve([]),
@@ -1069,7 +1060,6 @@ export default function DealDetailPage() {
         workbench,
         workflow: workbench.workflow,
       });
-      setAgreementOptions(agreementsPayload.data);
       setApplicantRequisites(applicantRequisitesPayload);
       setDraftIntake(workbench.intake);
       setBaselineIntake(workbench.intake);
@@ -1312,15 +1302,6 @@ export default function DealDetailPage() {
       quoteRequest,
     ],
   );
-  const calculationDisabledReason = !data
-    ? "Данные сделки еще загружаются."
-    : quoteCreationDisabledReason
-      ? quoteCreationDisabledReason
-      : !data.workbench.acceptedQuote
-        ? "Сначала примите котировку."
-        : data.workbench.acceptedQuote.quoteStatus !== "active"
-          ? "Создать расчет можно только по действующей принятой котировке."
-          : null;
 
   useEffect(() => {
     if (!isQuoteDialogOpen) {
@@ -1556,91 +1537,6 @@ export default function DealDetailPage() {
     [data?.workflow.transitionReadiness, showError],
   );
 
-  const handleLegStateUpdate = useCallback(
-    async (idx: number, state: DealLegState) => {
-      try {
-        setIsUpdatingLegKey(String(idx));
-
-        const response = await fetch(
-          `${API_BASE_URL}/deals/${dealId}/legs/${idx}/state`,
-          {
-            body: JSON.stringify({ state }),
-            credentials: "include",
-            headers: { "Content-Type": "application/json" },
-            method: "POST",
-          },
-        );
-
-        if (!response.ok) {
-          throw new Error(
-            await parseErrorMessage(
-              response,
-              `Ошибка обновления этапа исполнения: ${response.status}`,
-            ),
-          );
-        }
-
-        await loadDeal();
-      } catch (nextError) {
-        console.error("Deal leg state update error:", nextError);
-        showError(
-          "Ошибка обновления этапа исполнения",
-          nextError instanceof Error
-            ? nextError.message
-            : "Не удалось обновить этап исполнения",
-        );
-      } finally {
-        setIsUpdatingLegKey(null);
-      }
-    },
-    [dealId, loadDeal, showError],
-  );
-
-  const handleEditComment = useCallback(() => {
-    setCommentValue(data?.deal.comment ?? "");
-    setIsEditingComment(true);
-  }, [data?.deal.comment]);
-
-  const handleCancelEditComment = useCallback(() => {
-    setCommentValue("");
-    setIsEditingComment(false);
-  }, []);
-
-  const handleSaveComment = useCallback(async () => {
-    try {
-      setIsSavingComment(true);
-
-      const response = await fetch(`${API_BASE_URL}/deals/${dealId}/comment`, {
-        body: JSON.stringify({ comment: commentValue }),
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        method: "PATCH",
-      });
-
-      if (!response.ok) {
-        throw new Error(
-          await parseErrorMessage(
-            response,
-            `Ошибка сохранения комментария: ${response.status}`,
-          ),
-        );
-      }
-
-      setIsEditingComment(false);
-      await loadDeal();
-    } catch (nextError) {
-      console.error("Deal comment update error:", nextError);
-      showError(
-        "Ошибка сохранения комментария",
-        nextError instanceof Error
-          ? nextError.message
-          : "Не удалось сохранить комментарий",
-      );
-    } finally {
-      setIsSavingComment(false);
-    }
-  }, [commentValue, dealId, loadDeal, showError]);
-
   const handleSaveIntake = useCallback(async () => {
     if (!data || !draftIntake) {
       return;
@@ -1690,288 +1586,6 @@ export default function DealDetailPage() {
     setDraftIntake(baselineIntake);
   }, [baselineIntake]);
 
-  const handleAgreementChange = useCallback(
-    async (agreementId: string) => {
-      if (!data || agreementId === data.workbench.context.agreement?.id) {
-        return;
-      }
-
-      try {
-        setIsUpdatingAgreement(true);
-
-        const response = await fetch(
-          `${API_BASE_URL}/deals/${dealId}/agreement`,
-          {
-            body: JSON.stringify({ agreementId }),
-            credentials: "include",
-            headers: { "Content-Type": "application/json" },
-            method: "PATCH",
-          },
-        );
-
-        if (!response.ok) {
-          throw new Error(
-            await parseErrorMessage(
-              response,
-              `Ошибка изменения договора: ${response.status}`,
-            ),
-          );
-        }
-
-        await loadDeal();
-      } catch (nextError) {
-        console.error("Deal agreement update error:", nextError);
-        showError(
-          "Ошибка изменения договора",
-          nextError instanceof Error
-            ? nextError.message
-            : "Не удалось изменить договор сделки",
-        );
-      } finally {
-        setIsUpdatingAgreement(false);
-      }
-    },
-    [data, dealId, loadDeal, showError],
-  );
-
-  const handleAssigneeChange = useCallback(
-    async (agentId: string | undefined) => {
-      if (!data || agentId === (data.workbench.assignee.userId ?? undefined)) {
-        return;
-      }
-
-      try {
-        setIsUpdatingAssignee(true);
-
-        const response = await fetch(
-          `${API_BASE_URL}/deals/${dealId}/assignee`,
-          {
-            body: JSON.stringify({ agentId: agentId ?? null }),
-            credentials: "include",
-            headers: { "Content-Type": "application/json" },
-            method: "PATCH",
-          },
-        );
-
-        if (!response.ok) {
-          throw new Error(
-            await parseErrorMessage(
-              response,
-              `Ошибка изменения исполнителя: ${response.status}`,
-            ),
-          );
-        }
-
-        await loadDeal();
-      } catch (nextError) {
-        console.error("Deal assignee update error:", nextError);
-        showError(
-          "Ошибка изменения исполнителя",
-          nextError instanceof Error
-            ? nextError.message
-            : "Не удалось изменить исполнителя сделки",
-        );
-      } finally {
-        setIsUpdatingAssignee(false);
-      }
-    },
-    [data, dealId, loadDeal, showError],
-  );
-
-  const handleAttachmentUpload = useCallback(async () => {
-    if (!uploadFile) {
-      showError("Файл не выбран", "Выберите файл для загрузки");
-      return;
-    }
-
-    try {
-      setIsUploadingAttachment(true);
-      const formData = new FormData();
-      formData.append("file", uploadFile);
-      if (uploadDescription.trim()) {
-        formData.append("description", uploadDescription.trim());
-      }
-      formData.append("purpose", uploadPurpose);
-      formData.append("visibility", uploadVisibility);
-
-      const response = await fetch(
-        `${API_BASE_URL}/deals/${dealId}/attachments`,
-        {
-          body: formData,
-          credentials: "include",
-          method: "POST",
-        },
-      );
-
-      if (!response.ok) {
-        throw new Error(
-          await parseErrorMessage(
-            response,
-            `Ошибка загрузки вложения: ${response.status}`,
-          ),
-        );
-      }
-
-      setIsUploadDialogOpen(false);
-      setUploadDescription("");
-      setUploadFile(null);
-      setUploadPurpose("other");
-      setUploadVisibility("internal");
-      await loadDeal();
-    } catch (nextError) {
-      console.error("Deal attachment upload error:", nextError);
-      showError(
-        "Ошибка загрузки вложения",
-        nextError instanceof Error
-          ? nextError.message
-          : "Не удалось загрузить вложение",
-      );
-    } finally {
-      setIsUploadingAttachment(false);
-    }
-  }, [
-    dealId,
-    loadDeal,
-    showError,
-    uploadDescription,
-    uploadFile,
-    uploadPurpose,
-    uploadVisibility,
-  ]);
-
-  const handleAttachmentDelete = useCallback(
-    async (attachmentId: string) => {
-      try {
-        setDeletingAttachmentId(attachmentId);
-
-        const response = await fetch(
-          `${API_BASE_URL}/deals/${dealId}/attachments/${attachmentId}`,
-          {
-            credentials: "include",
-            method: "DELETE",
-          },
-        );
-
-        if (!response.ok) {
-          throw new Error(
-            await parseErrorMessage(
-              response,
-              `Ошибка удаления вложения: ${response.status}`,
-            ),
-          );
-        }
-
-        await loadDeal();
-      } catch (nextError) {
-        console.error("Deal attachment delete error:", nextError);
-        showError(
-          "Ошибка удаления вложения",
-          nextError instanceof Error
-            ? nextError.message
-            : "Не удалось удалить вложение",
-        );
-      } finally {
-        setDeletingAttachmentId(null);
-      }
-    },
-    [dealId, loadDeal, showError],
-  );
-
-  const handleAttachmentDownload = useCallback(
-    (attachmentId: string) => {
-      window.open(
-        `${API_BASE_URL}/deals/${dealId}/attachments/${attachmentId}/download`,
-        "_blank",
-        "noopener,noreferrer",
-      );
-    },
-    [dealId],
-  );
-
-  const handleOpenAttachmentDialog = useCallback(() => {
-    const hasInvoiceAttachment = data?.attachments.some(
-      (attachment) => attachment.purpose === "invoice",
-    );
-    setUploadPurpose(
-      data?.deal.type === "payment" && !hasInvoiceAttachment
-        ? "invoice"
-        : "other",
-    );
-    setUploadVisibility("internal");
-    setIsUploadDialogOpen(true);
-  }, [data]);
-
-  const handleAttachmentReingest = useCallback(
-    async (attachmentId: string) => {
-      try {
-        setReingestingAttachmentId(attachmentId);
-
-        const response = await fetch(
-          `${API_BASE_URL}/deals/${dealId}/attachments/${attachmentId}/reingest`,
-          {
-            credentials: "include",
-            method: "POST",
-          },
-        );
-
-        if (!response.ok) {
-          throw new Error(
-            await parseErrorMessage(
-              response,
-              `Ошибка повторного распознавания: ${response.status}`,
-            ),
-          );
-        }
-
-        await loadDeal();
-      } catch (nextError) {
-        console.error("Deal attachment reingest error:", nextError);
-        showError(
-          "Ошибка повторного распознавания",
-          nextError instanceof Error
-            ? nextError.message
-            : "Не удалось повторно отправить файл на распознавание",
-        );
-      } finally {
-        setReingestingAttachmentId(null);
-      }
-    },
-    [dealId, loadDeal, showError],
-  );
-
-  const tabBadges = useMemo(() => {
-    if (!data) {
-      return {};
-    }
-
-    const incompleteSectionCount = data.workflow.sectionCompleteness.filter(
-      (section) => !section.complete,
-    ).length;
-    const missingEvidenceCount = data.workbench.evidenceRequirements.filter(
-      (requirement) => requirement.state === "missing",
-    ).length;
-    const missingDocumentCount = data.workbench.documentRequirements.filter(
-      (requirement) => requirement.state === "missing",
-    ).length;
-    const blockedLegCount = data.workflow.executionPlan.filter(
-      (leg) => leg.state === "blocked",
-    ).length;
-    const blockedPositionCount =
-      data.workflow.operationalState.positions.filter(
-        (position) => position.state === "blocked",
-      ).length;
-
-    return {
-      documents: missingEvidenceCount + missingDocumentCount,
-      execution: blockedLegCount + blockedPositionCount,
-      intake:
-        incompleteSectionCount > 0
-          ? incompleteSectionCount
-          : isIntakeDirty
-            ? "●"
-            : null,
-    } satisfies Partial<Record<DealPageTab, number | string | null>>;
-  }, [data, isIntakeDirty]);
 
   if (loading) {
     return (
@@ -1995,134 +1609,249 @@ export default function DealDetailPage() {
     );
   }
 
+  const currentStage: DealStageKey =
+    DEAL_STAGE_ORDER[currentStageIndexFromStatus(data.deal.status)] ??
+    "pricing";
+
+  const currencyPairLabel = (() => {
+    const src = data.sourceCurrency?.code;
+    const tgt = data.currency?.code;
+    if (src && tgt && src !== tgt) return `${src} → ${tgt}`;
+    if (tgt) return tgt;
+    if (src) return src;
+    return null;
+  })();
+
+  const corridorLabel = (() => {
+    const fromCountry =
+      data.workbench.intake.incomingReceipt.payerSnapshot?.country ??
+      null;
+    const toCountry =
+      data.workbench.intake.externalBeneficiary.beneficiarySnapshot?.country ??
+      data.workbench.beneficiaryDraft?.beneficiarySnapshot?.country ??
+      null;
+    if (fromCountry && toCountry && fromCountry !== toCountry) {
+      return `${fromCountry} → ${toCountry}`;
+    }
+    if (toCountry) return toCountry;
+    return null;
+  })();
+
+  const dueDateLabel = (() => {
+    const iso = data.workbench.intake.common.requestedExecutionDate;
+    if (!iso) return null;
+    try {
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return null;
+      return `Срок: ${new Intl.DateTimeFormat("ru-RU", {
+        day: "numeric",
+        month: "short",
+      }).format(d)}`;
+    } catch {
+      return null;
+    }
+  })();
+
+  const beneficiaryDisplayName =
+    data.partyProfile?.fullName ||
+    data.partyProfile?.shortName ||
+    null;
+
+  const netMarginInBase = data.calculation
+    ? (() => {
+        const fee = Number(
+          (data.calculation.totalFeeAmountInBase ?? "0").replace(",", "."),
+        );
+        const expenses = Number(
+          (data.calculation.additionalExpensesInBase ?? "0").replace(",", "."),
+        );
+        if (!Number.isFinite(fee) || !Number.isFinite(expenses)) return null;
+        return fee - expenses;
+      })()
+    : null;
+
+  const closedAtIso =
+    data.deal.status === "done" || data.deal.status === "cancelled"
+      ? data.deal.updatedAt
+      : null;
+
+  const plannedNetMarginInBase = (() => {
+    const first = data.workbench.pricing.calculationHistory[0];
+    if (!first?.totalFeeAmountMinor) return null;
+    const raw = Number(first.totalFeeAmountMinor);
+    if (!Number.isFinite(raw)) return null;
+    return raw / 100;
+  })();
+
+  const isReadOnlyView = viewStage !== currentStage;
+
+  const handleOpenContract = () =>
+    toast.info("Открытие договора появится в следующей итерации");
+  const handleSendToCustomer = () =>
+    toast.info("Отправка клиенту появится в следующей итерации");
+  const handleSendCalcPdf = () =>
+    toast.info("Выгрузка PDF подключится в следующей итерации");
+  const handleDownloadPack = () =>
+    toast.info("Пакет документов появится в следующей итерации");
+  const handleSendStatement = () =>
+    toast.info("Отправка стейтмента подключится в следующей итерации");
+  const handleNudgeApprover = () =>
+    toast.success("Напоминание отправлено аппрувверу");
+
+  const stagePanes: Record<DealStageKey, React.ReactNode> = {
+    pricing: (
+      <PricingPane
+        acceptedQuote={data.workbench.acceptedQuote}
+        acceptingQuoteId={isAcceptingQuoteId}
+        calculation={data.calculation}
+        currencyOptions={data.currencyOptions}
+        intake={data.workbench.intake}
+        intakeProps={
+          draftIntake
+            ? {
+                applicantRequisites,
+                currencyOptions: data.currencyOptions,
+                intake: draftIntake,
+                isDirty: isIntakeDirty,
+                isSaving: isSavingIntake,
+                counterparties: data.customer.counterparties,
+                onChange: setDraftIntake,
+                onReset: handleResetIntake,
+                onSave: handleSaveIntake,
+                readOnly: !data.workbench.editability.intake,
+                sectionCompleteness: data.workflow.sectionCompleteness,
+              }
+            : null
+        }
+        onAcceptQuote={handleAcceptQuote}
+        onOpenQuoteDialog={handleOpenQuoteDialog}
+        onSendToCustomer={handleSendToCustomer}
+        quotes={data.workbench.pricing.quotes}
+        readOnly={isReadOnlyView}
+        timeline={data.workflow.timeline}
+      />
+    ),
+    calculating: (
+      <CalculatingPane
+        acceptedQuote={data.workbench.acceptedQuote}
+        calculation={data.calculation}
+        calculationAmount={calculationAmount}
+        currencyOptions={data.currencyOptions}
+        fixedFeeAmount={fixedFeeAmount}
+        fixedFeeCurrencyCode={fixedFeeCurrencyCode}
+        intake={data.workbench.intake}
+        isCreatingCalculation={isCreatingCalculation}
+        isCreatingQuote={isCreatingQuote}
+        isUpdatingStatus={isUpdatingStatus}
+        netMarginInBase={netMarginInBase}
+        onAmountChange={setCalculationAmount}
+        onCreateCalculation={handleOpenCreateCalculationDialog}
+        onCreateQuote={handleCreateQuote}
+        onEditInputs={handleOpenQuoteDialog}
+        onFixedFeeAmountChange={setFixedFeeAmount}
+        onFixedFeeCurrencyChange={(value) =>
+          setFixedFeeCurrencyCode(value || null)
+        }
+        onQuoteMarkupPercentChange={setQuoteMarkupPercent}
+        onSendCalcPdf={handleSendCalcPdf}
+        onSendToCustomer={handleSendToCustomer}
+        onStatusChange={handleStatusUpdate}
+        onToCurrencyChange={setCalculationToCurrency}
+        quoteMarkupPercent={quoteMarkupPercent}
+        quotes={data.workbench.pricing.quotes}
+        readOnly={isReadOnlyView}
+        toCurrency={calculationToCurrency}
+      />
+    ),
+    approval: (
+      <ApprovalPane
+        approvals={data.workbench.approvals}
+        calculation={data.calculation}
+        documentRequirements={data.workbench.documentRequirements}
+        isUpdatingStatus={isUpdatingStatus}
+        netMarginInBase={netMarginInBase}
+        onNudgeApprover={handleNudgeApprover}
+        onStatusChange={handleStatusUpdate}
+        readOnly={isReadOnlyView}
+        transitionReadiness={data.workflow.transitionReadiness}
+      />
+    ),
+    funding: (
+      <FundingPane
+        calculation={data.calculation}
+        executionPlan={data.workbench.executionPlan}
+        netMarginInBase={netMarginInBase}
+        operationalState={data.workflow.operationalState}
+        readOnly={isReadOnlyView}
+      />
+    ),
+    settled: (
+      <SettledPane
+        attachments={data.attachments}
+        calculation={data.calculation}
+        closedAt={closedAtIso}
+        createdAt={data.deal.createdAt}
+        formalDocuments={data.formalDocuments}
+        netMarginInBase={netMarginInBase}
+        onDownloadPack={handleDownloadPack}
+        onSendStatement={handleSendStatement}
+        plannedNetMarginInBase={plannedNetMarginInBase}
+        reason={data.deal.reason}
+        status={data.deal.status}
+      />
+    ),
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <DealHeader
         applicantDisplayName={data.workbench.summary.applicantDisplayName}
+        beneficiaryDisplayName={beneficiaryDisplayName}
+        corridorLabel={corridorLabel}
+        currencyPairLabel={currencyPairLabel}
+        dealCompactId={formatCompactId(data.deal.id)}
+        dueDateLabel={dueDateLabel}
         isUpdatingStatus={isUpdatingStatus}
+        onApproveFunding={() => handleStatusUpdate("awaiting_funds")}
         onBack={() => router.back()}
         onBlockedStatusClick={handleBlockedTransitionClick}
+        onOpenCalculation={() => handleStageChange("calculating")}
+        onOpenContract={handleOpenContract}
         onStatusChange={handleStatusUpdate}
+        readOnly={viewStage !== currentStage}
         status={data.deal.status}
         type={data.deal.type}
         transitionReadiness={data.workflow.transitionReadiness}
       />
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,2fr)_1px_minmax(320px,1fr)]">
-        <div className="space-y-6">
-          <DealTabs
-            activeTab={activeTab}
-            badges={tabBadges}
-            onTabChange={handleTabChange}
-            overview={
-              <DealOverviewTab
-                calculation={data.calculation}
-                commentValue={commentValue}
-                deal={data.deal}
-                isEditingComment={isEditingComment}
-                isSavingComment={isSavingComment}
-                partyProfile={data.partyProfile}
-                onCancelEdit={handleCancelEditComment}
-                onCommentChange={setCommentValue}
-                onEditComment={handleEditComment}
-                onSaveComment={handleSaveComment}
-                organization={data.organization}
-                organizationRequisite={data.organizationRequisite}
-                organizationRequisiteProvider={data.organizationRequisiteProvider}
-                currency={data.currency}
-                workbench={data.workbench}
-                workflow={data.workflow}
-              />
-            }
-            intake={
-              draftIntake ? (
-                <DealIntakeTab
-                  applicantRequisites={applicantRequisites}
-                  currencyOptions={data.currencyOptions}
-                  intake={draftIntake}
-                  isDirty={isIntakeDirty}
-                  isSaving={isSavingIntake}
-                  counterparties={data.customer.counterparties}
-                  onChange={setDraftIntake}
-                  onReset={handleResetIntake}
-                  onSave={handleSaveIntake}
-                  readOnly={!data.workbench.editability.intake}
-                  sectionCompleteness={data.workflow.sectionCompleteness}
-                />
-              ) : null
-            }
-            pricing={
-              <DealPricingTab
-                acceptedQuote={data.workbench.acceptedQuote}
-                activeCalculationId={data.deal.calculationId}
-                calculation={data.calculation}
-                calculationDisabledReason={calculationDisabledReason}
-                calculationHistory={data.calculationHistory}
-                isAcceptingQuoteId={isAcceptingQuoteId}
-                isCreatingCalculation={isCreatingCalculation}
-                isCreatingQuote={isCreatingQuote}
-                onAcceptQuote={handleAcceptQuote}
-                onCreateCalculation={handleOpenCreateCalculationDialog}
-                onCreateQuote={handleOpenQuoteDialog}
-                quoteAmountSide={quoteRequest?.amountSide ?? "source"}
-                quoteCreationDisabledReason={quoteCreationDisabledReason}
-                quotes={data.workbench.pricing.quotes}
-              />
-            }
-            documents={
-              <DealDocumentsTab
-                attachments={data.attachments}
-                attachmentIngestions={data.workflow.attachmentIngestions}
-                beneficiaryDraft={data.workbench.beneficiaryDraft}
-                deletingAttachmentId={deletingAttachmentId}
-                documentRequirements={data.workbench.documentRequirements}
-                evidenceRequirements={data.workbench.evidenceRequirements}
-                formalDocuments={data.formalDocuments}
-                onAttachmentDelete={handleAttachmentDelete}
-                onAttachmentDownload={handleAttachmentDownload}
-                onAttachmentReingest={handleAttachmentReingest}
-                onAttachmentUpload={handleOpenAttachmentDialog}
-                reingestingAttachmentId={reingestingAttachmentId}
-              />
-            }
-            execution={
-              <DealExecutionTab
-                executionPlan={data.workflow.executionPlan}
-                isUpdatingLegKey={isUpdatingLegKey}
-                onBlockedTransitionClick={handleBlockedTransitionClick}
-                onUpdateLegState={handleLegStateUpdate}
-                operationalState={data.workflow.operationalState}
-                sectionCompleteness={data.workflow.sectionCompleteness}
-                transitionReadiness={data.workflow.transitionReadiness}
-              />
-            }
-          />
-        </div>
+      <DealStageTrack
+        status={data.deal.status}
+        viewStage={viewStage}
+        onViewStageChange={handleStageChange}
+      />
 
-        <div aria-hidden className="hidden self-stretch bg-border xl:block" />
+      <StageViewingBanner
+        viewStage={viewStage}
+        currentStage={currentStage}
+        onJumpToCurrent={() => handleStageChange(currentStage)}
+      />
 
-        <div className="space-y-6">
-          <DealManagementCard
-            agreementId={data.agreement.id}
-            agreementOptions={agreementOptions.map((agreement) => ({
-              contractNumber: agreement.currentVersion.contractNumber,
-              id: agreement.id,
-              isActive: agreement.isActive,
-              versionNumber: agreement.currentVersion.versionNumber,
-            }))}
-            assigneeUserId={data.workbench.assignee.userId}
-            canChangeAgreement={data.workbench.editability.agreement}
-            canReassignAssignee={data.workbench.editability.assignee}
-            isUpdatingAgreement={isUpdatingAgreement}
-            isUpdatingAssignee={isUpdatingAssignee}
-            onAgreementChange={handleAgreementChange}
-            onAssigneeChange={handleAssigneeChange}
+      <div className="detail-grid">
+        <div className="detail-main">{stagePanes[viewStage]}</div>
+
+        <div className="detail-side">
+          <PartiesSidebarCard
+            applicant={data.workbench.context.applicant}
+            assignee={data.workbench.assignee}
+            beneficiarySnapshot={
+              data.workbench.intake.externalBeneficiary.beneficiarySnapshot ??
+              data.workbench.beneficiaryDraft?.beneficiarySnapshot ??
+              null
+            }
+            customer={data.workbench.context.customer}
+            customerDisplayName={data.workbench.summary.customerDisplayName}
           />
-          <DealTimelineCard
-            executionPlan={data.workbench.executionPlan}
-            timeline={data.workflow.timeline}
-          />
-          <AgreementCard agreement={data.agreement} />
+          <KeyDatesSidebarCard timeline={data.workflow.timeline} />
         </div>
       </div>
 
@@ -2193,36 +1922,6 @@ export default function DealDetailPage() {
           acceptedQuoteCommercialSummary.quoteMarkupPercentage
         }
         totalFeePercentage={acceptedQuoteCommercialSummary.totalFeePercentage}
-      />
-
-      <UploadAttachmentDialog
-        open={isUploadDialogOpen}
-        uploadFile={uploadFile}
-        uploadDescription={uploadDescription}
-        uploadPurpose={uploadPurpose}
-        uploadVisibility={uploadVisibility}
-        isUploading={isUploadingAttachment}
-        onOpenChange={(open) => {
-          setIsUploadDialogOpen(open);
-          if (!open) {
-            setUploadDescription("");
-            setUploadFile(null);
-            setUploadPurpose("other");
-            setUploadVisibility("internal");
-          }
-        }}
-        onFileChange={setUploadFile}
-        onDescriptionChange={setUploadDescription}
-        onPurposeChange={setUploadPurpose}
-        onVisibilityChange={setUploadVisibility}
-        onCancel={() => {
-          setIsUploadDialogOpen(false);
-          setUploadDescription("");
-          setUploadFile(null);
-          setUploadPurpose("other");
-          setUploadVisibility("internal");
-        }}
-        onSubmit={handleAttachmentUpload}
       />
 
       <ErrorDialog

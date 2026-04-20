@@ -11,11 +11,17 @@ function createExecutionLeg(
   state: "ready" | "pending",
 ) {
   return {
+    amountMinor: null,
+    currencyCode: null,
+    fromPartyName: null,
+    fromRole: null,
     id: `leg-${idx}`,
     idx,
     kind,
     operationRefs: [],
     state,
+    toPartyName: null,
+    toRole: null,
   };
 }
 
@@ -1057,6 +1063,10 @@ describe("createDealProjectionsWorkflow", () => {
         ...createBaseWorkflow(),
         executionPlan: [
           {
+            amountMinor: null,
+            currencyCode: null,
+            fromPartyName: null,
+            fromRole: null,
             id: "leg-1",
             idx: 1,
             kind: "payout",
@@ -1068,6 +1078,8 @@ describe("createDealProjectionsWorkflow", () => {
               },
             ],
             state: "ready",
+            toPartyName: null,
+            toRole: null,
           },
         ],
         acceptedQuote: {
