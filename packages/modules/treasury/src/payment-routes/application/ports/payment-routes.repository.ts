@@ -20,6 +20,8 @@ export interface PaymentRouteTemplateRecord {
   draft: PaymentRouteDraft;
   id: string;
   lastCalculation: PaymentRouteCalculation | null;
+  maxMarginBps: number | null;
+  minMarginBps: number | null;
   name: string;
   snapshotPolicy: "clone_on_attach";
   status: PaymentRouteTemplateStatus;
@@ -32,6 +34,8 @@ export interface PaymentRouteTemplateWriteModel {
   draft: PaymentRouteDraft;
   id: string;
   lastCalculation: PaymentRouteCalculation | null;
+  maxMarginBps: number | null;
+  minMarginBps: number | null;
   name: string;
   snapshotPolicy: "clone_on_attach";
   status: PaymentRouteTemplateStatus;
@@ -48,7 +52,14 @@ export interface PaymentRouteTemplatesRepository {
     input: Partial<
       Pick<
         PaymentRouteTemplateWriteModel,
-        "draft" | "lastCalculation" | "name" | "status" | "updatedAt" | "visual"
+        | "draft"
+        | "lastCalculation"
+        | "maxMarginBps"
+        | "minMarginBps"
+        | "name"
+        | "status"
+        | "updatedAt"
+        | "visual"
       >
     >,
   ): Promise<PaymentRouteTemplateRecord | null>;
@@ -86,6 +97,8 @@ export function mapPaymentRouteTemplateRecord(
     ...record,
     draft,
     lastCalculation,
+    maxMarginBps: record.maxMarginBps,
+    minMarginBps: record.minMarginBps,
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString(),
   };

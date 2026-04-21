@@ -177,8 +177,8 @@ describe("payment route graph view model", () => {
       type: "routeLeg",
     });
     expect(edges[0]?.data).toMatchObject({
-      amountLabel: "Сумма: 11880 USD",
-      feeLabel: "Bank fee 120 USD",
+      amountLabel: "Сумма: 11 880.00 USD",
+      feeLabel: "Bank fee 120.00 USD",
       legId: leg.id,
     });
   });

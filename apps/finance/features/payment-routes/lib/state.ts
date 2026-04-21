@@ -17,6 +17,10 @@ import {
 import { toMinorAmountString } from "@bedrock/shared/money";
 
 import type { PaymentRouteConstructorOptions } from "./queries";
+import {
+  DEFAULT_MAX_MARGIN_BPS,
+  DEFAULT_MIN_MARGIN_BPS,
+} from "./validation";
 
 export type PaymentRouteEntityOption =
   | {
@@ -57,6 +61,8 @@ export type PaymentRouteGraphSelection =
 export type PaymentRouteEditorState = {
   calculation: PaymentRouteCalculation | null;
   draft: PaymentRouteDraft;
+  maxMarginBps: number | null;
+  minMarginBps: number | null;
   mode: PaymentRouteEditorMode;
   name: string;
   selection: PaymentRouteGraphSelection;
@@ -315,6 +321,8 @@ export function createPaymentRouteSeed(
   return {
     calculation: null,
     draft,
+    maxMarginBps: DEFAULT_MAX_MARGIN_BPS,
+    minMarginBps: DEFAULT_MIN_MARGIN_BPS,
     mode: "manual",
     name: "Новый маршрут",
     selection: {
@@ -338,6 +346,8 @@ export function createPaymentRouteEditorStateFromTemplate(
   return {
     calculation: template.lastCalculation,
     draft,
+    maxMarginBps: template.maxMarginBps ?? DEFAULT_MAX_MARGIN_BPS,
+    minMarginBps: template.minMarginBps ?? DEFAULT_MIN_MARGIN_BPS,
     mode: "manual",
     name: template.name,
     selection: {
@@ -407,6 +417,24 @@ export function setRouteName(
   return {
     ...state,
     name,
+  };
+}
+
+export function setMarginPolicy(input: {
+  maxMarginBps?: number | null;
+  minMarginBps?: number | null;
+  state: PaymentRouteEditorState;
+}): PaymentRouteEditorState {
+  return {
+    ...input.state,
+    maxMarginBps:
+      input.maxMarginBps !== undefined
+        ? input.maxMarginBps
+        : input.state.maxMarginBps,
+    minMarginBps:
+      input.minMarginBps !== undefined
+        ? input.minMarginBps
+        : input.state.minMarginBps,
   };
 }
 
@@ -653,12 +681,38 @@ function createDefaultAdditionalFee(
   };
 }
 
-function createDefaultPercentFee(chargeToCustomer = false): PaymentRouteFee {
+function createDefaultGrossPercentFee(
+  chargeToCustomer = false,
+): PaymentRouteFee {
   return {
     chargeToCustomer,
     id: createId("route-fee"),
-    kind: "percent",
+    kind: "gross_percent",
     label: "Комиссия",
+    percentage: "0.10",
+  };
+}
+
+function createDefaultNetPercentFee(
+  chargeToCustomer = false,
+): PaymentRouteFee {
+  return {
+    chargeToCustomer,
+    id: createId("route-fee"),
+    kind: "net_percent",
+    label: "Комиссия",
+    percentage: "0.10",
+  };
+}
+
+function createDefaultFxSpreadFee(
+  chargeToCustomer = false,
+): PaymentRouteFee {
+  return {
+    chargeToCustomer,
+    id: createId("route-fee"),
+    kind: "fx_spread",
+    label: "Надбавка к курсу",
     percentage: "0.10",
   };
 }
@@ -977,16 +1031,41 @@ export function changeFeeKind(input: {
     return input.fee;
   }
 
-  if (input.nextKind === "percent") {
-    return createDefaultPercentFee(input.fee.chargeToCustomer);
+  if (input.nextKind === "fixed") {
+    return createDefaultFixedFee(
+      input.fee.kind === "fixed" && input.fee.currencyId
+        ? input.fee.currencyId
+        : input.fallbackCurrencyId,
+      input.fee.chargeToCustomer,
+    );
   }
 
-  return createDefaultFixedFee(
-    input.fee.kind === "fixed" && input.fee.currencyId
-      ? input.fee.currencyId
-      : input.fallbackCurrencyId,
-    input.fee.chargeToCustomer,
-  );
+  const percentage =
+    input.fee.kind !== "fixed" && input.fee.percentage
+      ? input.fee.percentage
+      : "0.10";
+
+  if (input.nextKind === "gross_percent") {
+    return {
+      ...createDefaultGrossPercentFee(input.fee.chargeToCustomer),
+      label: input.fee.label ?? "Комиссия",
+      percentage,
+    };
+  }
+
+  if (input.nextKind === "net_percent") {
+    return {
+      ...createDefaultNetPercentFee(input.fee.chargeToCustomer),
+      label: input.fee.label ?? "Комиссия",
+      percentage,
+    };
+  }
+
+  return {
+    ...createDefaultFxSpreadFee(input.fee.chargeToCustomer),
+    label: input.fee.label ?? "Надбавка к курсу",
+    percentage,
+  };
 }
 
 export function changeParticipantKind(input: {

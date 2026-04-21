@@ -44,8 +44,10 @@ import { getPaymentRouteParticipantRequisiteContext } from "../lib/requisites";
 import type { PaymentRouteRequisitesState } from "../lib/use-payment-route-requisites";
 
 const FEE_KIND_LABELS: Record<PaymentRouteFee["kind"], string> = {
-  fixed: "Фикс",
-  percent: "Процент",
+  fixed: "Фикс. сумма",
+  fx_spread: "Надбавка к курсу",
+  gross_percent: "% от суммы шага",
+  net_percent: "% от остатка",
 };
 
 const PARTICIPANT_KIND_LABELS: Record<
@@ -90,6 +92,7 @@ type CurrencySelectorProps = {
 
 type FeeListEditorProps = {
   addLabel?: string;
+  allowFxSpread?: boolean;
   fallbackCurrencyId: string;
   fees: PaymentRouteFee[];
   onAdd: () => void;
@@ -585,6 +588,7 @@ export function ParticipantRequisiteField({
 
 export function FeeListEditor({
   addLabel = "Добавить комиссию",
+  allowFxSpread = true,
   fallbackCurrencyId,
   fees,
   onAdd,
@@ -642,12 +646,20 @@ export function FeeListEditor({
                     <SelectValue>{getFeeKindLabel(fee.kind)}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="gross_percent">
+                      {getFeeKindLabel("gross_percent")}
+                    </SelectItem>
+                    <SelectItem value="net_percent">
+                      {getFeeKindLabel("net_percent")}
+                    </SelectItem>
                     <SelectItem value="fixed">
                       {getFeeKindLabel("fixed")}
                     </SelectItem>
-                    <SelectItem value="percent">
-                      {getFeeKindLabel("percent")}
-                    </SelectItem>
+                    {allowFxSpread ? (
+                      <SelectItem value="fx_spread">
+                        {getFeeKindLabel("fx_spread")}
+                      </SelectItem>
+                    ) : null}
                   </SelectContent>
                 </Select>
                 {fee.kind === "fixed" ? (
@@ -686,7 +698,7 @@ export function FeeListEditor({
                         onChange(fee.id, (current) => ({
                           chargeToCustomer: current.chargeToCustomer,
                           id: current.id,
-                          kind: "percent",
+                          kind: current.kind,
                           label: current.label,
                           percentage,
                         }))
@@ -723,29 +735,6 @@ export function FeeListEditor({
       <Button type="button" variant="outline" onClick={onAdd}>
         {addLabel}
       </Button>
-    </div>
-  );
-}
-
-export function CalculationHint({
-  className,
-  text,
-}: {
-  className?: string;
-  text: string | null;
-}) {
-  if (!text) {
-    return null;
-  }
-
-  return (
-    <div
-      className={cn(
-        "rounded-lg border border-dashed border-sky-200 bg-sky-50/80 px-3 py-2 text-xs text-sky-900",
-        className,
-      )}
-    >
-      {text}
     </div>
   );
 }

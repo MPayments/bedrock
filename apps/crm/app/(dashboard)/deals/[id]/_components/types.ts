@@ -697,7 +697,7 @@ export type ApiPaymentRouteFee = {
   chargeToCustomer: boolean;
   currencyId?: string | null;
   id: string;
-  kind: "fixed" | "percent";
+  kind: "fixed" | "fx_spread" | "gross_percent" | "net_percent";
   label?: string;
   percentage?: string;
 };
@@ -757,7 +757,7 @@ export type ApiPaymentRouteCalculation = {
     outputImpactCurrencyId: string;
     outputImpactMinor: string;
     routeInputImpactMinor: string;
-    kind: "fixed" | "percent";
+    kind: "fixed" | "fx_spread" | "gross_percent" | "net_percent";
     percentage?: string;
   }>;
   amountInMinor: string;
@@ -785,7 +785,7 @@ export type ApiPaymentRouteCalculation = {
       outputImpactCurrencyId: string;
       outputImpactMinor: string;
       routeInputImpactMinor: string;
-      kind: "fixed" | "percent";
+      kind: "fixed" | "fx_spread" | "gross_percent" | "net_percent";
       percentage?: string;
     }>;
     fromCurrencyId: string;

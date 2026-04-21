@@ -444,6 +444,8 @@ describe("payment routes routes", () => {
           },
         ],
       },
+      maxMarginBps: null,
+      minMarginBps: null,
       name: "USD payout",
       visual: createVisual(),
     });
@@ -670,6 +672,8 @@ describe("payment routes routes", () => {
     expect(response.status).toBe(201);
     expect(createTemplateCommand).toHaveBeenCalledWith({
       draft: createAbstractDraft(),
+      maxMarginBps: null,
+      minMarginBps: null,
       name: "Generic USD payout",
       visual: createVisual(),
     });
@@ -766,7 +770,7 @@ describe("payment routes routes", () => {
                   {
                     currencyId: IDS.usd,
                     id: "fee-invalid",
-                    kind: "percent",
+                    kind: "gross_percent",
                     label: "Broken percent fee",
                     percentage: "1",
                   },
@@ -895,6 +899,8 @@ describe("payment routes routes", () => {
           },
         ],
       },
+      maxMarginBps: null,
+      minMarginBps: null,
       name: "USD payout",
       visual: createVisual(),
     });

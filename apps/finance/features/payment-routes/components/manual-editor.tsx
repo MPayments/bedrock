@@ -12,17 +12,11 @@ import {
 } from "@bedrock/sdk-ui/components/card";
 import {
   Field,
-  FieldDescription,
   FieldGroup,
   FieldTitle,
 } from "@bedrock/sdk-ui/components/field";
-import {
-  derivePaymentRouteLegSemantics,
-  formatPaymentRouteLegSemantics,
-  type PaymentRouteCalculation,
-} from "@bedrock/treasury/contracts";
+import { derivePaymentRouteLegSemantics } from "@bedrock/treasury/contracts";
 
-import { formatCurrencyMinorAmount } from "../lib/format";
 import type { PaymentRouteConstructorOptions } from "../lib/queries";
 import type { PaymentRouteEditorState } from "../lib/state";
 import {
@@ -43,12 +37,13 @@ import {
 } from "../lib/state";
 import type { PaymentRouteRequisitesState } from "../lib/use-payment-route-requisites";
 import {
-  CalculationHint,
   CurrencySelector,
   FeeListEditor,
   ParticipantRequisiteField,
   ParticipantSelector,
 } from "./editor-shared";
+import { PaymentRouteLegSemanticChip } from "./leg-semantic-chip";
+import { Separator } from "@bedrock/sdk-ui/components/separator";
 
 type PaymentRouteManualEditorProps = {
   onStateChange: (state: PaymentRouteEditorState) => void;
@@ -56,13 +51,6 @@ type PaymentRouteManualEditorProps = {
   requisites: PaymentRouteRequisitesState;
   state: PaymentRouteEditorState;
 };
-
-function getLegCalculation(
-  calculation: PaymentRouteCalculation | null,
-  legId: string,
-) {
-  return calculation?.legs.find((leg) => leg.id === legId) ?? null;
-}
 
 export function PaymentRouteManualEditor({
   onStateChange,
@@ -101,29 +89,21 @@ export function PaymentRouteManualEditor({
       {state.draft.legs.map((leg, index) => {
         const participant = state.draft.participants[index]!;
         const destination = state.draft.participants[index + 1]!;
-        const calculation = getLegCalculation(state.calculation, leg.id);
-        const fromCurrency =
-          options.currencies.find(
-            (currency) => currency.id === leg.fromCurrencyId,
-          ) ?? null;
-        const toCurrency =
-          options.currencies.find(
-            (currency) => currency.id === leg.toCurrencyId,
-          ) ?? null;
-        const semanticsLabel = formatPaymentRouteLegSemantics(
-          derivePaymentRouteLegSemantics({
-            draft: state.draft,
-            legIndex: index,
-          }),
-        );
+        const semantics = derivePaymentRouteLegSemantics({
+          draft: state.draft,
+          legIndex: index,
+        });
 
         return (
           <Card key={leg.id} className="border-border/70">
             <CardHeader className="pb-3">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="min-w-0 flex-1 space-y-1">
-                  <div className="flex min-w-0 items-center gap-2">
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
                     <Badge variant="outline">Шаг {index + 1}</Badge>
+                    {semantics.map((tag) => (
+                      <PaymentRouteLegSemanticChip key={tag} tag={tag} />
+                    ))}
                     <CardTitle className="min-w-0 truncate text-base">
                       {participant.displayName} → {destination.displayName}
                     </CardTitle>
@@ -299,11 +279,7 @@ export function PaymentRouteManualEditor({
                 </Field>
               </FieldGroup>
 
-              <FieldGroup className="grid gap-4 xl:grid-cols-[220px_minmax(0,1fr)_minmax(0,1fr)]">
-                <Field>
-                  <FieldTitle>Семантика шага</FieldTitle>
-                  <FieldDescription>{semanticsLabel}</FieldDescription>
-                </Field>
+              <FieldGroup className="grid gap-4 xl:grid-cols-2">
                 <Field>
                   <FieldTitle>Валюта входа</FieldTitle>
                   <CurrencySelector
@@ -336,23 +312,12 @@ export function PaymentRouteManualEditor({
                 </Field>
               </FieldGroup>
 
-              <CalculationHint
-                text={
-                  calculation && fromCurrency && toCurrency
-                    ? `${formatCurrencyMinorAmount(
-                        calculation.inputAmountMinor,
-                        fromCurrency,
-                      )} → ${formatCurrencyMinorAmount(
-                        calculation.netOutputMinor,
-                        toCurrency,
-                      )}`
-                    : null
-                }
-              />
+              <Separator orientation="horizontal" className="h-px" />
 
               <Field>
                 <FieldTitle>Комиссии шага</FieldTitle>
                 <FeeListEditor
+                  allowFxSpread={leg.fromCurrencyId !== leg.toCurrencyId}
                   fallbackCurrencyId={leg.fromCurrencyId}
                   fees={leg.fees}
                   options={options}
@@ -380,6 +345,7 @@ export function PaymentRouteManualEditor({
           </Field>
           <FeeListEditor
             addLabel="Добавить расход"
+            allowFxSpread={false}
             fallbackCurrencyId={state.draft.currencyInId}
             fees={state.draft.additionalFees}
             options={options}

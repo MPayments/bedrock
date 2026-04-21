@@ -1,9 +1,8 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 
-import { AlertTriangle, ExternalLink, LoaderCircle } from "lucide-react";
+import { LoaderCircle } from "lucide-react";
 
 import { Button } from "@bedrock/sdk-ui/components/button";
 import { ButtonGroup } from "@bedrock/sdk-ui/components/button-group";
@@ -41,7 +40,6 @@ import {
   type PaymentRouteCurrencyOption,
 } from "../lib/format";
 import type { PaymentRouteConstructorOptions } from "../lib/queries";
-import type { PaymentRouteRequisiteWarning } from "../lib/requisites";
 
 type PaymentRouteSummaryRailProps = {
   calculation: PaymentRouteCalculation | null;
@@ -55,7 +53,6 @@ type PaymentRouteSummaryRailProps = {
   previewError?: string | null;
   previewPending?: boolean;
   sticky?: boolean;
-  warnings?: PaymentRouteRequisiteWarning[];
 };
 
 function getCurrency(options: PaymentRouteConstructorOptions, currencyId: string) {
@@ -76,32 +73,27 @@ function formatAmountWithoutCurrency(
   );
 }
 
-function sumInputImpactInCurrency(
-  fees: PaymentRouteCalculationFee[],
-  currencyId: string,
-) {
-  return fees.reduce((acc, fee) => {
-    if (fee.inputImpactCurrencyId !== currencyId) {
-      return acc;
-    }
-
-    return acc + BigInt(fee.inputImpactMinor);
-  }, 0n);
+function sumRouteInputImpact(fees: PaymentRouteCalculationFee[]) {
+  return fees.reduce(
+    (acc, fee) => acc + BigInt(fee.routeInputImpactMinor),
+    0n,
+  );
 }
 
-function formatBps(marginMinor: bigint, grossMinor: bigint) {
+function formatMarginPercent(marginMinor: bigint, grossMinor: bigint) {
   if (grossMinor <= 0n) {
     return "—";
   }
 
   const negative = marginMinor < 0n;
   const absoluteMargin = negative ? -marginMinor : marginMinor;
-  const scaled = (absoluteMargin * 100000n + grossMinor / 2n) / grossMinor;
-  const whole = scaled / 10n;
-  const fraction = scaled % 10n;
+  const scaled = (absoluteMargin * 10000n + grossMinor / 2n) / grossMinor;
+  const whole = scaled / 100n;
+  const fraction = scaled % 100n;
   const sign = negative ? "−" : "";
+  const fractionStr = fraction.toString().padStart(2, "0");
 
-  return `${sign}${whole.toString()},${fraction.toString()} bps`;
+  return `${sign}${whole.toString()},${fractionStr}%`;
 }
 
 type BufferedAmountInputProps = {
@@ -191,7 +183,6 @@ export function PaymentRouteSummaryRail({
   previewError = null,
   previewPending = false,
   sticky = true,
-  warnings = [],
 }: PaymentRouteSummaryRailProps) {
   const currencyIn = getCurrency(options, draft.currencyInId);
   const currencyOut = getCurrency(options, draft.currencyOutId);
@@ -231,17 +222,13 @@ export function PaymentRouteSummaryRail({
       (fee) => !fee.chargeToCustomer,
     );
 
-    const internalLegImpact = sumInputImpactInCurrency(
-      internalLegFees,
-      calculation.currencyInId,
-    );
-    const chargedImpact = sumInputImpactInCurrency(
-      [...chargedLegFees, ...chargedAdditionalFees],
-      calculation.currencyInId,
-    );
-    const internalAdditionalImpact = sumInputImpactInCurrency(
+    const internalLegImpact = sumRouteInputImpact(internalLegFees);
+    const chargedImpact = sumRouteInputImpact([
+      ...chargedLegFees,
+      ...chargedAdditionalFees,
+    ]);
+    const internalAdditionalImpact = sumRouteInputImpact(
       internalAdditionalFees,
-      calculation.currencyInId,
     );
 
     const marginInMinor = chargedImpact - internalAdditionalImpact;
@@ -253,7 +240,7 @@ export function PaymentRouteSummaryRail({
       internalLegImpact,
       legCount: calculation.legs.length,
       marginInMinor,
-      marginBps: formatBps(marginInMinor, grossInMinor),
+      marginPercent: formatMarginPercent(marginInMinor, grossInMinor),
     };
   }, [calculation]);
 
@@ -281,47 +268,6 @@ export function PaymentRouteSummaryRail({
         </div>
       </CardHeader>
       <CardContent className="space-y-5">
-        {warnings.length > 0 ? (
-          <div className="space-y-3 rounded-2xl border border-amber-200 bg-amber-50/80 p-4">
-            <div className="flex items-center gap-2 text-sm font-medium text-amber-900">
-              <AlertTriangle className="size-4" />
-              Шаблон требует реквизитов
-            </div>
-            <div className="space-y-3">
-              {warnings.map((warning) => (
-                <div
-                  key={`${warning.participantNodeId}:${warning.message}`}
-                  className="rounded-xl border border-amber-200/80 bg-background/70 p-3"
-                >
-                  <div className="text-sm font-medium">{warning.title}</div>
-                  <div className="mt-1 text-sm text-muted-foreground">
-                    {warning.message}
-                  </div>
-                  {warning.createHref ? (
-                    <div className="mt-3">
-                      <Button
-                        nativeButton={false}
-                        size="sm"
-                        variant="outline"
-                        render={
-                          <Link
-                            href={warning.createHref}
-                            rel="noopener noreferrer"
-                            target="_blank"
-                          />
-                        }
-                      >
-                        <ExternalLink className="size-4" />
-                        Создать реквизит
-                      </Button>
-                    </div>
-                  ) : null}
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : null}
-
         <div className="space-y-3">
           <Field>
             <FieldLabel>Фиксировать</FieldLabel>
@@ -494,17 +440,45 @@ export function PaymentRouteSummaryRail({
               />
             </div>
 
-            <div className="space-y-1 rounded-2xl border border-emerald-200 bg-emerald-50/80 p-4">
+            <div
+              className={cn(
+                "space-y-1 rounded-2xl border p-4",
+                economics.marginInMinor < 0n
+                  ? "border-destructive/30 bg-destructive/10"
+                  : "border-emerald-200 bg-emerald-50/80",
+              )}
+            >
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <div className="text-sm font-semibold text-emerald-900">
+                  <div
+                    className={cn(
+                      "text-sm font-semibold",
+                      economics.marginInMinor < 0n
+                        ? "text-destructive"
+                        : "text-emerald-900",
+                    )}
+                  >
                     Чистая маржа
                   </div>
-                  <div className="text-xs text-emerald-700/80 tabular-nums">
-                    {economics.marginBps} от брутто
+                  <div
+                    className={cn(
+                      "text-xs tabular-nums",
+                      economics.marginInMinor < 0n
+                        ? "text-destructive/80"
+                        : "text-emerald-700/80",
+                    )}
+                  >
+                    {economics.marginPercent} от брутто
                   </div>
                 </div>
-                <div className="text-base font-semibold tabular-nums text-emerald-900">
+                <div
+                  className={cn(
+                    "text-base font-semibold tabular-nums",
+                    economics.marginInMinor < 0n
+                      ? "text-destructive"
+                      : "text-emerald-900",
+                  )}
+                >
                   {formatCurrencyMinorAmount(
                     economics.marginInMinor.toString(),
                     currencyIn,

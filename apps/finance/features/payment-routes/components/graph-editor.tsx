@@ -76,7 +76,6 @@ import {
   setVisualNodePosition,
 } from "../lib/state";
 import {
-  CalculationHint,
   CurrencySelector,
   FeeListEditor,
   ParticipantRequisiteField,
@@ -179,8 +178,7 @@ const RouteGraphNode = React.memo(function RouteGraphNode({
           </Badge>
         </BaseNodeHeader>
         <BaseNodeContent className="pt-0">
-
-          <Separator orientation="horizontal" className="h-px mx-[-12px]"/>
+          <Separator orientation="horizontal" className="h-px mx-[-12px]" />
           <div className="space-y-2 pt-1">
             {nodeData.rows.map((row) => (
               <div
@@ -611,24 +609,10 @@ function PaymentRouteGraphInspector({
               }
             />
           </div>
-          <CalculationHint
-            text={
-              calculation
-                ? `${formatCurrencyMinorAmount(
-                    calculation.inputAmountMinor,
-                    options.currencies.find(
-                      (currency) => currency.id === leg.fromCurrencyId,
-                    ) ?? null,
-                  )} → ${formatCurrencyMinorAmount(
-                    calculation.netOutputMinor,
-                    options.currencies.find(
-                      (currency) => currency.id === leg.toCurrencyId,
-                    ) ?? null,
-                  )}`
-                : null
-            }
-          />
+          <Separator orientation="horizontal" className="h-px" />
+
           <FeeListEditor
+            allowFxSpread={leg.fromCurrencyId !== leg.toCurrencyId}
             fallbackCurrencyId={leg.fromCurrencyId}
             fees={leg.fees}
             options={options}

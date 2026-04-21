@@ -30,15 +30,22 @@ import {
   createPaymentRouteSeed,
   setEditorMode,
   setLockedSide,
+  setMarginPolicy,
   setRouteAmount,
   setRouteCurrency,
   setRouteName,
   type PaymentRouteEditorState,
 } from "../lib/state";
 import { usePaymentRouteRequisites } from "../lib/use-payment-route-requisites";
+import {
+  DEFAULT_MAX_MARGIN_BPS,
+  DEFAULT_MIN_MARGIN_BPS,
+  getPaymentRouteValidationChecks,
+} from "../lib/validation";
 import { PaymentRouteManualEditor } from "./manual-editor";
 import { PaymentRouteWorkspaceLayout } from "./payment-route-workspace-layout";
 import { PaymentRouteSummaryRail } from "./summary-rail";
+import { PaymentRouteValidationCard } from "./validation-card";
 
 const PaymentRouteGraphEditor = dynamic(
   () =>
@@ -57,6 +64,120 @@ type PaymentRouteConstructorClientProps = {
   options: PaymentRouteConstructorOptions;
   template: PaymentRouteTemplate | null;
 };
+
+function bpsToPercentString(bps: number | null): string {
+  if (bps === null) {
+    return "";
+  }
+  const whole = Math.trunc(bps / 100);
+  const fraction = Math.abs(bps % 100);
+  if (fraction === 0) {
+    return whole.toString();
+  }
+  return `${whole},${fraction.toString().padStart(2, "0")}`.replace(
+    /,?0+$/,
+    "",
+  );
+}
+
+function parsePercentInputToBps(raw: string): number | null {
+  const trimmed = raw.trim().replace(",", ".");
+  if (trimmed.length === 0) {
+    return null;
+  }
+  if (!/^\d+(?:\.\d+)?$/.test(trimmed)) {
+    return null;
+  }
+  const value = Number.parseFloat(trimmed);
+  if (!Number.isFinite(value) || value < 0) {
+    return null;
+  }
+  return Math.round(value * 100);
+}
+
+function MarginPolicyInputs({
+  maxMarginBps,
+  minMarginBps,
+  onCommit,
+}: {
+  maxMarginBps: number | null;
+  minMarginBps: number | null;
+  onCommit: (input: { min: number | null; max: number | null }) => void;
+}) {
+  const [minDraft, setMinDraft] = React.useState(
+    bpsToPercentString(minMarginBps),
+  );
+  const [maxDraft, setMaxDraft] = React.useState(
+    bpsToPercentString(maxMarginBps),
+  );
+
+  React.useEffect(() => {
+    setMinDraft(bpsToPercentString(minMarginBps));
+  }, [minMarginBps]);
+  React.useEffect(() => {
+    setMaxDraft(bpsToPercentString(maxMarginBps));
+  }, [maxMarginBps]);
+
+  function commit(side: "min" | "max", raw: string) {
+    const parsed = parsePercentInputToBps(raw);
+    const min = side === "min" ? parsed : minMarginBps;
+    const max = side === "max" ? parsed : maxMarginBps;
+
+    if (min !== null && max !== null && min > max) {
+      setMinDraft(bpsToPercentString(minMarginBps));
+      setMaxDraft(bpsToPercentString(maxMarginBps));
+      return;
+    }
+
+    onCommit({ max, min });
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <div className="relative flex-1">
+        <Input
+          aria-label="Минимальная маржа, %"
+          inputMode="decimal"
+          placeholder={bpsToPercentString(DEFAULT_MIN_MARGIN_BPS)}
+          className="pr-7"
+          value={minDraft}
+          onChange={(event) => setMinDraft(event.target.value)}
+          onBlur={(event) => commit("min", event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              commit("min", event.currentTarget.value);
+            }
+          }}
+        />
+        <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+          %
+        </span>
+      </div>
+      <span className="text-xs text-muted-foreground">–</span>
+      <div className="relative flex-1">
+        <Input
+          aria-label="Максимальная маржа, %"
+          inputMode="decimal"
+          placeholder={bpsToPercentString(DEFAULT_MAX_MARGIN_BPS)}
+          className="pr-7"
+          value={maxDraft}
+          onChange={(event) => setMaxDraft(event.target.value)}
+          onBlur={(event) => commit("max", event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              commit("max", event.currentTarget.value);
+            }
+          }}
+        />
+        <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+          %
+        </span>
+      </div>
+    </div>
+  );
+}
 
 function createPreviewRequestKey(draft: PaymentRouteEditorState["draft"]) {
   return JSON.stringify({
@@ -259,6 +380,20 @@ export function PaymentRouteConstructorClient({
     requisites.statusByOwner,
   ]);
 
+  const validationChecks = React.useMemo(() => {
+    if (!editorState) {
+      return [];
+    }
+
+    return getPaymentRouteValidationChecks({
+      calculation: editorState.calculation,
+      draft: editorState.draft,
+      maxMarginBps: editorState.maxMarginBps,
+      minMarginBps: editorState.minMarginBps,
+      requisiteWarnings,
+    });
+  }, [editorState, requisiteWarnings]);
+
   React.useEffect(() => {
     if (!isGraphMode) {
       return;
@@ -346,6 +481,8 @@ export function PaymentRouteConstructorClient({
     startSaveTransition(async () => {
       const payload = {
         draft: currentState.draft,
+        maxMarginBps: currentState.maxMarginBps,
+        minMarginBps: currentState.minMarginBps,
         name: currentState.name.trim() || "Маршрут без названия",
         visual: currentState.visual,
       };
@@ -412,19 +549,37 @@ export function PaymentRouteConstructorClient({
           <div className="space-y-6">
             <Card className="rounded-2xl border-border/70">
               <CardContent className="p-5">
-                <Field>
-                  <FieldLabel htmlFor="payment-route-name">
-                    Название маршрута
-                  </FieldLabel>
-                  <Input
-                    id="payment-route-name"
-                    value={editorState.name}
-                    onChange={(event) =>
-                      setState(setRouteName(editorState, event.target.value))
-                    }
-                    placeholder="Например, USDT → AED через Дубай и США"
-                  />
-                </Field>
+                <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,260px)]">
+                  <Field>
+                    <FieldLabel htmlFor="payment-route-name">
+                      Название маршрута
+                    </FieldLabel>
+                    <Input
+                      id="payment-route-name"
+                      value={editorState.name}
+                      onChange={(event) =>
+                        setState(setRouteName(editorState, event.target.value))
+                      }
+                      placeholder="Например, USDT → AED через Дубай и США"
+                    />
+                  </Field>
+                  <Field>
+                    <FieldLabel>Политика маржи</FieldLabel>
+                    <MarginPolicyInputs
+                      maxMarginBps={editorState.maxMarginBps}
+                      minMarginBps={editorState.minMarginBps}
+                      onCommit={({ min, max }) =>
+                        setState(
+                          setMarginPolicy({
+                            maxMarginBps: max,
+                            minMarginBps: min,
+                            state: editorState,
+                          }),
+                        )
+                      }
+                    />
+                  </Field>
+                </div>
               </CardContent>
             </Card>
 
@@ -439,7 +594,8 @@ export function PaymentRouteConstructorClient({
           </div>
 
           {isGraphMode ? null : (
-            <div className="order-last xl:order-none">
+            <div className="order-last space-y-4 xl:sticky xl:top-6 xl:order-none xl:self-start">
+              <PaymentRouteValidationCard checks={validationChecks} />
               <PaymentRouteSummaryRail
                 calculation={editorState.calculation}
                 draft={editorState.draft}
@@ -479,7 +635,7 @@ export function PaymentRouteConstructorClient({
                 options={options}
                 previewError={previewError}
                 previewPending={previewIndicatorVisible}
-                warnings={requisiteWarnings}
+                sticky={false}
               />
             </div>
           )}
@@ -539,49 +695,54 @@ export function PaymentRouteConstructorClient({
                     canvasClassName="h-full min-h-[58dvh] rounded-[28px] border-border/70 bg-[radial-gradient(circle_at_top,#f9fbff,white_58%,#edf3ff)] shadow-[0_24px_80px_rgba(15,23,42,0.08)]"
                     sidebarClassName="min-h-0 overflow-y-auto pr-1"
                     sidebarChildren={
-                      <PaymentRouteSummaryRail
-                        calculation={editorState.calculation}
-                        draft={editorState.draft}
-                        onAmountCommit={(amountMinor) =>
-                          setState(
-                            setRouteAmount({
-                              amountMinor,
-                              side:
-                                editorState.draft.lockedSide === "currency_in"
-                                  ? "in"
-                                  : "out",
-                              state: editorState,
-                            }),
-                          )
-                        }
-                        onCurrencyInChange={(currencyId) =>
-                          setState(
-                            setRouteCurrency({
-                              currencyId,
-                              side: "in",
-                              state: editorState,
-                            }),
-                          )
-                        }
-                        onCurrencyOutChange={(currencyId) =>
-                          setState(
-                            setRouteCurrency({
-                              currencyId,
-                              side: "out",
-                              state: editorState,
-                            }),
-                          )
-                        }
-                        onLockedSideChange={(side) =>
-                          setState(setLockedSide(editorState, side))
-                        }
-                        options={options}
-                        previewError={previewError}
-                        previewPending={previewIndicatorVisible}
-                        sticky={false}
-                        className="border-border/70 bg-background/90"
-                        warnings={requisiteWarnings}
-                      />
+                      <div className="space-y-4">
+                        <PaymentRouteValidationCard
+                          checks={validationChecks}
+                          className="border-border/70 bg-background/90"
+                        />
+                        <PaymentRouteSummaryRail
+                          calculation={editorState.calculation}
+                          draft={editorState.draft}
+                          onAmountCommit={(amountMinor) =>
+                            setState(
+                              setRouteAmount({
+                                amountMinor,
+                                side:
+                                  editorState.draft.lockedSide === "currency_in"
+                                    ? "in"
+                                    : "out",
+                                state: editorState,
+                              }),
+                            )
+                          }
+                          onCurrencyInChange={(currencyId) =>
+                            setState(
+                              setRouteCurrency({
+                                currencyId,
+                                side: "in",
+                                state: editorState,
+                              }),
+                            )
+                          }
+                          onCurrencyOutChange={(currencyId) =>
+                            setState(
+                              setRouteCurrency({
+                                currencyId,
+                                side: "out",
+                                state: editorState,
+                              }),
+                            )
+                          }
+                          onLockedSideChange={(side) =>
+                            setState(setLockedSide(editorState, side))
+                          }
+                          options={options}
+                          previewError={previewError}
+                          previewPending={previewIndicatorVisible}
+                          sticky={false}
+                          className="border-border/70 bg-background/90"
+                        />
+                      </div>
                     }
                   />
                 </div>

@@ -7,6 +7,8 @@ import {
 
 export const CreatePaymentRouteTemplateInputSchema = z.object({
   draft: PaymentRouteDraftSchema,
+  maxMarginBps: z.number().int().nonnegative().nullable().default(null),
+  minMarginBps: z.number().int().nonnegative().nullable().default(null),
   name: z.string().trim().min(1),
   visual: PaymentRouteVisualMetadataSchema.default({
     nodePositions: {},
@@ -18,6 +20,8 @@ export const UpdatePaymentRouteTemplateInputSchema =
   CreatePaymentRouteTemplateInputSchema.partial()
     .extend({
       draft: PaymentRouteDraftSchema.optional(),
+      maxMarginBps: z.number().int().nonnegative().nullable().optional(),
+      minMarginBps: z.number().int().nonnegative().nullable().optional(),
       name: z.string().trim().min(1).optional(),
       visual: PaymentRouteVisualMetadataSchema.optional(),
     })
@@ -25,7 +29,9 @@ export const UpdatePaymentRouteTemplateInputSchema =
       (value) =>
         value.name !== undefined ||
         value.draft !== undefined ||
-        value.visual !== undefined,
+        value.visual !== undefined ||
+        value.minMarginBps !== undefined ||
+        value.maxMarginBps !== undefined,
       "At least one field must be provided",
     );
 

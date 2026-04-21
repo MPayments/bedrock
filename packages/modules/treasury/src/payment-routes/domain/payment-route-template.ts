@@ -39,6 +39,8 @@ export class PaymentRouteTemplateAggregate extends Entity<string> {
     draft: PaymentRouteDraft;
     id: string;
     lastCalculation: PaymentRouteCalculation | null;
+    maxMarginBps?: number | null;
+    minMarginBps?: number | null;
     name: string;
     status?: PaymentRouteTemplateStatus;
     updatedAt: Date;
@@ -49,6 +51,8 @@ export class PaymentRouteTemplateAggregate extends Entity<string> {
       draft: cloneDraft(input.draft),
       id: input.id,
       lastCalculation: cloneCalculation(input.lastCalculation),
+      maxMarginBps: input.maxMarginBps ?? null,
+      minMarginBps: input.minMarginBps ?? null,
       name: input.name.trim(),
       snapshotPolicy: "clone_on_attach",
       status: input.status ?? "active",
@@ -69,6 +73,8 @@ export class PaymentRouteTemplateAggregate extends Entity<string> {
   update(input: {
     draft?: PaymentRouteDraft;
     lastCalculation?: PaymentRouteCalculation | null;
+    maxMarginBps?: number | null;
+    minMarginBps?: number | null;
     name?: string;
     updatedAt: Date;
     visual?: PaymentRouteVisualMetadata;
@@ -81,6 +87,14 @@ export class PaymentRouteTemplateAggregate extends Entity<string> {
         input.lastCalculation !== undefined
           ? cloneCalculation(input.lastCalculation)
           : this.snapshot.lastCalculation,
+      maxMarginBps:
+        input.maxMarginBps !== undefined
+          ? input.maxMarginBps
+          : this.snapshot.maxMarginBps,
+      minMarginBps:
+        input.minMarginBps !== undefined
+          ? input.minMarginBps
+          : this.snapshot.minMarginBps,
       name: input.name?.trim() || this.snapshot.name,
       updatedAt: input.updatedAt,
       visual:
@@ -104,6 +118,8 @@ export class PaymentRouteTemplateAggregate extends Entity<string> {
       draft: this.snapshot.draft,
       id: input.id,
       lastCalculation: this.snapshot.lastCalculation,
+      maxMarginBps: this.snapshot.maxMarginBps,
+      minMarginBps: this.snapshot.minMarginBps,
       name: input.name,
       updatedAt: input.now,
       visual: this.snapshot.visual,

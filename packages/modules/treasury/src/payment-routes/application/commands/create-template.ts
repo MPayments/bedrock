@@ -40,6 +40,8 @@ export class CreatePaymentRouteTemplateCommand {
       draft: validated.draft,
       id: this.runtime.generateUuid(),
       lastCalculation: calculation,
+      maxMarginBps: validated.maxMarginBps,
+      minMarginBps: validated.minMarginBps,
       name: validated.name,
       updatedAt: now,
       visual: validated.visual,

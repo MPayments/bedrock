@@ -50,6 +50,8 @@ export class UpdatePaymentRouteTemplateCommand {
     const updated = aggregate.update({
       draft: validated.draft,
       lastCalculation,
+      maxMarginBps: validated.maxMarginBps,
+      minMarginBps: validated.minMarginBps,
       name: validated.name,
       updatedAt: now,
       visual: validated.visual,

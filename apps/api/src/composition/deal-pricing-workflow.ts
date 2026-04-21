@@ -1035,14 +1035,14 @@ function buildRouteExecutionLines(input: {
 
     if (leg.fees.length > 0) {
       const feeLabels = leg.fees.map((fee) => {
-        if (fee.kind === "percent") {
-          return `${fee.label ?? "Расход"} ${fee.percentage ?? "0"}%`;
+        if (fee.kind === "fixed") {
+          return `${fee.label ?? "Расход"} ${formatAmountLabel(
+            fee.routeInputImpactMinor,
+            fromCurrency,
+          )}`;
         }
 
-        return `${fee.label ?? "Расход"} ${formatAmountLabel(
-          fee.routeInputImpactMinor,
-          fromCurrency,
-        )}`;
+        return `${fee.label ?? "Расход"} ${fee.percentage ?? "0"}%`;
       });
       lines.push({
         currency: fromCurrency,

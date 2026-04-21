@@ -198,7 +198,7 @@ describe("DealPricingTab", () => {
                 {
                   chargeToCustomer: true,
                   id: "fee-1",
-                  kind: "percent",
+                  kind: "gross_percent",
                   label: "Комиссия",
                   percentage: "0.10",
                 },
@@ -220,7 +220,7 @@ describe("DealPricingTab", () => {
                     {
                       chargeToCustomer: false,
                       id: "fee-2",
-                      kind: "percent",
+                      kind: "gross_percent",
                       label: "Комиссия",
                       percentage: "0.25",
                     },

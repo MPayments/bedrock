@@ -157,7 +157,7 @@ function formatRouteFeeLabel(
 ) {
   const label = fee.label?.trim() || "Расход";
 
-  if (fee.kind === "percent") {
+  if (fee.kind !== "fixed") {
     return `${label} · ${fee.percentage ?? "0"}%`;
   }
 

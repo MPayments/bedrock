@@ -1,4 +1,9 @@
-import { formatFractionDecimal, minorToAmountString, toMinorAmountString } from "@bedrock/shared/money";
+import {
+  formatDecimalString,
+  formatFractionDecimal,
+  minorToAmountString,
+  toMinorAmountString,
+} from "@bedrock/shared/money";
 import { mulDivRoundHalfUp } from "@bedrock/shared/money/math";
 import type { PaymentRouteCalculation } from "@bedrock/treasury/contracts";
 
@@ -18,9 +23,19 @@ export function formatCurrencyMinorAmount(
     return String(amountMinor);
   }
 
-  return `${minorToAmountString(amountMinor, {
+  const decimal = minorToAmountString(amountMinor, {
     precision: currency.precision,
-  })} ${currency.code}`;
+  });
+
+  try {
+    return `${formatDecimalString(decimal, {
+      groupSeparator: " ",
+      maximumFractionDigits: currency.precision,
+      minimumFractionDigits: currency.precision,
+    })} ${currency.code}`;
+  } catch {
+    return `${decimal} ${currency.code}`;
+  }
 }
 
 export function formatCurrencyRatio(input: {

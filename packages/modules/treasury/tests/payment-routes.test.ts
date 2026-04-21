@@ -261,7 +261,7 @@ describe("payment routes", () => {
         {
           chargeToCustomer: true,
           id: "fee-extra",
-          kind: "percent",
+          kind: "gross_percent",
           label: "Bank",
           percentage: "5",
         },
@@ -272,7 +272,7 @@ describe("payment routes", () => {
             {
               chargeToCustomer: true,
               id: "fee-leg",
-              kind: "percent",
+              kind: "gross_percent",
               label: "Hop",
               percentage: "10",
             },
@@ -467,7 +467,7 @@ describe("payment routes", () => {
         id: "fee-leg",
         inputImpactCurrencyId: USD,
         inputImpactMinor: "1000",
-        kind: "percent",
+        kind: "gross_percent",
         label: "Hop",
         outputImpactCurrencyId: USD,
         outputImpactMinor: "1000",
@@ -561,7 +561,7 @@ describe("payment routes", () => {
             {
               chargeToCustomer: true,
               id: "fee-leg",
-              kind: "percent",
+              kind: "gross_percent",
               label: "FX spread",
               percentage: "10",
             },
@@ -620,7 +620,7 @@ describe("payment routes", () => {
             {
               chargeToCustomer: true,
               id: "fee-leg",
-              kind: "percent",
+              kind: "gross_percent",
               label: "Hop",
               percentage: "10",
             },
