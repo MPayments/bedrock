@@ -292,6 +292,7 @@ function getAgreementDialogInitialValues(
       ? (shiftPositiveDecimalString(agentFeeRule.value, -2) ?? "")
       : "",
     fixedFee: fixedFeeRule?.value ?? "",
+    contractNumber: agreement.currentVersion.contractNumber ?? "",
     organizationId: agreement.organizationId,
     organizationRequisiteId: agreement.organizationRequisiteId,
   };
