@@ -543,7 +543,7 @@ export function PaymentRouteConstructorClient({
         <div
           className={cn(
             "grid gap-6",
-            isGraphMode ? null : "xl:grid-cols-[minmax(0,1fr)_360px]",
+            isGraphMode ? null : "xl:grid-cols-[minmax(0,1fr)_420px]",
           )}
         >
           <div className="space-y-6">

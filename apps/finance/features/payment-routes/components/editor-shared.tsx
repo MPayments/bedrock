@@ -2,13 +2,12 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ExternalLink, RefreshCw } from "lucide-react";
+import { ExternalLink, Plus, RefreshCw, Trash2 } from "lucide-react";
 
 import {
   Alert,
   AlertDescription,
 } from "@bedrock/sdk-ui/components/alert";
-import { Badge } from "@bedrock/sdk-ui/components/badge";
 import { Button } from "@bedrock/sdk-ui/components/button";
 import { Checkbox } from "@bedrock/sdk-ui/components/checkbox";
 import { ButtonGroup } from "@bedrock/sdk-ui/components/button-group";
@@ -18,6 +17,10 @@ import {
   FieldTitle,
 } from "@bedrock/sdk-ui/components/field";
 import { Input } from "@bedrock/sdk-ui/components/input";
+import {
+  InputGroup,
+  InputGroupAddon,
+} from "@bedrock/sdk-ui/components/input-group";
 import {
   Select,
   SelectContent,
@@ -66,6 +69,7 @@ type BufferedMinorAmountInputProps = {
   onCommit: (nextMinor: string) => void;
   options: PaymentRouteConstructorOptions;
   valueMinor: string;
+  variant?: "default" | "group";
 };
 
 type BufferedDecimalInputProps = {
@@ -74,6 +78,9 @@ type BufferedDecimalInputProps = {
   onCommit: (nextValue: string) => void;
   value: string;
 };
+
+const INPUT_GROUP_CONTROL_CLASS =
+  "rounded-none border-0 bg-transparent shadow-none ring-0 focus-visible:ring-0 disabled:bg-transparent aria-invalid:ring-0 dark:bg-transparent dark:disabled:bg-transparent flex-1";
 
 type ParticipantSelectorProps = {
   onBindingChange: (binding: "abstract" | "bound") => void;
@@ -102,6 +109,7 @@ type FeeListEditorProps = {
   ) => void;
   onRemove: (feeId: string) => void;
   options: PaymentRouteConstructorOptions;
+  title?: string;
 };
 
 type ParticipantRequisiteFieldProps = {
@@ -140,6 +148,7 @@ export function BufferedMinorAmountInput({
   onCommit,
   options,
   valueMinor,
+  variant = "default",
 }: BufferedMinorAmountInputProps) {
   const currency =
     options.currencies.find((candidate) => candidate.id === currencyId) ?? null;
@@ -188,8 +197,9 @@ export function BufferedMinorAmountInput({
   return (
     <Input
       aria-label={ariaLabel}
+      data-slot={variant === "group" ? "input-group-control" : "input"}
       inputMode="decimal"
-      className={className}
+      className={cn(variant === "group" ? INPUT_GROUP_CONTROL_CLASS : null, className)}
       value={value}
       onChange={(event) => setValue(event.target.value)}
       onBlur={(event) => commit(event.target.value)}
@@ -595,9 +605,28 @@ export function FeeListEditor({
   onChange,
   onRemove,
   options,
+  title,
 }: FeeListEditorProps) {
   return (
     <div className="space-y-3">
+      {title !== undefined || addLabel ? (
+        <div className="flex items-center justify-between gap-2">
+          {title !== undefined ? (
+            <div className="text-sm font-medium">{title}</div>
+          ) : (
+            <div />
+          )}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={onAdd}
+          >
+            <Plus className="size-4" />
+            {addLabel}
+          </Button>
+        </div>
+      ) : null}
       {fees.length === 0 ? (
         <div className="rounded-lg border border-dashed px-3 py-2 text-sm text-muted-foreground">
           Комиссии не добавлены.
@@ -663,12 +692,13 @@ export function FeeListEditor({
                   </SelectContent>
                 </Select>
                 {fee.kind === "fixed" ? (
-                  <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_120px]">
+                  <InputGroup>
                     <BufferedMinorAmountInput
                       ariaLabel="Сумма комиссии"
                       currencyId={currencyId}
                       options={options}
                       valueMinor={fee.amountMinor ?? "100"}
+                      variant="group"
                       onCommit={(amountMinor) =>
                         onChange(fee.id, (current) => ({
                           ...current,
@@ -677,22 +707,43 @@ export function FeeListEditor({
                         }))
                       }
                     />
-                    <CurrencySelector
-                      ariaLabel="Валюта комиссии"
-                      options={options}
-                      value={currencyId}
-                      onChange={(nextCurrencyId) =>
-                        onChange(fee.id, (current) => ({
-                          ...current,
-                          currencyId: nextCurrencyId,
-                        }))
-                      }
-                    />
-                  </div>
+                    <InputGroupAddon align="inline-end" className="p-0">
+                      <Select
+                        value={currencyId}
+                        onValueChange={(nextValue) => {
+                          if (nextValue) {
+                            onChange(fee.id, (current) => ({
+                              ...current,
+                              currencyId: nextValue,
+                            }));
+                          }
+                        }}
+                      >
+                        <SelectTrigger
+                          aria-label="Валюта комиссии"
+                          className="h-full border-0 bg-transparent px-2 font-medium shadow-none focus-visible:ring-0"
+                        >
+                          <SelectValue>
+                            {options.currencies.find(
+                              (currency) => currency.id === currencyId,
+                            )?.code ?? "—"}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent align="end">
+                          {options.currencies.map((currency) => (
+                            <SelectItem key={currency.id} value={currency.id}>
+                              {currency.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </InputGroupAddon>
+                  </InputGroup>
                 ) : (
-                  <div className="flex items-center gap-2">
+                  <div className="relative">
                     <BufferedDecimalInput
                       ariaLabel="Процент комиссии"
+                      className="pr-7"
                       value={fee.percentage ?? "0.10"}
                       onCommit={(percentage) =>
                         onChange(fee.id, (current) => ({
@@ -704,15 +755,19 @@ export function FeeListEditor({
                         }))
                       }
                     />
-                    <Badge variant="outline">%</Badge>
+                    <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                      %
+                    </span>
                   </div>
                 )}
                 <Button
                   type="button"
                   variant="ghost"
+                  size="icon"
+                  aria-label="Удалить комиссию"
                   onClick={() => onRemove(fee.id)}
                 >
-                  Удалить
+                  <Trash2 className="size-4" />
                 </Button>
               </div>
               <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
@@ -732,9 +787,6 @@ export function FeeListEditor({
           );
         })
       )}
-      <Button type="button" variant="outline" onClick={onAdd}>
-        {addLabel}
-      </Button>
     </div>
   );
 }

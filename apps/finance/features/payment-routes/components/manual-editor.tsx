@@ -314,41 +314,34 @@ export function PaymentRouteManualEditor({
 
               <Separator orientation="horizontal" className="h-px" />
 
-              <Field>
-                <FieldTitle>Комиссии шага</FieldTitle>
-                <FeeListEditor
-                  allowFxSpread={leg.fromCurrencyId !== leg.toCurrencyId}
-                  fallbackCurrencyId={leg.fromCurrencyId}
-                  fees={leg.fees}
-                  options={options}
-                  onAdd={() => onStateChange(addLegFee(state, leg.id))}
-                  onRemove={(feeId) =>
-                    onStateChange(removeLegFee(state, leg.id, feeId))
-                  }
-                  onChange={(feeId, updater) =>
-                    onStateChange(updateLegFee(state, leg.id, feeId, updater))
-                  }
-                />
-              </Field>
+              <FeeListEditor
+                allowFxSpread={leg.fromCurrencyId !== leg.toCurrencyId}
+                fallbackCurrencyId={leg.fromCurrencyId}
+                fees={leg.fees}
+                options={options}
+                title="Комиссии шага"
+                onAdd={() => onStateChange(addLegFee(state, leg.id))}
+                onRemove={(feeId) =>
+                  onStateChange(removeLegFee(state, leg.id, feeId))
+                }
+                onChange={(feeId, updater) =>
+                  onStateChange(updateLegFee(state, leg.id, feeId, updater))
+                }
+              />
             </CardContent>
           </Card>
         );
       })}
 
       <Card className="border-border/70">
-        <CardHeader>
-          <CardTitle className="text-base">Доплаты сверх маршрута</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Field>
-            <FieldTitle>Отдельные доплаты</FieldTitle>
-          </Field>
+        <CardContent className="pt-6">
           <FeeListEditor
             addLabel="Добавить расход"
             allowFxSpread={false}
             fallbackCurrencyId={state.draft.currencyInId}
             fees={state.draft.additionalFees}
             options={options}
+            title="Доплаты сверх маршрута"
             onAdd={() => onStateChange(addAdditionalFee(state))}
             onRemove={(feeId) =>
               onStateChange(removeAdditionalFee(state, feeId))

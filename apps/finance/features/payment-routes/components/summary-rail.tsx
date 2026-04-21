@@ -267,7 +267,7 @@ export function PaymentRouteSummaryRail({
           ) : null}
         </div>
       </CardHeader>
-      <CardContent className="space-y-5">
+      <CardContent className="space-y-3">
         <div className="space-y-3">
           <Field>
             <FieldLabel>Фиксировать</FieldLabel>
@@ -339,17 +339,15 @@ export function PaymentRouteSummaryRail({
 
         {calculation && economics ? (
           <>
-            <Separator />
-
             <div className="space-y-2">
               <div className="flex items-start justify-between gap-3">
-                <div>
+                <div className="min-w-0">
                   <div className="text-sm font-semibold">Клиент оплатит</div>
                   <div className="text-xs text-muted-foreground">
                     Брутто + учтённые комиссии
                   </div>
                 </div>
-                <div className="text-sm font-semibold tabular-nums">
+                <div className="shrink-0 whitespace-nowrap text-sm font-semibold tabular-nums">
                   {formatCurrencyMinorAmount(
                     calculation.clientTotalInMinor,
                     currencyIn,
@@ -363,10 +361,10 @@ export function PaymentRouteSummaryRail({
                       key={fee.id}
                       className="flex items-start justify-between gap-3 text-sm text-muted-foreground"
                     >
-                      <span className="truncate">
+                      <span className="min-w-0 truncate">
                         + {fee.label ?? "Комиссия"}
                       </span>
-                      <span className="tabular-nums text-foreground">
+                      <span className="shrink-0 whitespace-nowrap tabular-nums text-foreground">
                         {formatCurrencyMinorAmount(
                           fee.amountMinor,
                           getCurrency(options, fee.currencyId),
@@ -378,18 +376,18 @@ export function PaymentRouteSummaryRail({
               ) : null}
             </div>
 
-            <Separator />
+            <Separator orientation="horizontal" className="h-px" />
 
             <div className="space-y-2">
               <div className="flex items-start justify-between gap-3">
-                <div>
+                <div className="min-w-0">
                   <div className="text-sm font-semibold">Себестоимость</div>
                   <div className="text-xs text-muted-foreground">
                     Комиссии провайдеров и внутренние расходы
                   </div>
                 </div>
-                <div className="text-sm font-semibold tabular-nums text-destructive">
-                  −{" "}
+                <div className="shrink-0 whitespace-nowrap text-sm font-semibold tabular-nums text-destructive">
+                  −{"\u00A0"}
                   {formatCurrencyMinorAmount(
                     calculation.costPriceInMinor,
                     currencyIn,
@@ -398,10 +396,10 @@ export function PaymentRouteSummaryRail({
               </div>
               <div className="space-y-1 pl-3">
                 <div className="flex items-start justify-between gap-3 text-sm text-muted-foreground">
-                  <span>
+                  <span className="min-w-0">
                     − Комиссии провайдеров по шагам ({economics.legCount})
                   </span>
-                  <span className="tabular-nums text-foreground">
+                  <span className="shrink-0 whitespace-nowrap tabular-nums text-foreground">
                     {formatCurrencyMinorAmount(
                       economics.internalLegImpact.toString(),
                       currencyIn,
@@ -413,8 +411,10 @@ export function PaymentRouteSummaryRail({
                     key={fee.id}
                     className="flex items-start justify-between gap-3 text-sm text-muted-foreground"
                   >
-                    <span className="truncate">− {fee.label ?? "Расход"}</span>
-                    <span className="tabular-nums text-foreground">
+                    <span className="min-w-0 truncate">
+                      − {fee.label ?? "Расход"}
+                    </span>
+                    <span className="shrink-0 whitespace-nowrap tabular-nums text-foreground">
                       {formatCurrencyMinorAmount(
                         fee.amountMinor,
                         getCurrency(options, fee.currencyId),
@@ -425,19 +425,21 @@ export function PaymentRouteSummaryRail({
               </div>
             </div>
 
-            <Separator />
+            <Separator orientation="horizontal" className="h-px" />
 
             <div className="flex items-start justify-between gap-3">
-              <div>
+              <div className="min-w-0">
                 <div className="text-sm font-semibold">Бенефициар получит</div>
                 <div className="text-xs text-muted-foreground">
                   Чистая сумма к получению
                 </div>
               </div>
-              <AmountLine
-                amountMinor={calculation.amountOutMinor}
-                currency={currencyOut}
-              />
+              <div className="shrink-0 whitespace-nowrap">
+                <AmountLine
+                  amountMinor={calculation.amountOutMinor}
+                  currency={currencyOut}
+                />
+              </div>
             </div>
 
             <div
@@ -449,7 +451,7 @@ export function PaymentRouteSummaryRail({
               )}
             >
               <div className="flex items-start justify-between gap-3">
-                <div>
+                <div className="min-w-0">
                   <div
                     className={cn(
                       "text-sm font-semibold",
@@ -473,7 +475,7 @@ export function PaymentRouteSummaryRail({
                 </div>
                 <div
                   className={cn(
-                    "text-base font-semibold tabular-nums",
+                    "shrink-0 whitespace-nowrap text-base font-semibold tabular-nums",
                     economics.marginInMinor < 0n
                       ? "text-destructive"
                       : "text-emerald-900",

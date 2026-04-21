@@ -57,9 +57,7 @@ import type {
 import {
   buildPaymentRouteGraphEdges,
   buildPaymentRouteGraphNodes,
-  getPaymentRouteLegCalculation,
 } from "../lib/graph-view-model";
-import { formatCurrencyMinorAmount } from "../lib/format";
 import type { PaymentRouteConstructorOptions } from "../lib/queries";
 import type { PaymentRouteEditorState } from "../lib/state";
 import {
@@ -558,9 +556,6 @@ function PaymentRouteGraphInspector({
       (leg) => leg.id === selection.legId,
     );
     const leg = state.draft.legs[legIndex];
-    const calculation = leg
-      ? getPaymentRouteLegCalculation(state, leg.id)
-      : null;
 
     if (!leg) {
       return null;
@@ -616,6 +611,7 @@ function PaymentRouteGraphInspector({
             fallbackCurrencyId={leg.fromCurrencyId}
             fees={leg.fees}
             options={options}
+            title="Комиссии"
             onAdd={() => {
               const currentLeg = state.draft.legs.find(
                 (item) => item.id === leg.id,
