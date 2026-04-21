@@ -9,12 +9,15 @@ import {
   AssignDealAgentInputSchema,
   AttachDealPricingRouteRequestSchema,
   CloseDealInputSchema,
+  CommitDealPricingInputSchema,
   CreateDealPricingQuoteInputSchema,
   CreateDealLegOperationInputSchema,
   CreateDealDraftInputSchema,
   DealAttachmentIngestionSchema,
   DealCalculationHistoryItemSchema,
   DealDetailsSchema,
+  DealQuoteAcceptanceHistoryItemSchema,
+  DealPricingCommitResultSchema,
   DealPricingContextSchema,
   DealPricingPreviewSchema,
   DealPricingQuoteResultSchema,
@@ -79,6 +82,7 @@ import {
   assertDealAllowsCommercialWrite,
   requireDeal,
 } from "./internal/deal-linked-resources";
+import { exportDealPricingDocument } from "./internal/deal-pricing-export";
 import { toDocumentDto } from "./internal/document-dto";
 import {
   serializeQuote,
@@ -93,6 +97,7 @@ function serializeDealPricingPreview(
     benchmarks: preview.benchmarks,
     formulaTrace: preview.formulaTrace,
     fundingSummary: preview.fundingSummary,
+    pricingFingerprint: preview.pricingFingerprint,
     pricingMode: preview.pricingMode,
     profitability: preview.profitability,
     quotePreview: serializeQuotePreview(preview.quotePreview),
@@ -200,7 +205,7 @@ export function dealsRoutes(ctx: AppContext) {
     z.object({
       fixedFeeAmount: z.string().trim().min(1).nullable().optional(),
       fixedFeeCurrency: z.string().trim().min(1).max(16).nullable().optional(),
-      quoteMarkupPercent: z.string().trim().min(1).nullable().optional(),
+      quoteMarkupBps: z.number().int().nonnegative().nullable().optional(),
     }),
   );
   const DealAttachmentVisibilityInputSchema = z.object({
@@ -1451,6 +1456,92 @@ export function dealsRoutes(ctx: AppContext) {
     },
   });
 
+  const commitDealPricingRoute = createRoute({
+    middleware: [requirePermission({ deals: ["update"] })],
+    method: "post",
+    path: "/{id}/pricing/commit",
+    tags: ["Deals"],
+    summary:
+      "Create, accept, and lock a deal pricing calculation in one request",
+    request: {
+      params: IdParamSchema,
+      body: {
+        content: {
+          "application/json": {
+            schema: CommitDealPricingInputSchema,
+          },
+        },
+        required: true,
+      },
+    },
+    responses: {
+      201: {
+        content: {
+          "application/json": {
+            schema: DealPricingCommitResultSchema,
+          },
+        },
+        description: "Deal pricing committed",
+      },
+      409: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Revision conflict",
+      },
+    },
+  });
+
+  const exportDealPricingRoute = createRoute({
+    middleware: [requirePermission({ deals: ["list"] })],
+    method: "get",
+    path: "/{id}/pricing/export",
+    tags: ["Deals"],
+    summary: "Export the accepted deal calculation as DOCX/PDF",
+    request: {
+      params: IdParamSchema,
+      query: z.object({
+        format: z.enum(["docx", "pdf"]).default("pdf"),
+        lang: z.enum(["ru", "en"]).default("ru"),
+        quoteId: z.uuid().optional(),
+      }),
+    },
+    responses: {
+      200: { description: "Generated file" },
+      404: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Deal or accepted quote not found",
+      },
+    },
+  });
+
+  const listDealPricingAcceptancesRoute = createRoute({
+    middleware: [requirePermission({ deals: ["list"] })],
+    method: "get",
+    path: "/{id}/pricing/acceptances",
+    tags: ["Deals"],
+    summary: "List all quote acceptances for a deal (history chain)",
+    request: {
+      params: IdParamSchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: z.array(DealQuoteAcceptanceHistoryItemSchema),
+          },
+        },
+        description: "Acceptance history, newest first",
+      },
+    },
+  });
+
   const listFormalDocumentsRoute = createRoute({
     middleware: [requirePermission({ deals: ["list"] })],
     method: "get",
@@ -2314,6 +2405,98 @@ export function dealsRoutes(ctx: AppContext) {
         });
 
         return jsonOk(c, serializeDealPricingQuoteResult(result), 201);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(commitDealPricingRoute, async (c) => {
+      try {
+        const { id } = c.req.valid("param");
+        const body = c.req.valid("json");
+        const actorUserId = c.get("user")!.id;
+
+        const result = await withRequiredIdempotency(c, async (idempotencyKey) => {
+          const quoteResult = await ctx.dealPricingWorkflow.createQuote({
+            ...body,
+            dealId: id,
+            idempotencyKey,
+          });
+
+          await ctx.dealsModule.deals.commands.appendTimelineEvent({
+            actorUserId,
+            dealId: id,
+            payload: {
+              expiresAt: quoteResult.quote.expiresAt,
+              pricingMode: quoteResult.pricingMode,
+              quoteId: quoteResult.quote.id,
+            },
+            sourceRef: `quote:${quoteResult.quote.id}:created`,
+            type: "quote_created",
+            visibility: "internal",
+          });
+
+          await ctx.dealsModule.deals.commands.acceptQuote({
+            actorUserId,
+            dealId: id,
+            quoteId: quoteResult.quote.id,
+          });
+
+          const calculation =
+            await ctx.dealQuoteWorkflow.createCalculationFromAcceptedQuote({
+              actorUserId,
+              dealId: id,
+              idempotencyKey: `${idempotencyKey}:calculation`,
+              quoteId: quoteResult.quote.id,
+            });
+
+          return { quoteResult, calculationId: calculation.id };
+        });
+
+        if (result instanceof Response) {
+          return result;
+        }
+
+        return jsonOk(
+          c,
+          {
+            ...serializeDealPricingQuoteResult(result.quoteResult),
+            calculationId: result.calculationId,
+          },
+          201,
+        );
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(exportDealPricingRoute, async (c): Promise<any> => {
+      try {
+        const { id } = c.req.valid("param");
+        const { format, lang, quoteId } = c.req.valid("query");
+        const result = await exportDealPricingDocument({
+          ctx,
+          dealId: id,
+          format,
+          lang,
+          quoteId,
+        });
+
+        c.header("Content-Type", result.mimeType);
+        c.header(
+          "Content-Disposition",
+          `attachment; filename="${result.fileName}"`,
+        );
+        return c.body(result.buffer as unknown as ArrayBuffer);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(listDealPricingAcceptancesRoute, async (c) => {
+      try {
+        const { id } = c.req.valid("param");
+        await requireDeal(ctx, id);
+        const acceptances =
+          await ctx.dealsModule.deals.queries.listQuoteAcceptances(id);
+        return jsonOk(c, acceptances);
       } catch (error) {
         return handleRouteError(c, error);
       }

@@ -44,22 +44,6 @@ function parseDecimalParts(value: string, field: string) {
   };
 }
 
-export function percentStringToBps(
-  value: string | null | undefined,
-  field = "quoteMarkupPercent",
-) {
-  const normalized = normalizeOptionalDecimalString(value, field);
-
-  if (normalized === undefined || normalized === null) {
-    return 0n;
-  }
-
-  const parts = parseDecimalParts(normalized, field);
-  const denominator = 10n ** BigInt(parts.scale);
-
-  return (parts.digits * 100n + denominator / 2n) / denominator;
-}
-
 function decimalStringToRoundedInteger(
   value: string | null | undefined,
   field: string,

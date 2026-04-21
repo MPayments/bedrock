@@ -14,7 +14,7 @@ import type {
 type DealPricingCommercialDraftState = {
   fixedFeeAmount: string | null;
   fixedFeeCurrency: string | null;
-  quoteMarkupPercent: string | null;
+  quoteMarkupBps: number | null;
 };
 
 type UseDealPricingAutoSyncParams = {
@@ -88,7 +88,7 @@ function cloneCommercialDraft(context: ApiDealPricingContext) {
   return {
     fixedFeeAmount: context.commercialDraft.fixedFeeAmount ?? null,
     fixedFeeCurrency: context.commercialDraft.fixedFeeCurrency ?? null,
-    quoteMarkupPercent: context.commercialDraft.quoteMarkupPercent ?? null,
+    quoteMarkupBps: context.commercialDraft.quoteMarkupBps ?? null,
   };
 }
 
@@ -191,9 +191,7 @@ export function useDealPricingAutoSync({
             current.commercialDraft.fixedFeeAmount,
           ),
           fixedFeeCurrency: current.commercialDraft.fixedFeeCurrency,
-          quoteMarkupPercent: normalizeOptionalDecimalInput(
-            current.commercialDraft.quoteMarkupPercent,
-          ),
+          quoteMarkupBps: current.commercialDraft.quoteMarkupBps,
         };
       }
 

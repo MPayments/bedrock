@@ -219,6 +219,12 @@ export type CreateDealPricingQuoteInput = z.infer<
   typeof CreateDealPricingQuoteInputSchema
 >;
 
+export const CommitDealPricingInputSchema = PreviewDealPricingInputSchema;
+
+export type CommitDealPricingInput = z.infer<
+  typeof CommitDealPricingInputSchema
+>;
+
 export const LinkDealCalculationFromAcceptedQuoteInputSchema = z.object({
   calculationId: z.uuid(),
   quoteId: z.uuid(),

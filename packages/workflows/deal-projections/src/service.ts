@@ -356,6 +356,7 @@ function serializeCrmPricingQuote(quote: TreasuryQuoteRecord): QuoteListItem {
     fromCurrencyId: quote.fromCurrencyId,
     id: quote.id,
     idempotencyKey: quote.idempotencyKey,
+    pricingFingerprint: quote.pricingFingerprint,
     pricingMode: quote.pricingMode,
     pricingTrace: quote.pricingTrace ?? {},
     rateDen: quote.rateDen.toString(),
@@ -990,7 +991,10 @@ async function resolvePortalIntakeCurrencyCodes(
     await Promise.all(
       Array.from(new Set(currencyIds)).map(
         async (currencyId): Promise<readonly [string, string | null]> =>
-          [currencyId, (await deps.currencies.findById(currencyId))?.code ?? null] as const,
+          [
+            currencyId,
+            (await deps.currencies.findById(currencyId))?.code ?? null,
+          ] as const,
       ),
     ),
   );
@@ -1028,11 +1032,11 @@ async function toPortalIntakeSummary(
 
 async function buildPortalProjection(
   input: {
-  attachments: Awaited<
-    ReturnType<FilesModule["files"]["queries"]["listDealAttachments"]>
-  >;
-  workflow: DealWorkflowProjection;
-},
+    attachments: Awaited<
+      ReturnType<FilesModule["files"]["queries"]["listDealAttachments"]>
+    >;
+    workflow: DealWorkflowProjection;
+  },
   deps: Pick<DealProjectionsWorkflowDeps, "currencies">,
 ): Promise<PortalDealProjection> {
   const customerSafeTimeline = getCustomerSafeTimeline(input.workflow.timeline);
@@ -1119,9 +1123,9 @@ function isQuoteEligible(workflow: DealWorkflowProjection) {
 
   return Boolean(
     sourceCurrencyId &&
-      targetCurrencyId &&
-      sourceCurrencyId !== targetCurrencyId &&
-      requestedAmount,
+    targetCurrencyId &&
+    sourceCurrencyId !== targetCurrencyId &&
+    requestedAmount,
   );
 }
 
@@ -2239,7 +2243,9 @@ export function createDealProjectionsWorkflow(
         operationsResult.data.map((operation) => operation.id),
       );
     const operationsById = new Map(
-      operationsResult.data.map((operation) => [operation.id, operation] as const),
+      operationsResult.data.map(
+        (operation) => [operation.id, operation] as const,
+      ),
     );
     const latestInstructionByOperationId = new Map(
       latestInstructions.map(
@@ -2308,8 +2314,9 @@ export function createDealProjectionsWorkflow(
             instructionSummary.totalOperations &&
           (reconciliationSummary.state === "pending" ||
             reconciliationSummary.state === "blocked"),
-        canResolveExecutionBlocker:
-          workflow.executionPlan.some((leg) => leg.state === "blocked"),
+        canResolveExecutionBlocker: workflow.executionPlan.some(
+          (leg) => leg.state === "blocked",
+        ),
         canUploadAttachment: actions.canUploadAttachment,
       },
       attachmentRequirements,

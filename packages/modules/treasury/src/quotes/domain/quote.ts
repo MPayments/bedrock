@@ -28,6 +28,7 @@ export interface QuoteSnapshot {
   usedAt: Date | null;
   expiresAt: Date;
   idempotencyKey: string;
+  pricingFingerprint: string | null;
   createdAt: Date;
 }
 
@@ -44,6 +45,7 @@ export class Quote extends AggregateRoot<string> {
     createdAt: Date;
     dealId?: string | null;
     pricingPlan: QuotePricingPlanSnapshot;
+    pricingFingerprint: string;
   }): Quote {
     invariant(input.id.trim().length > 0, "Quote id is required", {
       code: "treasury.quote.id_required",
@@ -54,6 +56,11 @@ export class Quote extends AggregateRoot<string> {
       {
         code: "treasury.quote.idempotency_required",
       },
+    );
+    invariant(
+      input.pricingFingerprint.trim().length > 0,
+      "Quote pricingFingerprint is required",
+      { code: "treasury.quote.pricing_fingerprint_required" },
     );
 
     return new Quote({
@@ -76,6 +83,7 @@ export class Quote extends AggregateRoot<string> {
       usedAt: null,
       expiresAt: input.pricingPlan.expiresAt,
       idempotencyKey: input.idempotencyKey,
+      pricingFingerprint: input.pricingFingerprint,
       createdAt: input.createdAt,
     });
   }

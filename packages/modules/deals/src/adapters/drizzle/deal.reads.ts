@@ -1261,6 +1261,70 @@ export class DrizzleDealReads implements DealReads {
     };
   }
 
+  async listQuoteAcceptances(dealId: string) {
+    const result = await this.db.execute<{
+      acceptanceId: string;
+      acceptedAt: Date | string;
+      acceptedByUserId: string;
+      commercialRevenueMinor: string | null;
+      customerTotalMinor: string | null;
+      expiresAt: Date | string | null;
+      fromAmountMinor: string;
+      fromCurrency: string | null;
+      pricingFingerprint: string | null;
+      quoteId: string;
+      rateDen: string;
+      rateNum: string;
+      replacedByQuoteId: string | null;
+      revokedAt: Date | string | null;
+      toAmountMinor: string;
+      toCurrency: string | null;
+    }>(sql`
+      select
+        a.id as "acceptanceId",
+        a.accepted_at as "acceptedAt",
+        a.accepted_by_user_id as "acceptedByUserId",
+        q.pricing_trace #>> '{metadata,crmPricingSnapshot,profitability,commercialRevenueMinor}' as "commercialRevenueMinor",
+        q.pricing_trace #>> '{metadata,crmPricingSnapshot,profitability,customerTotalMinor}' as "customerTotalMinor",
+        q.expires_at as "expiresAt",
+        q.from_amount_minor::text as "fromAmountMinor",
+        fc.code as "fromCurrency",
+        q.pricing_fingerprint as "pricingFingerprint",
+        a.quote_id as "quoteId",
+        q.rate_den::text as "rateDen",
+        q.rate_num::text as "rateNum",
+        a.replaced_by_quote_id as "replacedByQuoteId",
+        a.revoked_at as "revokedAt",
+        q.to_amount_minor::text as "toAmountMinor",
+        tc.code as "toCurrency"
+      from deal_quote_acceptances a
+      inner join fx_quotes q on q.id = a.quote_id
+      left join currencies fc on fc.id = q.from_currency_id
+      left join currencies tc on tc.id = q.to_currency_id
+      where a.deal_id = ${dealId}
+      order by a.accepted_at desc
+    `);
+
+    return result.rows.map((row) => ({
+      acceptanceId: row.acceptanceId,
+      acceptedAt: toDate(row.acceptedAt).toISOString(),
+      acceptedByUserId: row.acceptedByUserId,
+      commercialRevenueMinor: row.commercialRevenueMinor,
+      customerTotalMinor: row.customerTotalMinor,
+      expiresAt: toDateOrNull(row.expiresAt)?.toISOString() ?? null,
+      fromAmountMinor: row.fromAmountMinor,
+      fromCurrency: row.fromCurrency ?? "",
+      pricingFingerprint: row.pricingFingerprint,
+      quoteId: row.quoteId,
+      rateDen: row.rateDen,
+      rateNum: row.rateNum,
+      replacedByQuoteId: row.replacedByQuoteId,
+      revokedAt: toDateOrNull(row.revokedAt)?.toISOString() ?? null,
+      toAmountMinor: row.toAmountMinor,
+      toCurrency: row.toCurrency ?? "",
+    }));
+  }
+
   async listCalculationHistory(
     dealId: string,
   ): Promise<DealCalculationHistoryItem[]> {

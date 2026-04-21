@@ -604,6 +604,7 @@ export type ApiDealPricingQuote = {
   fromCurrencyId: string;
   id: string;
   idempotencyKey: string;
+  pricingFingerprint: string | null;
   pricingMode: string;
   pricingTrace: Record<string, unknown>;
   profitability?: ApiDealPricingProfitability | null;
@@ -689,7 +690,7 @@ export type ApiDealFundingAdjustment = {
 export type ApiDealPricingCommercialDraft = {
   fixedFeeAmount: string | null;
   fixedFeeCurrency: string | null;
-  quoteMarkupPercent: string | null;
+  quoteMarkupBps: number | null;
 };
 
 export type ApiPaymentRouteFee = {
@@ -817,6 +818,7 @@ export type ApiDealPricingPreview = {
   fundingSummary: {
     positions: ApiDealFundingPosition[];
   };
+  pricingFingerprint: string;
   pricingMode: "auto_cross" | "explicit_route";
   profitability: ApiDealPricingProfitability | null;
   quotePreview: ApiQuotePreview;
@@ -829,6 +831,25 @@ export type ApiDealPricingQuoteResult = {
   pricingMode: "auto_cross" | "explicit_route";
   profitability: ApiDealPricingProfitability | null;
   quote: ApiDealPricingQuote;
+};
+
+export type ApiDealQuoteAcceptanceHistoryItem = {
+  acceptanceId: string;
+  acceptedAt: string;
+  acceptedByUserId: string;
+  commercialRevenueMinor: string | null;
+  customerTotalMinor: string | null;
+  expiresAt: string | null;
+  fromAmountMinor: string;
+  fromCurrency: string;
+  pricingFingerprint: string | null;
+  quoteId: string;
+  rateDen: string;
+  rateNum: string;
+  replacedByQuoteId: string | null;
+  revokedAt: string | null;
+  toAmountMinor: string;
+  toCurrency: string;
 };
 
 export type ApiDealPricingRouteCandidate = {

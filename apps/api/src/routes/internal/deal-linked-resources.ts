@@ -11,7 +11,6 @@ import type { QuotePreviewRecord } from "@bedrock/treasury/contracts";
 import {
   extractAgreementCommercialDefaults,
   normalizeOptionalDecimalString,
-  percentStringToBps,
 } from "../../composition/commercial-pricing";
 import type { AppContext } from "../../context";
 import { db } from "../../db/client";
@@ -95,12 +94,12 @@ async function buildDealScopedQuoteInput(input: {
   const {
     fixedFeeAmount,
     fixedFeeCurrency,
-    quoteMarkupPercent,
+    quoteMarkupBps,
     ...quoteBody
   } = input.body as {
     fixedFeeAmount?: string | null;
     fixedFeeCurrency?: string | null;
-    quoteMarkupPercent?: string | null;
+    quoteMarkupBps?: number | null;
   } & Record<string, unknown>;
   const defaults = extractAgreementCommercialDefaults({
     agreement,
@@ -124,7 +123,7 @@ async function buildDealScopedQuoteInput(input: {
     commercialTerms: {
       agreementVersionId: defaults.agreementVersionId,
       agreementFeeBps: defaults.agreementFeeBps.toString(),
-      quoteMarkupBps: percentStringToBps(quoteMarkupPercent).toString(),
+      quoteMarkupBps: (quoteMarkupBps ?? 0).toString(),
       fixedFeeAmount: normalizedFixedFeeAmount,
       fixedFeeCurrency: normalizedFixedFeeCurrency,
     },

@@ -306,7 +306,7 @@ describe("createTreasuryTestService", () => {
             expect.objectContaining({
                 quoteId: QUOTE_ID,
                 idx: 4,
-                bucket: "pass_through",
+                bucket: "fee_revenue",
                 currencyId: "cur-aed",
                 amountMinor: 250n,
                 source: "manual",

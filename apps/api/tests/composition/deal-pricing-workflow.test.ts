@@ -274,7 +274,7 @@ function createPricingContext(overrides?: Record<string, unknown>) {
     commercialDraft: {
       fixedFeeAmount: "15.00",
       fixedFeeCurrency: "USD",
-      quoteMarkupPercent: "0.25",
+      quoteMarkupBps: 25,
     },
     fundingAdjustments: [
       {

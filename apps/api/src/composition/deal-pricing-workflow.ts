@@ -1,7 +1,8 @@
-import { canDealWriteTreasuryOrFormalDocuments } from "@bedrock/deals";
-import { DealPricingContextRevisionConflictError } from "@bedrock/deals";
 import type { AgreementsModule } from "@bedrock/agreements";
 import type { CurrenciesService } from "@bedrock/currencies";
+import { canDealWriteTreasuryOrFormalDocuments } from "@bedrock/deals";
+import { DealPricingContextRevisionConflictError } from "@bedrock/deals";
+import type { DealsModule } from "@bedrock/deals";
 import type {
   DealFundingAdjustment,
   DealFundingPosition,
@@ -12,24 +13,25 @@ import type {
   DealPricingRateSnapshot,
   UpdateDealPricingContextInput,
 } from "@bedrock/deals/contracts";
-import type { DealsModule } from "@bedrock/deals";
-import { NotFoundError, ValidationError } from "@bedrock/shared/core/errors";
+import {
+  ConflictError,
+  NotFoundError,
+  ValidationError,
+} from "@bedrock/shared/core/errors";
 import { formatFractionDecimal, minorToAmountString, mulDivRoundHalfUp } from "@bedrock/shared/money";
 import type { TreasuryModule } from "@bedrock/treasury";
-import type {
-  CreateQuoteInput,
-  PaymentRouteCalculation,
-  PaymentRouteDraft,
-  PaymentRouteTemplateListItem,
-  PreviewQuoteInput,
-  QuotePreviewRecord,
-  QuoteRecord,
+import {
+  computePricingFingerprint,
+  type CreateQuoteInput,
+  type PaymentRouteCalculation,
+  type PaymentRouteDraft,
+  type PaymentRouteTemplateListItem,
+  type PreviewQuoteInput,
+  type QuotePreviewRecord,
+  type QuoteRecord,
 } from "@bedrock/treasury/contracts";
 
-import {
-  extractAgreementCommercialDefaults,
-  percentStringToBps,
-} from "./commercial-pricing";
+import { extractAgreementCommercialDefaults } from "./commercial-pricing";
 
 type DealPricingContextRecord = Awaited<
   ReturnType<DealsModule["deals"]["queries"]["findPricingContextByDealId"]>
@@ -41,39 +43,40 @@ type DealWorkflowRecord = NonNullable<
   Awaited<ReturnType<DealsModule["deals"]["queries"]["findWorkflowById"]>>
 >;
 
-type PreparedDealPricingInput = {
+interface PreparedDealPricingInput {
   context: DealPricingContextRecord;
   deal: DealRecord;
   workflow: DealWorkflowRecord;
-};
+}
 
-type QuotePayloadResult = {
+interface QuotePayloadResult {
   quoteInput: PreviewQuoteInput;
   routePreview: PaymentRouteCalculation | null;
-};
+}
 
-type PricingArtifacts = {
+interface PricingArtifacts {
   benchmarks: DealPricingBenchmarks;
   formulaTrace: DealPricingFormulaTrace;
   profitability: DealPricingProfitability | null;
-};
+}
 
-type CurrencyPairRequirement = {
+interface CurrencyPairRequirement {
   fromCurrency: string;
   toCurrency: string;
-};
+}
 
-export type DealPricingPreviewRecord = {
+export interface DealPricingPreviewRecord {
   benchmarks: DealPricingBenchmarks;
   formulaTrace: DealPricingFormulaTrace;
   fundingSummary: {
     positions: DealFundingPosition[];
   };
+  pricingFingerprint: string;
   pricingMode: "auto_cross" | "explicit_route";
   profitability: DealPricingProfitability | null;
   quotePreview: QuotePreviewRecord;
   routePreview: PaymentRouteCalculation | null;
-};
+}
 
 export interface DealPricingWorkflow {
   attachRoute(input: {
@@ -125,6 +128,19 @@ const FUNDING_ADJUSTMENT_KIND_LABELS: Record<
   manual_offset: "Ручная корректировка",
   reconciliation_adjustment: "Корректировка по сверке",
 };
+
+const MARKET_RATE_SOURCE_LABELS: Record<string, string> = {
+  cbr: "ЦБ РФ",
+  grinex: "Grinex",
+  investing: "Investing.com",
+  manual: "Ручной курс",
+  xe: "XE",
+};
+
+function describeMarketRateSource(source: string | null): string {
+  if (!source) return "Рыночный курс";
+  return MARKET_RATE_SOURCE_LABELS[source] ?? source;
+}
 
 function assertDealAllowsCommercialWrite(deal: DealRecord) {
   if (
@@ -443,17 +459,22 @@ async function resolveCommercialTerms(input: {
     fallbackFixedFeeCurrency: input.fixedFeeCurrencyFallback,
   });
 
+  const resolvedFixedFeeAmount =
+    input.pricingContext.commercialDraft.fixedFeeAmount ??
+    defaults.fixedFeeAmount;
+  const resolvedFixedFeeCurrency =
+    input.pricingContext.commercialDraft.fixedFeeCurrency ??
+    defaults.fixedFeeCurrency;
+  const hasCompleteFixedFee =
+    resolvedFixedFeeAmount !== null && resolvedFixedFeeCurrency !== null;
+
   return {
     agreementVersionId: defaults.agreementVersionId,
     agreementFeeBps: defaults.agreementFeeBps.toString(),
-    fixedFeeAmount:
-      input.pricingContext.commercialDraft.fixedFeeAmount ??
-      defaults.fixedFeeAmount,
-    fixedFeeCurrency:
-      input.pricingContext.commercialDraft.fixedFeeCurrency ??
-      defaults.fixedFeeCurrency,
-    quoteMarkupBps: percentStringToBps(
-      input.pricingContext.commercialDraft.quoteMarkupPercent,
+    fixedFeeAmount: hasCompleteFixedFee ? resolvedFixedFeeAmount : null,
+    fixedFeeCurrency: hasCompleteFixedFee ? resolvedFixedFeeCurrency : null,
+    quoteMarkupBps: (
+      input.pricingContext.commercialDraft.quoteMarkupBps ?? 0
     ).toString(),
   };
 }
@@ -751,6 +772,7 @@ async function summarizeFinancialLinesInSourceCurrency(input: {
 
 async function buildBenchmarks(input: {
   asOf: Date;
+  commercialRevenueMinor: bigint;
   deps: DealPricingWorkflowDeps;
   quotePreview: QuotePreviewRecord;
   routePreview: PaymentRouteCalculation | null;
@@ -769,13 +791,27 @@ async function buildBenchmarks(input: {
     ? composeRouteRate(input.routePreview)
     : null;
 
+  // All-in customer rate = base rate × (principal + commercialRevenue) / principal.
+  // commercialRevenue is bucketed as fee_revenue + spread_revenue and isn't folded
+  // into quotePreview.rateNum/rateDen, so we scale the base rate accordingly.
+  const principal = input.quotePreview.fromAmountMinor;
+  const clientRateMultiplier = principal + input.commercialRevenueMinor;
+  const clientRateNum =
+    principal > 0n
+      ? input.quotePreview.rateNum * principal
+      : input.quotePreview.rateNum;
+  const clientRateDen =
+    principal > 0n
+      ? input.quotePreview.rateDen * clientRateMultiplier
+      : input.quotePreview.rateDen;
+
   return {
     client: createRateSnapshot({
       asOf: input.asOf,
       baseCurrency: pair.fromCurrency,
       quoteCurrency: pair.toCurrency,
-      rateDen: input.quotePreview.rateDen,
-      rateNum: input.quotePreview.rateNum,
+      rateDen: clientRateDen,
+      rateNum: clientRateNum,
       sourceKind: "client",
       sourceLabel: "Курс клиенту",
     }),
@@ -798,7 +834,7 @@ async function buildBenchmarks(input: {
       rateDen: marketRate.rateDen,
       rateNum: marketRate.rateNum,
       sourceKind: "market",
-      sourceLabel: "Рыночный курс",
+      sourceLabel: describeMarketRateSource(marketRate.source),
     }),
     pricingBase: input.routePreview ? "route_benchmark" : "market_benchmark",
     routeBase: routeRate
@@ -817,17 +853,15 @@ async function buildBenchmarks(input: {
 
 async function buildProfitability(input: {
   asOf: Date;
-  deps: DealPricingWorkflowDeps;
+  financialSummary: {
+    commercialRevenueMinor: bigint;
+    passThroughMinor: bigint;
+  };
   quotePreview: QuotePreviewRecord;
   routePreview: PaymentRouteCalculation | null;
 }): Promise<DealPricingProfitability | null> {
   const sourceCurrency = input.quotePreview.fromCurrency;
-  const financialSummary = await summarizeFinancialLinesInSourceCurrency({
-    asOf: input.asOf,
-    deps: input.deps,
-    financialLines: input.quotePreview.financialLines,
-    sourceCurrency,
-  });
+  const financialSummary = input.financialSummary;
   const customerPrincipalMinor = input.quotePreview.fromAmountMinor;
   const costPriceMinor = input.routePreview
     ? BigInt(input.routePreview.costPriceInMinor)
@@ -932,8 +966,8 @@ function buildClientPricingLines(input: {
     input.benchmarks.pricingBase === "route_benchmark"
       ? "База расчета: базовый курс маршрута"
       : "База расчета: рыночный курс";
-  const markupBps = percentStringToBps(
-    input.pricingContext.commercialDraft.quoteMarkupPercent,
+  const markupBps = BigInt(
+    input.pricingContext.commercialDraft.quoteMarkupBps ?? 0,
   );
   const agreementFeeBps =
     input.quotePreview.commercialTerms?.agreementFeeBps ?? 0n;
@@ -1209,15 +1243,22 @@ async function buildPricingArtifacts(input: {
   quotePreview: QuotePreviewRecord;
   routePreview: PaymentRouteCalculation | null;
 }): Promise<PricingArtifacts> {
+  const financialSummary = await summarizeFinancialLinesInSourceCurrency({
+    asOf: input.asOf,
+    deps: input.deps,
+    financialLines: input.quotePreview.financialLines,
+    sourceCurrency: input.quotePreview.fromCurrency,
+  });
   const benchmarks = await buildBenchmarks({
     asOf: input.asOf,
+    commercialRevenueMinor: financialSummary.commercialRevenueMinor,
     deps: input.deps,
     quotePreview: input.quotePreview,
     routePreview: input.routePreview,
   });
   const profitability = await buildProfitability({
     asOf: input.asOf,
-    deps: input.deps,
+    financialSummary,
     quotePreview: input.quotePreview,
     routePreview: input.routePreview,
   });
@@ -1326,6 +1367,28 @@ async function previewWithArtifacts(input: {
     quotePreview,
     routePreview: payload.routePreview,
   });
+  const [fromCurrency, toCurrency] = await Promise.all([
+    input.deps.currencies.findByCode(quotePreview.fromCurrency),
+    input.deps.currencies.findByCode(quotePreview.toCurrency),
+  ]);
+  const pricingFingerprint = computePricingFingerprint({
+    commercialTerms: quotePreview.commercialTerms
+      ? {
+          agreementFeeBps: quotePreview.commercialTerms.agreementFeeBps,
+          agreementVersionId: quotePreview.commercialTerms.agreementVersionId,
+          fixedFeeAmountMinor: quotePreview.commercialTerms.fixedFeeAmountMinor,
+          fixedFeeCurrency: quotePreview.commercialTerms.fixedFeeCurrency,
+          quoteMarkupBps: quotePreview.commercialTerms.quoteMarkupBps,
+        }
+      : null,
+    fromAmountMinor: quotePreview.fromAmountMinor,
+    fromCurrencyId: fromCurrency.id,
+    pricingMode: quotePreview.pricingMode,
+    routeTemplateId:
+      input.prepared.context.routeAttachment?.templateId ?? null,
+    toAmountMinor: quotePreview.toAmountMinor,
+    toCurrencyId: toCurrency.id,
+  });
 
   return {
     benchmarks: artifacts.benchmarks,
@@ -1333,6 +1396,7 @@ async function previewWithArtifacts(input: {
     fundingSummary: {
       positions: fundingPositions,
     },
+    pricingFingerprint,
     pricingMode: payload.routePreview ? "explicit_route" : "auto_cross",
     profitability: artifacts.profitability,
     quoteInput: payload.quoteInput,
@@ -1439,6 +1503,7 @@ export function createDealPricingWorkflow(
         benchmarks: result.benchmarks,
         formulaTrace: result.formulaTrace,
         fundingSummary: result.fundingSummary,
+        pricingFingerprint: result.pricingFingerprint,
         pricingMode: result.pricingMode,
         profitability: result.profitability,
         quotePreview: result.quotePreview,
@@ -1466,6 +1531,28 @@ export function createDealPricingWorkflow(
         prepared,
       });
 
+      const currentAcceptance = prepared.workflow.acceptedQuote;
+      if (currentAcceptance) {
+        const existingQuote = await deps.treasury.quotes.queries.findById(
+          currentAcceptance.quoteId,
+        );
+        if (
+          existingQuote &&
+          existingQuote.pricingFingerprint &&
+          existingQuote.pricingFingerprint === previewResult.pricingFingerprint &&
+          existingQuote.expiresAt.getTime() > Date.now()
+        ) {
+          throw new ConflictError(
+            "rate_already_locked",
+            "Текущая котировка уже зафиксирована на тех же условиях и ещё действительна.",
+            {
+              expiresAt: existingQuote.expiresAt.toISOString(),
+              quoteId: existingQuote.id,
+            },
+          );
+        }
+      }
+
       const createQuoteInput = {
         ...withCrmPricingSnapshot({
           benchmarks: previewResult.benchmarks,
@@ -1475,6 +1562,8 @@ export function createDealPricingWorkflow(
         }),
         dealId: input.dealId,
         idempotencyKey: input.idempotencyKey,
+        routeTemplateId:
+          prepared.context.routeAttachment?.templateId ?? null,
       } satisfies CreateQuoteInput;
       const quote = await deps.treasury.quotes.commands.createQuote(
         createQuoteInput,

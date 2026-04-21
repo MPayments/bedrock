@@ -480,10 +480,18 @@ type DealQuoteRequestBody = {
   fromCurrency: string;
   fromAmountMinor?: string;
   mode: "auto_cross";
-  quoteMarkupPercent: string | null;
+  quoteMarkupBps: number | null;
   toAmountMinor?: string;
   toCurrency: string;
 };
+
+function percentStringToBps(value: string): number | null {
+  const trimmed = value.trim().replace(",", ".");
+  if (!trimmed) return null;
+  const parsed = Number.parseFloat(trimmed);
+  if (!Number.isFinite(parsed) || parsed < 0) return null;
+  return Math.round(parsed * 100);
+}
 
 function prepareDealQuoteRequest(input: {
   calculationAmount: string;
@@ -602,7 +610,7 @@ function prepareDealQuoteRequest(input: {
       fixedFeeCurrency: normalizedFixedFeeAmount
         ? input.fixedFeeCurrencyCode
         : null,
-      quoteMarkupPercent: input.quoteMarkupPercent.trim() || null,
+      quoteMarkupBps: percentStringToBps(input.quoteMarkupPercent),
     },
     validationError: null,
   };
@@ -826,9 +834,6 @@ export default function DealDetailPage() {
   });
   const [isQuoteDialogOpen, setIsQuoteDialogOpen] = useState(false);
   const [isCreatingQuote, setIsCreatingQuote] = useState(false);
-  const [isAcceptingQuoteId, setIsAcceptingQuoteId] = useState<string | null>(
-    null,
-  );
   const [isCreatingCalculation, setIsCreatingCalculation] = useState(false);
   const [isCreateCalculationDialogOpen, setIsCreateCalculationDialogOpen] =
     useState(false);
@@ -1288,16 +1293,6 @@ export default function DealDetailPage() {
       quoteRequest,
     ],
   );
-  const calculationDisabledReason = !data
-    ? "Данные сделки еще загружаются."
-    : quoteCreationDisabledReason
-      ? quoteCreationDisabledReason
-      : !data.workbench.acceptedQuote
-        ? "Сначала примите котировку."
-        : data.workbench.acceptedQuote.quoteStatus !== "active"
-          ? "Создать расчет можно только по действующей принятой котировке."
-          : null;
-
   useEffect(() => {
     if (!isQuoteDialogOpen) {
       setQuotePreview(null);
@@ -1379,51 +1374,6 @@ export default function DealDetailPage() {
     quoteCreationDisabledReason,
     quotePreviewRequest,
   ]);
-
-  const handleAcceptQuote = useCallback(
-    async (quoteId: string) => {
-      try {
-        setIsAcceptingQuoteId(quoteId);
-
-        await fetchJson(
-          `${API_BASE_URL}/deals/${dealId}/quotes/${quoteId}/accept`,
-          {
-            method: "POST",
-          },
-        );
-
-        await loadDeal();
-      } catch (nextError) {
-        console.error("Quote accept error:", nextError);
-        showError(
-          "Ошибка принятия котировки",
-          nextError instanceof Error
-            ? nextError.message
-            : "Не удалось принять котировку",
-        );
-      } finally {
-        setIsAcceptingQuoteId(null);
-      }
-    },
-    [dealId, loadDeal, showError],
-  );
-
-  const handleOpenCreateCalculationDialog = useCallback(() => {
-    if (!data?.workbench.acceptedQuote) {
-      showError("Нет принятой котировки", "Сначала примите котировку.");
-      return;
-    }
-
-    if (data.workbench.acceptedQuote.quoteStatus !== "active") {
-      showError(
-        "Котировка недоступна",
-        "Создать расчет можно только по действующей принятой котировке.",
-      );
-      return;
-    }
-
-    setIsCreateCalculationDialogOpen(true);
-  }, [data, showError]);
 
   const handleCreateCalculationFromAcceptedQuote = useCallback(async () => {
     if (!data?.workbench.acceptedQuote) {
@@ -2025,33 +1975,22 @@ export default function DealDetailPage() {
             pricing={
               <DealPricingTab
                 acceptedQuote={data.workbench.acceptedQuote}
-                activeCalculationId={data.deal.calculationId}
-                amountCurrencyCode={
-                  quoteRequest?.amountSide === "source"
-                    ? data.sourceCurrency?.code ?? null
-                    : data.currency?.code ?? null
-                }
                 amountCurrencyPrecision={
                   quoteRequest?.amountSide === "source"
                     ? data.sourceCurrency?.precision ?? 2
                     : data.currency?.precision ?? 2
                 }
-                calculation={data.calculation}
-                calculationDisabledReason={calculationDisabledReason}
-                calculationHistory={data.calculationHistory}
                 currencyOptions={data.currencyOptions}
                 dealId={dealId}
+                fundingDeadline={
+                  data.workbench.intake.incomingReceipt.expectedAt
+                }
                 initialRequestedAmount={quoteRequest?.amount ?? ""}
-                isAcceptingQuoteId={isAcceptingQuoteId}
-                isCreatingCalculation={isCreatingCalculation}
-                onAcceptQuote={handleAcceptQuote}
-                onCreateCalculation={handleOpenCreateCalculationDialog}
                 onError={showError}
                 onReload={loadDeal}
                 pricingContext={data.workbench.pricing.context}
                 quoteAmountSide={quoteRequest?.amountSide ?? "source"}
                 quoteCreationDisabledReason={quoteCreationDisabledReason}
-                targetCurrencyCode={data.currency?.code ?? null}
                 targetCurrencyPrecision={data.currency?.precision ?? 2}
                 quotes={data.workbench.pricing.quotes}
               />

@@ -14,6 +14,7 @@ import {
   ActionReceiptStoredError,
 } from "@bedrock/platform/idempotency-postgres";
 import {
+  ConflictError,
   InvalidStateError,
   NotFoundError,
   PermissionError,
@@ -121,6 +122,7 @@ export function handleRouteError(c: Context, error: unknown): any {
   if (
     error instanceof DocumentSystemOnlyTypeError ||
     error instanceof InvalidStateError ||
+    error instanceof ConflictError ||
     error instanceof DocumentPostingNotRequiredError ||
     error instanceof ActionReceiptConflictError ||
     error instanceof ActionReceiptStoredError

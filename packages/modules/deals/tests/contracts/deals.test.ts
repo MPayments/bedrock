@@ -61,7 +61,7 @@ describe("deals contracts", () => {
       commercialDraft: {
         fixedFeeAmount: null,
         fixedFeeCurrency: null,
-        quoteMarkupPercent: null,
+        quoteMarkupBps: null,
       },
       fundingAdjustments: [],
       revision: 1,
