@@ -15,6 +15,7 @@ import {
   UpdateCustomerInputSchema,
 } from "@bedrock/parties/contracts";
 import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
+import { ValidationError } from "@bedrock/shared/core/errors";
 
 import {
   assertCustomerOwnsCounterparty,
@@ -550,20 +551,35 @@ export function customersRoutes(ctx: AppContext) {
       }
     })
     .openapi(uploadCounterpartyDocumentRoute, async (c) => {
+      let customerId: string | null = null;
+      let counterpartyId: string | null = null;
+
       try {
-        const { counterpartyId, customerId } = c.req.valid("param");
+        ({ counterpartyId, customerId } = c.req.valid("param"));
         await assertCustomerOwnsCounterparty(ctx, {
           counterpartyId,
           customerId,
         });
-        const body = await c.req.parseBody();
+        let body: Awaited<ReturnType<typeof c.req.parseBody>>;
+        try {
+          body = await c.req.parseBody();
+        } catch {
+          throw new ValidationError("Invalid multipart form data");
+        }
+
         const file = body.file;
         if (!file || typeof file === "string") {
           return c.json({ error: "File is required" }, 400 as const);
         }
 
         const sessionUser = c.get("user")!;
-        const buffer = Buffer.from(await file.arrayBuffer());
+        let buffer: Buffer;
+        try {
+          buffer = Buffer.from(await file.arrayBuffer());
+        } catch {
+          throw new ValidationError("Uploaded file could not be read");
+        }
+
         const result =
           await ctx.filesModule.files.commands.uploadCounterpartyAttachment({
             buffer,
@@ -571,12 +587,21 @@ export function customersRoutes(ctx: AppContext) {
               typeof body.description === "string" ? body.description : null,
             fileName: file.name,
             fileSize: file.size,
-            mimeType: file.type,
+            mimeType: file.type || "application/octet-stream",
             ownerId: counterpartyId,
             uploadedBy: sessionUser.id,
           });
         return c.json(serializeCustomerFileAttachment(result), 201);
       } catch (error) {
+        if (!(error instanceof ValidationError)) {
+          ctx.logger.error("Customer counterparty document upload failed", {
+            counterpartyId,
+            customerId,
+            error: error instanceof Error ? error.message : String(error),
+            userId: c.get("user")?.id ?? null,
+          });
+        }
+
         return handleRouteError(c, error);
       }
     })

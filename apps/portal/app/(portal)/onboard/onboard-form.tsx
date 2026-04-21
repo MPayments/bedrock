@@ -799,7 +799,15 @@ export function CustomerOnboardingForm() {
         throw new Error(payload.message || `Ошибка поиска: ${response.status}`);
       }
 
-      const companyData = (await response.json()) as Record<string, unknown>;
+      const companyData = (await response.json()) as Record<
+        string,
+        unknown
+      > | null;
+      if (!companyData || typeof companyData !== "object") {
+        setInnSearchSuccess(false);
+        return;
+      }
+
       applyCompanyData(companyData);
       setInnSearchSuccess(true);
       void stepperRef.current?.navigation.goTo("profile");

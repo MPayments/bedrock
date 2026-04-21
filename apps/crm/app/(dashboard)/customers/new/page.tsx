@@ -416,7 +416,15 @@ export default function NewCustomerPage() {
         );
       }
 
-      const companyData = await response.json();
+      const companyData = (await response.json()) as Record<
+        string,
+        unknown
+      > | null;
+      if (!companyData || typeof companyData !== "object") {
+        setError("Компания с таким ИНН не найдена");
+        return;
+      }
+
       const fieldsToSet: Path<CustomerCreateFormData>[] = [
         "orgName",
         "orgType",
