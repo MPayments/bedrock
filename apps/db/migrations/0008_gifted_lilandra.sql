@@ -20,7 +20,7 @@ select
   jsonb_build_object(
     'commercialDraft',
     jsonb_build_object(
-      'quoteMarkupPercent', null,
+      'quoteMarkupBps', null,
       'fixedFeeAmount', null,
       'fixedFeeCurrency', null
     ),

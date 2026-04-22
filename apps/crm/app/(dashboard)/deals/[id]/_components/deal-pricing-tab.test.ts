@@ -3,7 +3,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
-import { DealPricingTab } from "./deal-pricing-tab";
+import { DealPricingTab, serializeFormulaTrace } from "./deal-pricing-tab";
 import type { ApiDealPricingQuote, ApiDealPricingRouteCandidate } from "./types";
 
 function normalizeMarkupWhitespace(markup: string) {
@@ -80,6 +80,7 @@ function createQuote(): ApiDealPricingQuote {
     fromCurrencyId: "rub",
     id: "quote-1",
     idempotencyKey: "idem-1",
+    pricingFingerprint: "fingerprint-1",
     pricingMode: "explicit_route",
     pricingTrace: {},
     profitability: {
@@ -164,30 +165,22 @@ describe("DealPricingTab", () => {
           usedAt: null,
           usedDocumentId: null,
         },
-        activeCalculationId: null,
-        amountCurrencyCode: "USD",
         amountCurrencyPrecision: 2,
-        calculation: null,
-        calculationDisabledReason: null,
-        calculationHistory: [],
         currencyOptions: [
           { code: "RUB", id: "rub", label: "RUB", name: "Russian Ruble" },
           { code: "USD", id: "usd", label: "USD", name: "US Dollar" },
           { code: "AED", id: "aed", label: "AED", name: "UAE Dirham" },
         ],
         dealId: "deal-1",
+        fundingDeadline: "2026-04-22T23:59:00.000Z",
         initialRequestedAmount: "1000000",
-        isAcceptingQuoteId: null,
-        isCreatingCalculation: false,
-        onAcceptQuote: vi.fn(),
-        onCreateCalculation: vi.fn(),
         onError: vi.fn(),
         onReload: vi.fn(async () => {}),
         pricingContext: {
           commercialDraft: {
             fixedFeeAmount: null,
             fixedFeeCurrency: null,
-            quoteMarkupPercent: "0.5",
+            quoteMarkupBps: 50,
           },
           fundingAdjustments: [],
           revision: 5,
@@ -255,21 +248,115 @@ describe("DealPricingTab", () => {
         quoteAmountSide: "target",
         quoteCreationDisabledReason: null,
         quotes: [quote],
-        targetCurrencyCode: "RUB",
         targetCurrencyPrecision: 2,
       }),
     );
 
     const normalizedMarkup = normalizeMarkupWhitespace(markup);
 
-    expect(normalizedMarkup).toContain("Маршрут платежа");
-    expect(normalizedMarkup).toContain("Цена клиенту");
-    expect(normalizedMarkup).toContain("Ключевые показатели");
-    expect(normalizedMarkup).toContain("Текущая принятая котировка");
-    expect(normalizedMarkup).toContain("Детали расчета");
-    expect(normalizedMarkup).toContain("Создать котировку");
-    expect(normalizedMarkup).toContain("Зафиксировать расчет");
+    expect(normalizedMarkup).toContain("Котировка");
+    expect(normalizedMarkup).toContain("Входные данные");
+    expect(normalizedMarkup).toContain("Маршрут");
+    expect(normalizedMarkup).toContain("Наценка к курсу");
+    expect(normalizedMarkup).toContain("Зафиксировать новый курс");
+    expect(normalizedMarkup).not.toContain(">Принять и зафиксировать<");
+    expect(normalizedMarkup).toContain("Копировать расчёт");
+    expect(normalizedMarkup).toContain("Скачать PDF");
+    expect(normalizedMarkup).toContain("Курс зафиксирован до");
+    expect(normalizedMarkup).toContain("Котировка истекает");
+    expect(normalizedMarkup).toContain("Срок фондирования");
+    expect(normalizedMarkup).toContain("История котировок (0)");
+    expect(normalizedMarkup).not.toContain("Калькуляция");
+    expect(normalizedMarkup).not.toContain("Маршрут платежа");
+    expect(normalizedMarkup).not.toContain("Выбрать маршрут");
+    expect(normalizedMarkup).not.toContain("Убрать маршрут");
+    expect(normalizedMarkup).not.toContain("Текущая принятая котировка");
+    expect(normalizedMarkup).not.toContain("Создать котировку");
     expect(normalizedMarkup).not.toContain("Сохранить условия");
     expect(normalizedMarkup).not.toContain(">Рассчитать<");
+  });
+});
+
+describe("serializeFormulaTrace", () => {
+  it("returns an empty string for null or empty traces", () => {
+    expect(serializeFormulaTrace(null)).toBe("");
+    expect(serializeFormulaTrace(undefined)).toBe("");
+    expect(serializeFormulaTrace({ sections: [] })).toBe("");
+  });
+
+  it("renders equation lines verbatim and note lines as label: expression", () => {
+    const text = serializeFormulaTrace({
+      sections: [
+        {
+          kind: "client_pricing",
+          title: "Цена клиенту",
+          lines: [
+            {
+              currency: "RUB",
+              expression: "1 000 000 USD × 77.84 = 77 840 000 RUB",
+              kind: "equation",
+              label: "Расчёт",
+              metadata: {},
+              result: "77 840 000 RUB",
+            },
+            {
+              currency: null,
+              expression: "наценка 0.50%",
+              kind: "note",
+              label: "Наценка",
+              metadata: {},
+              result: "0.50%",
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(text).toBe(
+      [
+        "Цена клиенту",
+        "1 000 000 USD × 77.84 = 77 840 000 RUB",
+        "Наценка: наценка 0.50%",
+      ].join("\n"),
+    );
+  });
+
+  it("separates multiple sections with a blank line", () => {
+    const text = serializeFormulaTrace({
+      sections: [
+        {
+          kind: "client_pricing",
+          title: "Первый",
+          lines: [
+            {
+              currency: null,
+              expression: "A = B",
+              kind: "equation",
+              label: "l",
+              metadata: {},
+              result: "B",
+            },
+          ],
+        },
+        {
+          kind: "route_execution",
+          title: "Второй",
+          lines: [
+            {
+              currency: null,
+              expression: "C = D",
+              kind: "equation",
+              label: "l",
+              metadata: {},
+              result: "D",
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(text).toBe(
+      ["Первый", "A = B", "", "Второй", "C = D"].join("\n"),
+    );
   });
 });

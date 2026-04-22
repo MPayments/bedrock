@@ -7,6 +7,7 @@ import type {
   DealDetails,
   DealFundingResolution,
   DealPricingContext,
+  DealQuoteAcceptanceHistoryItem,
   DealTraceProjection,
   DealWorkflowProjection,
   PortalDealListProjection,
@@ -38,6 +39,9 @@ export interface DealReads {
   ): Promise<DealAttachmentIngestion[]>;
   list(input: ListDealsQuery): Promise<PaginatedList<Deal>>;
   listCalculationHistory(dealId: string): Promise<DealCalculationHistoryItem[]>;
+  listQuoteAcceptances(
+    dealId: string,
+  ): Promise<DealQuoteAcceptanceHistoryItem[]>;
   listPortalDeals(input: {
     customerId: string;
     limit: number;

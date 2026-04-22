@@ -1049,7 +1049,7 @@ describe("deals routes", () => {
           fromCurrency: "RUB",
           toCurrency: "USD",
           asOf: "2026-03-30T00:00:00.000Z",
-          quoteMarkupPercent: "0.5",
+          quoteMarkupBps: 50,
           fixedFeeAmount: "15.00",
           fixedFeeCurrency: "USD",
         }),
@@ -1141,7 +1141,7 @@ describe("deals routes", () => {
           fromCurrency: "RUB",
           toCurrency: "USD",
           asOf: "2026-03-30T00:00:00.000Z",
-          quoteMarkupPercent: "0.5",
+          quoteMarkupBps: 50,
           fixedFeeAmount: "25.00",
           fixedFeeCurrency: "USD",
         }),
@@ -1301,7 +1301,7 @@ describe("deals routes", () => {
         },
         body: JSON.stringify({
           commercialDraft: {
-            quoteMarkupPercent: "0.25",
+            quoteMarkupBps: 25,
           },
           expectedRevision: 3,
         }),

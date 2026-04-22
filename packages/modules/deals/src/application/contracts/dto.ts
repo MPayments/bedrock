@@ -274,7 +274,7 @@ export type DealFundingAdjustment = z.infer<
 export const DealPricingCommercialDraftSchema = z.object({
   fixedFeeAmount: nullableDecimalStringSchema.optional().default(null),
   fixedFeeCurrency: z.string().trim().min(1).max(16).nullable().default(null),
-  quoteMarkupPercent: nullableDecimalStringSchema.optional().default(null),
+  quoteMarkupBps: z.number().int().nonnegative().nullable().default(null),
 });
 
 export type DealPricingCommercialDraft = z.infer<
@@ -423,6 +423,7 @@ export const DealPricingPreviewSchema = z.object({
   benchmarks: DealPricingBenchmarksSchema,
   formulaTrace: DealPricingFormulaTraceSchema,
   fundingSummary: DealFundingSummarySchema,
+  pricingFingerprint: z.string(),
   pricingMode: DealPricingModeSchema,
   profitability: DealPricingProfitabilitySchema.nullable(),
   quotePreview: QuotePreviewResponseSchema,
@@ -441,6 +442,16 @@ export const DealPricingQuoteResultSchema = z.object({
 
 export type DealPricingQuoteResult = z.infer<
   typeof DealPricingQuoteResultSchema
+>;
+
+export const DealPricingCommitResultSchema = DealPricingQuoteResultSchema.extend(
+  {
+    calculationId: z.uuid(),
+  },
+);
+
+export type DealPricingCommitResult = z.infer<
+  typeof DealPricingCommitResultSchema
 >;
 
 export const DealPricingRouteListSchema = z.array(
@@ -598,6 +609,29 @@ export const DealQuoteAcceptanceSchema = z.object({
 });
 
 export type DealQuoteAcceptance = z.infer<typeof DealQuoteAcceptanceSchema>;
+
+export const DealQuoteAcceptanceHistoryItemSchema = z.object({
+  acceptanceId: z.uuid(),
+  acceptedAt: z.iso.datetime(),
+  acceptedByUserId: z.string(),
+  commercialRevenueMinor: z.string().nullable(),
+  customerTotalMinor: z.string().nullable(),
+  expiresAt: z.iso.datetime().nullable(),
+  fromAmountMinor: z.string(),
+  fromCurrency: z.string(),
+  pricingFingerprint: z.string().nullable(),
+  quoteId: z.uuid(),
+  rateDen: z.string(),
+  rateNum: z.string(),
+  replacedByQuoteId: z.uuid().nullable(),
+  revokedAt: z.iso.datetime().nullable(),
+  toAmountMinor: z.string(),
+  toCurrency: z.string(),
+});
+
+export type DealQuoteAcceptanceHistoryItem = z.infer<
+  typeof DealQuoteAcceptanceHistoryItemSchema
+>;
 
 export const DealOperationalPositionSchema = z.object({
   amountMinor: z.string().nullable(),

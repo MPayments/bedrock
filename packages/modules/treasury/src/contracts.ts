@@ -75,6 +75,10 @@ export type {
   QuoteRecord,
 } from "./quotes/application/ports";
 export {
+  computePricingFingerprint,
+  type PricingFingerprintInput,
+} from "./quotes/domain/pricing-fingerprint";
+export {
   PrepareTreasuryInstructionInputSchema,
   RecordTreasuryInstructionOutcomeInputSchema,
   RequestTreasuryReturnInputSchema,

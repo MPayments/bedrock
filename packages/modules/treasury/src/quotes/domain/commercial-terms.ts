@@ -167,7 +167,7 @@ export function buildCommercialFeeComponents(input: {
       amountMinor: input.commercialTerms.fixedFeeAmountMinor,
       source: "manual",
       settlementMode: "in_ledger",
-      accountingTreatment: "pass_through",
+      accountingTreatment: "income",
       memo: "Fixed fee",
       metadata: {
         commercialComponent: "fixed_fee",

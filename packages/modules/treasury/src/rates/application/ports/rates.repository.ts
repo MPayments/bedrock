@@ -43,6 +43,7 @@ export interface CrossRate {
   quote: string;
   rateNum: bigint;
   rateDen: bigint;
+  source: string | null;
 }
 
 export interface SourceRateWriteModel {

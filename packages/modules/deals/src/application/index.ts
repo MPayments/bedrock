@@ -31,6 +31,7 @@ import { FindDealWorkflowsByIdsQuery } from "./queries/find-deal-workflows-by-id
 import { FindPortalDealByIdQuery } from "./queries/find-portal-deal-by-id";
 import { ListDealAttachmentIngestionsQuery } from "./queries/list-deal-attachment-ingestions";
 import { ListDealCalculationHistoryQuery } from "./queries/list-deal-calculation-history";
+import { ListDealQuoteAcceptancesQuery } from "./queries/list-deal-quote-acceptances";
 import { ListDealsQuery } from "./queries/list-deals";
 import { ListPortalDealsQuery } from "./queries/list-portal-deals";
 
@@ -131,6 +132,7 @@ export function createDealsService(deps: DealsServiceDeps) {
     deps.reads,
   );
   const listCalculationHistory = new ListDealCalculationHistoryQuery(deps.reads);
+  const listQuoteAcceptances = new ListDealQuoteAcceptancesQuery(deps.reads);
   const listDeals = new ListDealsQuery(deps.reads);
   const listPortalDeals = new ListPortalDealsQuery(deps.reads);
 
@@ -184,6 +186,9 @@ export function createDealsService(deps: DealsServiceDeps) {
         listAttachmentIngestions.execute.bind(listAttachmentIngestions),
       listCalculationHistory: listCalculationHistory.execute.bind(
         listCalculationHistory,
+      ),
+      listQuoteAcceptances: listQuoteAcceptances.execute.bind(
+        listQuoteAcceptances,
       ),
       list: listDeals.execute.bind(listDeals),
       listPortalDeals: listPortalDeals.execute.bind(listPortalDeals),

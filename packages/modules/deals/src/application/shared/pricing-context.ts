@@ -17,7 +17,7 @@ export function createDefaultDealPricingContext(): DealPricingContext {
     commercialDraft: {
       fixedFeeAmount: null,
       fixedFeeCurrency: null,
-      quoteMarkupPercent: null,
+      quoteMarkupBps: null,
     },
     fundingAdjustments: [],
     revision: 1,
@@ -107,9 +107,7 @@ export function applyDealPricingContextPatch(input: {
       fixedFeeAmount: normalizeOptionalDecimalString(
         input.patch.commercialDraft.fixedFeeAmount,
       ),
-      quoteMarkupPercent: normalizeOptionalDecimalString(
-        input.patch.commercialDraft.quoteMarkupPercent,
-      ),
+      quoteMarkupBps: input.patch.commercialDraft.quoteMarkupBps ?? null,
     });
   }
 
