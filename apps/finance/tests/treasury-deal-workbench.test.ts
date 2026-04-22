@@ -29,6 +29,10 @@ vi.mock("next/link", () => ({
 
 vi.mock("lucide-react", () => ({
   AlertCircle: () => null,
+  ArrowDownToLine: () => null,
+  ArrowLeftRight: () => null,
+  ArrowRight: () => null,
+  ArrowUpFromLine: () => null,
   CheckCircle2: () => null,
   Clock3: () => null,
   Download: () => null,
@@ -38,6 +42,7 @@ vi.mock("lucide-react", () => ({
   Info: () => null,
   ListChecks: () => null,
   Paperclip: () => null,
+  PlayCircle: () => null,
   ShieldCheck: () => null,
   Trash2: () => null,
   Upload: () => null,
@@ -154,7 +159,7 @@ function createDeal(): FinanceDealWorkbenchData {
       criteria: [
         {
           code: "operations_materialized",
-          label: "Казначейские операции созданы для всех этапов",
+          label: "Казначейские операции созданы для всех шагов",
           satisfied: false,
         },
         {
@@ -293,10 +298,9 @@ describe("treasury deal workbench", () => {
       }),
     );
 
-    expect(markup).toContain("Этапы исполнения");
-    expect(markup).toContain("Операционная готовность");
-    expect(markup).toContain("Контур исполнения");
+    expect(markup).toContain("Шаги");
     expect(markup).toContain("Причина очереди");
+    expect(markup).not.toContain("Контур исполнения");
     expect(markup).not.toContain("Обзор сделки");
     expect(markup).not.toContain("Что нужно сделать сейчас");
     expect(markup).not.toContain("Запросить котировку");
@@ -459,11 +463,10 @@ describe("treasury deal workbench", () => {
 
     const normalizedMarkup = normalizeMarkupWhitespace(markup);
 
-    expect(normalizedMarkup).toContain("Финансовый результат и закрытие");
+    expect(normalizedMarkup).toContain("Денежный поток");
     expect(normalizedMarkup).toContain("Расходы провайдера");
-    expect(normalizedMarkup).toContain("Результат сверки");
+    expect(normalizedMarkup).toContain("Сверка");
     expect(normalizedMarkup).toContain("Открытых исключений");
-    expect(normalizedMarkup).toContain("Исключения сверки");
     expect(normalizedMarkup).toContain("bank_statement");
     expect(normalizedMarkup).toContain(
       "reconciliationExceptionId=exception-1",

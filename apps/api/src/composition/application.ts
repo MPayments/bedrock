@@ -188,16 +188,30 @@ export function createApplicationServices(
       currencies: treasuryCurrenciesPort,
       persistence: bindPersistenceSession(tx),
     });
-  const createDealsModuleForTransaction = (tx: Transaction) =>
-    createApiDealsModule({
+  const createDealsModuleForTransaction = (tx: Transaction) => {
+    const txTreasury = createTreasuryModuleForTransaction(tx);
+    return createApiDealsModule({
       currencies: currenciesService,
       db: tx,
       ledgerBalances: createLedgerModuleForTransaction(tx).balances.queries,
-      quoteReads: createTreasuryModuleForTransaction(tx).quotes.queries,
+      paymentRouteTemplates: {
+        async findById(id: string) {
+          try {
+            const tpl = await txTreasury.paymentRoutes.queries.findTemplateById(
+              id,
+            );
+            return { draft: tpl.draft, id: tpl.id, name: tpl.name };
+          } catch {
+            return null;
+          }
+        },
+      },
+      quoteReads: txTreasury.quotes.queries,
       logger,
       idempotency,
       persistence: bindPersistenceSession(tx),
     });
+  };
 
   const documentsReadModel = createDrizzleDocumentsReadModel({ db });
   const currenciesService = createCurrenciesService({ db, logger });
@@ -256,6 +270,18 @@ export function createApplicationServices(
     currencies: currenciesService,
     db,
     ledgerBalances: ledgerModule.balances.queries,
+    paymentRouteTemplates: {
+      async findById(id: string) {
+        try {
+          const tpl = await treasuryModule.paymentRoutes.queries.findTemplateById(
+            id,
+          );
+          return { draft: tpl.draft, id: tpl.id, name: tpl.name };
+        } catch {
+          return null;
+        }
+      },
+    },
     quoteReads: treasuryModule.quotes.queries,
     logger,
     idempotency,

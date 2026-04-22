@@ -1,6 +1,9 @@
 import { z } from "zod";
 
-import { TreasuryInstructionOutcomeSchema } from "./zod";
+import {
+  TreasuryInstructionArtifactPurposeSchema,
+  TreasuryInstructionOutcomeSchema,
+} from "./zod";
 
 const OptionalJsonRecordSchema = z
   .record(z.string(), z.unknown())
@@ -57,6 +60,14 @@ export const RecordTreasuryInstructionOutcomeInputSchema = z.object({
   providerSnapshot: OptionalJsonRecordSchema,
 });
 
+export const AttachTreasuryInstructionArtifactInputSchema = z.object({
+  actorUserId: z.string().trim().min(1),
+  fileAssetId: z.uuid(),
+  instructionId: z.uuid(),
+  memo: z.string().trim().max(1000).nullable().optional().default(null),
+  purpose: TreasuryInstructionArtifactPurposeSchema,
+});
+
 export type PrepareTreasuryInstructionInput = z.infer<
   typeof PrepareTreasuryInstructionInputSchema
 >;
@@ -74,4 +85,7 @@ export type RequestTreasuryReturnInput = z.infer<
 >;
 export type RecordTreasuryInstructionOutcomeInput = z.infer<
   typeof RecordTreasuryInstructionOutcomeInputSchema
+>;
+export type AttachTreasuryInstructionArtifactInput = z.infer<
+  typeof AttachTreasuryInstructionArtifactInputSchema
 >;

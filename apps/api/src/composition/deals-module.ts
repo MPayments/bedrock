@@ -25,7 +25,10 @@ import {
   type Database,
   type PersistenceContext,
 } from "@bedrock/platform/persistence";
-import type { QuoteDetailsRecord } from "@bedrock/treasury/contracts";
+import type {
+  PaymentRouteDraft,
+  QuoteDetailsRecord,
+} from "@bedrock/treasury/contracts";
 
 function getMostLiquidRow(
   rows: OrganizationRequisiteLiquidityQueryRow[],
@@ -208,6 +211,13 @@ export function createApiDealsModule(input: {
   logger: Logger;
   now?: DealsModuleDeps["now"];
   persistence?: PersistenceContext;
+  paymentRouteTemplates?: {
+    findById(id: string): Promise<{
+      draft: PaymentRouteDraft;
+      id: string;
+      name: string;
+    } | null>;
+  };
   quoteReads: {
     findById(id: string): Promise<{
       agreementVersionId?: string | null;
@@ -308,6 +318,17 @@ export function createApiDealsModule(input: {
           status: quote.status,
           usedAt: quote.usedAt,
           usedDocumentId: quote.usedDocumentId,
+        };
+      },
+      async findPaymentRouteTemplateById(id: string) {
+        const template = await input.paymentRouteTemplates?.findById(id);
+        if (!template) {
+          return null;
+        }
+        return {
+          id: template.id,
+          name: template.name,
+          snapshot: template.draft,
         };
       },
       async listActiveAgreementsByCustomerId(customerId: string) {

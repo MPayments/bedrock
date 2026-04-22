@@ -188,7 +188,7 @@ export const DEAL_TIMELINE_EVENT_LABELS: Record<string, string> = {
   instruction_submitted: "Инструкция отправлена",
   instruction_voided: "Инструкция отменена",
   leg_operation_created: "Создана казначейская операция",
-  leg_state_changed: "Состояние этапа изменено",
+  leg_state_changed: "Состояние шага изменено",
   participant_changed: "Участники изменены",
   quote_accepted: "Котировка принята",
   quote_created: "Котировка создана",
@@ -226,7 +226,7 @@ const DEAL_NEXT_ACTION_LABELS: Record<string, string> = {
   "Resolve approvals": "Завершить согласование",
   "Resolve operational state": "Разобрать операционное состояние",
   "Submit deal": "Отправить сделку",
-  "Update execution leg state": "Обновить этап исполнения",
+  "Update execution leg state": "Обновить шаг исполнения",
 };
 
 const DEAL_MESSAGE_LABELS: Record<string, string> = {

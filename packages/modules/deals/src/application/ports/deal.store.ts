@@ -227,6 +227,11 @@ export interface DealStore {
     replacedByQuoteId: string;
     revokedAt: Date;
   }): Promise<void>;
+  revokeCurrentQuoteAcceptances(input: {
+    dealId: string;
+    revocationReason: string;
+    revokedAt: Date;
+  }): Promise<boolean>;
   upsertDealAttachmentIngestion(input: {
     availableAt: Date;
     dealId: string;

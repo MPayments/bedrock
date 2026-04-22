@@ -108,6 +108,7 @@ export class AcceptDealQuoteCommand {
           quoteId: validated.quoteId,
           quoteStatus: quote.status,
           replacedByQuoteId: null,
+          revocationReason: null,
           revokedAt: null,
           usedAt: quote.usedAt ?? null,
           usedDocumentId: quote.usedDocumentId ?? null,

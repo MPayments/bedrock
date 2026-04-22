@@ -42,6 +42,7 @@ import {
   treasuryOrganizationBalancesRoutes,
   treasuryInstructionRoutes,
   treasuryOperationsRoutes,
+  treasuryQueueRoutes,
   treasuryQuotesRoutes,
   treasuryRatesRoutes,
   usersRoutes,
@@ -227,6 +228,7 @@ function createV1Routes(ctx: AppContext) {
     )
     .route("/treasury/instructions", treasuryInstructionRoutes(ctx))
     .route("/treasury/operations", treasuryOperationsRoutes(ctx))
+    .route("/treasury/queue", treasuryQueueRoutes(ctx))
     .route("/treasury/quotes", treasuryQuotesRoutes(ctx))
     .route("/treasury/rates", treasuryRatesRoutes(ctx))
     .route("/users", usersRoutes(ctx))

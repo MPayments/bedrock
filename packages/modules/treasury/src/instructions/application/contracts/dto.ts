@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import {
+  TreasuryInstructionArtifactPurposeSchema,
   TreasuryInstructionOutcomeSchema,
   TreasuryInstructionStateSchema,
 } from "./zod";
@@ -37,9 +38,22 @@ export const TreasuryInstructionAvailableOutcomeTransitionsSchema = z.array(
   TreasuryInstructionOutcomeSchema,
 );
 
+export const TreasuryInstructionArtifactSchema = z.object({
+  fileAssetId: z.uuid(),
+  id: z.uuid(),
+  instructionId: z.uuid(),
+  memo: z.string().nullable(),
+  purpose: TreasuryInstructionArtifactPurposeSchema,
+  uploadedAt: z.coerce.date(),
+  uploadedByUserId: z.string(),
+});
+
 export type TreasuryInstruction = z.infer<typeof TreasuryInstructionSchema>;
 export type TreasuryInstructionActions = z.infer<
   typeof TreasuryInstructionActionsSchema
+>;
+export type TreasuryInstructionArtifact = z.infer<
+  typeof TreasuryInstructionArtifactSchema
 >;
 export type TreasuryInstructionAvailableOutcomeTransitions = z.infer<
   typeof TreasuryInstructionAvailableOutcomeTransitionsSchema

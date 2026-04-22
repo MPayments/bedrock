@@ -128,15 +128,38 @@ function createInstructionsRepository(): TreasuryInstructionsRepository {
   };
 }
 
-function createService(options?: { operationExists?: boolean }) {
+function createService(options?: {
+  operationExists?: boolean;
+  settlementEvidence?: boolean;
+}) {
   const instructionsRepository = createInstructionsRepository();
   const operationsRepository = {
     findOperationById: vi.fn(async () =>
       options?.operationExists === false ? undefined : createOperationRecord(),
     ),
   };
+  const artifactsRepository = {
+    insertArtifact: vi.fn(),
+    listArtifactsByInstructionId: vi.fn(async () => []),
+    listArtifactsByInstructionIdsAndPurposes: vi.fn(async () =>
+      options?.settlementEvidence === false
+        ? []
+        : [
+            {
+              fileAssetId: "00000000-0000-4000-8000-000000000999",
+              id: "00000000-0000-4000-8000-000000000998",
+              instructionId: "00000000-0000-4000-8000-000000000997",
+              memo: null,
+              purpose: "bank_confirmation",
+              uploadedAt: NOW,
+              uploadedByUserId: "test-user",
+            },
+          ],
+    ),
+  };
 
   return createTreasuryInstructionsService({
+    artifactsRepository: artifactsRepository as any,
     instructionsRepository,
     operationsRepository: operationsRepository as any,
     runtime: {
@@ -354,5 +377,78 @@ describe("treasury instructions service", () => {
 
     expect(settled.state).toBe("settled");
     expect(returned.state).toBe("returned");
+  });
+
+  it("refuses to settle without any evidence artifact", async () => {
+    const instructions = createService({ settlementEvidence: false });
+    const prepared = await instructions.commands.prepare({
+      id: "00000000-0000-4000-8000-000000000910",
+      operationId: OPERATION_ID,
+      providerRef: null,
+      providerSnapshot: null,
+      sourceRef: "instruction:prepare:settle-no-evidence",
+    });
+    const submitted = await instructions.commands.submit({
+      instructionId: prepared.id,
+      providerRef: null,
+      providerSnapshot: null,
+    });
+
+    await expect(
+      instructions.commands.recordOutcome({
+        instructionId: submitted.id,
+        outcome: "settled",
+        providerRef: null,
+        providerSnapshot: null,
+      }),
+    ).rejects.toThrow(/settlement requires evidence artifact/u);
+  });
+
+  it("allows settle when an evidence artifact exists", async () => {
+    const instructions = createService({ settlementEvidence: true });
+    const prepared = await instructions.commands.prepare({
+      id: "00000000-0000-4000-8000-000000000911",
+      operationId: OPERATION_ID,
+      providerRef: null,
+      providerSnapshot: null,
+      sourceRef: "instruction:prepare:settle-with-evidence",
+    });
+    const submitted = await instructions.commands.submit({
+      instructionId: prepared.id,
+      providerRef: null,
+      providerSnapshot: null,
+    });
+    const settled = await instructions.commands.recordOutcome({
+      instructionId: submitted.id,
+      outcome: "settled",
+      providerRef: null,
+      providerSnapshot: null,
+    });
+
+    expect(settled.state).toBe("settled");
+  });
+
+  it("allows outcomes other than settled without requiring evidence", async () => {
+    const instructions = createService({ settlementEvidence: false });
+    const prepared = await instructions.commands.prepare({
+      id: "00000000-0000-4000-8000-000000000912",
+      operationId: OPERATION_ID,
+      providerRef: null,
+      providerSnapshot: null,
+      sourceRef: "instruction:prepare:fail-no-evidence",
+    });
+    const submitted = await instructions.commands.submit({
+      instructionId: prepared.id,
+      providerRef: null,
+      providerSnapshot: null,
+    });
+    const failed = await instructions.commands.recordOutcome({
+      instructionId: submitted.id,
+      outcome: "failed",
+      providerRef: null,
+      providerSnapshot: null,
+    });
+
+    expect(failed.state).toBe("failed");
   });
 });

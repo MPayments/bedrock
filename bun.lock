@@ -182,6 +182,7 @@
       "dependencies": {
         "@bedrock/accounting": "workspace:*",
         "@bedrock/currencies": "workspace:*",
+        "@bedrock/deals": "workspace:*",
         "@bedrock/documents": "workspace:*",
         "@bedrock/iam": "workspace:*",
         "@bedrock/parties": "workspace:*",

@@ -8,6 +8,7 @@ import {
   TreasuryInstructionSchema,
   TreasuryOperationInstructionStatusSchema,
   TreasuryOperationKindSchema,
+  TreasuryOperationProjectedStateSchema,
   TreasuryOperationStateSchema,
 } from "@bedrock/treasury/contracts";
 import {
@@ -404,6 +405,7 @@ const FinanceDealOperationSchema = z.object({
   kind: TreasuryOperationKindSchema,
   latestInstruction: TreasuryInstructionSchema.nullable(),
   operationHref: z.string(),
+  projectedState: TreasuryOperationProjectedStateSchema.nullable(),
   sourceRef: z.string(),
   state: TreasuryOperationStateSchema,
 });

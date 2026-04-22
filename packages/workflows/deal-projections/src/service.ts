@@ -22,10 +22,12 @@ import {
   toMinorAmountString,
 } from "@bedrock/shared/money";
 import type { TreasuryModule } from "@bedrock/treasury";
-import type {
-  QuoteListItem,
-  TreasuryInstruction,
-  TreasuryOperationKind,
+import {
+  computeOperationProjectedState,
+  type QuoteListItem,
+  type TreasuryInstruction,
+  type TreasuryOperationKind,
+  type TreasuryOperationProjectedState,
 } from "@bedrock/treasury/contracts";
 
 import {
@@ -1388,6 +1390,7 @@ function classifyFinanceQueue(workflow: DealWorkflowProjection): {
 function buildFinanceDealOperation(input: {
   latestInstruction: TreasuryInstruction | null;
   operation: TreasuryOperationRecord;
+  projectedState: TreasuryOperationProjectedState | null;
   queueBlocked: boolean;
 }) {
   return {
@@ -1406,6 +1409,7 @@ function buildFinanceDealOperation(input: {
     kind: input.operation.kind,
     latestInstruction: input.latestInstruction,
     operationHref: `/treasury/operations/${input.operation.id}`,
+    projectedState: input.projectedState,
     sourceRef: input.operation.sourceRef,
     state: input.operation.state,
   };
@@ -2198,29 +2202,39 @@ export function createDealProjectionsWorkflow(
       return null;
     }
 
-    const [attachments, currentCalculation, operationsResult, quotesResult] =
-      await Promise.all([
-        deps.files.files.queries.listDealAttachments(dealId),
-        workflow.summary.calculationId
-          ? deps.calculations.calculations.queries.findById(
-              workflow.summary.calculationId,
-            )
-          : Promise.resolve(null),
-        deps.treasury.operations.queries.list({
-          dealId,
-          limit: MAX_QUERY_LIST_LIMIT,
-          offset: 0,
-          sortBy: "createdAt",
-          sortOrder: "desc",
-        }),
-        deps.treasury.quotes.queries.listQuotes({
-          dealId,
-          limit: MAX_QUERY_LIST_LIMIT,
-          offset: 0,
-          sortBy: "createdAt",
-          sortOrder: "desc",
-        }),
-      ]);
+    const [
+      attachments,
+      currentCalculation,
+      operationsResult,
+      quotesResult,
+      dealTraceDocuments,
+    ] = await Promise.all([
+      deps.files.files.queries.listDealAttachments(dealId),
+      workflow.summary.calculationId
+        ? deps.calculations.calculations.queries.findById(
+            workflow.summary.calculationId,
+          )
+        : Promise.resolve(null),
+      deps.treasury.operations.queries.list({
+        dealId,
+        limit: MAX_QUERY_LIST_LIMIT,
+        offset: 0,
+        sortBy: "createdAt",
+        sortOrder: "desc",
+      }),
+      deps.treasury.quotes.queries.listQuotes({
+        dealId,
+        limit: MAX_QUERY_LIST_LIMIT,
+        offset: 0,
+        sortBy: "createdAt",
+        sortOrder: "desc",
+      }),
+      deps.documentsReadModel.listDealTraceRowsByDealId(dealId),
+    ]);
+
+    const postedDocuments = dealTraceDocuments
+      .filter((row) => row.postingStatus === "posted")
+      .map((row) => ({ docType: row.docType }));
 
     const actions = buildCrmWorkbenchActions(workflow);
     const attachmentRequirements = buildCrmEvidenceRequirements({
@@ -2371,6 +2385,10 @@ export function createDealProjectionsWorkflow(
             latestInstruction:
               latestInstructionByOperationId.get(operation.id) ?? null,
             operation,
+            projectedState: computeOperationProjectedState({
+              operationKind: operation.kind,
+              postedDocuments,
+            }),
             queueBlocked,
           }),
         ),

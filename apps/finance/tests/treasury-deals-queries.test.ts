@@ -86,7 +86,7 @@ function createFinanceWorkspacePayload(): SerializedDates<FinanceDealWorkspace> 
       criteria: [
         {
           code: "operations_materialized",
-          label: "Казначейские операции созданы для всех этапов",
+          label: "Казначейские операции созданы для всех шагов",
           satisfied: false,
         },
       ],
@@ -629,6 +629,7 @@ describe("treasury deals queries", () => {
           voidedAt: null,
         },
         operationHref: "/treasury/operations/114fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+        projectedState: null,
         sourceRef: "deal:614fb6eb-a1bd-429e-9628-e97d0f2efa0b:leg:2:payout:1",
         state: "planned",
       },

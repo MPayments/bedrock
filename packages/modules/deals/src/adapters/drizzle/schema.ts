@@ -383,6 +383,7 @@ export const dealQuoteAcceptances = pgTable(
     ),
     replacedByQuoteId: uuid("replaced_by_quote_id"),
     revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    revocationReason: text("revocation_reason"),
   },
   (table) => [
     index("deal_quote_acceptances_deal_idx").on(table.dealId, table.acceptedAt),

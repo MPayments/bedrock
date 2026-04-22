@@ -105,9 +105,14 @@ export const DEAL_TIMELINE_EVENT_TYPE_VALUES = [
   "instruction_failed",
   "instruction_retried",
   "instruction_voided",
+  "instruction_outcome_recorded",
+  "instruction_artifact_attached",
   "return_requested",
   "instruction_returned",
   "deal_closed",
+  "deal_leg_amended",
+  "deal_route_template_swapped",
+  "acceptance_revoked_by_operator",
   "quote_created",
   "quote_accepted",
   "quote_expired",
@@ -119,6 +124,7 @@ export const DEAL_TIMELINE_EVENT_TYPE_VALUES = [
   "attachment_ingestion_failed",
   "document_created",
   "document_status_changed",
+  "reconciliation_exception_resolved",
 ] as const;
 
 export const DEAL_TIMELINE_VISIBILITY_VALUES = [

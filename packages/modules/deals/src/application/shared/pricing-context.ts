@@ -1,4 +1,7 @@
-import { PaymentRouteDraftSchema } from "@bedrock/treasury/contracts";
+import {
+  PaymentRouteDraftSchema,
+  type PaymentRouteFee,
+} from "@bedrock/treasury/contracts";
 
 import type {
   AttachDealPricingRouteInput,
@@ -92,6 +95,130 @@ export function detachDealPricingRouteSnapshot(
     ...context,
     routeAttachment: null,
   });
+}
+
+export interface DealLegRouteAmendment {
+  executionCounterpartyId?: string | null;
+  fees?: PaymentRouteFee[];
+  legIdx: number;
+  requisiteId?: string | null;
+}
+
+export function applyDealLegRouteAmendment(input: {
+  amendment: DealLegRouteAmendment;
+  context: DealPricingContext;
+}): {
+  after: {
+    fees: PaymentRouteFee[];
+    participant: Record<string, unknown> | null;
+  };
+  before: {
+    fees: PaymentRouteFee[];
+    participant: Record<string, unknown> | null;
+  };
+  snapshot: DealPricingContextSnapshot;
+} {
+  if (!input.context.routeAttachment) {
+    throw new Error(
+      "Cannot amend leg — deal has no attached payment route snapshot",
+    );
+  }
+
+  const clone = cloneDealPricingContext(input.context);
+  const attachment = clone.routeAttachment;
+
+  if (!attachment) {
+    throw new Error("Route attachment lost during clone");
+  }
+
+  const snapshotDraft = attachment.snapshot as unknown as {
+    additionalFees: PaymentRouteFee[];
+    amountInMinor: string;
+    amountOutMinor: string;
+    currencyInId: string;
+    currencyOutId: string;
+    legs: {
+      fees: PaymentRouteFee[];
+      fromCurrencyId: string;
+      id: string;
+      toCurrencyId: string;
+    }[];
+    lockedSide: string;
+    participants: Record<string, unknown>[];
+  };
+
+  const legIndex = input.amendment.legIdx - 1;
+  const leg = snapshotDraft.legs[legIndex];
+
+  if (!leg) {
+    throw new Error(
+      `Route snapshot has no leg at index ${input.amendment.legIdx}`,
+    );
+  }
+
+  const participantIndex = legIndex + 1;
+  const participant = snapshotDraft.participants[participantIndex] ?? null;
+  const beforeFees: PaymentRouteFee[] = structuredClone(leg.fees);
+  const beforeParticipant: Record<string, unknown> | null = participant
+    ? structuredClone(participant)
+    : null;
+
+  if (input.amendment.fees !== undefined) {
+    leg.fees = structuredClone(input.amendment.fees);
+  }
+
+  if (participant) {
+    if (input.amendment.executionCounterpartyId !== undefined) {
+      if (input.amendment.executionCounterpartyId === null) {
+        participant.binding = "abstract";
+        participant.entityId = null;
+        participant.entityKind = null;
+        participant.requisiteId = null;
+      } else {
+        participant.binding = "bound";
+        participant.entityId = input.amendment.executionCounterpartyId;
+        if (
+          participant.entityKind !== "counterparty" &&
+          participant.entityKind !== "organization"
+        ) {
+          participant.entityKind = "counterparty";
+        }
+      }
+    }
+
+    if (input.amendment.requisiteId !== undefined) {
+      participant.requisiteId = input.amendment.requisiteId;
+    }
+  }
+
+  const nextSnapshot = DealPricingContextSnapshotSchema.parse({
+    commercialDraft: clone.commercialDraft,
+    fundingAdjustments: clone.fundingAdjustments,
+    routeAttachment: {
+      ...attachment,
+      snapshot: PaymentRouteDraftSchema.parse(snapshotDraft),
+    },
+  });
+
+  const afterFees = nextSnapshot.routeAttachment!.snapshot.legs[legIndex]!.fees;
+  const afterParticipant =
+    (nextSnapshot.routeAttachment!.snapshot.participants[
+      participantIndex
+    ] as unknown as Record<string, unknown> | undefined) ?? null;
+
+  return {
+    after: {
+      fees: afterFees,
+      participant: afterParticipant
+        ? structuredClone(afterParticipant)
+        : null,
+    },
+    before: {
+      fees: beforeFees,
+      participant: beforeParticipant,
+    },
+    snapshot: nextSnapshot,
+  };
 }
 
 export function applyDealPricingContextPatch(input: {

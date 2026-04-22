@@ -435,6 +435,28 @@ export class DrizzleDealStore implements DealStore {
       );
   }
 
+  async revokeCurrentQuoteAcceptances(input: {
+    dealId: string;
+    revocationReason: string;
+    revokedAt: Date;
+  }): Promise<boolean> {
+    const updated = await this.db
+      .update(dealQuoteAcceptances)
+      .set({
+        revocationReason: input.revocationReason,
+        revokedAt: input.revokedAt,
+      })
+      .where(
+        and(
+          eq(dealQuoteAcceptances.dealId, input.dealId),
+          isNull(dealQuoteAcceptances.revokedAt),
+        ),
+      )
+      .returning({ id: dealQuoteAcceptances.id });
+
+    return updated.length > 0;
+  }
+
   async upsertDealAttachmentIngestion(input: {
     availableAt: Date;
     dealId: string;

@@ -13,11 +13,14 @@ import {
 import { minorToAmountString } from "@bedrock/shared/money";
 import { resolveRequisiteIdentity } from "@bedrock/shared/requisites";
 import {
+  AttachTreasuryInstructionArtifactInputSchema,
+  computeOperationProjectedState,
   ListTreasuryOperationsQuerySchema,
   RecordTreasuryInstructionOutcomeInputSchema,
   RequestTreasuryReturnInputSchema,
   RetryTreasuryInstructionInputSchema,
   SubmitTreasuryInstructionInputSchema,
+  TreasuryInstructionArtifactSchema,
   TreasuryOperationKindSchema,
   TreasuryOperationViewSchema,
   TreasuryOperationWorkspaceDetailSchema,
@@ -89,11 +92,17 @@ type RequisiteProviderRecord = Awaited<
   ReturnType<AppContext["partiesReadRuntime"]["requisitesQueries"]["providers"]["findById"]>
 >;
 
+interface PostedDealDocumentRow {
+  docType: string;
+  postingStatus: string;
+}
+
 interface ProjectionContext {
   agreementById: Map<string, AgreementRecord>;
   currencyCodeById: Map<string, string>;
   latestInstructionByOperationId: Map<string, TreasuryInstruction>;
   organizationNameById: Map<string, string>;
+  postedDocumentsByDealId: Map<string, PostedDealDocumentRow[]>;
   providerById: Map<string, RequisiteProviderRecord>;
   quoteDetailsById: Map<string, QuoteDetailsRecord>;
   requisiteById: Map<string, RequisiteRecord>;
@@ -750,11 +759,34 @@ async function buildProjectionContext(
         )
       : new Map<string, string>();
 
+  const dealIds = uniqueIds(operations.map((operation) => operation.dealId));
+  const postedDocumentsByDealId = new Map<string, PostedDealDocumentRow[]>();
+  await Promise.all(
+    dealIds.map(async (dealId) => {
+      try {
+        const rows =
+          await ctx.documentsReadModel.listDealTraceRowsByDealId(dealId);
+        postedDocumentsByDealId.set(
+          dealId,
+          rows
+            .filter((row) => row.postingStatus === "posted")
+            .map((row) => ({
+              docType: row.docType,
+              postingStatus: row.postingStatus,
+            })),
+        );
+      } catch {
+        postedDocumentsByDealId.set(dealId, []);
+      }
+    }),
+  );
+
   return {
     agreementById,
     currencyCodeById,
     latestInstructionByOperationId,
     organizationNameById,
+    postedDocumentsByDealId,
     providerById,
     quoteDetailsById,
     requisiteById,
@@ -810,6 +842,15 @@ function buildOperationProjection(input: {
     latestInstruction,
     workflow,
   });
+  const postedDocuments = input.operation.dealId
+    ? input.context.postedDocumentsByDealId.get(input.operation.dealId) ?? []
+    : [];
+  const projectedState = input.operation.dealId
+    ? computeOperationProjectedState({
+        operationKind: input.operation.kind,
+        postedDocuments,
+      })
+    : null;
 
   return {
     actions: getInstructionActions({
@@ -863,6 +904,7 @@ function buildOperationProjection(input: {
       : null,
     latestInstruction,
     nextAction: workflow?.nextAction ?? "—",
+    projectedState,
     providerRoute: resolveProviderRoute({
       agreementRequisite,
       operation: input.operation,
@@ -1235,6 +1277,60 @@ export function treasuryInstructionRoutes(ctx: AppContext) {
     },
   });
 
+  const attachArtifactRoute = createRoute({
+    middleware: [requirePermission({ deals: ["update"] })],
+    method: "post",
+    path: "/{instructionId}/artifacts",
+    tags: ["Treasury"],
+    summary: "Attach artifact (evidence) to a treasury instruction",
+    request: {
+      params: InstructionIdParamsSchema,
+      body: {
+        content: {
+          "application/json": {
+            schema: AttachTreasuryInstructionArtifactInputSchema.pick({
+              fileAssetId: true,
+              memo: true,
+              purpose: true,
+            }),
+          },
+        },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        description: "Artifact attached",
+        content: {
+          "application/json": {
+            schema: TreasuryInstructionArtifactSchema,
+          },
+        },
+      },
+    },
+  });
+
+  const listArtifactsRoute = createRoute({
+    middleware: [requirePermission({ deals: ["list"] })],
+    method: "get",
+    path: "/{instructionId}/artifacts",
+    tags: ["Treasury"],
+    summary: "List artifacts attached to a treasury instruction",
+    request: {
+      params: InstructionIdParamsSchema,
+    },
+    responses: {
+      200: {
+        description: "Instruction artifacts",
+        content: {
+          "application/json": {
+            schema: z.array(TreasuryInstructionArtifactSchema),
+          },
+        },
+      },
+    },
+  });
+
   async function respondWithProjection(input: {
     c: Context<{ Variables: AuthVariables }>;
     operationId: string;
@@ -1361,6 +1457,69 @@ export function treasuryInstructionRoutes(ctx: AppContext) {
         }
 
         return respondWithProjection({ c, operationId: result.operationId });
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(attachArtifactRoute, async (c) => {
+      try {
+        const { instructionId } = c.req.valid("param");
+        const body = c.req.valid("json");
+        const actorUserId = c.get("user")!.id;
+        const result =
+          await ctx.treasuryModule.instructions.commands.attachArtifact({
+            actorUserId,
+            fileAssetId: body.fileAssetId,
+            instructionId,
+            memo: body.memo ?? null,
+            purpose: body.purpose,
+          });
+
+        const instruction =
+          await ctx.treasuryModule.instructions.queries.findById(instructionId);
+        const operation = instruction
+          ? await ctx.treasuryModule.operations.queries.findById(
+              instruction.operationId,
+            )
+          : null;
+        const dealId = operation?.dealId ?? null;
+        if (dealId) {
+          await ctx.dealsModule.deals.commands
+            .appendTimelineEvent({
+              actorUserId,
+              dealId,
+              payload: {
+                artifactId: result.id,
+                fileAssetId: result.fileAssetId,
+                instructionId,
+                memo: result.memo,
+                purpose: result.purpose,
+              },
+              sourceRef: `instruction:${instructionId}:artifact:${result.id}`,
+              type: "instruction_artifact_attached",
+              visibility: "internal",
+            })
+            .catch((error) => {
+              ctx.logger.warn("failed to append artifact timeline event", {
+                error,
+                instructionId,
+              });
+            });
+        }
+
+        return c.json(result, 200);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(listArtifactsRoute, async (c) => {
+      try {
+        const { instructionId } = c.req.valid("param");
+        const result =
+          await ctx.treasuryModule.instructions.queries.listArtifacts({
+            instructionId,
+          });
+        return c.json(result, 200);
       } catch (error) {
         return handleRouteError(c, error);
       }

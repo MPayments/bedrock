@@ -15,7 +15,7 @@ import type {
   DealQuoteAcceptance,
   DealWorkflowLeg,
 } from "../contracts/dto";
-import type { DealStatus } from "../contracts/zod";
+import type { DealStatus, DealTimelineEventType } from "../contracts/zod";
 import type {
   CreateDealLegStoredInput,
   ReplaceDealOperationalPositionStoredInput,
@@ -243,34 +243,7 @@ export function createTimelinePayloadEvent(input: {
   occurredAt: Date;
   payload?: Record<string, unknown>;
   sourceRef?: string | null;
-  type:
-    | "deal_created"
-    | "intake_saved"
-    | "participant_changed"
-    | "status_changed"
-    | "deal_closed"
-    | "quote_created"
-    | "quote_accepted"
-    | "quote_expired"
-    | "quote_used"
-    | "execution_requested"
-    | "leg_operation_created"
-    | "instruction_prepared"
-    | "instruction_submitted"
-    | "instruction_settled"
-    | "instruction_failed"
-    | "instruction_retried"
-    | "instruction_voided"
-    | "return_requested"
-    | "instruction_returned"
-    | "calculation_attached"
-    | "attachment_uploaded"
-    | "attachment_deleted"
-    | "attachment_ingested"
-    | "attachment_ingestion_failed"
-    | "document_created"
-    | "document_status_changed"
-    | "leg_state_changed";
+  type: DealTimelineEventType;
   visibility?: "customer_safe" | "internal";
 }) {
   return {

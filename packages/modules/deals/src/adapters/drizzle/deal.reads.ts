@@ -131,6 +131,7 @@ function mapQuoteAcceptance(row: {
   quoteId: string;
   quoteStatus: string;
   replacedByQuoteId: string | null;
+  revocationReason: string | null;
   revokedAt: Date | null;
   usedAt: Date | string | null;
   usedDocumentId: string | null;
@@ -146,6 +147,7 @@ function mapQuoteAcceptance(row: {
     quoteId: row.quoteId,
     quoteStatus: row.quoteStatus,
     replacedByQuoteId: row.replacedByQuoteId,
+    revocationReason: row.revocationReason,
     revokedAt: row.revokedAt,
     usedAt: toDateOrNull(row.usedAt),
     usedDocumentId: row.usedDocumentId,
@@ -594,6 +596,7 @@ export class DrizzleDealReads implements DealReads {
       quoteId: string;
       quoteStatus: string;
       replacedByQuoteId: string | null;
+      revocationReason: string | null;
       revokedAt: Date | null;
       usedAt: Date | null;
       usedDocumentId: string | null;
@@ -609,6 +612,7 @@ export class DrizzleDealReads implements DealReads {
         a.quote_id as "quoteId",
         q.status as "quoteStatus",
         a.replaced_by_quote_id as "replacedByQuoteId",
+        a.revocation_reason as "revocationReason",
         a.revoked_at as "revokedAt",
         q.used_at as "usedAt",
         q.used_document_id as "usedDocumentId"
@@ -1276,6 +1280,7 @@ export class DrizzleDealReads implements DealReads {
       rateDen: string;
       rateNum: string;
       replacedByQuoteId: string | null;
+      revocationReason: string | null;
       revokedAt: Date | string | null;
       toAmountMinor: string;
       toCurrency: string | null;
@@ -1294,6 +1299,7 @@ export class DrizzleDealReads implements DealReads {
         q.rate_den::text as "rateDen",
         q.rate_num::text as "rateNum",
         a.replaced_by_quote_id as "replacedByQuoteId",
+        a.revocation_reason as "revocationReason",
         a.revoked_at as "revokedAt",
         q.to_amount_minor::text as "toAmountMinor",
         tc.code as "toCurrency"
@@ -1319,6 +1325,7 @@ export class DrizzleDealReads implements DealReads {
       rateDen: row.rateDen,
       rateNum: row.rateNum,
       replacedByQuoteId: row.replacedByQuoteId,
+      revocationReason: row.revocationReason,
       revokedAt: toDateOrNull(row.revokedAt)?.toISOString() ?? null,
       toAmountMinor: row.toAmountMinor,
       toCurrency: row.toCurrency ?? "",
@@ -1371,6 +1378,321 @@ export class DrizzleDealReads implements DealReads {
       totalInBaseMinor: row.totalInBaseMinor.toString(),
       totalWithExpensesInBaseMinor:
         row.totalWithExpensesInBaseMinor.toString(),
+    }));
+  }
+
+  async listTreasuryExceptionQueue(input: {
+    currencyCode?: string;
+    dealId?: string;
+    internalEntityOrganizationId?: string;
+    kind?:
+      | "ready_leg"
+      | "blocked_leg"
+      | "failed_instruction"
+      | "pre_funded_awaiting_collection"
+      | "intercompany_imbalance"
+      | "reconciliation_mismatch";
+    limit: number;
+  }) {
+    const now = new Date();
+    const dealFilter = input.dealId
+      ? sql`and d.id = ${input.dealId}`
+      : sql``;
+    const entityFilter = input.internalEntityOrganizationId
+      ? sql`and p.organization_id = ${input.internalEntityOrganizationId}`
+      : sql``;
+    const currencyFilter = input.currencyCode
+      ? sql`and cur.code = ${input.currencyCode}`
+      : sql``;
+    const kindFilter = input.kind ? sql`and kind = ${input.kind}` : sql``;
+
+    const queryResult = await this.db.execute<{
+      ageSeconds: number;
+      amountMinor: string | null;
+      counterpartyName: string | null;
+      currencyCode: string | null;
+      currencyId: string | null;
+      dealId: string | null;
+      dealRef: string | null;
+      instructionId: string | null;
+      kind: string;
+      legIdx: number | null;
+      metadata: Record<string, unknown> | null;
+      triggeredAt: Date;
+    }>(sql`
+      with base as (
+        -- ready_leg: leg state ready AND no non-voided instruction exists
+        select
+          'ready_leg' as kind,
+          d.id as "dealId",
+          left(d.id::text, 8) as "dealRef",
+          dl.idx as "legIdx",
+          null::uuid as "instructionId",
+          cur.code as "currencyCode",
+          d.source_currency_id as "currencyId",
+          d.source_amount_minor::text as "amountMinor",
+          (
+            select c.short_name
+            from deal_participants pb
+            inner join counterparties c on c.id = pb.counterparty_id
+            where pb.deal_id = d.id and pb.role = 'external_beneficiary'
+            limit 1
+          ) as "counterpartyName",
+          coalesce(dl.updated_at, d.updated_at) as "triggeredAt",
+          jsonb_build_object('legKind', dl.kind, 'legState', dl.state)
+            as metadata
+        from deals d
+        inner join deal_legs dl on dl.deal_id = d.id
+        left join currencies cur on cur.id = d.source_currency_id
+        left join deal_participants p
+          on p.deal_id = d.id and p.role = 'internal_entity'
+        where dl.state = 'ready'
+          and d.status not in ('draft', 'rejected', 'done', 'cancelled')
+          and not exists (
+            select 1
+            from deal_leg_operation_links dlol
+            inner join treasury_instructions ti
+              on ti.operation_id = dlol.treasury_operation_id
+            where dlol.deal_leg_id = dl.id
+              and ti.state <> 'voided'
+          )
+          ${dealFilter}
+          ${entityFilter}
+          ${currencyFilter}
+
+        union all
+
+        -- blocked_leg
+        select
+          'blocked_leg' as kind,
+          d.id as "dealId",
+          left(d.id::text, 8) as "dealRef",
+          dl.idx as "legIdx",
+          null::uuid as "instructionId",
+          cur.code as "currencyCode",
+          d.source_currency_id as "currencyId",
+          d.source_amount_minor::text as "amountMinor",
+          (
+            select c.short_name
+            from deal_participants pb
+            inner join counterparties c on c.id = pb.counterparty_id
+            where pb.deal_id = d.id and pb.role = 'external_beneficiary'
+            limit 1
+          ) as "counterpartyName",
+          coalesce(dl.updated_at, d.updated_at) as "triggeredAt",
+          jsonb_build_object('legKind', dl.kind, 'legState', dl.state)
+            as metadata
+        from deals d
+        inner join deal_legs dl on dl.deal_id = d.id
+        left join currencies cur on cur.id = d.source_currency_id
+        left join deal_participants p
+          on p.deal_id = d.id and p.role = 'internal_entity'
+        where dl.state = 'blocked'
+          and d.status not in ('draft', 'rejected', 'done', 'cancelled')
+          ${dealFilter}
+          ${entityFilter}
+          ${currencyFilter}
+
+        union all
+
+        -- failed_instruction: latest instruction per op in failed/returned/return_requested AND no successor
+        select
+          'failed_instruction' as kind,
+          d.id as "dealId",
+          left(d.id::text, 8) as "dealRef",
+          dl.idx as "legIdx",
+          ti.id as "instructionId",
+          cur.code as "currencyCode",
+          top.currency_id as "currencyId",
+          top.amount_minor::text as "amountMinor",
+          (
+            select c.short_name
+            from deal_participants pb
+            inner join counterparties c on c.id = pb.counterparty_id
+            where pb.deal_id = d.id and pb.role = 'external_beneficiary'
+            limit 1
+          ) as "counterpartyName",
+          coalesce(ti.failed_at, ti.returned_at, ti.return_requested_at, ti.updated_at)
+            as "triggeredAt",
+          jsonb_build_object(
+            'instructionState', ti.state,
+            'operationId', top.id,
+            'attempt', ti.attempt
+          ) as metadata
+        from treasury_instructions ti
+        inner join treasury_operations top on top.id = ti.operation_id
+        left join deal_leg_operation_links dlol
+          on dlol.treasury_operation_id = top.id
+        left join deal_legs dl on dl.id = dlol.deal_leg_id
+        left join deals d on d.id = top.deal_id
+        left join currencies cur on cur.id = top.currency_id
+        left join deal_participants p
+          on p.deal_id = d.id and p.role = 'internal_entity'
+        where ti.state in ('failed', 'returned', 'return_requested')
+          and ti.attempt = (
+            select max(inner_ti.attempt)
+            from treasury_instructions inner_ti
+            where inner_ti.operation_id = ti.operation_id
+          )
+          ${dealFilter}
+          ${entityFilter}
+          ${currencyFilter}
+
+        union all
+
+        -- pre_funded_awaiting_collection
+        select
+          'pre_funded_awaiting_collection' as kind,
+          d.id as "dealId",
+          left(d.id::text, 8) as "dealRef",
+          null::integer as "legIdx",
+          null::uuid as "instructionId",
+          cur.code as "currencyCode",
+          pos_cr.currency_id as "currencyId",
+          pos_cr.amount_minor::text as "amountMinor",
+          cust.name as "counterpartyName",
+          coalesce(pos_cr.updated_at, d.updated_at) as "triggeredAt",
+          jsonb_build_object(
+            'customerReceivableState', pos_cr.state,
+            'hasDoneDownstream', true
+          ) as metadata
+        from deals d
+        inner join deal_operational_positions pos_cr
+          on pos_cr.deal_id = d.id and pos_cr.kind = 'customer_receivable'
+        inner join deal_operational_positions pos_ds
+          on pos_ds.deal_id = d.id
+          and pos_ds.kind in ('provider_payable', 'exporter_expected_receivable')
+          and pos_ds.state = 'done'
+        left join currencies cur on cur.id = pos_cr.currency_id
+        left join deal_participants p
+          on p.deal_id = d.id and p.role = 'internal_entity'
+        left join deal_participants pc
+          on pc.deal_id = d.id and pc.role = 'customer'
+        left join customers cust on cust.id = pc.customer_id
+        where pos_cr.state = 'pending'
+          and d.status not in ('draft', 'rejected', 'done', 'cancelled')
+          ${dealFilter}
+          ${entityFilter}
+          ${currencyFilter}
+
+        union all
+
+        -- intercompany_imbalance: intercompany positions still open
+        select
+          'intercompany_imbalance' as kind,
+          d.id as "dealId",
+          left(d.id::text, 8) as "dealRef",
+          null::integer as "legIdx",
+          null::uuid as "instructionId",
+          cur.code as "currencyCode",
+          pos_ic.currency_id as "currencyId",
+          pos_ic.amount_minor::text as "amountMinor",
+          null as "counterpartyName",
+          coalesce(pos_ic.updated_at, d.updated_at) as "triggeredAt",
+          jsonb_build_object(
+            'positionKind', pos_ic.kind,
+            'positionState', pos_ic.state
+          ) as metadata
+        from deals d
+        inner join deal_operational_positions pos_ic
+          on pos_ic.deal_id = d.id
+          and pos_ic.kind in ('intercompany_due_from', 'intercompany_due_to')
+          and pos_ic.state in ('pending', 'in_progress', 'blocked')
+        left join currencies cur on cur.id = pos_ic.currency_id
+        left join deal_participants p
+          on p.deal_id = d.id and p.role = 'internal_entity'
+        where d.status not in ('draft', 'rejected', 'done', 'cancelled')
+          ${dealFilter}
+          ${entityFilter}
+          ${currencyFilter}
+
+        union all
+
+        -- reconciliation_mismatch: open exceptions linked to deal via external record normalized payload
+        select
+          'reconciliation_mismatch' as kind,
+          d.id as "dealId",
+          case when d.id is null then null else left(d.id::text, 8) end
+            as "dealRef",
+          null::integer as "legIdx",
+          null::uuid as "instructionId",
+          cur.code as "currencyCode",
+          d.source_currency_id as "currencyId",
+          null as "amountMinor",
+          null as "counterpartyName",
+          re.created_at as "triggeredAt",
+          jsonb_build_object(
+            'exceptionId', re.id,
+            'reasonCode', re.reason_code,
+            'externalRecordId', re.external_record_id
+          ) as metadata
+        from reconciliation_exceptions re
+        inner join reconciliation_external_records er
+          on er.id = re.external_record_id
+        left join deals d on d.id = (er.normalized_payload ->> 'dealId')::uuid
+        left join currencies cur on cur.id = d.source_currency_id
+        left join deal_participants p
+          on p.deal_id = d.id and p.role = 'internal_entity'
+        where re.state = 'open'
+          and er.normalized_payload ? 'dealId'
+          ${dealFilter}
+          ${entityFilter}
+          ${currencyFilter}
+      )
+      select
+        kind,
+        "dealId",
+        "dealRef",
+        "legIdx",
+        "instructionId",
+        "currencyCode",
+        "currencyId",
+        "amountMinor",
+        "counterpartyName",
+        "triggeredAt",
+        extract(epoch from (${now}::timestamptz - "triggeredAt"))::bigint
+          as "ageSeconds",
+        metadata
+      from base
+      where 1=1 ${kindFilter}
+      order by "triggeredAt" desc
+      limit ${input.limit}
+    `);
+
+    const rows = (queryResult.rows ?? []) as {
+      ageSeconds: number | string;
+      amountMinor: string | null;
+      counterpartyName: string | null;
+      currencyCode: string | null;
+      currencyId: string | null;
+      dealId: string | null;
+      dealRef: string | null;
+      instructionId: string | null;
+      kind: string;
+      legIdx: number | null;
+      metadata: Record<string, unknown> | null;
+      triggeredAt: Date | string;
+    }[];
+
+    return rows.map((row) => ({
+      ageSeconds: Math.max(0, Number(row.ageSeconds ?? 0)),
+      amountMinor: row.amountMinor,
+      counterpartyName: row.counterpartyName,
+      currencyCode: row.currencyCode,
+      currencyId: row.currencyId,
+      dealId: row.dealId,
+      dealRef: row.dealRef,
+      instructionId: row.instructionId,
+      kind: row.kind as
+        | "ready_leg"
+        | "blocked_leg"
+        | "failed_instruction"
+        | "pre_funded_awaiting_collection"
+        | "intercompany_imbalance"
+        | "reconciliation_mismatch",
+      legIdx: row.legIdx === null ? null : Number(row.legIdx),
+      metadata: (row.metadata ?? {}) as Record<string, unknown>,
+      triggeredAt: toDate(row.triggeredAt),
     }));
   }
 }

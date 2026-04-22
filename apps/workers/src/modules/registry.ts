@@ -40,6 +40,7 @@ import { createTreasuryModule } from "@bedrock/treasury";
 import {
   DrizzlePaymentRouteTemplatesRepository,
   DrizzleTreasuryFeeRulesRepository,
+  DrizzleTreasuryInstructionArtifactsRepository,
   DrizzleTreasuryInstructionsRepository,
   DrizzleTreasuryOperationsRepository,
   DrizzleTreasuryQuoteFeeComponentsRepository,
@@ -251,6 +252,8 @@ export function createWorkerImplementations(
     now: () => new Date(),
     generateUuid: randomUUID,
     currencies: currenciesService,
+    instructionArtifactsRepository:
+      new DrizzleTreasuryInstructionArtifactsRepository(deps.db),
     instructionsRepository: new DrizzleTreasuryInstructionsRepository(deps.db),
     operationsRepository: new DrizzleTreasuryOperationsRepository(deps.db),
     ratesRepository: new DrizzleTreasuryRatesRepository(deps.db),

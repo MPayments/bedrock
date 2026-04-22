@@ -77,7 +77,7 @@ function createDeal(): FinanceDealWorkspace {
       criteria: [
         {
           code: "operations_materialized",
-          label: "Казначейские операции созданы для всех этапов",
+          label: "Казначейские операции созданы для всех шагов",
           satisfied: false,
         },
         {

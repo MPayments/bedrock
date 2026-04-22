@@ -4,6 +4,7 @@ import {
   TREASURY_OPERATION_KIND_VALUES,
   TREASURY_OPERATION_STATE_VALUES,
 } from "../../domain/operation-types";
+import { TREASURY_OPERATION_PROJECTED_STATE_VALUES } from "../../domain/projection-map";
 
 export const TreasuryOperationKindSchema = z.enum(
   TREASURY_OPERATION_KIND_VALUES,
@@ -17,4 +18,11 @@ export const TreasuryOperationStateSchema = z.enum(
 );
 export type TreasuryOperationState = z.infer<
   typeof TreasuryOperationStateSchema
+>;
+
+export const TreasuryOperationProjectedStateSchema = z.enum(
+  TREASURY_OPERATION_PROJECTED_STATE_VALUES,
+);
+export type TreasuryOperationProjectedState = z.infer<
+  typeof TreasuryOperationProjectedStateSchema
 >;
