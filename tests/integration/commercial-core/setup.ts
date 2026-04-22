@@ -14,7 +14,7 @@ import { schema as treasurySchema } from "../../../packages/modules/treasury/src
 
 import { seedCurrencies } from "../../../packages/modules/treasury/tests/helpers";
 import { assertIntegrationDbSchemaState } from "../preflight";
-import { COMMERCIAL_CORE_ACTOR_USER_ID } from "./fixtures";
+import { COMMERCIAL_CORE_ACTOR_USER_ID } from "./constants";
 
 const pool = createTestPgPool();
 const db = createTestDrizzleDb(pool, {

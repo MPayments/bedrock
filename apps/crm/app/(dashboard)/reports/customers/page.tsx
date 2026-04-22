@@ -1,130 +1,45 @@
 "use client";
 
-import { useMemo, useState, useEffect, useCallback } from "react";
-import {
-  getCoreRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
-import { useSession } from "@/lib/auth-client";
+import { getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useMemo } from "react";
 import {
-  Download,
-  FileSpreadsheet,
-  FileText,
-  Banknote,
-  BarChart3,
-} from "lucide-react";
-import {
-  Line,
   Bar,
   CartesianGrid,
-  XAxis,
-  YAxis,
   ComposedChart,
   LabelList,
+  Line,
+  XAxis,
+  YAxis,
 } from "recharts";
-import { format } from "date-fns";
-import { ru } from "date-fns/locale";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/components/card";
-import { DatePicker } from "@bedrock/sdk-ui/components/date-picker";
-import { Button } from "@bedrock/sdk-ui/components/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@bedrock/sdk-ui/components/select";
-import { DataTable } from "@bedrock/sdk-tables-ui/components/data-table";
-import { DataTableFacetedMultiFilter } from "@bedrock/sdk-tables-ui/components/data-table-faceted-filter";
-import { DataTableViewOptions } from "@bedrock/sdk-tables-ui/components/data-table-view-options";
-import { ClientCombobox } from "@/components/dashboard/ClientCombobox";
-import { AgentCombobox } from "@/components/dashboard/AgentCombobox";
-import type { DateRange } from "react-day-picker";
-import {
-  ChartContainer,
-  type ChartTooltipFormatter,
-  type ChartTooltipLabelFormatter,
-  ChartTooltip,
-  ChartTooltipContent,
-  ChartLegend,
-  ChartLegendContent,
-  type ChartConfig,
-} from "@bedrock/sdk-ui/components/chart";
-
-import { useDealsTable } from "@/lib/hooks/useDealsTable";
-import type { DealsRow } from "@/lib/hooks/useDealsTable";
-import { formatCurrency } from "@/lib/utils/currency";
 import {
   createDealsColumns,
   getDefaultColumnVisibility,
-  CURRENCY_OPTIONS,
-  STATUS_OPTIONS,
 } from "@/components/dashboard/dealsColumns";
-import { API_BASE_URL } from "@/lib/constants";
-import { buildDealsQueryParams } from "@/lib/deals-query";
-
-const REPORT_CURRENCY_OPTIONS = [
-  { value: "RUB", label: "RUB" },
-  { value: "USD", label: "USD" },
-  { value: "EUR", label: "EUR" },
-  { value: "CNY", label: "CNY" },
-];
-
-interface ChartDataPoint {
-  date: string;
-  amount: number;
-  count: number;
-  USD?: number;
-  EUR?: number;
-  CNY?: number;
-  RUB?: number;
-  [key: string]: string | number | undefined;
-}
-
-// Валюты для Area Chart (без рублей)
-const CURRENCY_KEYS = ["USD", "EUR", "CNY"] as const;
-
-function formatReportChartTick(value: string | number) {
-  return format(new Date(value), "d MMM", { locale: ru });
-}
-
-const formatReportChartLabel: ChartTooltipLabelFormatter = (value) => {
-  if (typeof value !== "string" && typeof value !== "number") {
-    return "";
-  }
-
-  return format(new Date(value), "d MMM yyyy", { locale: ru });
-};
-
-// Функция для вычисления начального диапазона дат (с 11 числа до текущего дня)
-function getInitialDateRange(): DateRange {
-  const today = new Date();
-  const currentDay = today.getDate();
-
-  let fromDate: Date;
-
-  if (currentDay < 11) {
-    // Если сегодня до 11 числа, то с 11 прошлого месяца
-    fromDate = new Date(today.getFullYear(), today.getMonth() - 1, 11);
-  } else {
-    // Если сегодня 11 и позже, то с 11 текущего месяца
-    fromDate = new Date(today.getFullYear(), today.getMonth(), 11);
-  }
-
-  // Устанавливаем время на начало дня
-  fromDate.setHours(0, 0, 0, 0);
-
-  // Конец диапазона - текущий день
-  const toDate = new Date(today);
-  toDate.setHours(23, 59, 59, 999);
-
-  return {
-    from: fromDate,
-    to: toDate,
-  };
-}
+import { useSession } from "@/lib/auth-client";
+import { useDealsTable, type DealsRow } from "@/lib/hooks/useDealsTable";
+import { formatCurrency } from "@/lib/utils/currency";
+import {
+  ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
+  type ChartConfig,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartTooltipFormatter,
+} from "@bedrock/sdk-ui/components/chart";
+import {
+  formatReportChartLabel,
+  formatReportChartTick,
+  getInitialDateRange,
+  ReportFiltersCard,
+  ReportHeader,
+  ReportMetricsWithChart,
+  useDealsByDayChart,
+  useReportCurrency,
+  useReportExcelExport,
+} from "../_components/report-page-shared";
 
 const chartConfig = {
   amount: {
@@ -142,28 +57,9 @@ export default function ClientsReportsPage() {
   const searchParams = useSearchParams();
   const { data: session } = useSession();
   const isAdmin = session?.user?.role === "admin";
-  const [exporting, setExporting] = useState(false);
-  const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
-  const [chartLoading, setChartLoading] = useState(false);
-
-  // Reporting currency state (persisted in URL)
-  const [reportCurrencyCode, setReportCurrencyCode] = useState(
-    () => searchParams.get("reportCurrency") || "RUB",
-  );
-
-  const handleReportCurrencyChange = useCallback((value: string) => {
-    setReportCurrencyCode(value);
-    const url = new URL(window.location.href);
-    if (value === "RUB") {
-      url.searchParams.delete("reportCurrency");
-    } else {
-      url.searchParams.set("reportCurrency", value);
-    }
-    window.history.replaceState({}, "", url.toString());
-  }, []);
-
-  // Вычисляем начальный диапазон дат (один раз при первом рендере)
-  const [initialDateRange] = useState(() => getInitialDateRange());
+  const { handleReportCurrencyChange, reportCurrencyCode } =
+    useReportCurrency(searchParams);
+  const initialDateRange = useMemo(() => getInitialDateRange(), []);
 
   // Начальные фильтры: все статусы кроме cancelled
   const initialStatusFilter: Array<
@@ -207,63 +103,7 @@ export default function ClientsReportsPage() {
     reportCurrencyCode,
   });
 
-  // Загрузка данных для графика
-  useEffect(() => {
-    const fetchChartData = async () => {
-      try {
-        setChartLoading(true);
-        const params = buildDealsQueryParams(
-          {
-            pagination,
-            sorting,
-            columnFilters,
-            selectedClientId,
-            selectedAgentId,
-            dateRange,
-          },
-          { includePagination: false },
-        );
-
-        if (reportCurrencyCode) {
-          params.set("reportCurrencyCode", reportCurrencyCode);
-        }
-
-        const url = `${API_BASE_URL}/deals/by-day?${params.toString()}`;
-        const res = await fetch(url, {
-          cache: "no-store",
-          credentials: "include",
-        });
-
-        if (!res.ok) {
-          throw new Error(`Ошибка загрузки: ${res.status}`);
-        }
-
-        const json = await res.json();
-        const rawData: ChartDataPoint[] = Array.isArray(json)
-          ? json
-          : json.data ?? [];
-
-        // Нормализуем данные: для каждой валюты всегда есть число (включая 0)
-        const normalizedData: ChartDataPoint[] = rawData.map((point) => {
-          const normalized: ChartDataPoint = { ...point };
-          for (const key of CURRENCY_KEYS) {
-            if (normalized[key] === undefined) {
-              normalized[key] = 0;
-            }
-          }
-          return normalized;
-        });
-
-        setChartData(normalizedData);
-      } catch (err) {
-        console.error("Chart data fetch error:", err);
-      } finally {
-        setChartLoading(false);
-      }
-    };
-
-    fetchChartData();
-  }, [
+  const { chartData, chartLoading } = useDealsByDayChart({
     sorting,
     columnFilters,
     selectedClientId,
@@ -271,7 +111,12 @@ export default function ClientsReportsPage() {
     dateRange,
     pagination,
     reportCurrencyCode,
-  ]);
+  });
+
+  const { exporting, handleExportExcel } = useReportExcelExport({
+    filenamePrefix: "client-deals-report",
+    getQueryParams,
+  });
 
   // Используем переиспользуемые колонки
   const columns = useMemo(() => createDealsColumns(), []);
@@ -295,54 +140,6 @@ export default function ClientsReportsPage() {
     manualFiltering: true,
   });
 
-  // Функция экспорта в Excel
-  const handleExportExcel = async () => {
-    try {
-      setExporting(true);
-
-      // Получаем параметры без пагинации (для экспорта всех записей)
-      const params = getQueryParams({ includePagination: false });
-
-      const url = `${API_BASE_URL}/deals/export-excel?${params.toString()}`;
-      const res = await fetch(url, {
-        credentials: "include",
-      });
-
-      if (!res.ok) {
-        throw new Error(`Ошибка экспорта: ${res.status}`);
-      }
-
-      // Получаем blob и скачиваем
-      const blob = await res.blob();
-      const downloadUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = downloadUrl;
-
-      // Получаем имя файла из заголовка или генерируем своё
-      const contentDisposition = res.headers.get("Content-Disposition");
-      let filename = `client-deals-report-${
-        new Date().toISOString().split("T")[0]
-      }.xlsx`;
-      if (contentDisposition) {
-        const match = contentDisposition.match(/filename="(.+)"/);
-        if (match?.[1]) {
-          filename = match[1];
-        }
-      }
-
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(downloadUrl);
-    } catch (err) {
-      console.error("Export error:", err);
-      alert(err instanceof Error ? err.message : "Ошибка экспорта");
-    } finally {
-      setExporting(false);
-    }
-  };
-
   const formatReportChartTooltip: ChartTooltipFormatter = (value, name) => {
     if (name === "Сумма") {
       return [formatCurrency(Number(value), reportCurrencyCode), "Сумма"];
@@ -362,236 +159,101 @@ export default function ClientsReportsPage() {
 
   return (
     <div className="space-y-4">
-      {/* Заголовок с кнопками */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Отчёты по клиентам</h1>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <span className="text-xs whitespace-nowrap">
-              Валюта отчёта:
-            </span>
-            <Select
-              value={reportCurrencyCode}
-              onValueChange={(value) => {
-                if (value) {
-                  handleReportCurrencyChange(value);
+      <ReportHeader
+        exporting={exporting}
+        loading={loading}
+        onExportExcel={handleExportExcel}
+        onReportCurrencyChange={handleReportCurrencyChange}
+        reportCurrencyCode={reportCurrencyCode}
+        title="Отчёты по клиентам"
+      />
+
+      <ReportMetricsWithChart
+        chartTitle={`Суммы и объем сделок по дням (${reportCurrencyCode})`}
+        reportCurrencyCode={reportCurrencyCode}
+        statistics={statistics}
+      >
+        {chartLoading ? (
+          <div className="flex h-[200px] items-center justify-center text-sm text-muted-foreground">
+            Загрузка...
+          </div>
+        ) : chartData.length === 0 ? (
+          <div className="flex h-[200px] items-center justify-center text-sm text-muted-foreground">
+            Нет данных
+          </div>
+        ) : (
+          <ChartContainer config={chartConfig} className="h-[200px] w-full">
+            <ComposedChart data={chartData}>
+              <CartesianGrid vertical={false} strokeDasharray="3 3" />
+              <YAxis yAxisId="left" hide />
+              <YAxis
+                yAxisId="right"
+                orientation="right"
+                hide
+                allowDecimals={false}
+              />
+              <XAxis
+                dataKey="date"
+                tickLine={false}
+                axisLine={false}
+                tickMargin={8}
+                minTickGap={32}
+                tick={{ fontSize: 10 }}
+                tickFormatter={formatReportChartTick}
+              />
+              <ChartTooltip
+                cursor={false}
+                content={
+                  <ChartTooltipContent
+                    labelFormatter={formatReportChartLabel}
+                    formatter={formatReportChartTooltip}
+                    indicator="dot"
+                  />
                 }
-              }}
-            >
-              <SelectTrigger className="h-8 w-[90px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {REPORT_CURRENCY_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <Button
-            variant="default"
-            size="sm"
-            onClick={handleExportExcel}
-            disabled={exporting || loading}
-          >
-            {exporting ? (
-              <>
-                <FileSpreadsheet className="mr-2 h-4 w-4 animate-pulse" />
-                Экспорт...
-              </>
-            ) : (
-              <>
-                <Download className="mr-2 h-4 w-4" />
-                Скачать Excel
-              </>
-            )}
-          </Button>
-        </div>
-      </div>
-
-      {/* Одна строка: количество, сумма, график */}
-      <div className="flex flex-col gap-4 lg:flex-row">
-        <div className="flex flex-row gap-4 lg:flex-col lg:w-[260px]">
-          <Card className="flex-1">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Количество сделок
-              </CardTitle>
-              <FileText className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{statistics.totalCount}</div>
-            </CardContent>
-          </Card>
-
-          <Card className="flex-1">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Общая сумма ({reportCurrencyCode})
-              </CardTitle>
-              <Banknote className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {formatCurrency(
-                  statistics.totalAmountInReportCurrency ??
-                    statistics.totalAmountInBase,
-                  reportCurrencyCode,
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <Card className="flex-1">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-sm font-medium">
-              <BarChart3 className="h-4 w-4" />
-              Суммы и объем сделок по дням ({reportCurrencyCode})
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            {chartLoading ? (
-              <div className="flex h-[200px] items-center justify-center text-sm text-muted-foreground">
-                Загрузка...
-              </div>
-            ) : chartData.length === 0 ? (
-              <div className="flex h-[200px] items-center justify-center text-sm text-muted-foreground">
-                Нет данных
-              </div>
-            ) : (
-              <ChartContainer config={chartConfig} className="h-[200px] w-full">
-                <ComposedChart data={chartData}>
-                  <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                  <YAxis yAxisId="left" hide />
-                  <YAxis
-                    yAxisId="right"
-                    orientation="right"
-                    hide
-                    allowDecimals={false}
-                  />
-                  <XAxis
-                    dataKey="date"
-                    tickLine={false}
-                    axisLine={false}
-                    tickMargin={8}
-                    minTickGap={32}
-                    tick={{ fontSize: 10 }}
-                    tickFormatter={formatReportChartTick}
-                  />
-                  <ChartTooltip
-                    cursor={false}
-                    content={
-                      <ChartTooltipContent
-                        labelFormatter={formatReportChartLabel}
-                        formatter={formatReportChartTooltip}
-                        indicator="dot"
-                      />
-                    }
-                  />
-                  <ChartLegend content={<ChartLegendContent />} />
-                  <Bar
-                    dataKey="count"
-                    name="Сделок"
-                    yAxisId="right"
-                    fill="var(--color-count)"
-                    opacity={0.4}
-                    barSize={18}
-                    radius={[3, 3, 0, 0]}
-                  >
-                    <LabelList
-                      dataKey="count"
-                      position="top"
-                      style={{ fontSize: 10, fill: "#60a5fa" }}
-                    />
-                  </Bar>
-                  <Line
-                    type="monotone"
-                    dataKey="amount"
-                    name="Сумма"
-                    yAxisId="left"
-                    stroke="#f97316"
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                </ComposedChart>
-              </ChartContainer>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg font-medium">Фильтры отчёта</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex flex-1 flex-wrap items-center gap-2">
-              <DatePicker
-                mode="range"
-                value={dateRange}
-                onChange={setDateRange}
-                placeholder="Период..."
-                className="w-[280px]"
               />
-              <ClientCombobox
-                value={selectedClientId}
-                onValueChange={setSelectedClientId}
-                placeholder="Выбрать клиента..."
-                className="w-[250px]"
-              />
-              {isAdmin && (
-                <AgentCombobox
-                  value={selectedAgentId}
-                  onValueChange={setSelectedAgentId}
-                  placeholder="Выбрать агента..."
-                  className="w-[250px]"
+              <ChartLegend content={<ChartLegendContent />} />
+              <Bar
+                dataKey="count"
+                name="Сделок"
+                yAxisId="right"
+                fill="var(--color-count)"
+                opacity={0.4}
+                barSize={18}
+                radius={[3, 3, 0, 0]}
+              >
+                <LabelList
+                  dataKey="count"
+                  position="top"
+                  style={{ fontSize: 10, fill: "#60a5fa" }}
                 />
-              )}
-              <DataTableFacetedMultiFilter
-                column={table.getColumn("currency")}
-                title="Валюта"
-                options={CURRENCY_OPTIONS}
+              </Bar>
+              <Line
+                type="monotone"
+                dataKey="amount"
+                name="Сумма"
+                yAxisId="left"
+                stroke="#f97316"
+                strokeWidth={2}
+                dot={false}
               />
-              <DataTableFacetedMultiFilter
-                column={table.getColumn("status")}
-                title="Статус"
-                options={STATUS_OPTIONS}
-              />
-            </div>
-            <DataTableViewOptions table={table} />
-          </div>
+            </ComposedChart>
+          </ChartContainer>
+        )}
+      </ReportMetricsWithChart>
 
-          {error && (
-            <div className="rounded-md bg-red-50 p-4 text-sm text-red-800">
-              {error}
-            </div>
-          )}
-
-          <div className="relative">
-            {loading && (
-              <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/80">
-                <div className="text-sm text-muted-foreground">Загрузка...</div>
-              </div>
-            )}
-            <DataTable
-              table={table}
-              onRowDoubleClick={(row) =>
-                router.push(`/deals/${row.original.id}`)
-              }
-              contextMenuItems={(row) => [
-                {
-                  label: "Открыть",
-                  onClick: () => router.push(`/deals/${row.original.id}`),
-                },
-              ]}
-            />
-          </div>
-        </CardContent>
-      </Card>
+      <ReportFiltersCard
+        dateRange={dateRange}
+        error={error}
+        isAdmin={isAdmin}
+        loading={loading}
+        onOpenDeal={(dealId) => router.push(`/deals/${dealId}`)}
+        selectedAgentId={selectedAgentId}
+        selectedClientId={selectedClientId}
+        setDateRange={setDateRange}
+        setSelectedAgentId={setSelectedAgentId}
+        setSelectedClientId={setSelectedClientId}
+        table={table}
+      />
     </div>
   );
 }

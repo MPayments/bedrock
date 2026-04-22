@@ -22,8 +22,7 @@
     "@bedrock/reconciliation": "workspace:*",
     "@bedrock/shared": "workspace:*",
     "@bedrock/treasury": "workspace:*",
-    "@bedrock/workflow-deal-projections": "workspace:*",
-    "zod": "^4.1.11"
+    "@bedrock/workflow-deal-projections": "workspace:*"
   },
   "devDependencies": {
     "@bedrock/typescript-config": "workspace:*",

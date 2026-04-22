@@ -2,13 +2,17 @@ import { createHash, randomUUID } from "node:crypto";
 
 import { eq } from "drizzle-orm";
 
-import { bookAccountInstances, books } from "../../../packages/modules/ledger/src/schema";
-import { fxQuoteLegs, fxQuotes } from "../../../packages/modules/treasury/src/schema";
+import {
+  bookAccountInstances,
+  books,
+} from "../../../packages/modules/ledger/src/schema";
+import {
+  fxQuoteLegs,
+  fxQuotes,
+} from "../../../packages/modules/treasury/src/schema";
 
+import { COMMERCIAL_CORE_ACTOR_USER_ID } from "./constants";
 import { createCommercialCoreRuntime } from "./runtime";
-
-export const COMMERCIAL_CORE_ACTOR_USER_ID =
-  "00000000-0000-4000-8000-000000009901";
 
 function uniqueLabel(prefix: string) {
   return `${prefix}-${randomUUID().slice(0, 8)}`;
@@ -97,16 +101,17 @@ export async function createCommercialPartiesFixture() {
       shortName: applicantShortName,
     }),
   });
-  const externalBeneficiary = await modules.parties.counterparties.commands.create({
-    country: "DE",
-    fullName: beneficiaryFullName,
-    shortName: beneficiaryShortName,
-    partyProfile: createLegalEntityPartyProfileBundle({
-      countryCode: "DE",
+  const externalBeneficiary =
+    await modules.parties.counterparties.commands.create({
+      country: "DE",
       fullName: beneficiaryFullName,
       shortName: beneficiaryShortName,
-    }),
-  });
+      partyProfile: createLegalEntityPartyProfileBundle({
+        countryCode: "DE",
+        fullName: beneficiaryFullName,
+        shortName: beneficiaryShortName,
+      }),
+    });
   const externalPayer = await modules.parties.counterparties.commands.create({
     country: "AE",
     fullName: payerFullName,
@@ -130,22 +135,23 @@ export async function createCommercialPartiesFixture() {
     kind: "bank",
     legalName: `${providerDisplayName} Bank`,
   });
-  const organizationRequisite = await modules.parties.requisites.commands.create({
-    beneficiaryName: organization.fullName,
-    currencyId: usd.id,
-    identifiers: [
-      {
-        scheme: "local_account_number",
-        value: "40802810000000000001",
-        isPrimary: true,
-      },
-    ],
-    kind: "bank",
-    label: uniqueLabel("Org Requisite"),
-    ownerId: organization.id,
-    ownerType: "organization",
-    providerId: provider.id,
-  });
+  const organizationRequisite =
+    await modules.parties.requisites.commands.create({
+      beneficiaryName: organization.fullName,
+      currencyId: usd.id,
+      identifiers: [
+        {
+          scheme: "local_account_number",
+          value: "40802810000000000001",
+          isPrimary: true,
+        },
+      ],
+      kind: "bank",
+      label: uniqueLabel("Org Requisite"),
+      ownerId: organization.id,
+      ownerType: "organization",
+      providerId: provider.id,
+    });
 
   const [book] = await runtime.db
     .insert(books)
@@ -191,23 +197,24 @@ export async function createCommercialPartiesFixture() {
 
 export async function createAgreementFixture() {
   const fixture = await createCommercialPartiesFixture();
-  const agreement = await fixture.runtime.modules.agreements.agreements.commands.create({
-    actorUserId: COMMERCIAL_CORE_ACTOR_USER_ID,
-    contractDate: new Date("2026-01-05T00:00:00.000Z"),
-    contractNumber: uniqueLabel("AGR"),
-    customerId: fixture.customer.id,
-    feeRules: [
-      {
-        kind: "fixed_fee",
-        currencyId: fixture.currencies.usd.id,
-        unit: "money",
-        value: "15.00",
-      },
-    ],
-    idempotencyKey: randomUUID(),
-    organizationId: fixture.organization.id,
-    organizationRequisiteId: fixture.organizationRequisite.id,
-  });
+  const agreement =
+    await fixture.runtime.modules.agreements.agreements.commands.create({
+      actorUserId: COMMERCIAL_CORE_ACTOR_USER_ID,
+      contractDate: new Date("2026-01-05T00:00:00.000Z"),
+      contractNumber: uniqueLabel("AGR"),
+      customerId: fixture.customer.id,
+      feeRules: [
+        {
+          kind: "fixed_fee",
+          currencyId: fixture.currencies.usd.id,
+          unit: "money",
+          value: "15.00",
+        },
+      ],
+      idempotencyKey: randomUUID(),
+      organizationId: fixture.organization.id,
+      organizationRequisiteId: fixture.organizationRequisite.id,
+    });
 
   return {
     ...fixture,
