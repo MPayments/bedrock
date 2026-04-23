@@ -78,9 +78,6 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
     [deal.executionPlan, selectedLegIdx],
   );
 
-  const hasActions =
-    deal.actions.canRequestExecution || deal.actions.canCloseDeal;
-
   return (
     <>
       <FinanceDealWorkspaceLayout title={title}>
@@ -89,31 +86,17 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
 
           <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
             <div className="space-y-6">
-              {hasActions ? (
+              {deal.actions.canCloseDeal ? (
                 <div className="flex flex-wrap items-center gap-2">
-                  {deal.actions.canRequestExecution ? (
-                    <Button
-                      data-testid="finance-deal-request-execution"
-                      size="sm"
-                      disabled={state.isRequestingExecution}
-                      onClick={actions.requestExecution}
-                    >
-                      {state.isRequestingExecution
-                        ? "Материализуем..."
-                        : "Запросить исполнение"}
-                    </Button>
-                  ) : null}
-                  {deal.actions.canCloseDeal ? (
-                    <Button
-                      data-testid="finance-deal-close"
-                      size="sm"
-                      variant="secondary"
-                      disabled={state.isClosingDeal}
-                      onClick={actions.closeDeal}
-                    >
-                      {state.isClosingDeal ? "Закрываем..." : "Закрыть сделку"}
-                    </Button>
-                  ) : null}
+                  <Button
+                    data-testid="finance-deal-close"
+                    size="sm"
+                    variant="secondary"
+                    disabled={state.isClosingDeal}
+                    onClick={actions.closeDeal}
+                  >
+                    {state.isClosingDeal ? "Закрываем..." : "Закрыть сделку"}
+                  </Button>
                 </div>
               ) : null}
 
@@ -223,6 +206,7 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
       ) : null}
       {artifactInstructionId !== null ? (
         <InstructionArtifactDrawer
+          dealId={deal.summary.id}
           instructionId={artifactInstructionId}
           open
           onOpenChange={(open) => {

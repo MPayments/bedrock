@@ -16,10 +16,6 @@ import { formatMinorAmountWithCurrency } from "@/lib/format";
 
 import { getLegKindIcon } from "./leg-icon";
 
-type Participant = NonNullable<
-  FinanceDealWorkbench["workflow"]
->["participants"][number];
-
 function formatShagPlural(count: number): string {
   const mod10 = count % 10;
   const mod100 = count % 100;
@@ -37,10 +33,7 @@ function formatHopPlural(count: number): string {
   return "переходов";
 }
 
-function formatCurrencyLabel(
-  code: string | null,
-  currencyId: string,
-): string {
+function formatCurrencyLabel(code: string | null, currencyId: string): string {
   if (code) return code;
   return currencyId.length > 8 ? `${currencyId.slice(0, 8)}…` : currencyId;
 }
@@ -66,51 +59,13 @@ function formatAmounts(items: FinanceProfitabilityAmount[] | null | undefined) {
     .join(" · ");
 }
 
-function getParticipantRoleLabel(role: Participant["role"]): string {
-  switch (role) {
-    case "customer":
-      return "Клиент";
-    case "applicant":
-      return "Заявитель";
-    case "internal_entity":
-      return "Внутренний контрагент";
-    case "external_payer":
-      return "Внешний плательщик";
-    case "external_beneficiary":
-      return "Бенефициар";
-    default:
-      return role;
-  }
-}
-
-function resolveParticipantName(
-  participant: Participant,
-  summary: FinanceDealWorkbench["summary"],
-): string {
-  if (participant.displayName && participant.displayName.trim().length > 0) {
-    return participant.displayName;
-  }
-  if (
-    participant.role === "applicant" ||
-    participant.role === "customer"
-  ) {
-    return summary.applicantDisplayName ?? "—";
-  }
-  if (participant.role === "internal_entity") {
-    return summary.internalEntityDisplayName ?? "—";
-  }
-  return "—";
-}
-
 function RouteAttachmentHops({
   attachment,
 }: {
   attachment: FinanceDealRouteAttachment;
 }) {
   if (attachment.legs.length === 0) {
-    return (
-      <div className="text-muted-foreground text-sm">Нет переходов.</div>
-    );
+    return <div className="text-muted-foreground text-sm">Нет переходов.</div>;
   }
 
   return (
@@ -174,12 +129,11 @@ export function ExecutionContextGrid({
   deal,
   onOpenSwapRoute,
 }: ExecutionContextGridProps) {
-  const participants = deal.workflow?.participants ?? [];
   const legs = deal.executionPlan;
   const routeAttachment = deal.pricing.routeAttachment;
 
   return (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
       <section className="bg-card rounded-lg border">
         <header className="flex items-center justify-between gap-2 border-b p-3">
           <div className="min-w-0">
@@ -250,39 +204,6 @@ export function ExecutionContextGrid({
               </ul>
             )}
           </div>
-        </div>
-      </section>
-
-      <section className="bg-card rounded-lg border">
-        <header className="border-b p-3">
-          <div className="text-sm font-semibold">Стороны</div>
-        </header>
-        <div className="flex flex-col gap-3 p-3">
-          {participants.length === 0 ? (
-            <div className="text-muted-foreground text-sm">
-              Участники ещё не назначены.
-            </div>
-          ) : (
-            participants.map((participant, index) => {
-              const name = resolveParticipantName(participant, deal.summary);
-              return (
-                <div
-                  key={`${participant.role}:${
-                    participant.counterpartyId ??
-                    participant.customerId ??
-                    participant.organizationId ??
-                    index
-                  }`}
-                  className="space-y-0.5"
-                >
-                  <div className="text-muted-foreground text-xs uppercase tracking-wider">
-                    {getParticipantRoleLabel(participant.role)}
-                  </div>
-                  <div className="text-sm font-medium">{name}</div>
-                </div>
-              );
-            })
-          )}
         </div>
       </section>
 

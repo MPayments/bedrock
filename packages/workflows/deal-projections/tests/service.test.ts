@@ -1218,6 +1218,17 @@ describe("createDealProjectionsWorkflow", () => {
           },
         ],
       },
+      cashflowSummary: {
+        receivedIn: [],
+        scheduledOut: [],
+        settledOut: [
+          {
+            amountMinor: "10000000",
+            currencyCode: "RUB",
+            currencyId: "currency-rub",
+          },
+        ],
+      },
       instructionSummary: {
         failed: 0,
         planned: 0,

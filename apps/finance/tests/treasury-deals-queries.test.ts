@@ -81,6 +81,11 @@ function createFinanceWorkspacePayload(): SerializedDates<FinanceDealWorkspace> 
         state: "missing",
       },
     ],
+    cashflowSummary: {
+      receivedIn: [],
+      scheduledOut: [],
+      settledOut: [],
+    },
     closeReadiness: {
       blockers: ["Required intake sections are incomplete"],
       criteria: [

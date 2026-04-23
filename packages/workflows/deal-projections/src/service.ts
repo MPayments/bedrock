@@ -52,6 +52,7 @@ import type {
   CrmDealsStatsQuery,
   FinanceDealQueue,
   FinanceDealQueueFilters,
+  FinanceDealCashflowSummary,
   FinanceDealQueueProjection,
   FinanceDealQueueItem,
   FinanceDealRouteAttachment,
@@ -1470,6 +1471,79 @@ async function buildProfitabilitySnapshot(
   };
 }
 
+const CASHFLOW_OUTBOUND_KINDS: ReadonlySet<TreasuryOperationKind> = new Set<
+  TreasuryOperationKind
+>(["payout", "intercompany_funding"]);
+
+function accumulateAmount(
+  accumulator: Map<string, bigint>,
+  currencyId: string | null,
+  amountMinor: string | null,
+) {
+  if (!currencyId || !amountMinor) return;
+  let parsed: bigint;
+  try {
+    parsed = BigInt(amountMinor);
+  } catch {
+    return;
+  }
+  accumulator.set(currencyId, (accumulator.get(currencyId) ?? 0n) + parsed);
+}
+
+async function buildCashflowSummary(
+  operations: readonly TreasuryOperationRecord[],
+  latestInstructionByOperationId: ReadonlyMap<string, TreasuryInstruction>,
+  deps: Pick<DealProjectionsWorkflowDeps, "currencies">,
+): Promise<FinanceDealCashflowSummary> {
+  const receivedInByCurrency = new Map<string, bigint>();
+  const scheduledOutByCurrency = new Map<string, bigint>();
+  const settledOutByCurrency = new Map<string, bigint>();
+
+  for (const operation of operations) {
+    const latestInstruction =
+      latestInstructionByOperationId.get(operation.id) ?? null;
+    const instructionState = latestInstruction?.state ?? null;
+
+    if (operation.kind === "payin") {
+      if (instructionState === "settled") {
+        accumulateAmount(
+          receivedInByCurrency,
+          operation.currencyId,
+          operation.amountMinor,
+        );
+      }
+      continue;
+    }
+
+    if (CASHFLOW_OUTBOUND_KINDS.has(operation.kind)) {
+      if (instructionState === "settled") {
+        accumulateAmount(
+          settledOutByCurrency,
+          operation.currencyId,
+          operation.amountMinor,
+        );
+      } else if (
+        instructionState === "prepared" ||
+        instructionState === "submitted"
+      ) {
+        accumulateAmount(
+          scheduledOutByCurrency,
+          operation.currencyId,
+          operation.amountMinor,
+        );
+      }
+    }
+  }
+
+  const [receivedIn, scheduledOut, settledOut] = await Promise.all([
+    resolveProfitabilityAmounts(receivedInByCurrency, deps),
+    resolveProfitabilityAmounts(scheduledOutByCurrency, deps),
+    resolveProfitabilityAmounts(settledOutByCurrency, deps),
+  ]);
+
+  return { receivedIn, scheduledOut, settledOut };
+}
+
 function summarizeExecutionPlan(workflow: DealWorkflowProjection) {
   return {
     blockedLegCount: workflow.executionPlan.filter(
@@ -2560,6 +2634,11 @@ export function createDealProjectionsWorkflow(
           .find((quote) => quote.id === workflow.acceptedQuote?.quoteId) ??
         null)
       : null;
+    const cashflowSummary = await buildCashflowSummary(
+      operationsResult.data,
+      latestInstructionByOperationId,
+      deps,
+    );
 
     return {
       acceptedQuote: workflow.acceptedQuote,
@@ -2582,6 +2661,7 @@ export function createDealProjectionsWorkflow(
         canUploadAttachment: actions.canUploadAttachment,
       },
       attachmentRequirements,
+      cashflowSummary,
       closeReadiness,
       executionPlan: workflow.executionPlan.map((leg) => ({
         ...leg,

@@ -168,6 +168,12 @@ const FinanceProfitabilityAmountSchema = z.object({
   currencyId: z.string().uuid(),
 });
 
+const FinanceDealCashflowSummarySchema = z.object({
+  receivedIn: z.array(FinanceProfitabilityAmountSchema),
+  scheduledOut: z.array(FinanceProfitabilityAmountSchema),
+  settledOut: z.array(FinanceProfitabilityAmountSchema),
+});
+
 const FinanceDealListItemSchema = z.object({
   applicantName: z.string().nullable(),
   blockingReasons: z.array(z.string()),
@@ -530,6 +536,11 @@ const FinanceDealWorkspaceSchema = z.object({
   acceptedQuoteDetails: FinanceDealQuoteItemSchema.nullable(),
   actions: FinanceDealWorkspaceActionsSchema,
   attachmentRequirements: z.array(FinanceDealAttachmentRequirementSchema),
+  cashflowSummary: FinanceDealCashflowSummarySchema.default({
+    receivedIn: [],
+    scheduledOut: [],
+    settledOut: [],
+  }),
   closeReadiness: FinanceDealCloseReadinessSchema,
   executionPlan: z.array(
     z.object({
@@ -742,6 +753,9 @@ export type FinanceDealFormalDocumentRequirement = z.infer<
 >;
 export type FinanceProfitabilityAmount = z.infer<
   typeof FinanceProfitabilityAmountSchema
+>;
+export type FinanceDealCashflowSummary = z.infer<
+  typeof FinanceDealCashflowSummarySchema
 >;
 export type FinanceDealListItem = z.infer<typeof FinanceDealListItemSchema> & {
   blockerState: FinanceDealBlockerState;

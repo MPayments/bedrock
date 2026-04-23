@@ -67,7 +67,7 @@ export type FinanceDealExecutionLegSummary = {
   state: string;
 };
 
-const LEG_PRIMARY_POSITION_KIND_MAP: Record<string, string | null> = {
+export const LEG_PRIMARY_POSITION_KIND_MAP: Record<string, string | null> = {
   collect: "customer_receivable",
   convert: null,
   payout: "provider_payable",

@@ -497,6 +497,16 @@ export type FinanceProfitabilitySnapshot = z.infer<
   typeof FinanceProfitabilitySnapshotSchema
 >;
 
+export const FinanceDealCashflowSummarySchema = z.object({
+  receivedIn: z.array(FinanceProfitabilityAmountSchema),
+  scheduledOut: z.array(FinanceProfitabilityAmountSchema),
+  settledOut: z.array(FinanceProfitabilityAmountSchema),
+});
+
+export type FinanceDealCashflowSummary = z.infer<
+  typeof FinanceDealCashflowSummarySchema
+>;
+
 export const FinanceDealExecutionSummarySchema = z.object({
   blockedLegCount: z.number().int().nonnegative(),
   doneLegCount: z.number().int().nonnegative(),
@@ -864,6 +874,7 @@ export const FinanceDealWorkspaceProjectionSchema = z.object({
   acceptedQuoteDetails: QuoteListItemSchema.nullable(),
   actions: FinanceDealWorkspaceActionsSchema,
   attachmentRequirements: z.array(FinanceDealAttachmentRequirementSchema),
+  cashflowSummary: FinanceDealCashflowSummarySchema,
   closeReadiness: FinanceDealCloseReadinessSchema,
   executionPlan: z.array(FinanceDealExecutionLegSchema),
   formalDocumentRequirements: z.array(

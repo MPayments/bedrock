@@ -154,6 +154,11 @@ function createDeal(): FinanceDealWorkbenchData {
       canUploadAttachment: true,
     },
     attachmentRequirements: [],
+    cashflowSummary: {
+      receivedIn: [],
+      scheduledOut: [],
+      settledOut: [],
+    },
     closeReadiness: {
       blockers: ["Required intake sections are incomplete"],
       criteria: [
@@ -286,7 +291,7 @@ describe("treasury deal workbench", () => {
     searchParamsValue = "";
   });
 
-  it("opens the execution tab by default and keeps the operational summary centralized", async () => {
+  it("renders the KPI header banner with progress / cashflow / documents tiles", async () => {
     (
       globalThis as typeof globalThis & {
         React: typeof React;
@@ -304,16 +309,23 @@ describe("treasury deal workbench", () => {
     );
 
     expect(markup).toContain("Шаги");
-    expect(markup).toContain("Причина очереди");
-    expect(markup).not.toContain("Контур исполнения");
-    expect(markup).not.toContain("Обзор сделки");
-    expect(markup).not.toContain("Что нужно сделать сейчас");
+    // Header becomes a compact KPI tile strip — each tile has a stable testid.
+    expect(markup).toContain('data-testid="finance-deal-header-progress"');
+    expect(markup).toContain('data-testid="finance-deal-header-received-in"');
+    expect(markup).toContain('data-testid="finance-deal-header-scheduled-out"');
+    expect(markup).toContain('data-testid="finance-deal-header-margin"');
+    expect(markup).toContain('data-testid="finance-deal-header-documents"');
+    // Old header elements are gone — queue reason, next-action tile, and the
+    // deal-level blocker alert list moved out of the banner.
+    expect(markup).not.toContain("Причина очереди");
+    expect(markup).not.toContain("Что мешает движению сделки");
+    // Запросить исполнение lives only inside the leg card — no duplicate
+    // deal-level button at the top of the main pane. (The Button component
+    // is mocked away in this test, so we assert on the label count.)
+    expect(markup.match(/Запросить исполнение/g) ?? []).toHaveLength(1);
+    // Pricing controls moved to CRM — finance workbench never shows them.
     expect(markup).not.toContain("Запросить котировку");
     expect(markup).not.toContain("Создать расчет");
-    expect(markup.match(/Что мешает движению сделки/g)).toHaveLength(1);
-    expect(
-      markup.match(/Не заполнен обязательный участник: получатель выплаты\./g),
-    ).toHaveLength(1);
   }, 30000);
 
   it("renders a single tab-less view with deal context, leg editor, and sidebar timeline", async () => {
@@ -335,12 +347,15 @@ describe("treasury deal workbench", () => {
 
     // Single-view layout: leg editor, timeline sidebar, context grid, and
     // deal context card are all rendered simultaneously. No tab shell.
+    // Deal-level "Стороны" card was retired once per-leg participants moved
+    // inside the leg editor (LegStepParticipants).
     expect(markup).toContain("Шаги");
     expect(markup).toContain("Маршрут");
-    expect(markup).toContain("Стороны");
     expect(markup).toContain("Денежный поток");
     expect(markup).toContain("Контекст сделки");
-    expect(markup).toContain("Что мешает движению сделки");
+    // Deal-level blocker list no longer lives in the header — per-leg alerts
+    // surface inside the leg editor instead.
+    expect(markup).not.toContain("Что мешает движению сделки");
 
     // Tab labels are gone.
     expect(markup).not.toContain("Котировки и расчет");

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { AlertCircle, ArrowRight, PlayCircle } from "lucide-react";
 
+import { Alert, AlertDescription } from "@bedrock/sdk-ui/components/alert";
 import { Badge } from "@bedrock/sdk-ui/components/badge";
 import { Button } from "@bedrock/sdk-ui/components/button";
 
@@ -16,12 +17,15 @@ import {
   getDealLegStateLabel,
 } from "@/features/treasury/deals/labels";
 import { collectFinanceDealTopBlockers } from "@/features/treasury/deals/lib/execution-summary";
+import { collectLegBlockers } from "@/features/treasury/deals/lib/leg-blockers";
 
 import { getLegKindIcon } from "./leg-icon";
 import { LegDocumentToCreate } from "./leg-document-to-create";
 import { LegHeaderSummary } from "./leg-header-summary";
+import { LegStateActions } from "./leg-state-actions";
 import { LegStepParticipants } from "./leg-step-participants";
 import { OperationDocumentTimeline } from "./operation-document-timeline";
+import { OperationLifecycleActions } from "./operation-lifecycle-actions";
 import { resolveOperationNextAction } from "./operation-next-action";
 import { PreFundConfirmDialog } from "./pre-fund-confirm-dialog";
 import type { FinanceDealWorkbench } from "@/features/treasury/deals/lib/queries";
@@ -37,13 +41,35 @@ import {
 type Leg = FinanceDealWorkbench["executionPlan"][number];
 type Operation = FinanceDealWorkbench["relatedResources"]["operations"][number];
 
-// Legs that move money outward — executing these before the customer's
-// `collect` leg has landed means the bank fronts its own balance.
 const DOWNSTREAM_LEG_KINDS: ReadonlySet<Leg["kind"]> = new Set([
   "payout",
   "settle_exporter",
   "transit_hold",
 ]);
+
+function LegBlockerAlerts({
+  deal,
+  leg,
+}: {
+  deal: FinanceDealWorkbench;
+  leg: Leg;
+}) {
+  const blockers = collectLegBlockers(deal, leg);
+  if (blockers.length === 0) return null;
+  return (
+    <div
+      className="space-y-2"
+      data-testid={`finance-deal-leg-blockers-${leg.idx}`}
+    >
+      {blockers.map((message) => (
+        <Alert key={message} variant="warning" className="py-3">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{message}</AlertDescription>
+        </Alert>
+      ))}
+    </div>
+  );
+}
 
 export interface ExecutionLegEditorProps {
   canWrite: boolean;
@@ -247,6 +273,9 @@ export function ExecutionLegEditor({
           ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {canWrite ? (
+            <LegStateActions dealId={deal.summary.id} leg={leg} />
+          ) : null}
           {canAmendLeg ? (
             <Button
               data-testid={`finance-deal-leg-amend-${leg.idx}`}
@@ -296,6 +325,7 @@ export function ExecutionLegEditor({
       </header>
 
       <div className="flex flex-col gap-3 p-4">
+        <LegBlockerAlerts deal={deal} leg={leg} />
         <LegStepParticipants deal={deal} leg={leg} />
         <LegDocumentToCreate canWrite={canWrite} deal={deal} leg={leg} />
 
@@ -330,7 +360,7 @@ export function ExecutionLegEditor({
               return (
                 <div
                   key={operation.id}
-                  className="bg-muted/20 rounded-md border p-3"
+                  className="bg-muted/20 flex flex-col gap-3 rounded-md border p-3"
                 >
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="space-y-1.5">
@@ -405,6 +435,7 @@ export function ExecutionLegEditor({
                       </Button>
                     </div>
                   </div>
+                  <OperationLifecycleActions operation={operation} />
                 </div>
               );
             })}
