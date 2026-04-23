@@ -47,7 +47,7 @@ export default function OrganizationWorkspacePage() {
   const [requisitesDirty, setRequisitesDirty] = useState(false);
   const [filesDirty, setFilesDirty] = useState(false);
   const [localizedTextVariant, setLocalizedTextVariant] =
-    useState<LocalizedTextVariant>("base");
+    useState<LocalizedTextVariant>("ru");
 
   const hasUnsavedChanges = organizationDirty || requisitesDirty || filesDirty;
 

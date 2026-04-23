@@ -7,17 +7,34 @@ import type { PartyProfileBundleInput } from "@bedrock/parties/contracts";
 import { CounterpartyGroupOptionsResponseSchema } from "@bedrock/parties/contracts";
 import {
   CounterpartyGeneralEditor,
+  type CounterpartyGeneralBilingualMode,
+  type CounterpartyGeneralEditorExternalPatch,
   type CounterpartyGeneralFormValues,
 } from "@bedrock/sdk-parties-ui/components/counterparty-general-editor";
 import { PartyProfileEditor } from "@bedrock/sdk-parties-ui/components/party-profile-editor";
-import type { LocalizedTextVariant } from "@bedrock/sdk-parties-ui/lib/localized-text";
+import {
+  readLocalizedTextLocale,
+  updateLocalizedTextLocale,
+  type LocalizedTextVariant,
+} from "@bedrock/sdk-parties-ui/lib/localized-text";
 import type { PartyProfileBundleSource } from "@bedrock/sdk-parties-ui/lib/party-profile";
-import { createSeededPartyProfileBundle } from "@bedrock/sdk-parties-ui/lib/party-profile";
+import {
+  createSeededPartyProfileBundle,
+  toPartyProfileBundleInput,
+} from "@bedrock/sdk-parties-ui/lib/party-profile";
+import {
+  parsePartyProfileZodErrorMessage,
+  type PartyProfileValidationErrors,
+} from "@bedrock/sdk-parties-ui/lib/party-profile-validation";
 import { Card, CardContent } from "@bedrock/sdk-ui/components/card";
 
 import { apiClient } from "@/lib/api-client";
 import { executeApiMutation } from "@/lib/api/mutation";
 import { readJsonWithSchema } from "@/lib/api/response";
+import {
+  applyPartyProfilePatch,
+  type PartyProfileOverride,
+} from "./party-profile-patch";
 
 const CounterpartyEditorSchema = z.object({
   id: z.uuid(),
@@ -37,11 +54,32 @@ type CounterpartyEditorPayload = z.infer<typeof CounterpartyEditorSchema>;
 
 type CustomerCounterpartyEditorProps = {
   counterpartyId: string;
+  bilingualMode?: CounterpartyGeneralBilingualMode;
+  externalPatch?: CounterpartyGeneralEditorExternalPatch | null;
   localizedTextVariant?: LocalizedTextVariant;
   onDirtyChange: (dirty: boolean) => void;
+  onGeneralValuesChange?: (values: CounterpartyGeneralFormValues) => void;
+  onPartyProfileChange?: (draft: PartyProfileBundleInput | null) => void;
   onSaved?: () => void;
+  partyProfileOverride?: PartyProfileOverride | null;
   resetSignal: number;
 };
+
+function extractProfileErrorsFromPayload(
+  payload: unknown,
+): PartyProfileValidationErrors {
+  if (!payload || typeof payload !== "object") {
+    return {};
+  }
+
+  const errorField = (payload as { error?: unknown }).error;
+  if (!errorField || typeof errorField !== "object") {
+    return {};
+  }
+
+  const message = (errorField as { message?: unknown }).message;
+  return parsePartyProfileZodErrorMessage(message);
+}
 
 function getCounterpartyDetailsCopy(kind: "individual" | "legal_entity") {
   return kind === "individual"
@@ -60,12 +98,23 @@ function getCounterpartyDetailsCopy(kind: "individual" | "legal_entity") {
 function toGeneralFormValues(
   counterparty: CounterpartyEditorPayload,
 ): CounterpartyGeneralFormValues {
+  const fullNameI18n = counterparty.partyProfile?.profile.fullNameI18n ?? null;
+  const shortNameI18n = counterparty.partyProfile?.profile.shortNameI18n ?? null;
   return {
     shortName: counterparty.shortName,
+    shortNameEn: readLocalizedTextLocale({
+      localeMap: shortNameI18n,
+      locale: "en",
+    }),
     fullName: counterparty.fullName,
+    fullNameEn: readLocalizedTextLocale({
+      localeMap: fullNameI18n,
+      locale: "en",
+    }),
     kind: counterparty.kind,
     country: counterparty.country ?? "",
     description: counterparty.description ?? "",
+    descriptionEn: "",
     customerId: counterparty.customerId ?? "",
     groupIds: counterparty.groupIds,
   };
@@ -73,13 +122,20 @@ function toGeneralFormValues(
 
 export function CustomerCounterpartyEditor({
   counterpartyId,
+  bilingualMode,
+  externalPatch,
   localizedTextVariant,
   onDirtyChange,
+  onGeneralValuesChange,
+  onPartyProfileChange,
   onSaved,
+  partyProfileOverride,
   resetSignal,
 }: CustomerCounterpartyEditorProps) {
   const [counterparty, setCounterparty] =
     useState<CounterpartyEditorPayload | null>(null);
+  const [overriddenPartyProfile, setOverriddenPartyProfile] =
+    useState<PartyProfileBundleInput | null>(null);
   const [groupOptions, setGroupOptions] = useState<
     z.infer<typeof CounterpartyGroupOptionsResponseSchema>["data"]
   >([]);
@@ -89,6 +145,8 @@ export function CustomerCounterpartyEditor({
   const [generalDirty, setGeneralDirty] = useState(false);
   const [legalDirty, setLegalDirty] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [profileServerErrors, setProfileServerErrors] =
+    useState<PartyProfileValidationErrors>({});
 
   useEffect(() => {
     onDirtyChange(generalDirty || legalDirty);
@@ -126,6 +184,7 @@ export function CustomerCounterpartyEditor({
 
         if (!cancelled) {
           setCounterparty(counterpartyPayload);
+          setOverriddenPartyProfile(null);
           setGroupOptions(groupPayload.data);
           setGeneralDirty(false);
           setLegalDirty(false);
@@ -180,6 +239,33 @@ export function CustomerCounterpartyEditor({
     [counterparty],
   );
 
+  const partyProfileOverrideNonce = partyProfileOverride?.nonce ?? null;
+  useEffect(() => {
+    if (!partyProfileOverride || !counterparty) {
+      return;
+    }
+
+    const base =
+      overriddenPartyProfile ??
+      (counterparty.partyProfile
+        ? toPartyProfileBundleInput(counterparty.partyProfile, partyProfileSeed)
+        : createSeededPartyProfileBundle({
+            fullName: counterparty.fullName,
+            shortName: counterparty.shortName,
+            countryCode: counterparty.country,
+          }));
+
+    const next = applyPartyProfilePatch(base, partyProfileOverride.patch);
+    setOverriddenPartyProfile(next);
+    onPartyProfileChange?.(next);
+    setLegalDirty(true);
+    // Triggered by nonce change; dependencies intentionally narrow.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [partyProfileOverrideNonce]);
+
+  const effectiveBundle: PartyProfileBundleSource | PartyProfileBundleInput | null =
+    overriddenPartyProfile ?? counterparty?.partyProfile ?? null;
+
   if (loading) {
     return (
         <Card>
@@ -212,8 +298,11 @@ export function CustomerCounterpartyEditor({
         updatedAt={counterparty.updatedAt}
         submitting={savingGeneral}
         error={error}
+        externalPatch={externalPatch}
+        bilingualMode={bilingualMode}
         kindReadonly
         onDirtyChange={setGeneralDirty}
+        onValuesChange={onGeneralValuesChange}
         onSubmit={async (values) => {
           if (values.kind !== counterparty.kind) {
             setError("Смена типа контрагента в CRM не поддерживается");
@@ -238,22 +327,39 @@ export function CustomerCounterpartyEditor({
                 return patchResponse;
               }
 
-              const bundle =
-                counterparty.partyProfile
-                  ? {
-                      ...counterparty.partyProfile,
-                      profile: {
-                        ...counterparty.partyProfile.profile,
-                        fullName: values.fullName.trim(),
-                        shortName: values.shortName.trim(),
-                        countryCode: values.country.trim() || null,
-                      },
-                    }
-                  : createSeededPartyProfileBundle({
-                      fullName: values.fullName.trim(),
-                      shortName: values.shortName.trim(),
-                      countryCode: values.country.trim() || null,
-                    });
+              const existingProfile = counterparty.partyProfile;
+              const nextFullNameI18n = updateLocalizedTextLocale({
+                baseValue: values.fullName.trim(),
+                localeMap: existingProfile?.profile.fullNameI18n ?? null,
+                nextValue: values.fullNameEn.trim(),
+                locale: "en",
+              }).localeMap;
+              const nextShortNameI18n = updateLocalizedTextLocale({
+                baseValue: values.shortName.trim(),
+                localeMap: existingProfile?.profile.shortNameI18n ?? null,
+                nextValue: values.shortNameEn.trim(),
+                locale: "en",
+              }).localeMap;
+              // TODO(description-i18n): persist values.descriptionEn when counterparty.descriptionI18n migration lands.
+
+              const baseBundle =
+                existingProfile ??
+                createSeededPartyProfileBundle({
+                  fullName: values.fullName.trim(),
+                  shortName: values.shortName.trim(),
+                  countryCode: values.country.trim() || null,
+                });
+              const bundle = {
+                ...baseBundle,
+                profile: {
+                  ...baseBundle.profile,
+                  fullName: values.fullName.trim(),
+                  shortName: values.shortName.trim(),
+                  fullNameI18n: nextFullNameI18n,
+                  shortNameI18n: nextShortNameI18n,
+                  countryCode: values.country.trim() || null,
+                },
+              };
 
               const partyProfileResponse =
                 await apiClient.v1.counterparties[":id"]["party-profile"].$put({
@@ -293,16 +399,22 @@ export function CustomerCounterpartyEditor({
         title="Карточка контрагента"
       />
       <PartyProfileEditor
-        bundle={counterparty.partyProfile}
+        bundle={effectiveBundle}
         description={counterpartyDetailsCopy.description}
+        externalErrors={profileServerErrors}
         localizedTextVariant={localizedTextVariant}
         partyKind={counterparty.kind}
         seed={partyProfileSeed}
         submitting={savingLegal}
         error={error}
+        onChange={(bundle) => {
+          setOverriddenPartyProfile(bundle);
+          onPartyProfileChange?.(bundle);
+        }}
         onDirtyChange={setLegalDirty}
         onSubmit={async (bundle: PartyProfileBundleInput) => {
           setError(null);
+          setProfileServerErrors({});
           setSavingLegal(true);
 
           const result = await executeApiMutation<CounterpartyEditorPayload>({
@@ -329,11 +441,18 @@ export function CustomerCounterpartyEditor({
           setSavingLegal(false);
 
           if (!result.ok) {
+            const serverProfileErrors = extractProfileErrorsFromPayload(
+              result.payload,
+            );
+            if (Object.keys(serverProfileErrors).length > 0) {
+              setProfileServerErrors(serverProfileErrors);
+            }
             setError(result.message);
             return;
           }
 
           setCounterparty(result.data);
+          setOverriddenPartyProfile(null);
           setLegalDirty(false);
           onSaved?.();
 

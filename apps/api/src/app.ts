@@ -23,6 +23,7 @@ import {
   activityRoutes,
   agentsRoutes,
   agreementsRoutes,
+  aiRoutes,
   balancesRoutes,
   calculationsRoutes,
   counterpartiesRoutes,
@@ -206,6 +207,7 @@ function createV1Routes(ctx: AppContext) {
     .route("/activity", activityRoutes(ctx))
     .route("/agents", agentsRoutes(ctx))
     .route("/agreements", agreementsRoutes(ctx))
+    .route("/ai", aiRoutes(ctx))
     .route("/balances", balancesRoutes(ctx))
     .route("/calculations", calculationsRoutes(ctx))
     .route("/counterparties", counterpartyDirectoryRoutes(ctx))

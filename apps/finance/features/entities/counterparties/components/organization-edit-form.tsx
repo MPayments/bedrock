@@ -35,10 +35,13 @@ function toFormValues(
 ): CounterpartyGeneralFormValues {
   return {
     shortName: counterparty.shortName,
+    shortNameEn: "",
     fullName: counterparty.fullName,
+    fullNameEn: "",
     kind: counterparty.kind,
     country: counterparty.country ?? "",
     description: counterparty.description ?? "",
+    descriptionEn: "",
     customerId: counterparty.customerId ?? "",
     groupIds: counterparty.groupIds,
   };

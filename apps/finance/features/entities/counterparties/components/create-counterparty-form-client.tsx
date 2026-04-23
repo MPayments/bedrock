@@ -48,10 +48,13 @@ export function CreateCounterpartyFormClient({
   const [draftValues, setDraftValues] = useState<CounterpartyGeneralFormValues>(
     () => ({
       shortName: "",
+      shortNameEn: "",
       fullName: "",
+      fullNameEn: "",
       kind: "legal_entity",
       country: "",
       description: "",
+      descriptionEn: "",
       customerId: "",
       groupIds: Array.from(new Set(initialGroupIds)),
     }),
@@ -62,10 +65,13 @@ export function CreateCounterpartyFormClient({
   const initialValues = useMemo<CounterpartyGeneralFormValues>(
     () => ({
       shortName: "",
+      shortNameEn: "",
       fullName: "",
+      fullNameEn: "",
       kind: "legal_entity",
       country: "",
       description: "",
+      descriptionEn: "",
       customerId: "",
       groupIds: Array.from(new Set(initialGroupIds)),
     }),

@@ -1,19 +1,18 @@
 export type LocaleTextMap = Record<string, string | null> | null;
 
 export const LOCALIZED_TEXT_VARIANTS = [
-  { value: "base", label: "Основной" },
   { value: "ru", label: "Русский" },
   { value: "en", label: "English" },
 ] as const;
 
-export type LocalizedTextVariant =
-  (typeof LOCALIZED_TEXT_VARIANTS)[number]["value"];
+export type LocalizedTextVariant = "base" | "ru" | "en" | "all";
 
-const VARIANT_TO_LOCALE: Record<Exclude<LocalizedTextVariant, "base">, string> =
-  {
-    ru: "ru",
-    en: "en",
-  };
+export type LocalizedTextLocale = "ru" | "en";
+
+const VARIANT_TO_LOCALE: Record<LocalizedTextLocale, string> = {
+  ru: "ru",
+  en: "en",
+};
 
 function cloneLocaleTextMap(value: LocaleTextMap): LocaleTextMap {
   if (!value) {
@@ -44,11 +43,18 @@ export function readLocalizedTextVariant(params: {
   localeMap: LocaleTextMap;
   variant: LocalizedTextVariant;
 }) {
-  if (params.variant === "base") {
+  if (params.variant === "base" || params.variant === "all") {
     return params.baseValue ?? "";
   }
 
   return params.localeMap?.[VARIANT_TO_LOCALE[params.variant]] ?? "";
+}
+
+export function readLocalizedTextLocale(params: {
+  localeMap: LocaleTextMap;
+  locale: LocalizedTextLocale;
+}) {
+  return params.localeMap?.[VARIANT_TO_LOCALE[params.locale]] ?? "";
 }
 
 export function updateLocalizedTextVariant(params: {
@@ -64,7 +70,28 @@ export function updateLocalizedTextVariant(params: {
     };
   }
 
-  const localeKey = VARIANT_TO_LOCALE[params.variant];
+  if (params.variant === "all") {
+    return {
+      baseValue: params.baseValue,
+      localeMap: cloneLocaleTextMap(params.localeMap),
+    };
+  }
+
+  return updateLocalizedTextLocale({
+    baseValue: params.baseValue,
+    localeMap: params.localeMap,
+    nextValue: params.nextValue,
+    locale: params.variant,
+  });
+}
+
+export function updateLocalizedTextLocale(params: {
+  baseValue: string;
+  localeMap: LocaleTextMap;
+  nextValue: string;
+  locale: LocalizedTextLocale;
+}) {
+  const localeKey = VARIANT_TO_LOCALE[params.locale];
   const nextLocaleMap = normalizeLocaleTextMap({
     ...(params.localeMap ?? {}),
     [localeKey]: params.nextValue === "" ? null : params.nextValue,

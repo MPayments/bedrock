@@ -969,8 +969,10 @@ export default function CustomerDetailPage() {
   return (
     <div className="space-y-4">
       <CustomerDetailHeader
+        createdAt={workspace.createdAt}
+        customerId={workspace.id}
         deleting={deleting}
-        counterpartyCount={workspace.counterpartyCount}
+        externalRef={workspace.externalRef}
         onArchive={handleArchive}
         title={workspace.name}
       />
