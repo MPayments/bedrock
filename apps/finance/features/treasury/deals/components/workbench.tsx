@@ -17,7 +17,6 @@ import { ExecutionLegEditor } from "./execution/leg-editor";
 import { ExecutionReconciliationSection } from "./execution/reconciliation-section";
 import { ExecutionTimelinePane } from "./execution/timeline-pane";
 import { InstructionArtifactDrawer } from "./instruction-artifact-drawer";
-import { LegAmendmentDrawer } from "./leg-amendment-drawer";
 import { RouteSwapDialog } from "./route-swap-dialog";
 import { UploadAttachmentDialog } from "./upload-attachment-dialog";
 import { DealContextContent } from "./workbench/deal-context-content";
@@ -34,7 +33,6 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
   const router = useRouter();
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [isSwapRouteOpen, setIsSwapRouteOpen] = useState(false);
-  const [amendLegIdx, setAmendLegIdx] = useState<number | null>(null);
   const [artifactInstructionId, setArtifactInstructionId] = useState<
     string | null
   >(null);
@@ -108,8 +106,8 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
                   isRequestingExecution={state.isRequestingExecution}
                   isResolvingLegId={state.isResolvingLegId}
                   leg={selectedLeg}
+                  onAmended={() => router.refresh()}
                   onCreateLegOperation={actions.createLegOperation}
-                  onOpenAmendLeg={setAmendLegIdx}
                   onOpenArtifact={setArtifactInstructionId}
                   onRequestExecution={actions.requestExecution}
                   onResolveLeg={actions.resolveLeg}
@@ -193,17 +191,6 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
         onOpenChange={setIsSwapRouteOpen}
         onSuccess={() => router.refresh()}
       />
-      {amendLegIdx !== null ? (
-        <LegAmendmentDrawer
-          dealId={deal.summary.id}
-          legIdx={amendLegIdx}
-          open
-          onOpenChange={(open) => {
-            if (!open) setAmendLegIdx(null);
-          }}
-          onSuccess={() => router.refresh()}
-        />
-      ) : null}
       {artifactInstructionId !== null ? (
         <InstructionArtifactDrawer
           dealId={deal.summary.id}

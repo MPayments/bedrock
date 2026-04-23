@@ -8,9 +8,6 @@ import type {
   DealApprovalType,
   DealLegKind,
   DealLegOperationKind,
-  DealLegState,
-  DealOperationalPositionKind,
-  DealOperationalPositionState,
   DealParticipantRole,
   DealStatus,
   DealTimelineEventType,
@@ -51,7 +48,6 @@ export interface CreateDealLegStoredInput {
   idx: number;
   kind: DealLegKind;
   routeSnapshotLegId: string | null;
-  state: DealLegState;
   toCurrencyId: string | null;
 }
 
@@ -123,17 +119,6 @@ export interface CreateDealApprovalStoredInput {
   status: DealApprovalStatus;
 }
 
-export interface ReplaceDealOperationalPositionStoredInput {
-  amountMinor: bigint | null;
-  currencyId: string | null;
-  dealId: string;
-  id: string;
-  kind: DealOperationalPositionKind;
-  reasonCode: string | null;
-  sourceRefs: string[];
-  state: DealOperationalPositionState;
-}
-
 export interface DealStore {
   claimAttachmentIngestions(input: {
     batchSize: number;
@@ -189,10 +174,6 @@ export interface DealStore {
     skippedFields?: string[];
     status?: DealAttachmentIngestionStatus;
   }): Promise<void>;
-  replaceDealOperationalPositions(input: {
-    dealId: string;
-    positions: ReplaceDealOperationalPositionStoredInput[];
-  }): Promise<void>;
   replaceDealLegs(input: {
     dealId: string;
     legs: CreateDealLegStoredInput[];
@@ -242,9 +223,11 @@ export interface DealStore {
     id: string;
     observedRevision: number;
   }): Promise<void>;
-  updateDealLegState(input: {
+  setDealLegManualOverride(input: {
     dealId: string;
     idx: number;
-    state: DealLegState;
+    manualOverrideState: "blocked" | "skipped" | null;
+    reasonCode: string | null;
+    comment: string | null;
   }): Promise<boolean>;
 }

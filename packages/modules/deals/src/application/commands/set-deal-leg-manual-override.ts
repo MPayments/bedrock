@@ -3,39 +3,38 @@ import { z } from "zod";
 import type { ModuleRuntime } from "@bedrock/shared/core";
 import { ValidationError } from "@bedrock/shared/core/errors";
 
-import { canTransitionDealLegState } from "../../domain/constants";
-import { DealLegStateTransitionError, DealNotFoundError } from "../../errors";
+import { DealNotFoundError } from "../../errors";
 import {
-  UpdateDealLegStateInputSchema,
-  type UpdateDealLegStateInput,
+  SetDealLegManualOverrideInputSchema,
+  type SetDealLegManualOverrideInput,
 } from "../contracts/commands";
 import type { DealWorkflowProjection } from "../contracts/dto";
 import type { DealsCommandUnitOfWork } from "../ports/deals.uow";
 import { createTimelinePayloadEvent } from "../shared/workflow-state";
 
-const UpdateDealLegStateCommandInputSchema =
-  UpdateDealLegStateInputSchema.extend({
+const SetDealLegManualOverrideCommandInputSchema =
+  SetDealLegManualOverrideInputSchema.extend({
     actorUserId: z.string().trim().min(1),
     dealId: z.uuid(),
     idx: z.number().int().positive(),
   });
 
-type UpdateDealLegStateCommandInput = UpdateDealLegStateInput & {
+type SetDealLegManualOverrideCommandInput = SetDealLegManualOverrideInput & {
   actorUserId: string;
   dealId: string;
   idx: number;
 };
 
-export class UpdateDealLegStateCommand {
+export class SetDealLegManualOverrideCommand {
   constructor(
     private readonly runtime: ModuleRuntime,
     private readonly commandUow: DealsCommandUnitOfWork,
   ) {}
 
   async execute(
-    input: UpdateDealLegStateCommandInput,
+    input: SetDealLegManualOverrideCommandInput,
   ): Promise<DealWorkflowProjection> {
-    const validated = UpdateDealLegStateCommandInputSchema.parse(input);
+    const validated = SetDealLegManualOverrideCommandInputSchema.parse(input);
 
     return this.commandUow.run(async (tx) => {
       const existing = await tx.dealReads.findWorkflowById(validated.dealId);
@@ -52,24 +51,14 @@ export class UpdateDealLegStateCommand {
         );
       }
 
-      if (leg.state === validated.state) {
-        return existing;
-      }
-
-      if (!canTransitionDealLegState(leg.state, validated.state)) {
-        throw new DealLegStateTransitionError(
-          validated.idx,
-          leg.state,
-          validated.state,
-        );
-      }
-
-      const updatedLeg = await tx.dealStore.updateDealLegState({
+      const wrote = await tx.dealStore.setDealLegManualOverride({
         dealId: validated.dealId,
         idx: validated.idx,
-        state: validated.state,
+        manualOverrideState: validated.override,
+        reasonCode: validated.reasonCode ?? null,
+        comment: validated.comment ?? null,
       });
-      if (!updatedLeg) {
+      if (!wrote) {
         throw new ValidationError(
           `Deal ${validated.dealId} does not have stored leg ${validated.idx}`,
         );
@@ -86,9 +75,13 @@ export class UpdateDealLegStateCommand {
             fromState: leg.state,
             idx: leg.idx,
             kind: leg.kind,
-            state: validated.state,
+            override: validated.override,
+            reasonCode: validated.reasonCode ?? null,
           },
-          type: "leg_state_changed",
+          type:
+            validated.override === null
+              ? "leg_manual_override_cleared"
+              : "leg_manual_override_set",
           visibility: "internal",
         }),
       ]);

@@ -3,6 +3,10 @@ import type { CalculationsModule } from "@bedrock/calculations";
 import type { CurrenciesService } from "@bedrock/currencies";
 import { canDealWriteTreasuryOrFormalDocuments } from "@bedrock/deals";
 import type { DealsModule as DealsModuleRoot } from "@bedrock/deals";
+import {
+  CLOSING_DOCUMENT_TYPE_BY_DEAL_TYPE,
+  OPENING_DOCUMENT_TYPE_BY_DEAL_TYPE,
+} from "@bedrock/deals/contracts";
 import type {
   DealOperationalPosition,
   DealPricingContext,
@@ -73,20 +77,6 @@ const PORTAL_OWNED_SECTIONS_BY_TYPE: Record<DealType, string[]> = {
   currency_transit: ["common", "moneyRequest", "incomingReceipt"],
   exporter_settlement: ["common", "moneyRequest", "incomingReceipt"],
   payment: ["common", "moneyRequest"],
-};
-
-const OPENING_DOCUMENT_TYPE_BY_DEAL_TYPE: Record<DealType, string> = {
-  currency_exchange: "exchange",
-  currency_transit: "invoice",
-  exporter_settlement: "invoice",
-  payment: "invoice",
-};
-
-const CLOSING_DOCUMENT_TYPE_BY_DEAL_TYPE: Record<DealType, string | null> = {
-  currency_exchange: null,
-  currency_transit: "acceptance",
-  exporter_settlement: "acceptance",
-  payment: "acceptance",
 };
 
 const DOWNSTREAM_POSITION_KINDS = new Set([
@@ -1195,9 +1185,7 @@ async function buildFinanceRouteAttachment(input: {
 
   const legs = attachment.snapshot.legs;
   const currencyIds = Array.from(
-    new Set(
-      legs.flatMap((leg) => [leg.fromCurrencyId, leg.toCurrencyId]),
-    ),
+    new Set(legs.flatMap((leg) => [leg.fromCurrencyId, leg.toCurrencyId])),
   );
   const codeByCurrencyId = new Map(
     await Promise.all(
@@ -1214,20 +1202,12 @@ async function buildFinanceRouteAttachment(input: {
     ),
   );
 
-  // Quote legs are ordered 1:1 with the route snapshot legs (same indexing as
-  // our materialization). When an accepted quote exists, enrich each route leg
-  // with its per-hop amounts + rate so the UI can render per-step summaries
-  // without needing another round-trip.
   const quoteLegByIdx = new Map(
     (input.acceptedQuoteDetails?.legs ?? []).map(
       (leg) => [leg.idx, leg] as const,
     ),
   );
 
-  // Route participants carry a `displayName` set by the template author, which
-  // is often a placeholder label like «Хоп 1». When the participant is bound
-  // to a real counterparty/organization, resolve the actual entity name so
-  // operators see meaningful participants instead of template placeholders.
   const participantsWithEntity = attachment.snapshot.participants.filter(
     (participant) =>
       participant.binding === "bound" &&
@@ -1264,9 +1244,7 @@ async function buildFinanceRouteAttachment(input: {
           }
         }),
       )
-    ).filter(
-      (entry): entry is readonly [string, string] => entry[1] !== null,
-    ),
+    ).filter((entry): entry is readonly [string, string] => entry[1] !== null),
   );
   const organizationNameById = new Map(
     (
@@ -1284,13 +1262,10 @@ async function buildFinanceRouteAttachment(input: {
           }
         }),
       )
-    ).filter(
-      (entry): entry is readonly [string, string] => entry[1] !== null,
-    ),
+    ).filter((entry): entry is readonly [string, string] => entry[1] !== null),
   );
 
-  type SnapshotParticipant =
-    (typeof attachment.snapshot.participants)[number];
+  type SnapshotParticipant = (typeof attachment.snapshot.participants)[number];
   function resolveParticipantDisplayName(
     participant: SnapshotParticipant,
   ): string {
@@ -1340,6 +1315,8 @@ async function buildFinanceRouteAttachment(input: {
       entityId: participant.entityId,
       entityKind: participant.entityKind,
       nodeId: participant.nodeId,
+      requisiteId:
+        "requisiteId" in participant ? (participant.requisiteId ?? null) : null,
       role: participant.role,
     })),
     templateId: attachment.templateId,
@@ -1471,9 +1448,8 @@ async function buildProfitabilitySnapshot(
   };
 }
 
-const CASHFLOW_OUTBOUND_KINDS: ReadonlySet<TreasuryOperationKind> = new Set<
-  TreasuryOperationKind
->(["payout", "intercompany_funding"]);
+const CASHFLOW_OUTBOUND_KINDS: ReadonlySet<TreasuryOperationKind> =
+  new Set<TreasuryOperationKind>(["payout", "intercompany_funding"]);
 
 function accumulateAmount(
   accumulator: Map<string, bigint>,
@@ -2476,14 +2452,13 @@ export function createDealProjectionsWorkflow(
       deps.deals.deals.queries.findPricingContextByDealId({ dealId }),
     ]);
 
-    const acceptedQuoteDetailsRecord =
-      workflow.acceptedQuote?.quoteId
-        ? await deps.treasury.quotes.queries
-            .getQuoteDetails({
-              quoteRef: workflow.acceptedQuote.quoteId,
-            })
-            .catch(() => null)
-        : null;
+    const acceptedQuoteDetailsRecord = workflow.acceptedQuote?.quoteId
+      ? await deps.treasury.quotes.queries
+          .getQuoteDetails({
+            quoteRef: workflow.acceptedQuote.quoteId,
+          })
+          .catch(() => null)
+      : null;
 
     const financeRouteAttachment = await buildFinanceRouteAttachment({
       acceptedQuoteDetails: acceptedQuoteDetailsRecord,
@@ -2532,10 +2507,7 @@ export function createDealProjectionsWorkflow(
         (instruction) => [instruction.id, instruction] as const,
       ),
     );
-    const legByOperationId = new Map<
-      string,
-      { idx: number; kind: string }
-    >();
+    const legByOperationId = new Map<string, { idx: number; kind: string }>();
     for (const leg of workflow.executionPlan) {
       for (const ref of leg.operationRefs) {
         legByOperationId.set(ref.operationId, { idx: leg.idx, kind: leg.kind });
@@ -2552,7 +2524,9 @@ export function createDealProjectionsWorkflow(
           )
         : [];
     const artifactFileAssetIds = Array.from(
-      new Set(instructionArtifactRecords.map((artifact) => artifact.fileAssetId)),
+      new Set(
+        instructionArtifactRecords.map((artifact) => artifact.fileAssetId),
+      ),
     );
     const fileVersionsByAssetId = new Map(
       (
@@ -2565,7 +2539,8 @@ export function createDealProjectionsWorkflow(
       .map((artifact) => {
         const instruction = instructionById.get(artifact.instructionId);
         if (!instruction) return null;
-        const legContext = legByOperationId.get(instruction.operationId) ?? null;
+        const legContext =
+          legByOperationId.get(instruction.operationId) ?? null;
         const fileVersion = fileVersionsByAssetId.get(artifact.fileAssetId);
         if (!fileVersion) return null;
         return {
@@ -2585,9 +2560,7 @@ export function createDealProjectionsWorkflow(
         };
       })
       .filter((value): value is NonNullable<typeof value> => value !== null)
-      .sort((left, right) =>
-        right.uploadedAt.localeCompare(left.uploadedAt),
-      );
+      .sort((left, right) => right.uploadedAt.localeCompare(left.uploadedAt));
     const reconciliationLinks =
       await deps.reconciliation.links.listOperationLinks({
         operationIds: operationsResult.data.map((operation) => operation.id),

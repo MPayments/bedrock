@@ -540,8 +540,8 @@ export class DrizzleDealReads implements DealReads {
           id: dealLegs.id,
           idx: dealLegs.idx,
           kind: dealLegs.kind,
+          manualOverrideState: dealLegs.manualOverrideState,
           routeSnapshotLegId: dealLegs.routeSnapshotLegId,
-          state: dealLegs.state,
           toCurrencyId: dealLegs.toCurrencyId,
         })
         .from(dealLegs)
@@ -582,7 +582,15 @@ export class DrizzleDealReads implements DealReads {
       kind: row.kind,
       operationRefs: operationRefsByLegId.get(row.id) ?? [],
       routeSnapshotLegId: row.routeSnapshotLegId,
-      state: row.state,
+      // Best-effort state at the reader level: a manual override wins; when
+      // no override is set we default to `pending` and expect the caller
+      // (deal-projections workflow) to upgrade the state with the
+      // instruction-derived projection via `computeDealLegState`. Internal
+      // deals-module consumers that read leg state without going through the
+      // projection workflow are expected to treat non-overridden legs as
+      // pending — the canonical "done-ness" gate lives in close-readiness,
+      // which reads instruction states directly.
+      state: row.manualOverrideState ?? "pending",
       toCurrencyId: row.toCurrencyId,
     }));
   }

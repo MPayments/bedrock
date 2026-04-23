@@ -1,3 +1,5 @@
+import { LEG_KIND_REQUIRED_DOC_TYPE } from "@bedrock/deals/contracts";
+
 import {
   formatDealWorkflowMessage,
   formatOperationalPositionIssue,
@@ -8,15 +10,25 @@ import { LEG_PRIMARY_POSITION_KIND_MAP } from "./execution-summary";
 
 type Leg = FinanceDealWorkbench["executionPlan"][number];
 
-const DOC_TYPE_LEG_KINDS: Record<string, readonly string[]> = {
-  invoice: ["collect"],
-  exchange: ["convert"],
-  transfer_intra: ["transit_hold"],
-  transfer_intercompany: ["transit_hold"],
-  transfer_resolution: ["settle_exporter"],
-  payment_acceptance: ["payout"],
-  acceptance: ["payout"],
-};
+// Inverted view of the canonical `LEG_KIND_REQUIRED_DOC_TYPE` map from the
+// deals module — docType → legKind(s). The canonical map only covers per-leg
+// doc types; here we add the runtime-resolved transit_hold variants and the
+// deal-level closing docs that can still surface as requirements against a
+// specific leg kind.
+const DOC_TYPE_LEG_KINDS: Record<string, readonly string[]> = (() => {
+  const inverted: Record<string, string[]> = {};
+  for (const [legKind, docType] of Object.entries(LEG_KIND_REQUIRED_DOC_TYPE)) {
+    if (!docType) continue;
+    inverted[docType] ??= [];
+    inverted[docType].push(legKind);
+  }
+  // Extensions not in the canonical map:
+  inverted.transfer_intra = ["transit_hold"];
+  inverted.transfer_intercompany = ["transit_hold"];
+  inverted.payment_acceptance = ["payout"];
+  inverted.acceptance = ["payout"];
+  return inverted;
+})();
 
 function collectLegOperationalBlocker(
   deal: FinanceDealWorkbench,

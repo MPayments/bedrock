@@ -16,7 +16,6 @@ import type { DealWorkflowProjection } from "../contracts/dto";
 import type { DealsCommandUnitOfWork } from "../ports/deals.uow";
 import type { DealReferencesPort } from "../ports/references.port";
 import {
-  buildDealOperationalPositionRows,
   createTimelinePayloadEvent,
   deriveDealRootState,
 } from "../shared/workflow-state";
@@ -39,9 +38,9 @@ export class AcceptDealQuoteCommand {
   ) {}
 
   async execute(
-    raw: AcceptDealQuoteCommandInput,
+    input: AcceptDealQuoteCommandInput,
   ): Promise<DealWorkflowProjection> {
-    const validated = AcceptDealQuoteCommandInputSchema.parse(raw);
+    const validated = AcceptDealQuoteCommandInputSchema.parse(input);
     const now = this.runtime.now();
 
     return this.commandUow.run(async (tx) => {
@@ -57,7 +56,10 @@ export class AcceptDealQuoteCommand {
       const quoteExpired =
         quote.expiresAt !== null && quote.expiresAt.getTime() <= now.getTime();
       if (quote.dealId !== validated.dealId) {
-        throw new DealQuoteDealMismatchError(validated.dealId, validated.quoteId);
+        throw new DealQuoteDealMismatchError(
+          validated.dealId,
+          validated.quoteId,
+        );
       }
       if (
         existing.acceptedQuote?.quoteId === validated.quoteId &&
@@ -148,14 +150,6 @@ export class AcceptDealQuoteCommand {
       await tx.dealStore.setDealRoot({
         dealId: validated.dealId,
         nextAction: updated.nextAction,
-      });
-      await tx.dealStore.replaceDealOperationalPositions({
-        dealId: validated.dealId,
-        positions: buildDealOperationalPositionRows({
-          dealId: validated.dealId,
-          generateUuid: () => this.runtime.generateUuid(),
-          operationalState: updated.operationalState,
-        }),
       });
 
       return updated;

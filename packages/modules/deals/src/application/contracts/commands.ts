@@ -20,7 +20,6 @@ import {
 } from "./dto";
 import {
   DealAttachmentIngestionStatusSchema,
-  DealLegStateSchema,
   DealStatusSchema,
   DealTimelineEventTypeSchema,
   DealTypeSchema,
@@ -309,13 +308,16 @@ export type TransitionDealStatusInput = z.infer<
   typeof TransitionDealStatusInputSchema
 >;
 
-export const UpdateDealLegStateInputSchema = z.object({
+export const DealLegManualOverrideSchema = z.enum(["blocked", "skipped"]);
+
+export const SetDealLegManualOverrideInputSchema = z.object({
   comment: nullableText.optional(),
-  state: DealLegStateSchema,
+  override: DealLegManualOverrideSchema.nullable(),
+  reasonCode: z.string().trim().min(1).optional(),
 });
 
-export type UpdateDealLegStateInput = z.infer<
-  typeof UpdateDealLegStateInputSchema
+export type SetDealLegManualOverrideInput = z.infer<
+  typeof SetDealLegManualOverrideInputSchema
 >;
 
 const ALL_AMENDMENT_REASONS = [

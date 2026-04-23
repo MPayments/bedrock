@@ -270,3 +270,8 @@ export {
   type DealTimelineVisibility,
   type DealType,
 } from "./application/contracts/zod";
+export {
+  CLOSING_DOCUMENT_TYPE_BY_DEAL_TYPE,
+  LEG_KIND_REQUIRED_DOC_TYPE,
+  OPENING_DOCUMENT_TYPE_BY_DEAL_TYPE,
+} from "./application/contracts/leg-document-mapping";

@@ -835,6 +835,7 @@ export const FinanceDealRouteAttachmentParticipantSchema = z.object({
   entityId: z.uuid().nullable(),
   entityKind: z.enum(["customer", "organization", "counterparty"]).nullable(),
   nodeId: z.string(),
+  requisiteId: z.uuid().nullable(),
   role: z.enum(["source", "hop", "destination"]),
 });
 

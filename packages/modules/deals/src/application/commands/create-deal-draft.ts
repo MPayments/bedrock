@@ -25,7 +25,6 @@ import type {
 import { createDefaultDealPricingContextSnapshot } from "../shared/pricing-context";
 import {
   buildDealLegRows,
-  buildDealOperationalPositionRows,
   buildDealParticipantRows,
   createTimelinePayloadEvent,
   deriveDealRootState,
@@ -247,14 +246,6 @@ export class CreateDealDraftCommand {
           await tx.dealStore.setDealRoot({
             dealId,
             nextAction: created.nextAction,
-          });
-          await tx.dealStore.replaceDealOperationalPositions({
-            dealId,
-            positions: buildDealOperationalPositionRows({
-              dealId,
-              generateUuid: () => this.runtime.generateUuid(),
-              operationalState: created.operationalState,
-            }),
           });
 
           return created;

@@ -20,7 +20,6 @@ import {
 } from "../shared/pricing-context";
 import {
   buildDealLegRows,
-  buildDealOperationalPositionRows,
   createTimelinePayloadEvent,
 } from "../shared/workflow-state";
 
@@ -43,9 +42,9 @@ export class AmendDealLegCommand {
   ) {}
 
   async execute(
-    raw: AmendDealLegCommandInput,
+    input: AmendDealLegCommandInput,
   ): Promise<DealWorkflowProjection> {
-    const validated = AmendDealLegCommandInputSchema.parse(raw);
+    const validated = AmendDealLegCommandInputSchema.parse(input);
 
     return this.commandUow.run(async (tx) => {
       const workflow = await tx.dealReads.findWorkflowById(validated.dealId);
@@ -188,14 +187,6 @@ export class AmendDealLegCommand {
       await tx.dealStore.setDealRoot({
         dealId: validated.dealId,
         nextAction: updated.nextAction,
-      });
-      await tx.dealStore.replaceDealOperationalPositions({
-        dealId: validated.dealId,
-        positions: buildDealOperationalPositionRows({
-          dealId: validated.dealId,
-          generateUuid: () => this.runtime.generateUuid(),
-          operationalState: updated.operationalState,
-        }),
       });
 
       return updated;

@@ -348,7 +348,8 @@ describe("treasury deal workbench", () => {
     // Single-view layout: leg editor, timeline sidebar, context grid, and
     // deal context card are all rendered simultaneously. No tab shell.
     // Deal-level "Стороны" card was retired once per-leg participants moved
-    // inside the leg editor (LegStepParticipants).
+    // inside the leg editor (now LegParticipantEditor, which replaces both
+    // the read-only step-participants card and the raw-UUID amend modal).
     expect(markup).toContain("Шаги");
     expect(markup).toContain("Маршрут");
     expect(markup).toContain("Денежный поток");
@@ -356,6 +357,12 @@ describe("treasury deal workbench", () => {
     // Deal-level blocker list no longer lives in the header — per-leg alerts
     // surface inside the leg editor instead.
     expect(markup).not.toContain("Что мешает движению сделки");
+
+    // The raw-UUID «Править шаг» modal is gone — participants are edited
+    // inline on the leg card via LegParticipantEditor.
+    expect(markup).not.toContain("Править шаг");
+    expect(markup).not.toContain("Новый контрагент (UUID)");
+    expect(markup).not.toContain("Новый реквизит (UUID)");
 
     // Tab labels are gone.
     expect(markup).not.toContain("Котировки и расчет");

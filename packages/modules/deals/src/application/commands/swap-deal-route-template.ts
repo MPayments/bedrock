@@ -21,7 +21,6 @@ import {
 } from "../shared/pricing-context";
 import {
   buildDealLegRows,
-  buildDealOperationalPositionRows,
   createTimelinePayloadEvent,
 } from "../shared/workflow-state";
 
@@ -44,9 +43,9 @@ export class SwapDealRouteTemplateCommand {
   ) {}
 
   async execute(
-    raw: SwapDealRouteTemplateCommandInput,
+    input: SwapDealRouteTemplateCommandInput,
   ): Promise<DealWorkflowProjection> {
-    const validated = SwapDealRouteTemplateCommandInputSchema.parse(raw);
+    const validated = SwapDealRouteTemplateCommandInputSchema.parse(input);
 
     if (!this.references.findPaymentRouteTemplateById) {
       throw new ValidationError(
@@ -216,14 +215,6 @@ export class SwapDealRouteTemplateCommand {
       await tx.dealStore.setDealRoot({
         dealId: validated.dealId,
         nextAction: updated.nextAction,
-      });
-      await tx.dealStore.replaceDealOperationalPositions({
-        dealId: validated.dealId,
-        positions: buildDealOperationalPositionRows({
-          dealId: validated.dealId,
-          generateUuid: () => this.runtime.generateUuid(),
-          operationalState: updated.operationalState,
-        }),
       });
 
       return updated;

@@ -11,7 +11,6 @@ import type {
   CreatePortalDealInput,
 } from "../contracts/commands";
 import type {
-  DealOperationalState,
   DealIntakeDraft,
   DealQuoteAcceptance,
   DealWorkflowLeg,
@@ -19,7 +18,6 @@ import type {
 import type { DealStatus, DealTimelineEventType } from "../contracts/zod";
 import type {
   CreateDealLegStoredInput,
-  ReplaceDealOperationalPositionStoredInput,
   CreateDealParticipantStoredInput,
 } from "../ports/deal.store";
 import type {
@@ -179,7 +177,6 @@ export function buildDealLegRows(input: {
         idx: plannedLeg.idx,
         kind: plannedLeg.kind,
         routeSnapshotLegId: plannedLeg.routeSnapshotLegId,
-        state: existing?.state ?? plannedLeg.state,
         toCurrencyId: plannedLeg.toCurrencyId,
       };
     },
@@ -246,23 +243,6 @@ export function buildDealParticipantRows(input: {
   }
 
   return participants;
-}
-
-export function buildDealOperationalPositionRows(input: {
-  dealId: string;
-  generateUuid: () => string;
-  operationalState: DealOperationalState;
-}): ReplaceDealOperationalPositionStoredInput[] {
-  return input.operationalState.positions.map((position) => ({
-    amountMinor: position.amountMinor ? BigInt(position.amountMinor) : null,
-    currencyId: position.currencyId,
-    dealId: input.dealId,
-    id: input.generateUuid(),
-    kind: position.kind,
-    reasonCode: position.reasonCode,
-    sourceRefs: position.sourceRefs,
-    state: position.state,
-  }));
 }
 
 export function createTimelinePayloadEvent(input: {

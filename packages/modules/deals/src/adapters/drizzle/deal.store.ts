@@ -9,7 +9,6 @@ import {
   dealIntakeSnapshots,
   dealLegs,
   dealLegOperationLinks,
-  dealOperationalPositions,
   dealPricingContexts,
   dealParticipants,
   deals,
@@ -28,7 +27,6 @@ import type {
   CreateDealRootInput,
   CreateDealTimelineEventStoredInput,
   DealStore,
-  ReplaceDealOperationalPositionStoredInput,
 } from "../../application/ports/deal.store";
 
 export class DrizzleDealStore implements DealStore {
@@ -269,7 +267,6 @@ export class DrizzleDealStore implements DealStore {
         idx: leg.idx,
         kind: leg.kind,
         routeSnapshotLegId: leg.routeSnapshotLegId,
-        state: leg.state,
         toCurrencyId: leg.toCurrencyId,
       })),
     );
@@ -295,32 +292,6 @@ export class DrizzleDealStore implements DealStore {
         id: participant.id,
         organizationId: participant.organizationId,
         role: participant.role,
-      })),
-    );
-  }
-
-  async replaceDealOperationalPositions(input: {
-    dealId: string;
-    positions: ReplaceDealOperationalPositionStoredInput[];
-  }): Promise<void> {
-    await this.db
-      .delete(dealOperationalPositions)
-      .where(eq(dealOperationalPositions.dealId, input.dealId));
-
-    if (input.positions.length === 0) {
-      return;
-    }
-
-    await this.db.insert(dealOperationalPositions).values(
-      input.positions.map((position) => ({
-        amountMinor: position.amountMinor,
-        currencyId: position.currencyId,
-        dealId: position.dealId,
-        id: position.id,
-        kind: position.kind,
-        reasonCode: position.reasonCode,
-        sourceRefs: position.sourceRefs,
-        state: position.state,
       })),
     );
   }
@@ -577,15 +548,19 @@ export class DrizzleDealStore implements DealStore {
     await this.db.update(deals).set(values).where(eq(deals.id, input.dealId));
   }
 
-  async updateDealLegState(input: {
+  async setDealLegManualOverride(input: {
     dealId: string;
     idx: number;
-    state: CreateDealLegStoredInput["state"];
+    manualOverrideState: "blocked" | "skipped" | null;
+    reasonCode: string | null;
+    comment: string | null;
   }): Promise<boolean> {
     const updated = await this.db
       .update(dealLegs)
       .set({
-        state: input.state,
+        manualOverrideState: input.manualOverrideState,
+        overrideReasonCode: input.reasonCode,
+        overrideComment: input.comment,
       })
       .where(and(eq(dealLegs.dealId, input.dealId), eq(dealLegs.idx, input.idx)))
       .returning({ id: dealLegs.id });

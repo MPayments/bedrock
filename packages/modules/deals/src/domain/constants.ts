@@ -34,6 +34,8 @@ export const DEAL_LEG_STATE_VALUES = [
   "skipped",
 ] as const;
 
+export const DEAL_LEG_MANUAL_OVERRIDE_VALUES = ["blocked", "skipped"] as const;
+
 export const DEAL_LEG_OPERATION_KIND_VALUES = [
   "payin",
   "payout",
@@ -181,18 +183,6 @@ export const DEAL_STATUS_TRANSITIONS: Record<
   cancelled: [],
 };
 
-export const DEAL_LEG_STATE_TRANSITIONS: Record<
-  (typeof DEAL_LEG_STATE_VALUES)[number],
-  readonly (typeof DEAL_LEG_STATE_VALUES)[number][]
-> = {
-  pending: ["ready", "blocked", "skipped"],
-  ready: ["in_progress", "blocked", "skipped"],
-  in_progress: ["done", "blocked"],
-  done: [],
-  blocked: ["ready", "skipped"],
-  skipped: [],
-};
-
 export const DEAL_REQUIRED_SECTION_IDS_BY_TYPE = {
   payment: ["common", "moneyRequest", "externalBeneficiary"],
   currency_exchange: ["common", "moneyRequest", "settlementDestination"],
@@ -215,13 +205,6 @@ export function canTransitionDealStatus(
   to: (typeof DEAL_STATUS_VALUES)[number],
 ): boolean {
   return from === to || DEAL_STATUS_TRANSITIONS[from].includes(to);
-}
-
-export function canTransitionDealLegState(
-  from: (typeof DEAL_LEG_STATE_VALUES)[number],
-  to: (typeof DEAL_LEG_STATE_VALUES)[number],
-): boolean {
-  return from === to || DEAL_LEG_STATE_TRANSITIONS[from].includes(to);
 }
 
 export function canDealWriteTreasuryOrFormalDocuments(input: {

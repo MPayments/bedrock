@@ -22,8 +22,8 @@ import { collectLegBlockers } from "@/features/treasury/deals/lib/leg-blockers";
 import { getLegKindIcon } from "./leg-icon";
 import { LegDocumentToCreate } from "./leg-document-to-create";
 import { LegHeaderSummary } from "./leg-header-summary";
+import { LegParticipantEditor } from "./leg-participant-editor";
 import { LegStateActions } from "./leg-state-actions";
-import { LegStepParticipants } from "./leg-step-participants";
 import { OperationDocumentTimeline } from "./operation-document-timeline";
 import { OperationLifecycleActions } from "./operation-lifecycle-actions";
 import { resolveOperationNextAction } from "./operation-next-action";
@@ -78,8 +78,8 @@ export interface ExecutionLegEditorProps {
   isRequestingExecution: boolean;
   isResolvingLegId: string | null;
   leg: Leg;
+  onAmended: () => void;
   onCreateLegOperation: (legId: string) => void;
-  onOpenAmendLeg: (legIdx: number) => void;
   onOpenArtifact: (instructionId: string) => void;
   onRequestExecution: () => void;
   onResolveLeg: (legId: string) => void;
@@ -176,8 +176,8 @@ export function ExecutionLegEditor({
   isRequestingExecution,
   isResolvingLegId,
   leg,
+  onAmended,
   onCreateLegOperation,
-  onOpenAmendLeg,
   onOpenArtifact,
   onRequestExecution,
   onResolveLeg,
@@ -196,8 +196,6 @@ export function ExecutionLegEditor({
     Boolean(leg.id);
   const canCreateLegOperation =
     leg.actions.canCreateLegOperation && Boolean(leg.id);
-  const canAmendLeg =
-    canWrite && leg.state !== "in_progress" && leg.state !== "done";
 
   const customerReceivableOutstanding = deal.operationalState.positions.some(
     (position) =>
@@ -276,16 +274,6 @@ export function ExecutionLegEditor({
           {canWrite ? (
             <LegStateActions dealId={deal.summary.id} leg={leg} />
           ) : null}
-          {canAmendLeg ? (
-            <Button
-              data-testid={`finance-deal-leg-amend-${leg.idx}`}
-              size="sm"
-              variant="outline"
-              onClick={() => onOpenAmendLeg(leg.idx)}
-            >
-              Править шаг
-            </Button>
-          ) : null}
           {canResolveLegBlocker && leg.id ? (
             <Button
               size="sm"
@@ -326,7 +314,12 @@ export function ExecutionLegEditor({
 
       <div className="flex flex-col gap-3 p-4">
         <LegBlockerAlerts deal={deal} leg={leg} />
-        <LegStepParticipants deal={deal} leg={leg} />
+        <LegParticipantEditor
+          canWrite={canWrite}
+          deal={deal}
+          leg={leg}
+          onAmended={onAmended}
+        />
         <LegDocumentToCreate canWrite={canWrite} deal={deal} leg={leg} />
 
         {linkedOperations.length === 0 ? (
