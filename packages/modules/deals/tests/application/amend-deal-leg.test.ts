@@ -177,6 +177,7 @@ function createCommand(input: {
 }) {
   const dealStore = {
     createDealTimelineEvents: vi.fn(),
+    replaceDealLegs: vi.fn(),
     replaceDealOperationalPositions: vi.fn(),
     replaceDealPricingContext: vi.fn(async () => true),
     revokeCurrentQuoteAcceptances: vi.fn(async () => input.revokeResult ?? true),

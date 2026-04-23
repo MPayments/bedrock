@@ -76,7 +76,7 @@ export function ExecutionTimelinePane({
   const visibleLegs = filter === "pending" ? legs.filter(isPendingLeg) : legs;
 
   return (
-    <aside className="bg-card self-start rounded-lg border lg:sticky lg:top-4">
+    <aside className="bg-card rounded-lg border">
       <div className="flex items-center justify-between gap-3 border-b p-3">
         <div className="flex items-center gap-2">
           <div className="text-sm font-semibold">Шаги</div>

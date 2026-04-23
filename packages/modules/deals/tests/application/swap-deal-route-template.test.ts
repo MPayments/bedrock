@@ -185,6 +185,7 @@ function buildCommand(input: {
   );
   const dealStore = {
     createDealTimelineEvents: vi.fn(),
+    replaceDealLegs: vi.fn(),
     replaceDealOperationalPositions: vi.fn(),
     replaceDealPricingContext: vi.fn(async () => true),
     revokeCurrentQuoteAcceptances: vi.fn(async () => true),
@@ -249,6 +250,7 @@ describe("SwapDealRouteTemplateCommand", () => {
     };
     const dealStore = {
       createDealTimelineEvents: vi.fn(),
+      replaceDealLegs: vi.fn(),
       replaceDealOperationalPositions: vi.fn(),
       replaceDealPricingContext: vi.fn(async () => true),
       revokeCurrentQuoteAcceptances: vi.fn(async () => true),
@@ -285,6 +287,19 @@ describe("SwapDealRouteTemplateCommand", () => {
     // detach then attach → two replaceDealPricingContext calls
     expect(dealStore.replaceDealPricingContext).toHaveBeenCalledTimes(2);
     expect(dealStore.revokeCurrentQuoteAcceptances).toHaveBeenCalledTimes(1);
+    // Legs are re-materialized from the newly attached route snapshot.
+    expect(dealStore.replaceDealLegs).toHaveBeenCalledTimes(1);
+    const replaceLegsCall = dealStore.replaceDealLegs.mock.calls[0][0];
+    const legs: {
+      kind: string;
+      routeSnapshotLegId: string | null;
+    }[] = replaceLegsCall.legs;
+    // Expect bookend collect + payout plus one leg per snapshot leg.
+    expect(legs[0]?.kind).toBe("collect");
+    expect(legs[legs.length - 1]?.kind).toBe("payout");
+    // Middle legs carry routeSnapshotLegId from the fresh snapshot (non-null).
+    const middle = legs.slice(1, -1);
+    expect(middle.every((leg) => leg.routeSnapshotLegId !== null)).toBe(true);
     const events = dealStore.createDealTimelineEvents.mock.calls[0][0];
     const types = events.map((event: any) => event.type);
     expect(types).toContain("deal_route_template_swapped");

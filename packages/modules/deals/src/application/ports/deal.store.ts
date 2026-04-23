@@ -46,10 +46,13 @@ export interface CreateDealPricingContextStoredInput {
 
 export interface CreateDealLegStoredInput {
   dealId: string;
+  fromCurrencyId: string | null;
   id: string;
   idx: number;
   kind: DealLegKind;
+  routeSnapshotLegId: string | null;
   state: DealLegState;
+  toCurrencyId: string | null;
 }
 
 export interface CreateDealParticipantStoredInput {

@@ -65,7 +65,9 @@ export type DealExecutionAmountRef =
   | "accepted_quote_from"
   | "accepted_quote_to"
   | "incoming_receipt_expected"
-  | "money_request_source";
+  | "money_request_source"
+  | "quote_leg_from"
+  | "quote_leg_to";
 
 export interface CompiledDealExecutionOperation {
   amountRef: DealExecutionAmountRef | null;
@@ -75,6 +77,15 @@ export interface CompiledDealExecutionOperation {
   legKind: DealWorkflowProjection["executionPlan"][number]["kind"];
   operationKind: TreasuryOperationKind;
   quoteId: string | null;
+  /**
+   * 1-based index into the accepted quote's legs array. Populated for deal
+   * legs that were materialized from a route snapshot hop (convert /
+   * transit_hold with a routeSnapshotLegId). Used by amountRef resolution
+   * to pick the per-hop amounts from the quote instead of the aggregate
+   * quote amounts — required for multi-hop routes where each convert leg
+   * has distinct from/to amounts.
+   */
+  quoteLegIdx: number | null;
   sourceRef: string;
 }
 
@@ -171,6 +182,22 @@ export function compileDealExecutionRecipe(input: {
     );
   }
 
+  // Route-derived legs (transit_hold / convert with a routeSnapshotLegId) map
+  // 1:1 onto the accepted quote's legs array, in order. Each such leg gets
+  // its own quote leg idx so the recipe references per-hop amounts instead
+  // of the aggregate quote amounts.
+  const routeDerivedLegIds = new Set(
+    input.workflow.executionPlan
+      .filter(
+        (leg) =>
+          Boolean(leg.routeSnapshotLegId) &&
+          (leg.kind === "convert" || leg.kind === "transit_hold"),
+      )
+      .map((leg) => leg.id),
+  );
+  const quoteLegCount = input.acceptedQuote?.legs.length ?? 0;
+  let quoteLegCursor = 0;
+
   return input.workflow.executionPlan
     .filter((leg) => leg.state !== "skipped")
     .map((leg) => {
@@ -184,6 +211,18 @@ export function compileDealExecutionRecipe(input: {
     let counterAmountRef: DealExecutionAmountRef | null = null;
     let operationKind: TreasuryOperationKind;
     let quoteId: string | null = null;
+    let quoteLegIdx: number | null = null;
+
+    const isRouteDerived = routeDerivedLegIds.has(leg.id);
+    if (isRouteDerived) {
+      quoteLegCursor += 1;
+      if (quoteLegCursor > quoteLegCount) {
+        throw new ValidationError(
+          `Deal ${input.workflow.summary.id} has more route-derived legs than the accepted quote provides (leg ${leg.idx}:${leg.kind} would need quote leg ${quoteLegCursor}, quote has ${quoteLegCount})`,
+        );
+      }
+      quoteLegIdx = quoteLegCursor;
+    }
 
     switch (leg.kind) {
       case "collect":
@@ -195,28 +234,40 @@ export function compileDealExecutionRecipe(input: {
         break;
       case "convert":
         operationKind = "fx_conversion";
-        amountRef = "accepted_quote_from";
-        counterAmountRef = "accepted_quote_to";
         quoteId = input.acceptedQuote?.quote.id ?? null;
+        if (isRouteDerived) {
+          amountRef = "quote_leg_from";
+          counterAmountRef = "quote_leg_to";
+        } else {
+          // Canonical single-convert plan (no route attached) — use the
+          // aggregate quote amounts.
+          amountRef = "accepted_quote_from";
+          counterAmountRef = "accepted_quote_to";
+        }
         break;
       case "payout":
         operationKind = "payout";
         amountRef = resolvePayoutAmountRef(input.workflow);
         break;
       case "transit_hold":
+        operationKind = resolveFundingOperationKind({
+          agreementOrganizationId: input.agreementOrganizationId,
+          internalEntityOrganizationId: input.internalEntityOrganizationId,
+        });
+        if (isRouteDerived) {
+          // Internal same-currency transfer within a multi-hop route: amount
+          // is the quote-leg to-amount (== from-amount for same-currency).
+          amountRef = "quote_leg_to";
+        } else {
+          amountRef = hasConvert ? "accepted_quote_to" : "money_request_source";
+        }
+        break;
       case "settle_exporter":
         operationKind = resolveFundingOperationKind({
           agreementOrganizationId: input.agreementOrganizationId,
           internalEntityOrganizationId: input.internalEntityOrganizationId,
         });
-        amountRef =
-          leg.kind === "settle_exporter"
-            ? hasConvert
-              ? "accepted_quote_to"
-              : "incoming_receipt_expected"
-            : hasConvert
-              ? "accepted_quote_to"
-              : "money_request_source";
+        amountRef = hasConvert ? "accepted_quote_to" : "incoming_receipt_expected";
         break;
     }
 
@@ -228,6 +279,7 @@ export function compileDealExecutionRecipe(input: {
       legKind: leg.kind,
       operationKind,
       quoteId,
+      quoteLegIdx,
       sourceRef: `deal:${input.workflow.summary.id}:leg:${leg.idx}:${operationKind}:1`,
     };
     });
@@ -238,6 +290,7 @@ async function resolveAmountRef(input: {
   amountRef: DealExecutionAmountRef | null;
   currencyCodeById: Map<string, string>;
   currencies: DealExecutionWorkflowDeps["currencies"];
+  quoteLegIdx: number | null;
   workflow: DealWorkflowProjection;
 }): Promise<{ amountMinor: bigint | null; currencyId: string | null }> {
   if (!input.amountRef) {
@@ -267,6 +320,37 @@ async function resolveAmountRef(input: {
       amountMinor: input.acceptedQuote.quote.toAmountMinor,
       currencyId: input.acceptedQuote.quote.toCurrencyId,
     };
+  }
+
+  if (
+    input.amountRef === "quote_leg_from" ||
+    input.amountRef === "quote_leg_to"
+  ) {
+    if (!input.acceptedQuote) {
+      throw new ValidationError("Accepted quote details are required");
+    }
+    if (input.quoteLegIdx === null) {
+      throw new ValidationError(
+        `${input.amountRef} requires a quoteLegIdx on the compiled operation`,
+      );
+    }
+    const quoteLeg = input.acceptedQuote.legs.find(
+      (leg) => leg.idx === input.quoteLegIdx,
+    );
+    if (!quoteLeg) {
+      throw new ValidationError(
+        `Accepted quote has no leg with idx ${input.quoteLegIdx}`,
+      );
+    }
+    return input.amountRef === "quote_leg_from"
+      ? {
+          amountMinor: quoteLeg.fromAmountMinor,
+          currencyId: quoteLeg.fromCurrencyId,
+        }
+      : {
+          amountMinor: quoteLeg.toAmountMinor,
+          currencyId: quoteLeg.toCurrencyId,
+        };
   }
 
   const rawAmount =
@@ -483,6 +567,7 @@ async function materializeCompiledOperation(input: {
     amountRef: input.compiled.amountRef,
     currencies: input.currencies,
     currencyCodeById: input.currencyCodeById,
+    quoteLegIdx: input.compiled.quoteLegIdx,
     workflow: input.workflow,
   });
   const counterAmount = await resolveAmountRef({
@@ -490,6 +575,7 @@ async function materializeCompiledOperation(input: {
     amountRef: input.compiled.counterAmountRef,
     currencies: input.currencies,
     currencyCodeById: input.currencyCodeById,
+    quoteLegIdx: input.compiled.quoteLegIdx,
     workflow: input.workflow,
   });
   const created = await input.treasuryModule.operations.commands.createOrGetPlanned(

@@ -149,6 +149,9 @@ export class ReplaceDealIntakeCommand {
         sourceCurrencyId: rootState.sourceCurrencyId,
         targetCurrencyId: rootState.targetCurrencyId,
       });
+      const pricingContext = await tx.dealReads.findPricingContextByDealId(
+        validated.dealId,
+      );
       await tx.dealStore.replaceDealLegs({
         dealId: validated.dealId,
         legs: buildDealLegRows({
@@ -156,6 +159,7 @@ export class ReplaceDealIntakeCommand {
           existingLegs: existing.executionPlan,
           generateUuid: () => this.runtime.generateUuid(),
           intake: validated.intake,
+          routeSnapshot: pricingContext.routeAttachment?.snapshot ?? null,
         }),
       });
       await tx.dealStore.replaceDealParticipants({

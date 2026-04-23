@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { AlertCircle, ArrowRight, PlayCircle } from "lucide-react";
 
 import { Badge } from "@bedrock/sdk-ui/components/badge";
@@ -17,8 +18,12 @@ import {
 import { collectFinanceDealTopBlockers } from "@/features/treasury/deals/lib/execution-summary";
 
 import { getLegKindIcon } from "./leg-icon";
+import { LegDocumentToCreate } from "./leg-document-to-create";
+import { LegHeaderSummary } from "./leg-header-summary";
+import { LegStepParticipants } from "./leg-step-participants";
 import { OperationDocumentTimeline } from "./operation-document-timeline";
 import { resolveOperationNextAction } from "./operation-next-action";
+import { PreFundConfirmDialog } from "./pre-fund-confirm-dialog";
 import type { FinanceDealWorkbench } from "@/features/treasury/deals/lib/queries";
 import {
   getTreasuryOperationInstructionStatusLabel,
@@ -32,11 +37,17 @@ import {
 type Leg = FinanceDealWorkbench["executionPlan"][number];
 type Operation = FinanceDealWorkbench["relatedResources"]["operations"][number];
 
+// Legs that move money outward — executing these before the customer's
+// `collect` leg has landed means the bank fronts its own balance.
+const DOWNSTREAM_LEG_KINDS: ReadonlySet<Leg["kind"]> = new Set([
+  "payout",
+  "settle_exporter",
+  "transit_hold",
+]);
+
 export interface ExecutionLegEditorProps {
   canWrite: boolean;
   deal: FinanceDealWorkbench;
-  documentsTabHref: string;
-  executionTabReturnTo: string;
   isCreatingLegOperationId: string | null;
   isRequestingExecution: boolean;
   isResolvingLegId: string | null;
@@ -51,12 +62,12 @@ export interface ExecutionLegEditorProps {
 
 function NoOperationsHint({
   deal,
-  documentsTabHref,
+  dealHref,
   isRequestingExecution,
   onRequestExecution,
 }: {
   deal: FinanceDealWorkbench;
-  documentsTabHref: string;
+  dealHref: string;
   isRequestingExecution: boolean;
   onRequestExecution: () => void;
 }) {
@@ -122,9 +133,9 @@ function NoOperationsHint({
           size="sm"
           variant="outline"
           nativeButton={false}
-          render={<Link href={documentsTabHref} />}
+          render={<Link href={dealHref} />}
         >
-          Перейти к документам
+          К списку вложений
           <ArrowRight className="ml-1 h-3.5 w-3.5" />
         </Button>
       </div>
@@ -135,8 +146,6 @@ function NoOperationsHint({
 export function ExecutionLegEditor({
   canWrite,
   deal,
-  documentsTabHref,
-  executionTabReturnTo,
   isCreatingLegOperationId,
   isRequestingExecution,
   isResolvingLegId,
@@ -148,6 +157,8 @@ export function ExecutionLegEditor({
   onResolveLeg,
   operationsById,
 }: ExecutionLegEditorProps) {
+  const dealHref = `/treasury/deals/${encodeURIComponent(deal.summary.id)}`;
+  const [preFundOpen, setPreFundOpen] = useState(false);
   const linkedOperations = leg.operationRefs
     .map((ref) => operationsById.get(ref.operationId) ?? null)
     .filter((operation): operation is Operation => operation !== null);
@@ -162,10 +173,34 @@ export function ExecutionLegEditor({
   const canAmendLeg =
     canWrite && leg.state !== "in_progress" && leg.state !== "done";
 
+  const customerReceivableOutstanding = deal.operationalState.positions.some(
+    (position) =>
+      position.kind === "customer_receivable" &&
+      position.state !== "done" &&
+      position.state !== "not_applicable",
+  );
+  const needsPreFundConfirm =
+    DOWNSTREAM_LEG_KINDS.has(leg.kind) && customerReceivableOutstanding;
+
+  function handleCreateOperationClick() {
+    if (!leg.id) return;
+    if (needsPreFundConfirm) {
+      setPreFundOpen(true);
+      return;
+    }
+    onCreateLegOperation(leg.id);
+  }
+
+  function handlePreFundConfirm() {
+    if (!leg.id) return;
+    setPreFundOpen(false);
+    onCreateLegOperation(leg.id);
+  }
+
   const exchangeDocumentCreateHref = exchangeDocumentAction?.createAllowed
     ? buildDocumentCreateHref(exchangeDocumentAction.docType, {
         dealId: deal.summary.id,
-        returnTo: executionTabReturnTo,
+        returnTo: dealHref,
       })
     : null;
   const exchangeDocumentOpenHref =
@@ -204,6 +239,7 @@ export function ExecutionLegEditor({
               {getDealLegStateLabel(leg.state)}
             </Badge>
           </div>
+          <LegHeaderSummary deal={deal} leg={leg} />
           {leg.kind === "convert" && deal.pricing.fundingMessage ? (
             <div className="text-muted-foreground text-sm">
               {deal.pricing.fundingMessage}
@@ -238,7 +274,7 @@ export function ExecutionLegEditor({
               size="sm"
               variant="outline"
               disabled={isCreatingLegOperationId === leg.id}
-              onClick={() => onCreateLegOperation(leg.id!)}
+              onClick={handleCreateOperationClick}
             >
               {isCreatingLegOperationId === leg.id
                 ? "Создаём..."
@@ -259,7 +295,10 @@ export function ExecutionLegEditor({
         </div>
       </header>
 
-      <div className="p-4">
+      <div className="flex flex-col gap-3 p-4">
+        <LegStepParticipants deal={deal} leg={leg} />
+        <LegDocumentToCreate canWrite={canWrite} deal={deal} leg={leg} />
+
         {linkedOperations.length === 0 ? (
           leg.operationRefs.length > 0 ? (
             <div className="border-muted-foreground/40 text-muted-foreground rounded-md border border-dashed bg-muted/30 p-4 text-sm">
@@ -269,7 +308,7 @@ export function ExecutionLegEditor({
           ) : (
             <NoOperationsHint
               deal={deal}
-              documentsTabHref={documentsTabHref}
+              dealHref={dealHref}
               isRequestingExecution={isRequestingExecution}
               onRequestExecution={onRequestExecution}
             />
@@ -284,7 +323,7 @@ export function ExecutionLegEditor({
               const nextActionHref = nextAction
                 ? buildDocumentCreateHref(nextAction.docType, {
                     dealId: deal.summary.id,
-                    returnTo: executionTabReturnTo,
+                    returnTo: dealHref,
                   })
                 : null;
 
@@ -372,6 +411,14 @@ export function ExecutionLegEditor({
           </div>
         )}
       </div>
+      <PreFundConfirmDialog
+        legIdx={leg.idx}
+        legLabel={getDealLegKindLabel(leg.kind)}
+        onConfirm={handlePreFundConfirm}
+        onOpenChange={setPreFundOpen}
+        open={preFundOpen}
+        pending={isCreatingLegOperationId === leg.id}
+      />
     </section>
   );
 }

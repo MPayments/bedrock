@@ -12,6 +12,8 @@ import type { TreasuryInstructionsRepository } from "./ports/instructions.reposi
 import { GetTreasuryInstructionByIdQuery } from "./queries/get-instruction-by-id";
 import { GetLatestTreasuryInstructionByOperationIdQuery } from "./queries/get-latest-instruction-by-operation-id";
 import { ListTreasuryInstructionArtifactsQuery } from "./queries/list-artifacts";
+import { ListTreasuryInstructionArtifactsByInstructionIdsQuery } from "./queries/list-artifacts-by-instruction-ids";
+import { ListTreasuryInstructionsByOperationIdsQuery } from "./queries/list-instructions-by-operation-ids";
 import { ListLatestTreasuryInstructionsByOperationIdsQuery } from "./queries/list-latest-instructions-by-operation-ids";
 import type { TreasuryOperationsRepository } from "../../operations/application/ports/operations.repository";
 
@@ -65,9 +67,16 @@ export function createTreasuryInstructionsService(
     new ListLatestTreasuryInstructionsByOperationIdsQuery(
       deps.instructionsRepository,
     );
+  const listByOperationIds = new ListTreasuryInstructionsByOperationIdsQuery(
+    deps.instructionsRepository,
+  );
   const listArtifacts = new ListTreasuryInstructionArtifactsQuery(
     deps.artifactsRepository,
   );
+  const listArtifactsByInstructionIds =
+    new ListTreasuryInstructionArtifactsByInstructionIdsQuery(
+      deps.artifactsRepository,
+    );
 
   return {
     commands: {
@@ -84,6 +93,10 @@ export function createTreasuryInstructionsService(
       findLatestByOperationId:
         getLatestByOperationId.execute.bind(getLatestByOperationId),
       listArtifacts: listArtifacts.execute.bind(listArtifacts),
+      listArtifactsByInstructionIds: listArtifactsByInstructionIds.execute.bind(
+        listArtifactsByInstructionIds,
+      ),
+      listByOperationIds: listByOperationIds.execute.bind(listByOperationIds),
       listLatestByOperationIds:
         listLatestByOperationIds.execute.bind(listLatestByOperationIds),
     },

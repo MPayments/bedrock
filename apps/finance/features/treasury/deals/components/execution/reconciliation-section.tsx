@@ -62,7 +62,6 @@ export interface ExecutionReconciliationSectionProps {
   canRunReconciliation: boolean;
   dealId: string;
   exceptions: Exception[];
-  executionTabReturnTo: string;
   ignoringExceptionId: string | null;
   isRunningReconciliation: boolean;
   onIgnoreReconciliationException: (exceptionId: string) => void;
@@ -74,13 +73,13 @@ export function ExecutionReconciliationSection({
   canRunReconciliation,
   dealId,
   exceptions,
-  executionTabReturnTo,
   ignoringExceptionId,
   isRunningReconciliation,
   onIgnoreReconciliationException,
   onRunReconciliation,
   summary,
 }: ExecutionReconciliationSectionProps) {
+  const dealHref = `/treasury/deals/${encodeURIComponent(dealId)}`;
   return (
     <section className="bg-card rounded-lg border">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b p-4">
@@ -171,7 +170,7 @@ export function ExecutionReconciliationSection({
                               {
                                 dealId,
                                 reconciliationExceptionId: exception.id,
-                                returnTo: executionTabReturnTo,
+                                returnTo: dealHref,
                               },
                             ) ?? "/documents"
                           }

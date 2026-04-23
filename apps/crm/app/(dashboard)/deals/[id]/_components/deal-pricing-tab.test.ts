@@ -161,6 +161,7 @@ describe("DealPricingTab", () => {
           quoteId: quote.id,
           quoteStatus: "accepted",
           replacedByQuoteId: null,
+          revocationReason: null,
           revokedAt: null,
           usedAt: null,
           usedDocumentId: null,

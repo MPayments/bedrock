@@ -22,6 +22,7 @@ function createLeg(input: {
   state?: "blocked" | "done" | "pending" | "ready" | "skipped";
 }) {
   return {
+    fromCurrencyId: null,
     id: input.id,
     idx: input.idx,
     kind: input.kind,
@@ -43,7 +44,9 @@ function createLeg(input: {
           },
         ]
       : [],
+    routeSnapshotLegId: null,
     state: input.state ?? "ready",
+    toCurrencyId: null,
   };
 }
 
@@ -479,6 +482,45 @@ describe("finance close readiness", () => {
         }),
         expect.objectContaining({
           code: "exporter_settlement_receivable_resolved",
+          satisfied: false,
+        }),
+      ]),
+    );
+    expect(readiness.closeReadiness.ready).toBe(false);
+  });
+
+  it("requires every convert leg to settle before currency_exchange close readiness passes (multi-hop route)", () => {
+    // Multi-hop route produces 2 convert legs + 2 transit_hold legs plus collect + payout.
+    const workflow = createWorkflow({
+      executionPlan: [
+        createLeg({ id: "leg-1", idx: 1, kind: "collect", operationId: "op-1", state: "done" }),
+        createLeg({ id: "leg-2", idx: 2, kind: "transit_hold", operationId: "op-2", state: "done" }),
+        createLeg({ id: "leg-3", idx: 3, kind: "convert", operationId: "op-3", state: "done" }),
+        createLeg({ id: "leg-4", idx: 4, kind: "transit_hold", operationId: "op-4", state: "done" }),
+        // Second convert is still in progress — should keep conversion_settled false.
+        createLeg({ id: "leg-5", idx: 5, kind: "convert", operationId: "op-5", state: "ready" }),
+        createLeg({ id: "leg-6", idx: 6, kind: "payout", operationId: "op-6", state: "ready" }),
+      ],
+      type: "currency_exchange",
+    });
+
+    const readiness = deriveFinanceDealReadiness({
+      latestInstructionByOperationId: createInstructionStateMap([
+        ["op-1", "settled"],
+        ["op-2", "settled"],
+        ["op-3", "settled"],
+        ["op-4", "settled"],
+        ["op-5", "submitted"],
+        ["op-6", "prepared"],
+      ]),
+      reconciliationLinksByOperationId: createReconciliationLinkMap([]),
+      workflow,
+    });
+
+    expect(readiness.closeReadiness.criteria).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "currency_exchange_conversion_settled",
           satisfied: false,
         }),
       ]),

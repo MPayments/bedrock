@@ -20,6 +20,7 @@ import {
   detachDealPricingRouteSnapshot,
 } from "../shared/pricing-context";
 import {
+  buildDealLegRows,
   buildDealOperationalPositionRows,
   createTimelinePayloadEvent,
 } from "../shared/workflow-state";
@@ -143,6 +144,17 @@ export class SwapDealRouteTemplateCommand {
           afterDetach.revision,
         );
       }
+
+      await tx.dealStore.replaceDealLegs({
+        dealId: validated.dealId,
+        legs: buildDealLegRows({
+          dealId: validated.dealId,
+          existingLegs: workflow.executionPlan,
+          generateUuid: () => this.runtime.generateUuid(),
+          intake: workflow.intake,
+          routeSnapshot: attachedSnapshot.routeAttachment?.snapshot ?? null,
+        }),
+      });
 
       const events: Parameters<
         typeof tx.dealStore.createDealTimelineEvents

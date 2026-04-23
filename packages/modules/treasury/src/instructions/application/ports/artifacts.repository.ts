@@ -30,6 +30,10 @@ export interface TreasuryInstructionArtifactsRepository {
     instructionId: string,
     tx?: PersistenceSession,
   ): Promise<TreasuryInstructionArtifactRecord[]>;
+  listArtifactsByInstructionIds(
+    instructionIds: string[],
+    tx?: PersistenceSession,
+  ): Promise<TreasuryInstructionArtifactRecord[]>;
   listArtifactsByInstructionIdsAndPurposes(
     input: {
       instructionIds: string[];

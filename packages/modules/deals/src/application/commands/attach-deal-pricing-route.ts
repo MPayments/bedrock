@@ -13,6 +13,7 @@ import {
 import type { DealPricingContext } from "../contracts/dto";
 import type { DealsCommandUnitOfWork } from "../ports/deals.uow";
 import { attachDealPricingRouteSnapshot } from "../shared/pricing-context";
+import { buildDealLegRows } from "../shared/workflow-state";
 
 const AttachDealPricingRouteCommandInputSchema =
   AttachDealPricingRouteInputSchema.extend({
@@ -61,6 +62,20 @@ export class AttachDealPricingRouteCommand {
           validated.dealId,
           existing.revision,
         );
+      }
+
+      const workflow = await tx.dealReads.findWorkflowById(validated.dealId);
+      if (workflow) {
+        await tx.dealStore.replaceDealLegs({
+          dealId: validated.dealId,
+          legs: buildDealLegRows({
+            dealId: validated.dealId,
+            existingLegs: workflow.executionPlan,
+            generateUuid: () => this.runtime.generateUuid(),
+            intake: workflow.intake,
+            routeSnapshot: nextSnapshot.routeAttachment?.snapshot ?? null,
+          }),
+        });
       }
 
       return tx.dealReads.findPricingContextByDealId(validated.dealId);

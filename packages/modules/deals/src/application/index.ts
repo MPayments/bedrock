@@ -100,6 +100,7 @@ export function createDealsService(deps: DealsServiceDeps) {
     deps.commandUow,
   );
   const detachDealPricingRoute = new DetachDealPricingRouteCommand(
+    deps.runtime,
     deps.commandUow,
   );
   const updateDealLegState = new UpdateDealLegStateCommand(
@@ -107,6 +108,7 @@ export function createDealsService(deps: DealsServiceDeps) {
     deps.commandUow,
   );
   const updateDealPricingContext = new UpdateDealPricingContextCommand(
+    deps.runtime,
     deps.commandUow,
   );
   const appendTimelineEvent = new AppendDealTimelineEventCommand(

@@ -11,9 +11,7 @@ import { executeMutation } from "@/lib/resources/http";
 import { createIdempotencyKey, refreshPage } from "./utils";
 
 export interface WorkbenchActions {
-  acceptQuote: (quoteId: string) => Promise<void>;
   closeDeal: () => Promise<void>;
-  createCalculation: () => Promise<void>;
   createLegOperation: (legId: string) => Promise<void>;
   deleteAttachment: (attachmentId: string) => Promise<void>;
   downloadAttachment: (attachmentId: string) => void;
@@ -26,9 +24,7 @@ export interface WorkbenchActions {
 export interface WorkbenchActionsState {
   deletingAttachmentId: string | null;
   ignoringExceptionId: string | null;
-  isAcceptingQuoteId: string | null;
   isClosingDeal: boolean;
-  isCreatingCalculation: boolean;
   isCreatingLegOperationId: string | null;
   isRequestingExecution: boolean;
   isResolvingLegId: string | null;
@@ -39,10 +35,6 @@ export function useWorkbenchActions(
   deal: FinanceDealWorkbench,
 ): { actions: WorkbenchActions; state: WorkbenchActionsState } {
   const router = useRouter();
-  const [isCreatingCalculation, setIsCreatingCalculation] = useState(false);
-  const [isAcceptingQuoteId, setIsAcceptingQuoteId] = useState<string | null>(
-    null,
-  );
   const [isClosingDeal, setIsClosingDeal] = useState(false);
   const [isCreatingLegOperationId, setIsCreatingLegOperationId] = useState<
     string | null
@@ -58,63 +50,6 @@ export function useWorkbenchActions(
   );
 
   const dealId = encodeURIComponent(deal.summary.id);
-
-  async function acceptQuote(quoteId: string) {
-    setIsAcceptingQuoteId(quoteId);
-    const result = await executeMutation({
-      fallbackMessage: "Не удалось принять котировку",
-      request: () =>
-        fetch(
-          `/v1/deals/${dealId}/quotes/${encodeURIComponent(quoteId)}/accept`,
-          {
-            method: "POST",
-            credentials: "include",
-          },
-        ),
-    });
-    setIsAcceptingQuoteId(null);
-
-    if (!result.ok) {
-      toast.error(result.message);
-      return;
-    }
-
-    toast.success("Котировка принята");
-    refreshPage(router);
-  }
-
-  async function createCalculation() {
-    if (!deal.acceptedQuote) {
-      toast.error("Сначала примите котировку");
-      return;
-    }
-
-    setIsCreatingCalculation(true);
-    const result = await executeMutation({
-      fallbackMessage: "Не удалось создать расчет",
-      request: () =>
-        fetch(`/v1/deals/${dealId}/calculations/from-quote`, {
-          method: "POST",
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-            "Idempotency-Key": createIdempotencyKey(),
-          },
-          body: JSON.stringify({
-            quoteId: deal.acceptedQuote?.quoteId,
-          }),
-        }),
-    });
-    setIsCreatingCalculation(false);
-
-    if (!result.ok) {
-      toast.error(result.message);
-      return;
-    }
-
-    toast.success("Расчет создан");
-    refreshPage(router);
-  }
 
   async function deleteAttachment(attachmentId: string) {
     setDeletingAttachmentId(attachmentId);
@@ -307,9 +242,7 @@ export function useWorkbenchActions(
 
   return {
     actions: {
-      acceptQuote,
       closeDeal,
-      createCalculation,
       createLegOperation,
       deleteAttachment,
       downloadAttachment,
@@ -321,9 +254,7 @@ export function useWorkbenchActions(
     state: {
       deletingAttachmentId,
       ignoringExceptionId,
-      isAcceptingQuoteId,
       isClosingDeal,
-      isCreatingCalculation,
       isCreatingLegOperationId,
       isRequestingExecution,
       isResolvingLegId,

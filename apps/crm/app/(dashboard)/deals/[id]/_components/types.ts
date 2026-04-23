@@ -159,6 +159,7 @@ export type ApiDealAcceptedQuote = {
   quoteId: string;
   quoteStatus: string;
   replacedByQuoteId: string | null;
+  revocationReason: string | null;
   revokedAt: string | null;
   usedAt: string | null;
   usedDocumentId: string | null;

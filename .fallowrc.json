@@ -1,0 +1,20 @@
+{
+  "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
+  "dynamicallyLoaded": [
+    "apps/db/src/drizzle-schema.ts",
+    "apps/db/src/index.ts",
+    "apps/db/src/seeds/index.ts",
+    "apps/workers/build.mjs",
+    "packages/modules/agreements/vitest.integration.config.ts",
+    "packages/modules/calculations/vitest.integration.config.ts",
+    "packages/modules/deals/vitest.integration.config.ts",
+    "scripts/guardrails/eslint.architecture.config.mjs"
+  ],
+  "ignoreDependencies": ["pino-pretty", "react-resizable"],
+  "ignorePatterns": [
+    ".claude/**",
+    "apps/crm/app/globals.css",
+    "apps/portal/next-env.d.ts",
+    "redesign/**"
+  ]
+}

@@ -1,10 +1,14 @@
 "use client";
 
+import { ArrowRight } from "lucide-react";
+
 import { Badge } from "@bedrock/sdk-ui/components/badge";
 import { Button } from "@bedrock/sdk-ui/components/button";
 
 import { getDealLegKindLabel } from "@/features/treasury/deals/labels";
 import type {
+  FinanceDealRouteAttachment,
+  FinanceDealRouteAttachmentLeg,
   FinanceDealWorkbench,
   FinanceProfitabilityAmount,
 } from "@/features/treasury/deals/lib/queries";
@@ -22,6 +26,33 @@ function formatShagPlural(count: number): string {
   if (mod10 === 1 && mod100 !== 11) return "шаг";
   if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return "шага";
   return "шагов";
+}
+
+function formatHopPlural(count: number): string {
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  if (mod10 === 1 && mod100 !== 11) return "переход";
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14))
+    return "перехода";
+  return "переходов";
+}
+
+function formatCurrencyLabel(
+  code: string | null,
+  currencyId: string,
+): string {
+  if (code) return code;
+  return currencyId.length > 8 ? `${currencyId.slice(0, 8)}…` : currencyId;
+}
+
+function classifyRouteLeg(leg: FinanceDealRouteAttachmentLeg): {
+  label: string;
+  variant: "default" | "secondary" | "outline";
+} {
+  if (leg.fromCurrencyId === leg.toCurrencyId) {
+    return { label: "Внутренний перевод", variant: "outline" };
+  }
+  return { label: "Конвертация", variant: "secondary" };
 }
 
 function formatAmounts(items: FinanceProfitabilityAmount[] | null | undefined) {
@@ -52,40 +83,84 @@ function getParticipantRoleLabel(role: Participant["role"]): string {
   }
 }
 
-function getParticipantIdentity(participant: Participant): string | null {
-  return (
-    participant.counterpartyId ??
-    participant.customerId ??
-    participant.organizationId ??
-    null
-  );
-}
-
-function formatParticipantIdentity(id: string | null): string {
-  if (!id) return "—";
-  return id.length > 8 ? `${id.slice(0, 8)}…` : id;
-}
-
 function resolveParticipantName(
   participant: Participant,
   summary: FinanceDealWorkbench["summary"],
 ): string {
+  if (participant.displayName && participant.displayName.trim().length > 0) {
+    return participant.displayName;
+  }
   if (
     participant.role === "applicant" ||
     participant.role === "customer"
   ) {
-    return (
-      summary.applicantDisplayName ??
-      formatParticipantIdentity(getParticipantIdentity(participant))
-    );
+    return summary.applicantDisplayName ?? "—";
   }
   if (participant.role === "internal_entity") {
+    return summary.internalEntityDisplayName ?? "—";
+  }
+  return "—";
+}
+
+function RouteAttachmentHops({
+  attachment,
+}: {
+  attachment: FinanceDealRouteAttachment;
+}) {
+  if (attachment.legs.length === 0) {
     return (
-      summary.internalEntityDisplayName ??
-      formatParticipantIdentity(getParticipantIdentity(participant))
+      <div className="text-muted-foreground text-sm">Нет переходов.</div>
     );
   }
-  return formatParticipantIdentity(getParticipantIdentity(participant));
+
+  return (
+    <ol className="flex flex-col gap-1.5" data-testid="finance-deal-route-hops">
+      {attachment.legs.map((leg, index) => {
+        const classification = classifyRouteLeg(leg);
+        const fromLabel = formatCurrencyLabel(
+          leg.fromCurrencyCode,
+          leg.fromCurrencyId,
+        );
+        const toLabel = formatCurrencyLabel(
+          leg.toCurrencyCode,
+          leg.toCurrencyId,
+        );
+        const hopIndex = index + 1;
+        const feeText = leg.fees
+          .filter((fee) => fee.percentage !== null)
+          .map((fee) => `${fee.label} ${fee.percentage}%`)
+          .join(" · ");
+
+        return (
+          <li
+            key={leg.id}
+            className="flex items-center gap-2 text-sm"
+            data-testid={`finance-deal-route-hop-${hopIndex}`}
+          >
+            <div className="bg-muted text-muted-foreground flex h-5 w-5 shrink-0 items-center justify-center rounded-full font-mono text-[10px]">
+              {hopIndex}
+            </div>
+            <div className="flex min-w-0 flex-1 items-center gap-1.5">
+              <span className="font-mono text-xs">{fromLabel}</span>
+              <ArrowRight className="text-muted-foreground h-3 w-3" />
+              <span className="font-mono text-xs">{toLabel}</span>
+              <Badge
+                variant={classification.variant}
+                className="ml-1 text-[10px] font-normal"
+              >
+                {classification.label}
+              </Badge>
+              {feeText ? (
+                <span className="text-muted-foreground truncate text-xs">
+                  {feeText}
+                </span>
+              ) : null}
+            </div>
+          </li>
+        );
+      })}
+    </ol>
+  );
 }
 
 export interface ExecutionContextGridProps {
@@ -101,17 +176,20 @@ export function ExecutionContextGrid({
 }: ExecutionContextGridProps) {
   const participants = deal.workflow?.participants ?? [];
   const legs = deal.executionPlan;
+  const routeAttachment = deal.pricing.routeAttachment;
 
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
       <section className="bg-card rounded-lg border">
         <header className="flex items-center justify-between gap-2 border-b p-3">
-          <div>
+          <div className="min-w-0">
             <div className="text-sm font-semibold">Маршрут</div>
-            <div className="text-muted-foreground text-xs">
-              {legs.length === 0
-                ? "Шаблон не привязан"
-                : `${legs.length} ${formatShagPlural(legs.length)}`}
+            <div className="text-muted-foreground truncate text-xs">
+              {routeAttachment
+                ? `${routeAttachment.templateName} · ${routeAttachment.legs.length} ${formatHopPlural(
+                    routeAttachment.legs.length,
+                  )}`
+                : "Шаблон не привязан"}
             </div>
           </div>
           {canWrite ? (
@@ -125,35 +203,53 @@ export function ExecutionContextGrid({
             </Button>
           ) : null}
         </header>
-        <div className="flex flex-col gap-1.5 p-3">
-          {legs.length === 0 ? (
+        <div className="flex flex-col gap-2 p-3">
+          {routeAttachment ? (
+            <RouteAttachmentHops attachment={routeAttachment} />
+          ) : (
             <div className="text-muted-foreground text-sm">
               Маршрут появится после выбора шаблона в коммерческой вкладке.
             </div>
-          ) : (
-            legs.map((leg) => {
-              const KindIcon = getLegKindIcon(leg.kind);
-              return (
-                <div
-                  key={leg.id ?? `${leg.idx}:${leg.kind}`}
-                  className="flex items-center gap-2 text-sm"
-                >
-                  <div
-                    className="bg-muted text-muted-foreground flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
-                    title={`Шаг ${leg.idx}`}
-                  >
-                    <KindIcon className="h-3 w-3" />
-                  </div>
-                  <span className="flex-1 truncate">
-                    {getDealLegKindLabel(leg.kind)}
-                  </span>
-                  <Badge variant="outline" className="text-xs font-normal">
-                    {leg.operationRefs.length}
-                  </Badge>
-                </div>
-              );
-            })
           )}
+
+          <div className="border-t pt-2">
+            <div className="text-muted-foreground mb-1 text-xs uppercase tracking-wider">
+              Шаги исполнения
+              <span className="ml-1 normal-case tracking-normal">
+                ({legs.length} {formatShagPlural(legs.length)})
+              </span>
+            </div>
+            {legs.length === 0 ? (
+              <div className="text-muted-foreground text-sm">
+                План появится после материализации операций.
+              </div>
+            ) : (
+              <ul className="flex flex-col gap-1">
+                {legs.map((leg) => {
+                  const KindIcon = getLegKindIcon(leg.kind);
+                  return (
+                    <li
+                      key={leg.id ?? `${leg.idx}:${leg.kind}`}
+                      className="flex items-center gap-2 text-sm"
+                    >
+                      <div
+                        className="bg-muted text-muted-foreground flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
+                        title={`Шаг ${leg.idx}`}
+                      >
+                        <KindIcon className="h-3 w-3" />
+                      </div>
+                      <span className="flex-1 truncate">
+                        {getDealLegKindLabel(leg.kind)}
+                      </span>
+                      <Badge variant="outline" className="text-xs font-normal">
+                        {leg.operationRefs.length}
+                      </Badge>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
         </div>
       </section>
 
@@ -168,24 +264,21 @@ export function ExecutionContextGrid({
             </div>
           ) : (
             participants.map((participant, index) => {
-              const identity = getParticipantIdentity(participant);
               const name = resolveParticipantName(participant, deal.summary);
-              const showIdentityHint =
-                identity !== null && name !== identity && !name.includes("…");
               return (
                 <div
-                  key={`${participant.role}:${identity ?? index}`}
+                  key={`${participant.role}:${
+                    participant.counterpartyId ??
+                    participant.customerId ??
+                    participant.organizationId ??
+                    index
+                  }`}
                   className="space-y-0.5"
                 >
                   <div className="text-muted-foreground text-xs uppercase tracking-wider">
                     {getParticipantRoleLabel(participant.role)}
                   </div>
                   <div className="text-sm font-medium">{name}</div>
-                  {showIdentityHint ? (
-                    <div className="text-muted-foreground font-mono text-xs">
-                      {formatParticipantIdentity(identity)}
-                    </div>
-                  ) : null}
                 </div>
               );
             })

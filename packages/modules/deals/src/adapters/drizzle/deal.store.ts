@@ -264,10 +264,13 @@ export class DrizzleDealStore implements DealStore {
     await this.db.insert(dealLegs).values(
       input.legs.map((leg) => ({
         dealId: leg.dealId,
+        fromCurrencyId: leg.fromCurrencyId,
         id: leg.id,
         idx: leg.idx,
         kind: leg.kind,
+        routeSnapshotLegId: leg.routeSnapshotLegId,
         state: leg.state,
+        toCurrencyId: leg.toCurrencyId,
       })),
     );
   }

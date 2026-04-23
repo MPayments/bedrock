@@ -223,6 +223,9 @@ export const dealLegs = pgTable(
     idx: integer("idx").notNull(),
     kind: dealLegKindEnum("kind").notNull(),
     state: dealLegStateEnum("state").notNull().default("pending"),
+    routeSnapshotLegId: text("route_snapshot_leg_id"),
+    fromCurrencyId: uuid("from_currency_id").references(() => currencies.id),
+    toCurrencyId: uuid("to_currency_id").references(() => currencies.id),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .default(sql`now()`),
@@ -234,6 +237,10 @@ export const dealLegs = pgTable(
   (table) => [
     uniqueIndex("deal_legs_deal_idx_uq").on(table.dealId, table.idx),
     index("deal_legs_deal_idx").on(table.dealId),
+    index("deal_legs_deal_route_leg_idx").on(
+      table.dealId,
+      table.routeSnapshotLegId,
+    ),
   ],
 );
 

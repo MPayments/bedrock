@@ -177,11 +177,14 @@ function createDeal(): FinanceDealWorkbenchData {
           canCreateLegOperation: false,
           exchangeDocument: null,
         },
+        fromCurrencyId: null,
         id: "714fb6eb-a1bd-429e-9628-e97d0f2efa0b",
         idx: 1,
         kind: "collect",
         operationRefs: [],
+        routeSnapshotLegId: null,
         state: "pending",
+        toCurrencyId: null,
       },
     ],
     formalDocumentRequirements: [
@@ -217,6 +220,7 @@ function createDeal(): FinanceDealWorkbenchData {
       quoteAmount: "125000.00",
       quoteAmountSide: "target",
       quoteEligibility: false,
+      routeAttachment: null,
       sourceCurrencyId: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
       targetCurrencyId: "0f9d972c-b95b-4544-95d8-8ccdc7496ed8",
     },
@@ -243,6 +247,7 @@ function createDeal(): FinanceDealWorkbenchData {
     relatedResources: {
       attachments: [],
       formalDocuments: [],
+      instructionArtifacts: [],
       operations: [],
       quotes: [],
       reconciliationExceptions: [],
@@ -311,7 +316,7 @@ describe("treasury deal workbench", () => {
     ).toHaveLength(1);
   }, 30000);
 
-  it("renders the execution summary above the workspace tabs", async () => {
+  it("renders a single tab-less view with deal context, leg editor, and sidebar timeline", async () => {
     (
       globalThis as typeof globalThis & {
         React: typeof React;
@@ -328,61 +333,22 @@ describe("treasury deal workbench", () => {
       }),
     );
 
-    expect(markup.indexOf("Что мешает движению сделки")).toBeGreaterThan(-1);
-    expect(markup.indexOf("Котировки и расчет")).toBeGreaterThan(-1);
-    expect(markup.indexOf("Что мешает движению сделки")).toBeLessThan(
-      markup.indexOf("Котировки и расчет"),
-    );
-  }, 15000);
+    // Single-view layout: leg editor, timeline sidebar, context grid, and
+    // deal context card are all rendered simultaneously. No tab shell.
+    expect(markup).toContain("Шаги");
+    expect(markup).toContain("Маршрут");
+    expect(markup).toContain("Стороны");
+    expect(markup).toContain("Денежный поток");
+    expect(markup).toContain("Контекст сделки");
+    expect(markup).toContain("Что мешает движению сделки");
 
-  it("keeps the shared header on overview without duplicating next-step sections", async () => {
-    searchParamsValue = "tab=overview";
+    // Tab labels are gone.
+    expect(markup).not.toContain("Котировки и расчет");
+    expect(markup).not.toContain("Обзор сделки");
 
-    (
-      globalThis as typeof globalThis & {
-        React: typeof React;
-      }
-    ).React = React;
-
-    const { FinanceDealWorkbench } = await import(
-      "@/features/treasury/deals/components/workbench"
-    );
-
-    const markup = renderToStaticMarkup(
-      createElement(FinanceDealWorkbench, {
-        deal: createDeal(),
-      }),
-    );
-
-    expect(markup).toContain("Обзор сделки");
-    expect(markup.match(/Следующий шаг/g)).toHaveLength(1);
-    expect(markup.match(/Что мешает движению сделки/g)).toHaveLength(1);
-    expect(markup).not.toContain("Что нужно сделать сейчас");
+    // Pricing controls moved to CRM — finance workbench never shows them.
     expect(markup).not.toContain("Запросить котировку");
     expect(markup).not.toContain("Создать расчет");
-  });
-
-  it("shows pricing actions only inside the pricing tab", async () => {
-    searchParamsValue = "tab=pricing";
-
-    (
-      globalThis as typeof globalThis & {
-        React: typeof React;
-      }
-    ).React = React;
-
-    const { FinanceDealWorkbench } = await import(
-      "@/features/treasury/deals/components/workbench"
-    );
-
-    const markup = renderToStaticMarkup(
-      createElement(FinanceDealWorkbench, {
-        deal: createDeal(),
-      }),
-    );
-
-    expect(markup.match(/Запросить котировку/g)).toHaveLength(1);
-    expect(markup.match(/Создать расчет/g)).toHaveLength(1);
   });
 
   it("renders profitability, reconciliation, and close-readiness details from the backend projection", async () => {
@@ -476,87 +442,4 @@ describe("treasury deal workbench", () => {
     expect(normalizedMarkup).not.toContain("Закрыть сделку");
   });
 
-  it("renders a deal-scoped create action for missing formal document requirements", async () => {
-    searchParamsValue = "tab=documents";
-
-    (
-      globalThis as typeof globalThis & {
-        React: typeof React;
-      }
-    ).React = React;
-
-    const { FinanceDealWorkbench } = await import(
-      "@/features/treasury/deals/components/workbench"
-    );
-    const deal = createDeal();
-    const [firstRequirement] = deal.formalDocumentRequirements;
-    if (!firstRequirement) {
-      throw new Error("Expected at least one formal document requirement");
-    }
-    deal.formalDocumentRequirements = [
-      {
-        ...firstRequirement,
-        createAllowed: true,
-      },
-    ];
-
-    const markup = renderToStaticMarkup(
-      createElement(FinanceDealWorkbench, {
-        deal,
-      }),
-    );
-
-    expect(markup).toContain("Создать");
-    expect(markup).toContain(
-      "returnTo=%2Ftreasury%2Fdeals%2F614fb6eb-a1bd-429e-9628-e97d0f2efa0b%3Ftab%3Ddocuments",
-    );
-  });
-
-  it("keeps the requirement-row open action and removes the duplicate card open action", async () => {
-    searchParamsValue = "tab=documents";
-
-    (
-      globalThis as typeof globalThis & {
-        React: typeof React;
-      }
-    ).React = React;
-
-    const { FinanceDealWorkbench } = await import(
-      "@/features/treasury/deals/components/workbench"
-    );
-    const deal = createDeal();
-    deal.formalDocumentRequirements = [
-      {
-        activeDocumentId: "doc-1",
-        blockingReasons: [
-          "Opening document is not ready: invoice",
-        ],
-        createAllowed: false,
-        docType: "invoice",
-        openAllowed: true,
-        stage: "opening",
-        state: "in_progress",
-      },
-    ];
-    deal.relatedResources.formalDocuments = [
-      {
-        approvalStatus: "pending",
-        createdAt: "2026-04-02T08:10:00.000Z",
-        docType: "invoice",
-        id: "doc-1",
-        lifecycleStatus: "active",
-        occurredAt: "2026-04-02T08:10:00.000Z",
-        postingStatus: "unposted",
-        submissionStatus: "draft",
-      },
-    ];
-
-    const markup = renderToStaticMarkup(
-      createElement(FinanceDealWorkbench, {
-        deal,
-      }),
-    );
-
-    expect(markup.match(/Открыть/g)).toHaveLength(1);
-  });
 });

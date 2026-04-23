@@ -50,6 +50,26 @@ export class DrizzleTreasuryInstructionArtifactsRepository
     return rows as TreasuryInstructionArtifactRecord[];
   }
 
+  async listArtifactsByInstructionIds(
+    instructionIds: string[],
+    tx?: PersistenceSession,
+  ): Promise<TreasuryInstructionArtifactRecord[]> {
+    if (instructionIds.length === 0) {
+      return [];
+    }
+
+    const database = (tx as Transaction | undefined) ?? this.db;
+    const rows = await database
+      .select()
+      .from(treasuryInstructionArtifacts)
+      .where(
+        inArray(treasuryInstructionArtifacts.instructionId, instructionIds),
+      )
+      .orderBy(desc(treasuryInstructionArtifacts.uploadedAt));
+
+    return rows as TreasuryInstructionArtifactRecord[];
+  }
+
   async listArtifactsByInstructionIdsAndPurposes(
     input: {
       instructionIds: string[];

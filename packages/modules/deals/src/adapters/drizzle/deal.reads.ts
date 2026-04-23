@@ -536,10 +536,13 @@ export class DrizzleDealReads implements DealReads {
     const [rows, operationRefRows] = await Promise.all([
       this.db
         .select({
+          fromCurrencyId: dealLegs.fromCurrencyId,
           id: dealLegs.id,
           idx: dealLegs.idx,
           kind: dealLegs.kind,
+          routeSnapshotLegId: dealLegs.routeSnapshotLegId,
           state: dealLegs.state,
+          toCurrencyId: dealLegs.toCurrencyId,
         })
         .from(dealLegs)
         .where(eq(dealLegs.dealId, dealId))
@@ -573,11 +576,14 @@ export class DrizzleDealReads implements DealReads {
     }
 
     return rows.map((row) => ({
+      fromCurrencyId: row.fromCurrencyId,
       id: row.id,
       idx: row.idx,
       kind: row.kind,
       operationRefs: operationRefsByLegId.get(row.id) ?? [],
+      routeSnapshotLegId: row.routeSnapshotLegId,
       state: row.state,
+      toCurrencyId: row.toCurrencyId,
     }));
   }
 
@@ -825,6 +831,7 @@ export class DrizzleDealReads implements DealReads {
       quotes,
       formalDocuments,
       attachmentIngestions,
+      pricingContextRow,
     ] =
       await Promise.all([
         this.loadWorkflowParticipants(summary.id),
@@ -836,12 +843,19 @@ export class DrizzleDealReads implements DealReads {
         this.loadQuotes(summary.id),
         this.loadFormalDocuments(summary.id),
         this.loadAttachmentIngestions(summary.id),
+        this.loadPricingContextRow(summary.id),
       ]);
     const fundingResolution = await this.assessFundingResolution({
       acceptedQuote,
       intake: summary.snapshot,
       participants,
     });
+    const routeSnapshot = pricingContextRow
+      ? (normalizeStoredDealPricingContext({
+          revision: pricingContextRow.revision,
+          snapshot: pricingContextRow.snapshot,
+        }).routeAttachment?.snapshot ?? null)
+      : null;
 
     const sectionCompleteness = evaluateDealSectionCompleteness(summary.snapshot);
     const now = new Date();
@@ -851,6 +865,7 @@ export class DrizzleDealReads implements DealReads {
       fundingResolution,
       intake: summary.snapshot,
       now,
+      routeSnapshot,
       storedLegs,
     });
     const [calculationOperationalLines] = await Promise.all([

@@ -127,6 +127,13 @@
       "when": 1776891600000,
       "tag": "0017_treasury_instruction_artifacts_file_asset_fk",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1776881543736,
+      "tag": "0018_small_christian_walker",
+      "breakpoints": true
     }
   ]
 }

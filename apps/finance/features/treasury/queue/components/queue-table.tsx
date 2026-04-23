@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 
 import type { TreasuryExceptionQueueRow } from "@bedrock/deals/contracts";
@@ -12,6 +14,13 @@ import {
 } from "@bedrock/sdk-ui/components/table";
 
 import { formatMinorAmountWithCurrency } from "@/lib/format";
+
+import {
+  useQueueRowActions,
+  type QueueRowActions,
+  type QueueRowActionsState,
+} from "../lib/use-queue-row-actions";
+import { TreasuryQueueRowActions } from "./queue-row-actions";
 
 const KIND_LABELS: Record<TreasuryExceptionQueueRow["kind"], string> = {
   blocked_leg: "Заблокированный шаг",
@@ -34,7 +43,7 @@ const KIND_VARIANTS: Record<
   reconciliation_mismatch: "destructive",
 };
 
-function formatAge(ageSeconds: number): string {
+export function formatQueueRowAge(ageSeconds: number): string {
   if (ageSeconds < 60) return `${ageSeconds}с`;
   const minutes = Math.floor(ageSeconds / 60);
   if (minutes < 60) return `${minutes}м`;
@@ -44,10 +53,22 @@ function formatAge(ageSeconds: number): string {
   return `${days}д`;
 }
 
-function formatAmount(row: TreasuryExceptionQueueRow): string {
+export function formatQueueRowAmount(row: TreasuryExceptionQueueRow): string {
   if (!row.amountMinor) return "—";
   if (!row.currencyCode) return row.amountMinor;
   return formatMinorAmountWithCurrency(row.amountMinor, row.currencyCode);
+}
+
+export function formatQueueRowKindLabel(
+  kind: TreasuryExceptionQueueRow["kind"],
+) {
+  return KIND_LABELS[kind];
+}
+
+export function getQueueRowKindVariant(
+  kind: TreasuryExceptionQueueRow["kind"],
+) {
+  return KIND_VARIANTS[kind];
 }
 
 export interface TreasuryExceptionQueueTableProps {
@@ -57,6 +78,8 @@ export interface TreasuryExceptionQueueTableProps {
 export function TreasuryExceptionQueueTable({
   rows,
 }: TreasuryExceptionQueueTableProps) {
+  const { actions, state } = useQueueRowActions();
+
   if (rows.length === 0) {
     return (
       <div className="text-muted-foreground text-sm">
@@ -72,9 +95,10 @@ export function TreasuryExceptionQueueTable({
           <TableHead>Тип</TableHead>
           <TableHead>Сделка</TableHead>
           <TableHead>Нога</TableHead>
+          <TableHead>Контрагент</TableHead>
           <TableHead>Сумма</TableHead>
           <TableHead>Возраст</TableHead>
-          <TableHead className="sr-only">Действия</TableHead>
+          <TableHead className="text-right">Действия</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -84,6 +108,9 @@ export function TreasuryExceptionQueueTable({
             row.dealId ?? "",
             row.instructionId ?? "",
             row.legIdx ?? "",
+            typeof row.metadata?.exceptionId === "string"
+              ? row.metadata.exceptionId
+              : "",
           ].join(":");
           return (
             <TableRow key={key}>
@@ -105,17 +132,19 @@ export function TreasuryExceptionQueueTable({
                 )}
               </TableCell>
               <TableCell>{row.legIdx ?? "—"}</TableCell>
-              <TableCell>{formatAmount(row)}</TableCell>
-              <TableCell>{formatAge(row.ageSeconds)}</TableCell>
-              <TableCell>
-                {row.dealId ? (
-                  <Link
-                    className="text-primary text-xs hover:underline"
-                    href={`/treasury/deals/${row.dealId}`}
-                  >
-                    Открыть →
-                  </Link>
-                ) : null}
+              <TableCell className="max-w-[200px] truncate">
+                {row.counterpartyName ?? "—"}
+              </TableCell>
+              <TableCell>{formatQueueRowAmount(row)}</TableCell>
+              <TableCell>{formatQueueRowAge(row.ageSeconds)}</TableCell>
+              <TableCell className="text-right">
+                <div className="flex justify-end">
+                  <TreasuryQueueRowActions
+                    actions={actions}
+                    row={row}
+                    state={state}
+                  />
+                </div>
               </TableCell>
             </TableRow>
           );
@@ -124,3 +153,5 @@ export function TreasuryExceptionQueueTable({
     </Table>
   );
 }
+
+export type { QueueRowActions, QueueRowActionsState };

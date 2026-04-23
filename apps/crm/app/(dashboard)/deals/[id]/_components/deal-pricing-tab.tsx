@@ -467,6 +467,16 @@ function formatFundingDeadline(iso: string | null | undefined): string {
   return DEADLINE_DATETIME_FORMATTER.format(date);
 }
 
+const REVOCATION_REASON_LABELS: Record<string, string> = {
+  operator_commercial_amendment: "условия изменены казначейством",
+  operator_route_swap: "маршрут изменён казначейством",
+};
+
+function formatRevocationReason(reason: string | null | undefined): string | null {
+  if (!reason) return null;
+  return REVOCATION_REASON_LABELS[reason] ?? reason;
+}
+
 function formatFeeBasis(fee: {
   kind: "fixed" | "fx_spread" | "gross_percent" | "net_percent";
   percentage?: string;
@@ -1482,11 +1492,15 @@ export function DealPricingTab({
         const expiresIso =
           acceptedQuote?.expiresAt ?? preview?.quotePreview?.expiresAt ?? null;
         const countdown = formatExpiresCountdown(expiresIso, nowTick);
+        const revocationLabel =
+          acceptedQuote?.revokedAt
+            ? formatRevocationReason(acceptedQuote.revocationReason)
+            : null;
         const countdownSublabel =
           pricingState === "drifted"
             ? "лок действителен, но пришли новые условия"
             : pricingState === "expired"
-              ? "требуется новый лок"
+              ? (revocationLabel ?? "требуется новый лок")
               : "по умолчанию — 1 день";
         return (
           <Card>

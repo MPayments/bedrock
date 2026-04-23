@@ -70,6 +70,10 @@ export interface TreasuryInstructionsRepository {
     operationIds: string[],
     tx?: PersistenceSession,
   ): Promise<TreasuryInstructionRecord[]>;
+  listInstructionsByOperationIds(
+    operationIds: string[],
+    tx?: PersistenceSession,
+  ): Promise<TreasuryInstructionRecord[]>;
   updateInstruction(
     input: TreasuryInstructionUpdateModel,
     tx?: PersistenceSession,

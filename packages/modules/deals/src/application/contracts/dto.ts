@@ -180,11 +180,14 @@ export const DealLegOperationRefSchema = z.object({
 export type DealLegOperationRef = z.infer<typeof DealLegOperationRefSchema>;
 
 export const DealWorkflowLegSchema = z.object({
+  fromCurrencyId: z.uuid().nullable().default(null),
   id: z.uuid().nullable().default(null),
   idx: z.number().int().positive(),
   kind: DealLegKindSchema,
   operationRefs: z.array(DealLegOperationRefSchema).default([]),
+  routeSnapshotLegId: z.string().nullable().default(null),
   state: DealLegStateSchema,
+  toCurrencyId: z.uuid().nullable().default(null),
 });
 
 export type DealWorkflowLeg = z.infer<typeof DealWorkflowLegSchema>;

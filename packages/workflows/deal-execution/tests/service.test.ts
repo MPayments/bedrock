@@ -459,6 +459,254 @@ describe("deal execution workflow", () => {
     ]);
   });
 
+  it("compiles a route-derived multi-hop plan with per-hop quote leg references", () => {
+    const multiHopLegs = [
+      {
+        fromCurrencyId: "cur-rub",
+        id: "leg-1",
+        idx: 1,
+        kind: "collect" as const,
+        operationRefs: [] as {
+          kind: string;
+          operationId: string;
+          sourceRef: string;
+        }[],
+        routeSnapshotLegId: null,
+        state: "ready" as const,
+        toCurrencyId: "cur-rub",
+      },
+      {
+        fromCurrencyId: "cur-rub",
+        id: "leg-2",
+        idx: 2,
+        kind: "transit_hold" as const,
+        operationRefs: [] as {
+          kind: string;
+          operationId: string;
+          sourceRef: string;
+        }[],
+        routeSnapshotLegId: "route-leg-hop-1",
+        state: "pending" as const,
+        toCurrencyId: "cur-rub",
+      },
+      {
+        fromCurrencyId: "cur-rub",
+        id: "leg-3",
+        idx: 3,
+        kind: "convert" as const,
+        operationRefs: [] as {
+          kind: string;
+          operationId: string;
+          sourceRef: string;
+        }[],
+        routeSnapshotLegId: "route-leg-hop-2",
+        state: "ready" as const,
+        toCurrencyId: "cur-aed",
+      },
+      {
+        fromCurrencyId: "cur-aed",
+        id: "leg-4",
+        idx: 4,
+        kind: "transit_hold" as const,
+        operationRefs: [] as {
+          kind: string;
+          operationId: string;
+          sourceRef: string;
+        }[],
+        routeSnapshotLegId: "route-leg-hop-3",
+        state: "pending" as const,
+        toCurrencyId: "cur-aed",
+      },
+      {
+        fromCurrencyId: "cur-aed",
+        id: "leg-5",
+        idx: 5,
+        kind: "convert" as const,
+        operationRefs: [] as {
+          kind: string;
+          operationId: string;
+          sourceRef: string;
+        }[],
+        routeSnapshotLegId: "route-leg-hop-4",
+        state: "ready" as const,
+        toCurrencyId: "cur-usd",
+      },
+      {
+        fromCurrencyId: "cur-usd",
+        id: "leg-6",
+        idx: 6,
+        kind: "payout" as const,
+        operationRefs: [] as {
+          kind: string;
+          operationId: string;
+          sourceRef: string;
+        }[],
+        routeSnapshotLegId: null,
+        state: "pending" as const,
+        toCurrencyId: "cur-usd",
+      },
+    ];
+    const workflow = {
+      ...createWorkflowProjection({
+        acceptedQuoteId: "quote-1",
+        type: "payment",
+        withConvert: true,
+      }),
+      executionPlan: multiHopLegs,
+    };
+    const acceptedQuote = {
+      ...createAcceptedQuoteDetails(),
+      legs: [
+        {
+          asOf: new Date("2026-04-03T10:00:00.000Z"),
+          createdAt: new Date("2026-04-03T10:00:00.000Z"),
+          executionCounterpartyId: null,
+          fromAmountMinor: 75282514n,
+          fromCurrencyId: "cur-rub",
+          id: "quote-leg-1",
+          idx: 1,
+          quoteId: "quote-1",
+          rateDen: 1n,
+          rateNum: 1n,
+          sourceKind: "derived" as const,
+          sourceRef: null,
+          toAmountMinor: 75282514n,
+          toCurrencyId: "cur-rub",
+        },
+        {
+          asOf: new Date("2026-04-03T10:00:00.000Z"),
+          createdAt: new Date("2026-04-03T10:00:00.000Z"),
+          executionCounterpartyId: null,
+          fromAmountMinor: 75282514n,
+          fromCurrencyId: "cur-rub",
+          id: "quote-leg-2",
+          idx: 2,
+          quoteId: "quote-1",
+          rateDen: 1000000n,
+          rateNum: 48788n,
+          sourceKind: "derived" as const,
+          sourceRef: null,
+          toAmountMinor: 3672500n,
+          toCurrencyId: "cur-aed",
+        },
+        {
+          asOf: new Date("2026-04-03T10:00:00.000Z"),
+          createdAt: new Date("2026-04-03T10:00:00.000Z"),
+          executionCounterpartyId: null,
+          fromAmountMinor: 3672500n,
+          fromCurrencyId: "cur-aed",
+          id: "quote-leg-3",
+          idx: 3,
+          quoteId: "quote-1",
+          rateDen: 1n,
+          rateNum: 1n,
+          sourceKind: "derived" as const,
+          sourceRef: null,
+          toAmountMinor: 3672500n,
+          toCurrencyId: "cur-aed",
+        },
+        {
+          asOf: new Date("2026-04-03T10:00:00.000Z"),
+          createdAt: new Date("2026-04-03T10:00:00.000Z"),
+          executionCounterpartyId: null,
+          fromAmountMinor: 3672500n,
+          fromCurrencyId: "cur-aed",
+          id: "quote-leg-4",
+          idx: 4,
+          quoteId: "quote-1",
+          rateDen: 10000n,
+          rateNum: 2722n,
+          sourceKind: "derived" as const,
+          sourceRef: null,
+          toAmountMinor: 1000000n,
+          toCurrencyId: "cur-usd",
+        },
+      ],
+    };
+
+    const recipe = compileDealExecutionRecipe({
+      acceptedQuote,
+      agreementOrganizationId: "org-1",
+      internalEntityOrganizationId: "org-1",
+      workflow,
+    });
+
+    expect(
+      recipe.map((item) => [
+        item.legKind,
+        item.amountRef,
+        item.counterAmountRef,
+        item.quoteLegIdx,
+      ]),
+    ).toEqual([
+      ["collect", "money_request_source", null, null],
+      ["transit_hold", "quote_leg_to", null, 1],
+      ["convert", "quote_leg_from", "quote_leg_to", 2],
+      ["transit_hold", "quote_leg_to", null, 3],
+      ["convert", "quote_leg_from", "quote_leg_to", 4],
+      ["payout", "accepted_quote_to", null, null],
+    ]);
+
+    // Every route-derived leg carries its own unique quoteLegIdx so the
+    // two convert legs resolve to DIFFERENT amounts instead of sharing the
+    // aggregate quote amounts.
+    const convertLegs = recipe.filter((item) => item.legKind === "convert");
+    expect(convertLegs).toHaveLength(2);
+    expect(convertLegs[0]?.quoteLegIdx).not.toBe(convertLegs[1]?.quoteLegIdx);
+  });
+
+  it("throws when there are more route-derived legs than accepted-quote legs", () => {
+    const workflow = {
+      ...createWorkflowProjection({
+        acceptedQuoteId: "quote-1",
+        type: "currency_exchange",
+        withConvert: true,
+      }),
+      executionPlan: [
+        {
+          fromCurrencyId: "cur-rub",
+          id: "leg-1",
+          idx: 1,
+          kind: "collect" as const,
+          operationRefs: [],
+          routeSnapshotLegId: null,
+          state: "ready" as const,
+          toCurrencyId: "cur-rub",
+        },
+        {
+          fromCurrencyId: "cur-rub",
+          id: "leg-2",
+          idx: 2,
+          kind: "convert" as const,
+          operationRefs: [],
+          routeSnapshotLegId: "route-leg-hop-1",
+          state: "ready" as const,
+          toCurrencyId: "cur-usd",
+        },
+        {
+          fromCurrencyId: "cur-usd",
+          id: "leg-3",
+          idx: 3,
+          kind: "payout" as const,
+          operationRefs: [],
+          routeSnapshotLegId: null,
+          state: "pending" as const,
+          toCurrencyId: "cur-usd",
+        },
+      ],
+    };
+    // Empty legs array from the existing stub — route-derived leg would need
+    // quote leg 1 but the quote has 0 legs.
+    expect(() =>
+      compileDealExecutionRecipe({
+        acceptedQuote: createAcceptedQuoteDetails(),
+        agreementOrganizationId: "org-1",
+        internalEntityOrganizationId: "org-1",
+        workflow,
+      }),
+    ).toThrow(/more route-derived legs than the accepted quote provides/u);
+  });
+
   it("compiles exporter settlement into payout, payin, fx conversion, and funding using the same organization rule", () => {
     const workflow = createWorkflowProjection({
       acceptedQuoteId: "quote-1",

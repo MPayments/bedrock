@@ -39,11 +39,14 @@ function createExecutionLeg(
   state: "pending" | "ready" | "in_progress" | "done" | "blocked",
 ) {
   return {
+    fromCurrencyId: null,
     id: `00000000-0000-4000-8000-0000000001${idx.toString().padStart(2, "0")}`,
     idx,
     kind,
     operationRefs: [],
+    routeSnapshotLegId: null,
     state,
+    toCurrencyId: null,
   };
 }
 
@@ -326,6 +329,7 @@ function createFinanceWorkspaceProjection() {
         actions: {
           canCreateLegOperation: false,
         },
+        fromCurrencyId: null,
         id: "leg-1",
         idx: 1,
         kind: "payout",
@@ -336,7 +340,9 @@ function createFinanceWorkspaceProjection() {
             sourceRef: "deal:deal-1:leg:1:payout:1",
           },
         ],
+        routeSnapshotLegId: null,
         state: "done",
+        toCurrencyId: null,
       },
     ],
     formalDocumentRequirements: [],
@@ -360,6 +366,7 @@ function createFinanceWorkspaceProjection() {
       quoteAmount: "100.00",
       quoteAmountSide: "source",
       quoteEligibility: false,
+      routeAttachment: null,
       sourceCurrencyId: "00000000-0000-4000-8000-000000000006",
       targetCurrencyId: null,
     },

@@ -1,4 +1,5 @@
 import { toMinorAmountString } from "@bedrock/shared/money";
+import type { PaymentRouteDraft } from "@bedrock/treasury/contracts";
 
 import {
   buildDealExecutionPlan,
@@ -142,18 +143,47 @@ export function buildDealLegRows(input: {
   existingLegs?: DealWorkflowLeg[];
   generateUuid: () => string;
   intake: DealIntakeDraft;
+  routeSnapshot?: PaymentRouteDraft | null;
 }): CreateDealLegStoredInput[] {
-  const existingLegStateByKey = new Map(
-    (input.existingLegs ?? []).map((leg) => [`${leg.idx}:${leg.kind}`, leg.state] as const),
-  );
+  const existingLegs = input.existingLegs ?? [];
+  const existingBySnapshotLegId = new Map<string, DealWorkflowLeg>();
+  const existingByIdxKind = new Map<string, DealWorkflowLeg>();
+  for (const leg of existingLegs) {
+    if (leg.routeSnapshotLegId) {
+      existingBySnapshotLegId.set(leg.routeSnapshotLegId, leg);
+    }
+    existingByIdxKind.set(`${leg.idx}:${leg.kind}`, leg);
+  }
 
-  return buildDealExecutionPlan(input.intake).map((leg) => ({
-    dealId: input.dealId,
-    id: input.generateUuid(),
-    idx: leg.idx,
-    kind: leg.kind,
-    state: existingLegStateByKey.get(`${leg.idx}:${leg.kind}`) ?? leg.state,
-  }));
+  const matchExisting = (
+    plannedLeg: DealWorkflowLeg,
+  ): DealWorkflowLeg | null => {
+    if (plannedLeg.routeSnapshotLegId) {
+      const bySnapshot = existingBySnapshotLegId.get(
+        plannedLeg.routeSnapshotLegId,
+      );
+      if (bySnapshot) return bySnapshot;
+    }
+    return (
+      existingByIdxKind.get(`${plannedLeg.idx}:${plannedLeg.kind}`) ?? null
+    );
+  };
+
+  return buildDealExecutionPlan(input.intake, input.routeSnapshot ?? null).map(
+    (plannedLeg) => {
+      const existing = matchExisting(plannedLeg);
+      return {
+        dealId: input.dealId,
+        fromCurrencyId: plannedLeg.fromCurrencyId,
+        id: existing?.id ?? input.generateUuid(),
+        idx: plannedLeg.idx,
+        kind: plannedLeg.kind,
+        routeSnapshotLegId: plannedLeg.routeSnapshotLegId,
+        state: existing?.state ?? plannedLeg.state,
+        toCurrencyId: plannedLeg.toCurrencyId,
+      };
+    },
+  );
 }
 
 export function buildDealParticipantRows(input: {

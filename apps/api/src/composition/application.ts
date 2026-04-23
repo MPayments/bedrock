@@ -1,4 +1,3 @@
-import type { AccountingModule } from "@bedrock/accounting";
 import type { AgreementsModule } from "@bedrock/agreements";
 import type { CalculationsModule } from "@bedrock/calculations";
 import {
@@ -9,6 +8,7 @@ import type { DealsModule } from "@bedrock/deals";
 import { DrizzleDealStore } from "@bedrock/deals/adapters/drizzle";
 import {
   createAccountingPeriodDocumentTransitionEffectsService,
+  createDocumentsAccountingPeriodsPort,
   createDocumentsService,
   createRuleBasedDocumentActionPolicyService,
   type DocumentsService,
@@ -168,8 +168,7 @@ export function createApplicationServices(
     ledgerModule,
     logger,
     portalAccessGrantsService,
-  } =
-    platform;
+  } = platform;
   const ledgerReadPort = {
     getOperationDetails: ledgerModule.operations.queries.getDetails,
     listOperationDetails: ledgerModule.operations.queries.listDetails,
@@ -197,9 +196,8 @@ export function createApplicationServices(
       paymentRouteTemplates: {
         async findById(id: string) {
           try {
-            const tpl = await txTreasury.paymentRoutes.queries.findTemplateById(
-              id,
-            );
+            const tpl =
+              await txTreasury.paymentRoutes.queries.findTemplateById(id);
             return { draft: tpl.draft, id: tpl.id, name: tpl.name };
           } catch {
             return null;
@@ -273,9 +271,8 @@ export function createApplicationServices(
     paymentRouteTemplates: {
       async findById(id: string) {
         try {
-          const tpl = await treasuryModule.paymentRoutes.queries.findTemplateById(
-            id,
-          );
+          const tpl =
+            await treasuryModule.paymentRoutes.queries.findTemplateById(id);
           return { draft: tpl.draft, id: tpl.id, name: tpl.name };
         } catch {
           return null;
@@ -314,16 +311,16 @@ export function createApplicationServices(
       ledgerLookup: {
         async operationExists(operationId: string) {
           return (
-            (await createLedgerModuleForTransaction(tx).operations.queries.getDetails(
-              operationId,
-            )) !== null
+            (await createLedgerModuleForTransaction(
+              tx,
+            ).operations.queries.getDetails(operationId)) !== null
           );
         },
         async treasuryOperationExists(operationId: string) {
           return (
-            (await createTreasuryModuleForTransaction(tx).operations.queries.findById(
-              operationId,
-            )) !== null
+            (await createTreasuryModuleForTransaction(
+              tx,
+            ).operations.queries.findById(operationId)) !== null
           );
         },
       },
@@ -339,10 +336,16 @@ export function createApplicationServices(
     },
     ledgerLookup: {
       async operationExists(operationId: string) {
-        return (await ledgerModule.operations.queries.getDetails(operationId)) !== null;
+        return (
+          (await ledgerModule.operations.queries.getDetails(operationId)) !==
+          null
+        );
       },
       async treasuryOperationExists(operationId: string) {
-        return (await treasuryModule.operations.queries.findById(operationId)) !== null;
+        return (
+          (await treasuryModule.operations.queries.findById(operationId)) !==
+          null
+        );
       },
     },
     logger,
@@ -375,81 +378,18 @@ export function createApplicationServices(
       accountingModule.packs.queries.loadActivePackForBook,
     resolvePostingPlan: accountingModule.packs.queries.resolvePostingPlan,
   };
-  const accountingPeriodsPort = {
-    async assertOrganizationPeriodsOpen(input: {
-      occurredAt: Date;
-      organizationIds: string[];
-      docType: string;
-    }) {
-      return accountingModule.periods.commands.assertOrganizationPeriodsOpen(input);
-    },
-    async listClosedOrganizationIdsForPeriod(input: {
-      organizationIds: string[];
-      occurredAt: Date;
-    }) {
-      return accountingModule.periods.queries.listClosedOrganizationIdsForPeriod(
-        input,
-      );
-    },
-    async closePeriod(input: {
-      organizationId: string;
-      periodStart: Date;
-      periodEnd: Date;
-      closedBy: string;
-      closeReason?: string | null;
-      closeDocumentId: string;
-      db?: unknown;
-    }) {
-      const target = input.db as Transaction | undefined;
-      const module: AccountingModule = target
-        ? createApiAccountingModule({
-            db: target,
-            persistence: bindPersistenceSession(target),
-            logger,
-          })
-        : accountingModule;
+  const accountingPeriodsPort = createDocumentsAccountingPeriodsPort({
+    accountingModule,
+    createAccountingModuleForTransaction: (transaction) => {
+      const tx = transaction as Transaction;
 
-      return module.periods.commands.closePeriod({
-        organizationId: input.organizationId,
-        periodStart: input.periodStart,
-        periodEnd: input.periodEnd,
-        closedBy: input.closedBy,
-        closeReason: input.closeReason,
-        closeDocumentId: input.closeDocumentId,
+      return createApiAccountingModule({
+        db: tx,
+        persistence: bindPersistenceSession(tx),
+        logger,
       });
     },
-    async isOrganizationPeriodClosed(input: {
-      organizationId: string;
-      occurredAt: Date;
-    }) {
-      return accountingModule.periods.queries.isOrganizationPeriodClosed(input);
-    },
-    async reopenPeriod(input: {
-      organizationId: string;
-      periodStart: Date;
-      reopenedBy: string;
-      reopenReason?: string | null;
-      reopenDocumentId?: string | null;
-      db?: unknown;
-    }) {
-      const target = input.db as Transaction | undefined;
-      const module: AccountingModule = target
-        ? createApiAccountingModule({
-            db: target,
-            persistence: bindPersistenceSession(target),
-            logger,
-          })
-        : accountingModule;
-
-      return module.periods.commands.reopenPeriod({
-        organizationId: input.organizationId,
-        periodStart: input.periodStart,
-        reopenedBy: input.reopenedBy,
-        reopenReason: input.reopenReason,
-        reopenDocumentId: input.reopenDocumentId,
-      });
-    },
-  };
+  });
   const documentRequisitesService = {
     findById: partiesModule.requisites.queries.findById,
     resolveBindings: partiesModule.requisites.queries.resolveBindings,
@@ -482,9 +422,8 @@ export function createApplicationServices(
       }
 
       if (usedDocumentId) {
-        const linkedDocument = await documentsReadModel.findBusinessLinkByDocumentId(
-          usedDocumentId,
-        );
+        const linkedDocument =
+          await documentsReadModel.findBusinessLinkByDocumentId(usedDocumentId);
 
         if (!linkedDocument) {
           throw new NotFoundError("Document", usedDocumentId);
@@ -537,7 +476,9 @@ export function createApplicationServices(
     rules: DEFAULT_DOCUMENT_APPROVAL_RULES,
     async isActorExemptFromApproval({ actorUserId }) {
       try {
-        return (await iamService.queries.findById(actorUserId)).role === "admin";
+        return (
+          (await iamService.queries.findById(actorUserId)).role === "admin"
+        );
       } catch (error) {
         if (error instanceof UserNotFoundError) {
           return false;
@@ -594,17 +535,21 @@ export function createApplicationServices(
         createReconciliationServiceForTransaction(tx),
     });
 
-  const objectStorage = env?.S3_ENDPOINT && env?.S3_ACCESS_KEY && env?.S3_SECRET_KEY
-      ? new S3ObjectStorageAdapter({
-        endpoint: env.S3_ENDPOINT,
-        publicEndpoint: env.S3_PUBLIC_ENDPOINT,
-        region: env.S3_REGION ?? "us-east-1",
-        accessKeyId: env.S3_ACCESS_KEY,
-        secretAccessKey: env.S3_SECRET_KEY,
-        bucket: env.S3_BUCKET ?? "bedrock-documents",
-        forcePathStyle: true,
-      }, logger)
-    : undefined;
+  const objectStorage =
+    env?.S3_ENDPOINT && env?.S3_ACCESS_KEY && env?.S3_SECRET_KEY
+      ? new S3ObjectStorageAdapter(
+          {
+            endpoint: env.S3_ENDPOINT,
+            publicEndpoint: env.S3_PUBLIC_ENDPOINT,
+            region: env.S3_REGION ?? "us-east-1",
+            accessKeyId: env.S3_ACCESS_KEY,
+            secretAccessKey: env.S3_SECRET_KEY,
+            bucket: env.S3_BUCKET ?? "bedrock-documents",
+            forcePathStyle: true,
+          },
+          logger,
+        )
+      : undefined;
   const filesModule = createApiFilesModule({
     db,
     logger,
@@ -668,13 +613,15 @@ export function createApplicationServices(
   const documentExtraction = env?.OPENAI_API_KEY
     ? new OpenAIDocumentExtractionAdapter({ apiKey: env.OPENAI_API_KEY })
     : undefined;
-  const dealAttachmentIngestionWorkflow = createDealAttachmentIngestionWorkflow({
-    currencies: currenciesService,
-    deals: dealsModule,
-    documentExtraction,
-    files: filesModule,
-    logger,
-  });
+  const dealAttachmentIngestionWorkflow = createDealAttachmentIngestionWorkflow(
+    {
+      currencies: currenciesService,
+      deals: dealsModule,
+      documentExtraction,
+      files: filesModule,
+      logger,
+    },
+  );
 
   return {
     agreementsModule,

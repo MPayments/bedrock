@@ -19,6 +19,7 @@ import {
   type DealLegRouteAmendment,
 } from "../shared/pricing-context";
 import {
+  buildDealLegRows,
   buildDealOperationalPositionRows,
   createTimelinePayloadEvent,
 } from "../shared/workflow-state";
@@ -107,6 +108,17 @@ export class AmendDealLegCommand {
           existing.revision,
         );
       }
+
+      await tx.dealStore.replaceDealLegs({
+        dealId: validated.dealId,
+        legs: buildDealLegRows({
+          dealId: validated.dealId,
+          existingLegs: workflow.executionPlan,
+          generateUuid: () => this.runtime.generateUuid(),
+          intake: workflow.intake,
+          routeSnapshot: amended.snapshot.routeAttachment?.snapshot ?? null,
+        }),
+      });
 
       const now = this.runtime.now();
       const events: Parameters<

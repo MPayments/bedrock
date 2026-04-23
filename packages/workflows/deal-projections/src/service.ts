@@ -5,6 +5,7 @@ import { canDealWriteTreasuryOrFormalDocuments } from "@bedrock/deals";
 import type { DealsModule as DealsModuleRoot } from "@bedrock/deals";
 import type {
   DealOperationalPosition,
+  DealPricingContext,
   DealTimelineEvent,
   DealType,
   DealWorkflowProjection,
@@ -24,6 +25,7 @@ import {
 import type { TreasuryModule } from "@bedrock/treasury";
 import {
   computeOperationProjectedState,
+  type QuoteDetailsRecord,
   type QuoteListItem,
   type TreasuryInstruction,
   type TreasuryOperationKind,
@@ -52,6 +54,7 @@ import type {
   FinanceDealQueueFilters,
   FinanceDealQueueProjection,
   FinanceDealQueueItem,
+  FinanceDealRouteAttachment,
   FinanceProfitabilityAmount,
   FinanceDealWorkspaceProjection,
   FinanceProfitabilitySnapshot,
@@ -1178,6 +1181,171 @@ function buildFinanceQuoteRequestContext(workflow: DealWorkflowProjection) {
   };
 }
 
+async function buildFinanceRouteAttachment(input: {
+  acceptedQuoteDetails: QuoteDetailsRecord | null;
+  currencies: Pick<CurrenciesService, "findById">;
+  parties: DealProjectionsWorkflowDeps["parties"];
+  pricingContext: DealPricingContext | null;
+}): Promise<FinanceDealRouteAttachment | null> {
+  const attachment = input.pricingContext?.routeAttachment;
+  if (!attachment) {
+    return null;
+  }
+
+  const legs = attachment.snapshot.legs;
+  const currencyIds = Array.from(
+    new Set(
+      legs.flatMap((leg) => [leg.fromCurrencyId, leg.toCurrencyId]),
+    ),
+  );
+  const codeByCurrencyId = new Map(
+    await Promise.all(
+      currencyIds.map(
+        async (currencyId): Promise<readonly [string, string | null]> => {
+          try {
+            const currency = await input.currencies.findById(currencyId);
+            return [currencyId, currency?.code ?? null] as const;
+          } catch {
+            return [currencyId, null] as const;
+          }
+        },
+      ),
+    ),
+  );
+
+  // Quote legs are ordered 1:1 with the route snapshot legs (same indexing as
+  // our materialization). When an accepted quote exists, enrich each route leg
+  // with its per-hop amounts + rate so the UI can render per-step summaries
+  // without needing another round-trip.
+  const quoteLegByIdx = new Map(
+    (input.acceptedQuoteDetails?.legs ?? []).map(
+      (leg) => [leg.idx, leg] as const,
+    ),
+  );
+
+  // Route participants carry a `displayName` set by the template author, which
+  // is often a placeholder label like «Хоп 1». When the participant is bound
+  // to a real counterparty/organization, resolve the actual entity name so
+  // operators see meaningful participants instead of template placeholders.
+  const participantsWithEntity = attachment.snapshot.participants.filter(
+    (participant) =>
+      participant.binding === "bound" &&
+      participant.entityId !== null &&
+      participant.entityKind !== null,
+  );
+  const counterpartyIds = Array.from(
+    new Set(
+      participantsWithEntity
+        .filter((participant) => participant.entityKind === "counterparty")
+        .map((participant) => participant.entityId as string),
+    ),
+  );
+  const organizationIds = Array.from(
+    new Set(
+      participantsWithEntity
+        .filter((participant) => participant.entityKind === "organization")
+        .map((participant) => participant.entityId as string),
+    ),
+  );
+  const counterpartyNameById = new Map(
+    (
+      await Promise.all(
+        counterpartyIds.map(async (id) => {
+          try {
+            const counterparty =
+              await input.parties.counterparties.queries.findById(id);
+            return [
+              id,
+              counterparty?.shortName ?? counterparty?.fullName ?? null,
+            ] as const;
+          } catch {
+            return [id, null] as const;
+          }
+        }),
+      )
+    ).filter(
+      (entry): entry is readonly [string, string] => entry[1] !== null,
+    ),
+  );
+  const organizationNameById = new Map(
+    (
+      await Promise.all(
+        organizationIds.map(async (id) => {
+          try {
+            const organization =
+              await input.parties.organizations.queries.findById(id);
+            return [
+              id,
+              organization?.shortName ?? organization?.fullName ?? null,
+            ] as const;
+          } catch {
+            return [id, null] as const;
+          }
+        }),
+      )
+    ).filter(
+      (entry): entry is readonly [string, string] => entry[1] !== null,
+    ),
+  );
+
+  type SnapshotParticipant =
+    (typeof attachment.snapshot.participants)[number];
+  function resolveParticipantDisplayName(
+    participant: SnapshotParticipant,
+  ): string {
+    if (participant.binding !== "bound" || !participant.entityId) {
+      return participant.displayName;
+    }
+    if (participant.entityKind === "counterparty") {
+      return (
+        counterpartyNameById.get(participant.entityId) ??
+        participant.displayName
+      );
+    }
+    if (participant.entityKind === "organization") {
+      return (
+        organizationNameById.get(participant.entityId) ??
+        participant.displayName
+      );
+    }
+    return participant.displayName;
+  }
+
+  return {
+    attachedAt: attachment.attachedAt.toISOString(),
+    legs: legs.map((leg, index) => {
+      const quoteLeg = quoteLegByIdx.get(index + 1) ?? null;
+      return {
+        fees: leg.fees.map((fee) => ({
+          chargeToCustomer: fee.chargeToCustomer,
+          kind: fee.kind,
+          label: fee.label ?? fee.kind,
+          percentage: fee.percentage ?? null,
+        })),
+        fromAmountMinor: quoteLeg?.fromAmountMinor.toString() ?? null,
+        fromCurrencyCode: codeByCurrencyId.get(leg.fromCurrencyId) ?? null,
+        fromCurrencyId: leg.fromCurrencyId,
+        id: leg.id,
+        rateDen: quoteLeg?.rateDen.toString() ?? null,
+        rateNum: quoteLeg?.rateNum.toString() ?? null,
+        toAmountMinor: quoteLeg?.toAmountMinor.toString() ?? null,
+        toCurrencyCode: codeByCurrencyId.get(leg.toCurrencyId) ?? null,
+        toCurrencyId: leg.toCurrencyId,
+      };
+    }),
+    participants: attachment.snapshot.participants.map((participant) => ({
+      binding: participant.binding,
+      displayName: resolveParticipantDisplayName(participant),
+      entityId: participant.entityId,
+      entityKind: participant.entityKind,
+      nodeId: participant.nodeId,
+      role: participant.role,
+    })),
+    templateId: attachment.templateId,
+    templateName: attachment.templateName,
+  };
+}
+
 function resolveAdjustmentDocumentDocType(input: {
   operationKind: TreasuryOperationKind | null;
 }) {
@@ -2208,6 +2376,7 @@ export function createDealProjectionsWorkflow(
       operationsResult,
       quotesResult,
       dealTraceDocuments,
+      pricingContext,
     ] = await Promise.all([
       deps.files.files.queries.listDealAttachments(dealId),
       workflow.summary.calculationId
@@ -2230,7 +2399,24 @@ export function createDealProjectionsWorkflow(
         sortOrder: "desc",
       }),
       deps.documentsReadModel.listDealTraceRowsByDealId(dealId),
+      deps.deals.deals.queries.findPricingContextByDealId({ dealId }),
     ]);
+
+    const acceptedQuoteDetailsRecord =
+      workflow.acceptedQuote?.quoteId
+        ? await deps.treasury.quotes.queries
+            .getQuoteDetails({
+              quoteRef: workflow.acceptedQuote.quoteId,
+            })
+            .catch(() => null)
+        : null;
+
+    const financeRouteAttachment = await buildFinanceRouteAttachment({
+      acceptedQuoteDetails: acceptedQuoteDetailsRecord,
+      currencies: deps.currencies,
+      parties: deps.parties,
+      pricingContext,
+    });
 
     const postedDocuments = dealTraceDocuments
       .filter((row) => row.postingStatus === "posted")
@@ -2252,10 +2438,11 @@ export function createDealProjectionsWorkflow(
         (document) => document.docType === "exchange",
       ) ?? null;
     const queueContext = classifyFinanceQueue(workflow);
-    const latestInstructions =
-      await deps.treasury.instructions.queries.listLatestByOperationIds(
-        operationsResult.data.map((operation) => operation.id),
-      );
+    const operationIds = operationsResult.data.map((operation) => operation.id);
+    const [latestInstructions, allInstructions] = await Promise.all([
+      deps.treasury.instructions.queries.listLatestByOperationIds(operationIds),
+      deps.treasury.instructions.queries.listByOperationIds({ operationIds }),
+    ]);
     const operationsById = new Map(
       operationsResult.data.map(
         (operation) => [operation.id, operation] as const,
@@ -2266,6 +2453,67 @@ export function createDealProjectionsWorkflow(
         (instruction) => [instruction.operationId, instruction] as const,
       ),
     );
+    const instructionById = new Map(
+      allInstructions.map(
+        (instruction) => [instruction.id, instruction] as const,
+      ),
+    );
+    const legByOperationId = new Map<
+      string,
+      { idx: number; kind: string }
+    >();
+    for (const leg of workflow.executionPlan) {
+      for (const ref of leg.operationRefs) {
+        legByOperationId.set(ref.operationId, { idx: leg.idx, kind: leg.kind });
+      }
+    }
+    const instructionArtifactRecords =
+      allInstructions.length > 0
+        ? await deps.treasury.instructions.queries.listArtifactsByInstructionIds(
+            {
+              instructionIds: allInstructions.map(
+                (instruction) => instruction.id,
+              ),
+            },
+          )
+        : [];
+    const artifactFileAssetIds = Array.from(
+      new Set(instructionArtifactRecords.map((artifact) => artifact.fileAssetId)),
+    );
+    const fileVersionsByAssetId = new Map(
+      (
+        await deps.files.files.queries.listCurrentFileVersionsByAssetIds(
+          artifactFileAssetIds,
+        )
+      ).map((version) => [version.assetId, version] as const),
+    );
+    const instructionArtifacts = instructionArtifactRecords
+      .map((artifact) => {
+        const instruction = instructionById.get(artifact.instructionId);
+        if (!instruction) return null;
+        const legContext = legByOperationId.get(instruction.operationId) ?? null;
+        const fileVersion = fileVersionsByAssetId.get(artifact.fileAssetId);
+        if (!fileVersion) return null;
+        return {
+          fileAssetId: artifact.fileAssetId,
+          fileName: fileVersion.fileName,
+          fileSize: fileVersion.fileSize,
+          id: artifact.id,
+          instructionId: artifact.instructionId,
+          legIdx: legContext?.idx ?? null,
+          legKind: legContext?.kind ?? null,
+          memo: artifact.memo,
+          mimeType: fileVersion.mimeType,
+          operationId: instruction.operationId,
+          purpose: artifact.purpose,
+          uploadedAt: artifact.uploadedAt.toISOString(),
+          uploadedByUserId: artifact.uploadedByUserId,
+        };
+      })
+      .filter((value): value is NonNullable<typeof value> => value !== null)
+      .sort((left, right) =>
+        right.uploadedAt.localeCompare(left.uploadedAt),
+      );
     const reconciliationLinks =
       await deps.reconciliation.links.listOperationLinks({
         operationIds: operationsResult.data.map((operation) => operation.id),
@@ -2370,6 +2618,7 @@ export function createDealProjectionsWorkflow(
       pricing: {
         ...buildFinanceQuoteRequestContext(workflow),
         quoteEligibility: isQuoteEligible(workflow),
+        routeAttachment: financeRouteAttachment,
       },
       profitabilitySnapshot: await buildProfitabilitySnapshot(
         currentCalculation,
@@ -2380,6 +2629,7 @@ export function createDealProjectionsWorkflow(
       relatedResources: {
         attachments,
         formalDocuments: workflow.relatedResources.formalDocuments,
+        instructionArtifacts,
         operations: operationsResult.data.map((operation) =>
           buildFinanceDealOperation({
             latestInstruction:
