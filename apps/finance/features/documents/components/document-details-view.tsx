@@ -134,6 +134,11 @@ function buildDocumentHref(
   return `${basePath}/${document.docType}/${document.id}`;
 }
 
+function isDealReturnHref(returnToHref: string | undefined | null) {
+  if (!returnToHref) return false;
+  return returnToHref.startsWith("/treasury/deals/");
+}
+
 export function DocumentDetailsView({
   dealId,
   details,
@@ -163,8 +168,20 @@ export function DocumentDetailsView({
       .map((operation) => [operation!.operation.id, operation!] as const),
   );
 
+  const shouldAutoReturnToDeal =
+    isDealReturnHref(returnToHref) && !reconciliationAdjustmentExceptionId;
+
   return (
     <div className="space-y-6">
+      {returnToHref ? (
+        <Link
+          data-testid="finance-document-return-to-deal"
+          href={returnToHref}
+          className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-sm underline-offset-2 hover:underline"
+        >
+          ← Вернуться к сделке
+        </Link>
+      ) : null}
       <Card className="rounded-sm">
         <CardHeader className="gap-4 border-b">
           <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
@@ -195,6 +212,9 @@ export function DocumentDetailsView({
                       returnToHref,
                     }
                   : undefined
+              }
+              returnOnPostedHref={
+                shouldAutoReturnToDeal ? returnToHref : undefined
               }
             />
           </div>

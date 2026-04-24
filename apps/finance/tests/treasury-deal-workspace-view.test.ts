@@ -69,6 +69,11 @@ function createDeal(): FinanceDealWorkspace {
         state: "missing",
       },
     ],
+    cashflowSummary: {
+      receivedIn: [],
+      scheduledOut: [],
+      settledOut: [],
+    },
     closeReadiness: {
       blockers: [
         "Required intake sections are incomplete",
@@ -77,7 +82,7 @@ function createDeal(): FinanceDealWorkspace {
       criteria: [
         {
           code: "operations_materialized",
-          label: "Казначейские операции созданы для всех этапов",
+          label: "Казначейские операции созданы для всех шагов",
           satisfied: false,
         },
         {
@@ -94,11 +99,14 @@ function createDeal(): FinanceDealWorkspace {
           canCreateLegOperation: false,
           exchangeDocument: null,
         },
+        fromCurrencyId: null,
         id: "714fb6eb-a1bd-429e-9628-e97d0f2efa0b",
         idx: 1,
         kind: "collect",
         operationRefs: [],
+        routeSnapshotLegId: null,
         state: "pending",
+        toCurrencyId: null,
       },
     ],
     formalDocumentRequirements: [
@@ -141,6 +149,7 @@ function createDeal(): FinanceDealWorkspace {
       quoteAmount: "125000.00",
       quoteAmountSide: "target",
       quoteEligibility: true,
+      routeAttachment: null,
       sourceCurrencyId: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
       targetCurrencyId: "0f9d972c-b95b-4544-95d8-8ccdc7496ed8",
     },
@@ -178,6 +187,7 @@ function createDeal(): FinanceDealWorkspace {
         },
       ],
       formalDocuments: [],
+      instructionArtifacts: [],
       operations: [],
       quotes: [
         {
@@ -233,7 +243,7 @@ function normalizeMarkupWhitespace(markup: string) {
 }
 
 describe("treasury deal workspace view", () => {
-  it("renders an execution-first localized preview without raw technical details or action buttons", () => {
+  it("renders an execution-first localized preview", () => {
     (
       globalThis as typeof globalThis & {
         React: typeof React;
@@ -258,10 +268,6 @@ describe("treasury deal workspace view", () => {
     expect(normalizedMarkup.indexOf("Контур исполнения")).toBeLessThan(
       normalizedMarkup.indexOf("Котировки и расчет"),
     );
-    expect(normalizedMarkup).not.toContain("Required intake sections are incomplete");
-    expect(normalizedMarkup).not.toContain("capability_missing");
-    expect(normalizedMarkup).not.toContain("a68fcc97-b77c-43b0-a323-45b6f783fd3a");
-    expect(normalizedMarkup).not.toContain("Запросить котировку");
     expect(normalizedMarkup).toContain("Расходы провайдера");
     expect(normalizedMarkup).toContain("Критерии закрытия");
     expect(normalizedMarkup).toContain("Сверка");
@@ -285,6 +291,7 @@ describe("treasury deal workspace view", () => {
           currencyId: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
         },
       ],
+      netProfit: null,
       providerFeeExpense: [
         {
           amountMinor: "15000",

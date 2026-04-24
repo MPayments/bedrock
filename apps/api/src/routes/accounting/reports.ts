@@ -66,10 +66,9 @@ type RouteQuerySchema =
   | z.ZodObject<z.ZodRawShape>
   | z.ZodPipe<z.ZodTypeAny, z.ZodTypeAny>;
 
-interface PaginatedReportDescriptor<
+interface ReportRouteBase<
   TQuerySchema extends RouteQuerySchema,
   TResponseSchema extends z.ZodTypeAny,
-  TLoadResult extends PaginatedReportLoadResult,
 > {
   key: string;
   summary: string;
@@ -78,39 +77,47 @@ interface PaginatedReportDescriptor<
   responseSchema: TResponseSchema;
   filename: string;
   headers: string[];
-  load: (query: z.infer<TQuerySchema>) => Promise<TLoadResult>;
-  map: (result: TLoadResult) => PaginatedScopedPayload;
 }
 
-interface SimpleReportDescriptor<
+interface ReportDescriptor<
   TQuerySchema extends RouteQuerySchema,
   TResponseSchema extends z.ZodTypeAny,
   TLoadResult,
-> {
-  key: string;
-  summary: string;
-  exportSummary: string;
-  querySchema: TQuerySchema;
-  responseSchema: TResponseSchema;
-  filename: string;
-  headers: string[];
+  TPayload extends ScopedDataPayload,
+> extends ReportRouteBase<TQuerySchema, TResponseSchema> {
   load: (query: z.infer<TQuerySchema>) => Promise<TLoadResult>;
-  map: (result: TLoadResult) => ScopedDataPayload;
+  map: (result: TLoadResult) => TPayload;
 }
 
-const EXPORT_PAGE_SIZE = 200;
-
-function createPaginatedReportRoutes<
+type PaginatedReportDescriptor<
   TQuerySchema extends RouteQuerySchema,
   TResponseSchema extends z.ZodTypeAny,
   TLoadResult extends PaginatedReportLoadResult,
->(
-  ctx: AppContext,
-  descriptor: PaginatedReportDescriptor<TQuerySchema, TResponseSchema, TLoadResult>,
-) {
-  const app = createAccountingRouteApp();
+> = ReportDescriptor<
+  TQuerySchema,
+  TResponseSchema,
+  TLoadResult,
+  PaginatedScopedPayload
+>;
 
-  const listRoute = createRoute({
+type SimpleReportDescriptor<
+  TQuerySchema extends RouteQuerySchema,
+  TResponseSchema extends z.ZodTypeAny,
+  TLoadResult,
+> = ReportDescriptor<
+  TQuerySchema,
+  TResponseSchema,
+  TLoadResult,
+  ScopedDataPayload
+>;
+
+const EXPORT_PAGE_SIZE = 200;
+
+function createReportListRoute<
+  TQuerySchema extends RouteQuerySchema,
+  TResponseSchema extends z.ZodTypeAny,
+>(descriptor: ReportRouteBase<TQuerySchema, TResponseSchema>) {
+  return createRoute({
     middleware: [requirePermission({ accounting: ["list"] })],
     method: "get",
     path: "/",
@@ -138,8 +145,15 @@ function createPaginatedReportRoutes<
       },
     },
   });
+}
 
-  const exportRoute = createRoute({
+function createReportExportRoute<TQuerySchema extends RouteQuerySchema>(
+  descriptor: Pick<
+    ReportRouteBase<TQuerySchema, z.ZodTypeAny>,
+    "exportSummary" | "querySchema"
+  >,
+) {
+  return createRoute({
     middleware: [requirePermission({ accounting: ["list"] })],
     method: "get",
     path: "/export",
@@ -167,32 +181,80 @@ function createPaginatedReportRoutes<
       },
     },
   });
+}
+
+function logDescriptorReportMetrics(
+  ctx: AppContext,
+  input: {
+    descriptor: Pick<ReportRouteBase<RouteQuerySchema, z.ZodTypeAny>, "key">;
+    payload: ScopedDataPayload;
+    startedAt: number;
+  },
+) {
+  const { descriptor, payload, startedAt } = input;
+
+  logReportMetrics(ctx, {
+    reportKey: descriptor.key,
+    startedAt,
+    rowCount: payload.data.length,
+    scopeType: payload.scopeMeta.scopeType,
+    attributionMode: payload.scopeMeta.attributionMode,
+    resolvedCounterpartyCount: payload.scopeMeta.resolvedCounterpartyIdsCount,
+  });
+}
+
+function createReportListHandler<
+  TQuerySchema extends RouteQuerySchema,
+  TResponseSchema extends z.ZodTypeAny,
+  TLoadResult,
+  TPayload extends ScopedDataPayload,
+>(
+  ctx: AppContext,
+  descriptor: ReportDescriptor<
+    TQuerySchema,
+    TResponseSchema,
+    TLoadResult,
+    TPayload
+  >,
+) {
+  return (async (c: any) => {
+    try {
+      const startedAt = Date.now();
+      const query = (c.req as any).valid("query") as z.infer<TQuerySchema>;
+      const result = await descriptor.load(query);
+      const payload = descriptor.map(result);
+
+      logDescriptorReportMetrics(ctx, {
+        descriptor,
+        payload,
+        startedAt,
+      });
+
+      return c.json(payload as z.infer<TResponseSchema>, 200);
+    } catch (error) {
+      return handleAccountingRouteError(c, error);
+    }
+  }) as any;
+}
+
+function createPaginatedReportRoutes<
+  TQuerySchema extends RouteQuerySchema,
+  TResponseSchema extends z.ZodTypeAny,
+  TLoadResult extends PaginatedReportLoadResult,
+>(
+  ctx: AppContext,
+  descriptor: PaginatedReportDescriptor<
+    TQuerySchema,
+    TResponseSchema,
+    TLoadResult
+  >,
+) {
+  const app = createAccountingRouteApp();
+  const listRoute = createReportListRoute(descriptor);
+  const exportRoute = createReportExportRoute(descriptor);
 
   return app
-    .openapi(
-      listRoute,
-      (async (c: any) => {
-        try {
-          const startedAt = Date.now();
-          const query = (c.req as any).valid("query") as z.infer<TQuerySchema>;
-          const result = await descriptor.load(query);
-          const payload = descriptor.map(result);
-
-          logReportMetrics(ctx, {
-            reportKey: descriptor.key,
-            startedAt,
-            rowCount: payload.data.length,
-            scopeType: payload.scopeMeta.scopeType,
-            attributionMode: payload.scopeMeta.attributionMode,
-            resolvedCounterpartyCount: payload.scopeMeta.resolvedCounterpartyIdsCount,
-          });
-
-          return c.json(payload as z.infer<TResponseSchema>, 200);
-        } catch (error) {
-          return handleAccountingRouteError(c, error);
-        }
-      }) as any,
-    )
+    .openapi(listRoute, createReportListHandler(ctx, descriptor))
     .openapi(exportRoute, async (c) => {
       try {
         const startedAt = Date.now();
@@ -215,13 +277,10 @@ function createPaginatedReportRoutes<
           data: rows,
         } as TLoadResult);
 
-        logReportMetrics(ctx, {
-          reportKey: descriptor.key,
+        logDescriptorReportMetrics(ctx, {
+          descriptor,
+          payload,
           startedAt,
-          rowCount: payload.data.length,
-          scopeType: payload.scopeMeta.scopeType,
-          attributionMode: payload.scopeMeta.attributionMode,
-          resolvedCounterpartyCount: payload.scopeMeta.resolvedCounterpartyIdsCount,
         });
 
         return toReportCsvResponse(c, {
@@ -241,93 +300,18 @@ function createSimpleReportRoutes<
   TLoadResult,
 >(
   ctx: AppContext,
-  descriptor: SimpleReportDescriptor<TQuerySchema, TResponseSchema, TLoadResult>,
+  descriptor: SimpleReportDescriptor<
+    TQuerySchema,
+    TResponseSchema,
+    TLoadResult
+  >,
 ) {
   const app = createAccountingRouteApp();
-
-  const listRoute = createRoute({
-    middleware: [requirePermission({ accounting: ["list"] })],
-    method: "get",
-    path: "/",
-    tags: ["Accounting"],
-    summary: descriptor.summary,
-    request: {
-      query: descriptor.querySchema,
-    },
-    responses: {
-      200: {
-        content: {
-          "application/json": {
-            schema: descriptor.responseSchema,
-          },
-        },
-        description: `${descriptor.summary} report`,
-      },
-      400: {
-        content: {
-          "application/json": {
-            schema: ErrorSchema,
-          },
-        },
-        description: "Validation error",
-      },
-    },
-  });
-
-  const exportRoute = createRoute({
-    middleware: [requirePermission({ accounting: ["list"] })],
-    method: "get",
-    path: "/export",
-    tags: ["Accounting"],
-    summary: descriptor.exportSummary,
-    request: {
-      query: descriptor.querySchema,
-    },
-    responses: {
-      200: {
-        content: {
-          "text/csv": {
-            schema: z.string(),
-          },
-        },
-        description: "CSV export",
-      },
-      400: {
-        content: {
-          "application/json": {
-            schema: ErrorSchema,
-          },
-        },
-        description: "Validation error",
-      },
-    },
-  });
+  const listRoute = createReportListRoute(descriptor);
+  const exportRoute = createReportExportRoute(descriptor);
 
   return app
-    .openapi(
-      listRoute,
-      (async (c: any) => {
-        try {
-          const startedAt = Date.now();
-          const query = (c.req as any).valid("query") as z.infer<TQuerySchema>;
-          const result = await descriptor.load(query);
-          const payload = descriptor.map(result);
-
-          logReportMetrics(ctx, {
-            reportKey: descriptor.key,
-            startedAt,
-            rowCount: payload.data.length,
-            scopeType: payload.scopeMeta.scopeType,
-            attributionMode: payload.scopeMeta.attributionMode,
-            resolvedCounterpartyCount: payload.scopeMeta.resolvedCounterpartyIdsCount,
-          });
-
-          return c.json(payload as z.infer<TResponseSchema>, 200);
-        } catch (error) {
-          return handleAccountingRouteError(c, error);
-        }
-      }) as any,
-    )
+    .openapi(listRoute, createReportListHandler(ctx, descriptor))
     .openapi(exportRoute, async (c) => {
       try {
         const startedAt = Date.now();
@@ -335,13 +319,10 @@ function createSimpleReportRoutes<
         const result = await descriptor.load(query);
         const payload = descriptor.map(result);
 
-        logReportMetrics(ctx, {
-          reportKey: descriptor.key,
+        logDescriptorReportMetrics(ctx, {
+          descriptor,
+          payload,
           startedAt,
-          rowCount: payload.data.length,
-          scopeType: payload.scopeMeta.scopeType,
-          attributionMode: payload.scopeMeta.attributionMode,
-          resolvedCounterpartyCount: payload.scopeMeta.resolvedCounterpartyIdsCount,
         });
 
         return toReportCsvResponse(c, {
@@ -560,7 +541,8 @@ export function accountingReportRoutes(ctx: AppContext) {
           "closingDebit",
           "closingCredit",
         ],
-        load: (query) => ctx.accountingModule.reports.queries.listTrialBalance(query),
+        load: (query) =>
+          ctx.accountingModule.reports.queries.listTrialBalance(query),
         map: (result) => mapTrialBalanceDto(result),
       }),
     )
@@ -612,7 +594,8 @@ export function accountingReportRoutes(ctx: AppContext) {
           "reserved",
           "pending",
         ],
-        load: (query) => ctx.accountingModule.reports.queries.listLiquidity(query),
+        load: (query) =>
+          ctx.accountingModule.reports.queries.listLiquidity(query),
         map: (result) => mapLiquidityDto(result),
       }),
     )
@@ -681,7 +664,8 @@ export function accountingReportRoutes(ctx: AppContext) {
         responseSchema: CashFlowResponseSchema,
         filename: "cash-flow.csv",
         headers: ["section", "lineCode", "lineLabel", "currency", "amount"],
-        load: (query) => ctx.accountingModule.reports.queries.listCashFlow(query),
+        load: (query) =>
+          ctx.accountingModule.reports.queries.listCashFlow(query),
         map: (result) => mapCashFlowDto(result),
       }),
     )

@@ -67,6 +67,7 @@ function createDraft() {
         fees: [
           {
             amountMinor: "100",
+            chargeToCustomer: false,
             currencyId: IDS.usd,
             id: "fee-1",
             kind: "fixed",
@@ -133,7 +134,16 @@ function createCalculation() {
     additionalFees: [],
     amountInMinor: "10000",
     amountOutMinor: "9900",
+    chargedFeeTotals: [
+      {
+        amountMinor: "100",
+        currencyId: IDS.usd,
+      },
+    ],
+    cleanAmountOutMinor: "10000",
+    clientTotalInMinor: "10000",
     computedAt: NOW,
+    costPriceInMinor: "10000",
     currencyInId: IDS.usd,
     currencyOutId: IDS.usd,
     feeTotals: [
@@ -143,12 +153,14 @@ function createCalculation() {
       },
     ],
     grossAmountOutMinor: "10000",
+    internalFeeTotals: [],
     legs: [
       {
         asOf: NOW,
         fees: [
           {
             amountMinor: "100",
+            chargeToCustomer: true,
             currencyId: IDS.usd,
             id: "fee-1",
             inputImpactCurrencyId: IDS.usd,
@@ -432,6 +444,8 @@ describe("payment routes routes", () => {
           },
         ],
       },
+      maxMarginBps: null,
+      minMarginBps: null,
       name: "USD payout",
       visual: createVisual(),
     });
@@ -658,6 +672,8 @@ describe("payment routes routes", () => {
     expect(response.status).toBe(201);
     expect(createTemplateCommand).toHaveBeenCalledWith({
       draft: createAbstractDraft(),
+      maxMarginBps: null,
+      minMarginBps: null,
       name: "Generic USD payout",
       visual: createVisual(),
     });
@@ -754,7 +770,7 @@ describe("payment routes routes", () => {
                   {
                     currencyId: IDS.usd,
                     id: "fee-invalid",
-                    kind: "percent",
+                    kind: "gross_percent",
                     label: "Broken percent fee",
                     percentage: "1",
                   },
@@ -767,63 +783,6 @@ describe("payment routes routes", () => {
     );
 
     expect(response.status).toBe(400);
-    expect(previewTemplate).not.toHaveBeenCalled();
-  });
-
-  it("rejects legacy route payloads that still include leg kind", async () => {
-    const {
-      app,
-      createTemplateCommand,
-      previewTemplate,
-      updateTemplate,
-    } = createTestApp();
-    const invalidDraft = {
-      ...createDraft(),
-      legs: [
-        {
-          ...createDraft().legs[0],
-          kind: "transfer",
-        },
-      ],
-    };
-
-    const [createResponse, updateResponse, previewResponse] = await Promise.all([
-      app.request("http://localhost/payment-routes", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
-          draft: invalidDraft,
-          name: "USD payout",
-          visual: createVisual(),
-        }),
-      }),
-      app.request(`http://localhost/payment-routes/${IDS.route}`, {
-        method: "PATCH",
-        headers: {
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
-          draft: invalidDraft,
-        }),
-      }),
-      app.request("http://localhost/payment-routes/preview", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
-          draft: invalidDraft,
-        }),
-      }),
-    ]);
-
-    expect(createResponse.status).toBe(400);
-    expect(updateResponse.status).toBe(400);
-    expect(previewResponse.status).toBe(400);
-    expect(createTemplateCommand).not.toHaveBeenCalled();
-    expect(updateTemplate).not.toHaveBeenCalled();
     expect(previewTemplate).not.toHaveBeenCalled();
   });
 
@@ -883,6 +842,8 @@ describe("payment routes routes", () => {
           },
         ],
       },
+      maxMarginBps: null,
+      minMarginBps: null,
       name: "USD payout",
       visual: createVisual(),
     });

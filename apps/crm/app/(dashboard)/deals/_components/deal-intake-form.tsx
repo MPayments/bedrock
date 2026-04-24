@@ -947,13 +947,7 @@ export function DealIntakeExternalBeneficiarySection({
 
   return (
     <section className="space-y-4">
-      <div>
-        <h3 className="font-medium">Получатель выплаты</h3>
-        <p className="text-sm text-muted-foreground">
-          Кому и по каким банковским реквизитам отправляем выплату.
-        </p>
-      </div>
-      <div className="grid gap-4">
+      <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="deal-beneficiary-display-name">Получатель</Label>
           <Input
@@ -1013,7 +1007,7 @@ export function DealIntakeExternalBeneficiarySection({
           />
         </div>
       </div>
-      <div className="grid gap-4">
+      <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="deal-beneficiary-bank-name">Банк получателя</Label>
           <Input
@@ -1218,7 +1212,7 @@ export function DealIntakeSettlementDestinationSection({
       ) : null}
 
       {intake.settlementDestination.mode === "manual" ? (
-        <div className="grid gap-4">
+        <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="deal-settlement-bank-name">Банк</Label>
             <Input

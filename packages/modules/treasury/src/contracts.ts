@@ -75,12 +75,18 @@ export type {
   QuoteRecord,
 } from "./quotes/application/ports";
 export {
+  computePricingFingerprint,
+  type PricingFingerprintInput,
+} from "./quotes/domain/pricing-fingerprint";
+export {
+  AttachTreasuryInstructionArtifactInputSchema,
   PrepareTreasuryInstructionInputSchema,
   RecordTreasuryInstructionOutcomeInputSchema,
   RequestTreasuryReturnInputSchema,
   RetryTreasuryInstructionInputSchema,
   SubmitTreasuryInstructionInputSchema,
   VoidTreasuryInstructionInputSchema,
+  type AttachTreasuryInstructionArtifactInput,
   type PrepareTreasuryInstructionInput,
   type RecordTreasuryInstructionOutcomeInput,
   type RequestTreasuryReturnInput,
@@ -90,18 +96,26 @@ export {
 } from "./instructions/application/contracts/commands";
 export {
   TreasuryInstructionActionsSchema,
+  TreasuryInstructionArtifactSchema,
   TreasuryInstructionAvailableOutcomeTransitionsSchema,
   TreasuryInstructionSchema,
   type TreasuryInstruction,
   type TreasuryInstructionActions,
+  type TreasuryInstructionArtifact,
   type TreasuryInstructionAvailableOutcomeTransitions,
 } from "./instructions/application/contracts/dto";
 export {
+  TreasuryInstructionArtifactPurposeSchema,
   TreasuryInstructionOutcomeSchema,
   TreasuryInstructionStateSchema,
+  type TreasuryInstructionArtifactPurpose,
   type TreasuryInstructionOutcome,
   type TreasuryInstructionState,
 } from "./instructions/application/contracts/zod";
+export {
+  TREASURY_INSTRUCTION_ARTIFACT_PURPOSE_VALUES,
+  TREASURY_INSTRUCTION_SETTLEMENT_EVIDENCE_PURPOSES,
+} from "./instructions/domain/instruction-types";
 export {
   CreatePlannedTreasuryOperationInputSchema,
   type CreatePlannedTreasuryOperationInput,
@@ -142,10 +156,21 @@ export {
 } from "./operations/application/contracts/dto";
 export {
   TreasuryOperationKindSchema,
+  TreasuryOperationProjectedStateSchema,
   TreasuryOperationStateSchema,
   type TreasuryOperationKind,
+  type TreasuryOperationProjectedState,
   type TreasuryOperationState,
 } from "./operations/application/contracts/zod";
+export {
+  DOCUMENT_KIND_TO_OPERATION_PROJECTION,
+  TREASURY_OPERATION_PROJECTED_STATE_VALUES,
+  type DocumentProjectionEntry,
+} from "./operations/domain/projection-map";
+export {
+  computeOperationProjectedState,
+  type ProjectionPostedDocument,
+} from "./operations/domain/compute-projected-state";
 export {
   calculateQuoteFeeComponentsSchema as CalculateQuoteFeeComponentsInputSchema,
   createFeeRuleSchema as CreateFeeRuleInputSchema,

@@ -7,6 +7,7 @@
     ".": "./src/index.ts",
     "./adapters/drizzle": "./src/adapters/drizzle.ts",
     "./contracts": "./src/contracts.ts",
+    "./labels": "./src/labels.ts",
     "./schema": "./src/schema.ts"
   },
   "scripts": {
@@ -24,6 +25,7 @@
     "@bedrock/parties": "workspace:*",
     "@bedrock/platform": "workspace:*",
     "@bedrock/shared": "workspace:*",
+    "@bedrock/treasury": "workspace:*",
     "drizzle-orm": "^0.45.1",
     "zod": "^4.1.11"
   },
@@ -34,7 +36,6 @@
     "@types/node": "^24",
     "@types/pg": "^8.16.0",
     "eslint": "^10.2.0",
-    "pg": "^8.18.0",
     "typescript": "^6.0.2",
     "vitest": "^4.1.4"
   },

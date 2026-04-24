@@ -113,6 +113,8 @@ export function createFilesService(deps: FilesServiceDeps) {
         getDealAttachmentContent.execute.bind(getDealAttachmentContent),
       listCounterpartyAttachments:
         listCounterpartyAttachments.execute.bind(listCounterpartyAttachments),
+      listCurrentFileVersionsByAssetIds: (assetIds: string[]) =>
+        deps.reads.listCurrentFileVersionsByAssetIds(assetIds),
       listDealAttachments: listDealAttachments.execute.bind(listDealAttachments),
     },
   };

@@ -11,6 +11,7 @@ import {
   buildCommercialFeeComponents,
   createQuoteCommercialTerms,
 } from "../../domain/commercial-terms";
+import { computePricingFingerprint } from "../../domain/pricing-fingerprint";
 import { Quote } from "../../domain/quote";
 import { QuotePricingPlan } from "../../domain/quote-pricing-plan";
 import { QuoteRoute } from "../../domain/quote-route";
@@ -60,14 +61,38 @@ export class CreateQuoteCommand {
         }),
       );
 
+      const fromCurrencyId = currencyIdByCode.get(pricingSnapshot.fromCurrency)!;
+      const toCurrencyId = currencyIdByCode.get(pricingSnapshot.toCurrency)!;
+      const pricingFingerprint = computePricingFingerprint({
+        commercialTerms: pricingSnapshot.commercialTerms
+          ? {
+              agreementFeeBps: pricingSnapshot.commercialTerms.agreementFeeBps,
+              agreementVersionId:
+                pricingSnapshot.commercialTerms.agreementVersionId,
+              fixedFeeAmountMinor:
+                pricingSnapshot.commercialTerms.fixedFeeAmountMinor,
+              fixedFeeCurrency:
+                pricingSnapshot.commercialTerms.fixedFeeCurrency,
+              quoteMarkupBps: pricingSnapshot.commercialTerms.quoteMarkupBps,
+            }
+          : null,
+        fromAmountMinor: pricingSnapshot.fromAmountMinor,
+        fromCurrencyId,
+        pricingMode: pricingSnapshot.pricingMode,
+        routeTemplateId: validated.routeTemplateId ?? null,
+        toAmountMinor: pricingSnapshot.toAmountMinor,
+        toCurrencyId,
+      });
+
       const quote = Quote.create({
         id: this.runtime.generateUuid(),
         dealId: validated.dealId ?? null,
         idempotencyKey: validated.idempotencyKey,
-        fromCurrencyId: currencyIdByCode.get(pricingSnapshot.fromCurrency)!,
-        toCurrencyId: currencyIdByCode.get(pricingSnapshot.toCurrency)!,
+        fromCurrencyId,
+        toCurrencyId,
         createdAt: this.runtime.now(),
         pricingPlan: pricingSnapshot,
+        pricingFingerprint,
       });
 
       const created = await tx.quotes.insertQuote(quote.toSnapshot());

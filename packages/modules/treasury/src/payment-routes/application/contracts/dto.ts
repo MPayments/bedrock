@@ -13,6 +13,7 @@ import {
 
 const PaymentRouteCalculationFeeSharedSchema = z.object({
   amountMinor: z.string(),
+  chargeToCustomer: z.boolean(),
   currencyId: z.uuid(),
   id: z.string().trim().min(1),
   inputImpactCurrencyId: z.uuid(),
@@ -20,11 +21,24 @@ const PaymentRouteCalculationFeeSharedSchema = z.object({
   label: z.string().trim().min(1).optional(),
   outputImpactCurrencyId: z.uuid(),
   outputImpactMinor: z.string(),
+  routeInputImpactMinor: z.string(),
 });
 
-const PaymentRouteCalculationPercentFeeSchema =
+const PaymentRouteCalculationGrossPercentFeeSchema =
   PaymentRouteCalculationFeeSharedSchema.extend({
-    kind: z.literal("percent"),
+    kind: z.literal("gross_percent"),
+    percentage: z.string().trim().min(1),
+  });
+
+const PaymentRouteCalculationNetPercentFeeSchema =
+  PaymentRouteCalculationFeeSharedSchema.extend({
+    kind: z.literal("net_percent"),
+    percentage: z.string().trim().min(1),
+  });
+
+const PaymentRouteCalculationFxSpreadFeeSchema =
+  PaymentRouteCalculationFeeSharedSchema.extend({
+    kind: z.literal("fx_spread"),
     percentage: z.string().trim().min(1),
   });
 
@@ -34,7 +48,9 @@ const PaymentRouteCalculationFixedFeeSchema =
   });
 
 export const PaymentRouteCalculationFeeSchema = z.discriminatedUnion("kind", [
-  PaymentRouteCalculationPercentFeeSchema,
+  PaymentRouteCalculationGrossPercentFeeSchema,
+  PaymentRouteCalculationNetPercentFeeSchema,
+  PaymentRouteCalculationFxSpreadFeeSchema,
   PaymentRouteCalculationFixedFeeSchema,
 ]);
 
@@ -64,27 +80,48 @@ export const PaymentRouteCalculationSchema = z.object({
   additionalFees: z.array(PaymentRouteCalculationFeeSchema),
   amountInMinor: z.string(),
   amountOutMinor: z.string(),
+  chargedFeeTotals: z.array(PaymentRouteAmountTotalSchema),
+  cleanAmountOutMinor: z.string(),
+  clientTotalInMinor: z.string(),
   computedAt: z.iso.datetime(),
+  costPriceInMinor: z.string(),
   currencyInId: z.uuid(),
   currencyOutId: z.uuid(),
   feeTotals: z.array(PaymentRouteAmountTotalSchema),
   grossAmountOutMinor: z.string(),
+  internalFeeTotals: z.array(PaymentRouteAmountTotalSchema),
   legs: z.array(PaymentRouteCalculationLegSchema),
   lockedSide: PaymentRouteLockedSideSchema,
   netAmountOutMinor: z.string(),
 });
 
-export const PaymentRouteTemplateSchema = z.object({
-  createdAt: z.iso.datetime(),
-  draft: PaymentRouteDraftSchema,
-  id: z.uuid(),
-  lastCalculation: PaymentRouteCalculationSchema.nullable(),
-  name: z.string(),
-  snapshotPolicy: PaymentRouteSnapshotPolicySchema,
-  status: PaymentRouteTemplateStatusSchema,
-  updatedAt: z.iso.datetime(),
-  visual: PaymentRouteVisualMetadataSchema,
-});
+export const PaymentRouteTemplateSchema = z
+  .object({
+    createdAt: z.iso.datetime(),
+    draft: PaymentRouteDraftSchema,
+    id: z.uuid(),
+    lastCalculation: PaymentRouteCalculationSchema.nullable(),
+    maxMarginBps: z.number().int().nonnegative().nullable().default(null),
+    minMarginBps: z.number().int().nonnegative().nullable().default(null),
+    name: z.string(),
+    snapshotPolicy: PaymentRouteSnapshotPolicySchema,
+    status: PaymentRouteTemplateStatusSchema,
+    updatedAt: z.iso.datetime(),
+    visual: PaymentRouteVisualMetadataSchema,
+  })
+  .superRefine((value, context) => {
+    if (
+      value.minMarginBps !== null &&
+      value.maxMarginBps !== null &&
+      value.minMarginBps > value.maxMarginBps
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "minMarginBps must not exceed maxMarginBps",
+        path: ["minMarginBps"],
+      });
+    }
+  });
 
 export const PaymentRouteTemplateListItemSchema = z.object({
   createdAt: z.iso.datetime(),
@@ -104,18 +141,12 @@ export const PaymentRouteTemplateListItemSchema = z.object({
 export const PaymentRouteTemplateListResponseSchema =
   createPaginatedListSchema(PaymentRouteTemplateListItemSchema);
 
-export type PaymentRouteCalculationFee = z.infer<
-  typeof PaymentRouteCalculationFeeSchema
->;
-export type PaymentRouteCalculationLeg = z.infer<
-  typeof PaymentRouteCalculationLegSchema
->;
-export type PaymentRouteAmountTotal = z.infer<
-  typeof PaymentRouteAmountTotalSchema
->;
-export type PaymentRouteCalculation = z.infer<
-  typeof PaymentRouteCalculationSchema
->;
+export type {
+  PaymentRouteAmountTotal,
+  PaymentRouteCalculation,
+  PaymentRouteCalculationFee,
+  PaymentRouteCalculationLeg,
+} from "../../domain/model";
 export type PaymentRouteTemplate = z.infer<typeof PaymentRouteTemplateSchema>;
 export type PaymentRouteTemplateListItem = z.infer<
   typeof PaymentRouteTemplateListItemSchema

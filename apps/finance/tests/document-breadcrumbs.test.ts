@@ -50,7 +50,7 @@ describe("document breadcrumbs", () => {
         icon: "book-open",
       },
       {
-        label: "Исходящий инвойс",
+        label: "Счёт на оплату",
         href: "/documents/commercial?docType=invoice",
       },
       {

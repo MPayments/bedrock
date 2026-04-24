@@ -1,6 +1,6 @@
 import type { RateObservation } from "./rate-book";
+import type { CrossRate } from "./model";
 import { RateNotFoundError } from "../../errors";
-import type { CrossRate } from "../application/ports/rates.repository";
 
 export class CrossRateResolver {
   resolve(input: {
@@ -22,6 +22,7 @@ export class CrossRateResolver {
         quote: normalizedQuote,
         rateNum: 1n,
         rateDen: 1n,
+        source: null,
       };
     }
 
@@ -31,6 +32,7 @@ export class CrossRateResolver {
         quote: normalizedQuote,
         rateNum: input.direct.rateNum,
         rateDen: input.direct.rateDen,
+        source: input.direct.source,
       };
     }
 
@@ -40,6 +42,7 @@ export class CrossRateResolver {
         quote: normalizedQuote,
         rateNum: input.inverse.rateDen,
         rateDen: input.inverse.rateNum,
+        source: input.inverse.source,
       };
     }
 
@@ -60,6 +63,7 @@ export class CrossRateResolver {
       quote: normalizedQuote,
       rateNum: input.toAnchor.rateNum * input.fromAnchor.rateNum,
       rateDen: input.toAnchor.rateDen * input.fromAnchor.rateDen,
+      source: input.toAnchor.source,
     };
   }
 }

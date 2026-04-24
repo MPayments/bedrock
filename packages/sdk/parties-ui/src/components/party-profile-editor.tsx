@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import { Plus, Save, Trash2, X } from "lucide-react";
 
 import {
@@ -396,14 +396,22 @@ export function PartyProfileEditor({
       serializeBundleForCompare(initialDraft),
     [draft, initialDraft],
   );
+  const emitDirtyChange = useEffectEvent((nextDirty: boolean) => {
+    onDirtyChange?.(nextDirty);
+  });
+  const emitChange = useEffectEvent(
+    (nextDraft: PartyProfileBundleInput, nextDirty: boolean) => {
+      onChange?.(clonePartyProfileBundleInput(nextDraft), nextDirty);
+    },
+  );
 
   useEffect(() => {
-    onDirtyChange?.(isDirty);
-  }, [isDirty, onDirtyChange]);
+    emitDirtyChange(isDirty);
+  }, [isDirty]);
 
   useEffect(() => {
-    onChange?.(clonePartyProfileBundleInput(draft), isDirty);
-  }, [draft, isDirty, onChange]);
+    emitChange(draft, isDirty);
+  }, [draft, isDirty]);
 
   async function handleSubmit() {
     if (!onSubmit) {

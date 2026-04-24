@@ -104,6 +104,26 @@ export class DrizzleTreasuryInstructionsRepository
       .filter((row): row is TreasuryInstructionRecord => Boolean(row));
   }
 
+  async listInstructionsByOperationIds(
+    operationIds: string[],
+    tx?: PersistenceSession,
+  ) {
+    if (operationIds.length === 0) {
+      return [];
+    }
+    const database = (tx as Transaction | undefined) ?? this.db;
+    const rows = await database
+      .select()
+      .from(treasuryInstructions)
+      .where(inArray(treasuryInstructions.operationId, operationIds))
+      .orderBy(
+        treasuryInstructions.operationId,
+        desc(treasuryInstructions.attempt),
+        desc(treasuryInstructions.createdAt),
+      );
+    return rows as TreasuryInstructionRecord[];
+  }
+
   async updateInstruction(
     input: TreasuryInstructionUpdateModel,
     tx?: PersistenceSession,

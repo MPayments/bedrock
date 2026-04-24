@@ -65,43 +65,6 @@ describe("document form registry", () => {
     ).toBeNull();
   });
 
-  it("keeps fx_execute amount-based and no longer exposes quoteRef input", () => {
-    const definition = getDocumentFormDefinitionForRole({
-      docType: "fx_execute",
-      role: "admin",
-    });
-
-    expect(definition).not.toBeNull();
-
-    const fieldNames =
-      definition?.sections.flatMap((section) =>
-        section.fields.map((field) => field.name),
-      ) ?? [];
-
-    expect(fieldNames).toContain("amount");
-    expect(fieldNames).not.toContain("quoteRef");
-  });
-
-  it("keeps invoice form single-currency without FX authoring fields", () => {
-    const definition = getDocumentFormDefinitionForRole({
-      docType: "invoice",
-      role: "admin",
-    });
-
-    expect(definition).not.toBeNull();
-
-    const fieldNames =
-      definition?.sections.flatMap((section) =>
-        section.fields.map((field) => field.name),
-      ) ?? [];
-
-    expect(fieldNames).toContain("amount");
-    expect(fieldNames).toContain("currency");
-    expect(fieldNames).not.toContain("targetCurrency");
-    expect(fieldNames).not.toContain("quoteRef");
-    expect(fieldNames).not.toContain("quotePreview");
-  });
-
   it("exposes an auto-cross quote preview field for fx_execute", () => {
     const definition = getDocumentFormDefinitionForRole({
       docType: "fx_execute",

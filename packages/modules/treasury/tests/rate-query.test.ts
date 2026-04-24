@@ -263,6 +263,7 @@ describe("rate query handlers", () => {
       quote: "USD",
       rateNum: 1n,
       rateDen: 1n,
+      source: null,
     });
     expect(h.deps.ensureSourceFresh).not.toHaveBeenCalled();
   });
@@ -287,6 +288,7 @@ describe("rate query handlers", () => {
       quote: "EUR",
       rateNum: 2n,
       rateDen: 5n,
+      source: "cbr",
     });
   });
 
@@ -317,6 +319,7 @@ describe("rate query handlers", () => {
       quote: "RUB",
       rateNum: 180n,
       rateDen: 1n,
+      source: "cbr",
     });
   });
 

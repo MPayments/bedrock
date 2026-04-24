@@ -4,32 +4,16 @@ import * as React from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  ArrowLeft,
-  EqualApproximately,
-  GitBranch,
-  LoaderCircle,
-  Save,
-} from "lucide-react";
+import { ArrowLeft, GitBranch, LoaderCircle, Save } from "lucide-react";
 
 import { Button } from "@bedrock/sdk-ui/components/button";
-import { ButtonGroup } from "@bedrock/sdk-ui/components/button-group";
 import { Card, CardContent } from "@bedrock/sdk-ui/components/card";
-import {
-  Field,
-  FieldGroup,
-  FieldLabel,
-  FieldTitle,
-} from "@bedrock/sdk-ui/components/field";
+import { Field, FieldLabel } from "@bedrock/sdk-ui/components/field";
 import { Input } from "@bedrock/sdk-ui/components/input";
 import { toast } from "@bedrock/sdk-ui/components/sonner";
 import { cn } from "@bedrock/sdk-ui/lib/utils";
 import type { PaymentRouteTemplate } from "@bedrock/treasury/contracts";
 
-import {
-  formatCurrencyMinorAmount,
-  getPaymentRouteRateLines,
-} from "../lib/format";
 import {
   createPaymentRouteTemplate,
   previewPaymentRoute,
@@ -41,26 +25,27 @@ import {
   syncPaymentRouteDraftRequisites,
 } from "../lib/requisites";
 import {
-  getPaymentRouteAdditionalFeeTotals,
-  getPaymentRoutePureAmountOutMinor,
-  getPaymentRouteTotalClientCostInMinor,
-} from "../lib/cost-summary";
-import {
   applyCalculation,
   createPaymentRouteEditorStateFromTemplate,
   createPaymentRouteSeed,
   setEditorMode,
   setLockedSide,
+  setMarginPolicy,
   setRouteAmount,
   setRouteCurrency,
   setRouteName,
   type PaymentRouteEditorState,
 } from "../lib/state";
 import { usePaymentRouteRequisites } from "../lib/use-payment-route-requisites";
-import { BufferedMinorAmountInput, CurrencySelector } from "./editor-shared";
+import {
+  DEFAULT_MAX_MARGIN_BPS,
+  DEFAULT_MIN_MARGIN_BPS,
+  getPaymentRouteValidationChecks,
+} from "../lib/validation";
 import { PaymentRouteManualEditor } from "./manual-editor";
 import { PaymentRouteWorkspaceLayout } from "./payment-route-workspace-layout";
 import { PaymentRouteSummaryRail } from "./summary-rail";
+import { PaymentRouteValidationCard } from "./validation-card";
 
 const PaymentRouteGraphEditor = dynamic(
   () =>
@@ -79,6 +64,120 @@ type PaymentRouteConstructorClientProps = {
   options: PaymentRouteConstructorOptions;
   template: PaymentRouteTemplate | null;
 };
+
+function bpsToPercentString(bps: number | null): string {
+  if (bps === null) {
+    return "";
+  }
+  const whole = Math.trunc(bps / 100);
+  const fraction = Math.abs(bps % 100);
+  if (fraction === 0) {
+    return whole.toString();
+  }
+  return `${whole},${fraction.toString().padStart(2, "0")}`.replace(
+    /,?0+$/,
+    "",
+  );
+}
+
+function parsePercentInputToBps(raw: string): number | null {
+  const trimmed = raw.trim().replace(",", ".");
+  if (trimmed.length === 0) {
+    return null;
+  }
+  if (!/^\d+(?:\.\d+)?$/.test(trimmed)) {
+    return null;
+  }
+  const value = Number.parseFloat(trimmed);
+  if (!Number.isFinite(value) || value < 0) {
+    return null;
+  }
+  return Math.round(value * 100);
+}
+
+function MarginPolicyInputs({
+  maxMarginBps,
+  minMarginBps,
+  onCommit,
+}: {
+  maxMarginBps: number | null;
+  minMarginBps: number | null;
+  onCommit: (input: { min: number | null; max: number | null }) => void;
+}) {
+  const [minDraft, setMinDraft] = React.useState(
+    bpsToPercentString(minMarginBps),
+  );
+  const [maxDraft, setMaxDraft] = React.useState(
+    bpsToPercentString(maxMarginBps),
+  );
+
+  React.useEffect(() => {
+    setMinDraft(bpsToPercentString(minMarginBps));
+  }, [minMarginBps]);
+  React.useEffect(() => {
+    setMaxDraft(bpsToPercentString(maxMarginBps));
+  }, [maxMarginBps]);
+
+  function commit(side: "min" | "max", raw: string) {
+    const parsed = parsePercentInputToBps(raw);
+    const min = side === "min" ? parsed : minMarginBps;
+    const max = side === "max" ? parsed : maxMarginBps;
+
+    if (min !== null && max !== null && min > max) {
+      setMinDraft(bpsToPercentString(minMarginBps));
+      setMaxDraft(bpsToPercentString(maxMarginBps));
+      return;
+    }
+
+    onCommit({ max, min });
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <div className="relative flex-1">
+        <Input
+          aria-label="Минимальная маржа, %"
+          inputMode="decimal"
+          placeholder={bpsToPercentString(DEFAULT_MIN_MARGIN_BPS)}
+          className="pr-7"
+          value={minDraft}
+          onChange={(event) => setMinDraft(event.target.value)}
+          onBlur={(event) => commit("min", event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              commit("min", event.currentTarget.value);
+            }
+          }}
+        />
+        <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+          %
+        </span>
+      </div>
+      <span className="text-xs text-muted-foreground">–</span>
+      <div className="relative flex-1">
+        <Input
+          aria-label="Максимальная маржа, %"
+          inputMode="decimal"
+          placeholder={bpsToPercentString(DEFAULT_MAX_MARGIN_BPS)}
+          className="pr-7"
+          value={maxDraft}
+          onChange={(event) => setMaxDraft(event.target.value)}
+          onBlur={(event) => commit("max", event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              commit("max", event.currentTarget.value);
+            }
+          }}
+        />
+        <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+          %
+        </span>
+      </div>
+    </div>
+  );
+}
 
 function createPreviewRequestKey(draft: PaymentRouteEditorState["draft"]) {
   return JSON.stringify({
@@ -259,55 +358,6 @@ export function PaymentRouteConstructorClient({
 
   const editorState = state;
   const isGraphMode = editorState?.mode === "graph";
-  const currencyIn = editorState
-    ? (options.currencies.find(
-        (currency) => currency.id === editorState.draft.currencyInId,
-      ) ?? null)
-    : null;
-  const currencyOut = editorState
-    ? (options.currencies.find(
-        (currency) => currency.id === editorState.draft.currencyOutId,
-      ) ?? null)
-    : null;
-  const totalClientCostInMinor = getPaymentRouteTotalClientCostInMinor(
-    editorState?.calculation ?? null,
-  );
-  const pureAmountOutMinor = getPaymentRoutePureAmountOutMinor(
-    editorState?.calculation ?? null,
-  );
-  const rateLines = editorState?.calculation
-    ? getPaymentRouteRateLines({
-        amountInMinor: editorState.calculation.amountInMinor,
-        cleanAmountOutMinor:
-          pureAmountOutMinor ?? editorState.calculation.amountOutMinor,
-        costInclusiveAmountInMinor: totalClientCostInMinor,
-        effectiveAmountOutMinor: editorState.calculation.amountOutMinor,
-        currencyIn,
-        currencyOut,
-      })
-    : {
-        cleanForward: null,
-        cleanReverse: null,
-        effectiveForward: null,
-        effectiveReverse: null,
-      };
-  const additionalFeeTotals = getPaymentRouteAdditionalFeeTotals(
-    editorState?.calculation ?? null,
-  );
-  const additionalFeeSummary = additionalFeeTotals
-    .map((feeTotal) =>
-      formatCurrencyMinorAmount(
-        feeTotal.amountMinor,
-        options.currencies.find(
-          (currency) => currency.id === feeTotal.currencyId,
-        ) ?? null,
-      ),
-    )
-    .join(" • ");
-  const displayAmountOut =
-    editorState?.calculation?.amountOutMinor ??
-    editorState?.draft.amountOutMinor ??
-    "0";
   const workspaceTitle = editorState?.name.trim() || "Новый маршрут";
   const workspaceSubtitle = editorState?.templateId
     ? "Редактирование шаблона маршрута"
@@ -329,6 +379,20 @@ export function PaymentRouteConstructorClient({
     requisites.requisitesByOwner,
     requisites.statusByOwner,
   ]);
+
+  const validationChecks = React.useMemo(() => {
+    if (!editorState) {
+      return [];
+    }
+
+    return getPaymentRouteValidationChecks({
+      calculation: editorState.calculation,
+      draft: editorState.draft,
+      maxMarginBps: editorState.maxMarginBps,
+      minMarginBps: editorState.minMarginBps,
+      requisiteWarnings,
+    });
+  }, [editorState, requisiteWarnings]);
 
   React.useEffect(() => {
     if (!isGraphMode) {
@@ -417,6 +481,8 @@ export function PaymentRouteConstructorClient({
     startSaveTransition(async () => {
       const payload = {
         draft: currentState.draft,
+        maxMarginBps: currentState.maxMarginBps,
+        minMarginBps: currentState.minMarginBps,
         name: currentState.name.trim() || "Маршрут без названия",
         visual: currentState.visual,
       };
@@ -477,13 +543,13 @@ export function PaymentRouteConstructorClient({
         <div
           className={cn(
             "grid gap-6",
-            isGraphMode ? null : "xl:grid-cols-[minmax(0,1fr)_360px]",
+            isGraphMode ? null : "xl:grid-cols-[minmax(0,1fr)_420px]",
           )}
         >
           <div className="space-y-6">
             <Card className="rounded-2xl border-border/70">
-              <CardContent className="grid gap-4 p-5">
-                <FieldGroup className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
+              <CardContent className="p-5">
+                <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,260px)]">
                   <Field>
                     <FieldLabel htmlFor="payment-route-name">
                       Название маршрута
@@ -498,167 +564,21 @@ export function PaymentRouteConstructorClient({
                     />
                   </Field>
                   <Field>
-                    <FieldTitle>Фиксировать</FieldTitle>
-                    <ButtonGroup className="w-full">
-                      <Button
-                        type="button"
-                        variant={
-                          editorState.draft.lockedSide === "currency_in"
-                            ? "default"
-                            : "outline"
-                        }
-                        className="flex-1"
-                        onClick={() =>
-                          setState(setLockedSide(editorState, "currency_in"))
-                        }
-                      >
-                        Сумму списания
-                      </Button>
-                      <Button
-                        type="button"
-                        variant={
-                          editorState.draft.lockedSide === "currency_out"
-                            ? "default"
-                            : "outline"
-                        }
-                        className="flex-1"
-                        onClick={() =>
-                          setState(setLockedSide(editorState, "currency_out"))
-                        }
-                      >
-                        Сумму получения
-                      </Button>
-                    </ButtonGroup>
+                    <FieldLabel>Политика маржи</FieldLabel>
+                    <MarginPolicyInputs
+                      maxMarginBps={editorState.maxMarginBps}
+                      minMarginBps={editorState.minMarginBps}
+                      onCommit={({ min, max }) =>
+                        setState(
+                          setMarginPolicy({
+                            maxMarginBps: max,
+                            minMarginBps: min,
+                            state: editorState,
+                          }),
+                        )
+                      }
+                    />
                   </Field>
-                </FieldGroup>
-
-                <FieldGroup className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
-                  <Field>
-                    <FieldTitle>Сумма списания</FieldTitle>
-                    <div className="gap-2 flex">
-                      <BufferedMinorAmountInput
-                        ariaLabel="Сумма списания"
-                        currencyId={editorState.draft.currencyInId}
-                        options={options}
-                        valueMinor={editorState.draft.amountInMinor}
-                        onCommit={(amountMinor) =>
-                          setState(
-                            setRouteAmount({
-                              amountMinor,
-                              side: "in",
-                              state: editorState,
-                            }),
-                          )
-                        }
-                      />
-                      <CurrencySelector
-                        ariaLabel="Валюта списания"
-                        options={options}
-                        value={editorState.draft.currencyInId}
-                        onChange={(currencyId) =>
-                          setState(
-                            setRouteCurrency({
-                              currencyId,
-                              side: "in",
-                              state: editorState,
-                            }),
-                          )
-                        }
-                      />
-                    </div>
-                  </Field>
-                  <div className="flex items-end justify-center text-sm text-muted-foreground pb-2">
-                    <EqualApproximately className="size-4" />
-                  </div>
-                  <Field>
-                    <FieldTitle>Сумма получения</FieldTitle>
-                    <div className="flex gap-2">
-                      <BufferedMinorAmountInput
-                        ariaLabel="Сумма получения"
-                        currencyId={editorState.draft.currencyOutId}
-                        options={options}
-                        valueMinor={editorState.draft.amountOutMinor}
-                        onCommit={(amountMinor) =>
-                          setState(
-                            setRouteAmount({
-                              amountMinor,
-                              side: "out",
-                              state: editorState,
-                            }),
-                          )
-                        }
-                      />
-                      <CurrencySelector
-                        ariaLabel="Валюта получения"
-                        options={options}
-                        value={editorState.draft.currencyOutId}
-                        onChange={(currencyId) =>
-                          setState(
-                            setRouteCurrency({
-                              currencyId,
-                              side: "out",
-                              state: editorState,
-                            }),
-                          )
-                        }
-                      />
-                    </div>
-                  </Field>
-                </FieldGroup>
-
-                <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-muted/20 px-4 py-3 text-sm">
-                  <div className="space-y-1">
-                    <div className="font-medium">Курс</div>
-                    <div className="text-muted-foreground">
-                      {rateLines.cleanForward ? (
-                        <>
-                          {rateLines.cleanForward ? (
-                            <div>
-                              Прямой чистый курс: {rateLines.cleanForward}
-                            </div>
-                          ) : null}
-                          {rateLines.cleanReverse ? (
-                            <div>
-                              Обратный чистый курс: {rateLines.cleanReverse}
-                            </div>
-                          ) : null}
-                          {rateLines.effectiveForward ? (
-                            <div>
-                              Прямой курс с себестоимостью:{" "}
-                              {rateLines.effectiveForward}
-                            </div>
-                          ) : null}
-                          {rateLines.effectiveReverse ? (
-                            <div>
-                              Обратный курс с себестоимостью:{" "}
-                              {rateLines.effectiveReverse}
-                            </div>
-                          ) : null}
-                        </>
-                      ) : (
-                        "После предварительного расчета здесь появится текущий маршрутный курс."
-                      )}
-                    </div>
-                    {additionalFeeTotals.length > 0 ? (
-                      <div className="text-xs text-amber-700">
-                        Доплаты сверх маршрута оплачиваются отдельно:{" "}
-                        {additionalFeeSummary}.
-                      </div>
-                    ) : null}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {previewIndicatorVisible ? (
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <LoaderCircle className="size-4 animate-spin" />
-                        Пересчет
-                      </div>
-                    ) : null}
-                    {previewError ? (
-                      <div className="text-right text-sm text-red-600">
-                        {previewError}
-                      </div>
-                    ) : null}
-                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -674,12 +594,48 @@ export function PaymentRouteConstructorClient({
           </div>
 
           {isGraphMode ? null : (
-            <div className="order-last xl:order-none">
+            <div className="order-last space-y-4 xl:sticky xl:top-6 xl:order-none xl:self-start">
+              <PaymentRouteValidationCard checks={validationChecks} />
               <PaymentRouteSummaryRail
                 calculation={editorState.calculation}
                 draft={editorState.draft}
+                onAmountCommit={(amountMinor) =>
+                  setState(
+                    setRouteAmount({
+                      amountMinor,
+                      side:
+                        editorState.draft.lockedSide === "currency_in"
+                          ? "in"
+                          : "out",
+                      state: editorState,
+                    }),
+                  )
+                }
+                onCurrencyInChange={(currencyId) =>
+                  setState(
+                    setRouteCurrency({
+                      currencyId,
+                      side: "in",
+                      state: editorState,
+                    }),
+                  )
+                }
+                onCurrencyOutChange={(currencyId) =>
+                  setState(
+                    setRouteCurrency({
+                      currencyId,
+                      side: "out",
+                      state: editorState,
+                    }),
+                  )
+                }
+                onLockedSideChange={(side) =>
+                  setState(setLockedSide(editorState, side))
+                }
                 options={options}
-                warnings={requisiteWarnings}
+                previewError={previewError}
+                previewPending={previewIndicatorVisible}
+                sticky={false}
               />
             </div>
           )}
@@ -729,75 +685,6 @@ export function PaymentRouteConstructorClient({
 
             <div className="min-h-0 flex-1 px-4 py-4 sm:px-6">
               <div className="mx-auto flex h-full max-w-[1800px] flex-col gap-4">
-                <div className="grid gap-3 rounded-2xl border border-border/70 bg-background/80 px-4 py-3 text-sm shadow-sm lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.4fr)]">
-                  <div className="space-y-1">
-                    <div className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                      Доплаты сверх маршрута
-                    </div>
-                    {additionalFeeTotals.length > 0 ? (
-                      <div className="font-semibold">
-                        {additionalFeeSummary}
-                      </div>
-                    ) : (
-                      <div className="font-medium text-muted-foreground">
-                        Нет отдельных доплат
-                      </div>
-                    )}
-                  </div>
-                  <div className="space-y-1">
-                    <div className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                      Бенефициар получит
-                    </div>
-                    <div className="font-semibold">
-                      {formatCurrencyMinorAmount(displayAmountOut, currencyOut)}
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <div className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                      Курс
-                    </div>
-                    <div className="space-y-1 font-medium">
-                      {rateLines.cleanForward ? (
-                        <>
-                          {rateLines.cleanForward ? (
-                            <div>
-                              Прямой чистый курс: {rateLines.cleanForward}
-                            </div>
-                          ) : null}
-                          {rateLines.cleanReverse ? (
-                            <div>
-                              Обратный чистый курс: {rateLines.cleanReverse}
-                            </div>
-                          ) : null}
-                          {rateLines.effectiveForward ? (
-                            <div>
-                              Прямой курс с себестоимостью:{" "}
-                              {rateLines.effectiveForward}
-                            </div>
-                          ) : null}
-                          {rateLines.effectiveReverse ? (
-                            <div>
-                              Обратный курс с себестоимостью:{" "}
-                              {rateLines.effectiveReverse}
-                            </div>
-                          ) : null}
-                        </>
-                      ) : (
-                        "После предварительного расчета здесь появится текущий маршрутный курс."
-                      )}
-                    </div>
-                    {additionalFeeTotals.length > 0 ? (
-                      <div className="text-xs text-amber-700">
-                        Доплаты сверх маршрута оплачиваются отдельно:{" "}
-                        {additionalFeeSummary}.
-                      </div>
-                    ) : null}
-                    {previewError ? (
-                      <div className="text-sm text-red-600">{previewError}</div>
-                    ) : null}
-                  </div>
-                </div>
-
                 <div className="min-h-0 flex-1">
                   <PaymentRouteGraphEditor
                     onStateChange={setState}
@@ -808,14 +695,54 @@ export function PaymentRouteConstructorClient({
                     canvasClassName="h-full min-h-[58dvh] rounded-[28px] border-border/70 bg-[radial-gradient(circle_at_top,#f9fbff,white_58%,#edf3ff)] shadow-[0_24px_80px_rgba(15,23,42,0.08)]"
                     sidebarClassName="min-h-0 overflow-y-auto pr-1"
                     sidebarChildren={
-                      <PaymentRouteSummaryRail
-                        calculation={editorState.calculation}
-                        draft={editorState.draft}
-                        options={options}
-                        sticky={false}
-                        className="border-border/70 bg-background/90"
-                        warnings={requisiteWarnings}
-                      />
+                      <div className="space-y-4">
+                        <PaymentRouteValidationCard
+                          checks={validationChecks}
+                          className="border-border/70 bg-background/90"
+                        />
+                        <PaymentRouteSummaryRail
+                          calculation={editorState.calculation}
+                          draft={editorState.draft}
+                          onAmountCommit={(amountMinor) =>
+                            setState(
+                              setRouteAmount({
+                                amountMinor,
+                                side:
+                                  editorState.draft.lockedSide === "currency_in"
+                                    ? "in"
+                                    : "out",
+                                state: editorState,
+                              }),
+                            )
+                          }
+                          onCurrencyInChange={(currencyId) =>
+                            setState(
+                              setRouteCurrency({
+                                currencyId,
+                                side: "in",
+                                state: editorState,
+                              }),
+                            )
+                          }
+                          onCurrencyOutChange={(currencyId) =>
+                            setState(
+                              setRouteCurrency({
+                                currencyId,
+                                side: "out",
+                                state: editorState,
+                              }),
+                            )
+                          }
+                          onLockedSideChange={(side) =>
+                            setState(setLockedSide(editorState, side))
+                          }
+                          options={options}
+                          previewError={previewError}
+                          previewPending={previewIndicatorVisible}
+                          sticky={false}
+                          className="border-border/70 bg-background/90"
+                        />
+                      </div>
                     }
                   />
                 </div>

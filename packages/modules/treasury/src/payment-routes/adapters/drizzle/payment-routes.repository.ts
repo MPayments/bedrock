@@ -46,6 +46,8 @@ function mapRecord(
     draft,
     id: row.id,
     lastCalculation: row.lastCalculation ?? null,
+    maxMarginBps: row.maxMarginBps ?? null,
+    minMarginBps: row.minMarginBps ?? null,
     name: row.name,
     snapshotPolicy: row.snapshotPolicy,
     status: row.status,
@@ -68,6 +70,8 @@ export class DrizzlePaymentRouteTemplatesRepository
         draft: input.draft,
         id: input.id,
         lastCalculation: input.lastCalculation,
+        maxMarginBps: input.maxMarginBps,
+        minMarginBps: input.minMarginBps,
         name: input.name,
         snapshotPolicy: input.snapshotPolicy,
         status: input.status,
@@ -84,7 +88,14 @@ export class DrizzlePaymentRouteTemplatesRepository
     input: Partial<
       Pick<
         PaymentRouteTemplateWriteModel,
-        "draft" | "lastCalculation" | "name" | "status" | "updatedAt" | "visual"
+        | "draft"
+        | "lastCalculation"
+        | "maxMarginBps"
+        | "minMarginBps"
+        | "name"
+        | "status"
+        | "updatedAt"
+        | "visual"
       >
     >,
   ) {
@@ -96,6 +107,12 @@ export class DrizzlePaymentRouteTemplatesRepository
         ...(input.draft ? { draft: input.draft } : {}),
         ...(input.lastCalculation !== undefined
           ? { lastCalculation: input.lastCalculation }
+          : {}),
+        ...(input.maxMarginBps !== undefined
+          ? { maxMarginBps: input.maxMarginBps }
+          : {}),
+        ...(input.minMarginBps !== undefined
+          ? { minMarginBps: input.minMarginBps }
           : {}),
         ...(input.name !== undefined ? { name: input.name } : {}),
         ...(input.status !== undefined ? { status: input.status } : {}),

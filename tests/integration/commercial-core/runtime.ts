@@ -117,7 +117,6 @@ export function createCommercialCoreRuntime() {
     logger: noopLogger,
     now,
     generateUuid: randomUUID,
-    idempotency,
     reads: agreementReads,
     references: {
       async assertCurrencyExists(id) {
@@ -180,14 +179,13 @@ export function createCommercialCoreRuntime() {
         };
       },
     },
-    commandUow: new DrizzleAgreementsUnitOfWork({ persistence }),
+    commandUow: new DrizzleAgreementsUnitOfWork({ idempotency, persistence }),
   });
 
   const calculations = createCalculationsModule({
     logger: noopLogger,
     now,
     generateUuid: randomUUID,
-    idempotency,
     reads: calculationReads,
     references: {
       async assertCurrencyExists(id) {
@@ -217,14 +215,13 @@ export function createCommercialCoreRuntime() {
         return quote ?? null;
       },
     },
-    commandUow: new DrizzleCalculationsUnitOfWork({ persistence }),
+    commandUow: new DrizzleCalculationsUnitOfWork({ idempotency, persistence }),
   });
 
   const deals = createDealsModule({
     logger: noopLogger,
     now,
     generateUuid: randomUUID,
-    idempotency,
     reads: dealReads,
     references: {
       async findAgreementById(id) {
@@ -322,7 +319,7 @@ export function createCommercialCoreRuntime() {
       },
       validateSupportedCreateType() {},
     },
-    commandUow: new DrizzleDealsUnitOfWork({ persistence }),
+    commandUow: new DrizzleDealsUnitOfWork({ idempotency, persistence }),
   });
 
   return {

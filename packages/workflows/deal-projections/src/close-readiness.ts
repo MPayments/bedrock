@@ -339,7 +339,7 @@ function createCriteria(input: {
   criteria.push(
     createCriterion(
       "operations_materialized",
-      "Казначейские операции созданы для всех этапов",
+      "Казначейские операции созданы для всех шагов",
       operationsMaterialized,
     ),
   );
