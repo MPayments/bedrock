@@ -112,6 +112,15 @@ vi.mock("@/features/treasury/deals/components/upload-attachment-dialog", () => (
   UploadAttachmentDialog: () => null,
 }));
 
+vi.mock("@/features/treasury/steps/components/step-card", () => ({
+  StepCard: ({ step, title }: { step: { id: string }; title?: string }) =>
+    createElement(
+      "div",
+      { "data-testid": `finance-step-card-${step.id}` },
+      title,
+    ),
+}));
+
 vi.mock("@/features/treasury/deals/components/workspace-layout", () => ({
   FinanceDealWorkspaceLayout: ({
     actions,
@@ -317,8 +326,92 @@ describe("treasury deal workbench", () => {
     expect(markup).toContain('data-testid="finance-deal-header-scheduled-out"');
     expect(markup).toContain('data-testid="finance-deal-header-margin"');
     expect(markup).toContain('data-testid="finance-deal-header-documents"');
-    expect(markup.match(/Запросить исполнение/g) ?? []).toHaveLength(1);
   }, 30000);
+
+  it("shows an empty-state placeholder when the deal has no materialized payment steps", async () => {
+    (
+      globalThis as typeof globalThis & {
+        React: typeof React;
+      }
+    ).React = React;
+
+    const { FinanceDealWorkbench } = await import(
+      "@/features/treasury/deals/components/workbench"
+    );
+
+    const markup = renderToStaticMarkup(
+      createElement(FinanceDealWorkbench, {
+        deal: createDeal(),
+      }),
+    );
+
+    // After commit 11 the legacy LegEditor is gone — workbench falls back to
+    // the empty-state card until a step materializes for the selected leg.
+    expect(markup).toContain(
+      "Шагов исполнения ещё нет",
+    );
+    expect(markup).not.toContain('data-testid="finance-step-card-');
+  });
+
+  it("renders StepCard when executionSteps has a matching payment step", async () => {
+    (
+      globalThis as typeof globalThis & {
+        React: typeof React;
+      }
+    ).React = React;
+
+    const { FinanceDealWorkbench } = await import(
+      "@/features/treasury/deals/components/workbench"
+    );
+
+    const deal = createDeal();
+    deal.executionSteps = [
+      {
+        artifacts: [],
+        attempts: [],
+        completedAt: null,
+        createdAt: "2026-04-02T08:07:00.000Z",
+        dealId: deal.summary.id,
+        dealLegIdx: 1,
+        dealLegRole: "collect",
+        failureReason: null,
+        fromAmountMinor: "10000",
+        fromCurrencyId: "0f9d972c-b95b-4544-95d8-8ccdc7496ed8",
+        fromParty: {
+          id: "11111111-1111-4111-8111-111111111111",
+          requisiteId: null,
+        },
+        id: "22222222-2222-4222-8222-222222222222",
+        kind: "payin",
+        postings: [],
+        purpose: "deal_leg",
+        rate: null,
+        scheduledAt: null,
+        state: "pending",
+        submittedAt: null,
+        toAmountMinor: "10000",
+        toCurrencyId: "0f9d972c-b95b-4544-95d8-8ccdc7496ed8",
+        toParty: {
+          id: "33333333-3333-4333-8333-333333333333",
+          requisiteId: null,
+        },
+        treasuryBatchId: null,
+        updatedAt: "2026-04-02T08:07:00.000Z",
+      },
+    ];
+
+    const markup = renderToStaticMarkup(
+      createElement(FinanceDealWorkbench, {
+        deal,
+      }),
+    );
+
+    // New path: the StepCard replaces the leg editor for the selected leg.
+    expect(markup).toContain(
+      'data-testid="finance-step-card-22222222-2222-4222-8222-222222222222"',
+    );
+    expect(markup).not.toContain('data-testid="finance-deal-leg-editor-1"');
+  });
 
   it("renders the deal context, leg editor, and sidebar timeline together", async () => {
     (

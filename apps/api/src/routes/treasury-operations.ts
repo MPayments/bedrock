@@ -937,6 +937,12 @@ async function loadOperationProjection(
   });
 }
 
+/**
+ * @deprecated Finance UI no longer drives these endpoints as of the
+ * payment-steps rollout (commit 12). Retained for background workers,
+ * admin tooling, and historical audit reads. Scheduled for removal alongside
+ * the legacy `deal_legs` / `treasury_operations` tables in commit 19.
+ */
 export function treasuryOperationsRoutes(ctx: AppContext) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();
 
@@ -1123,6 +1129,12 @@ export function treasuryOperationsRoutes(ctx: AppContext) {
     });
 }
 
+/**
+ * @deprecated Instruction mutations (`submit`, `retry`, `void`, `return`,
+ * `outcome`, `artifacts`) are superseded by `POST /v1/treasury/steps/{id}/...`
+ * in the payment-steps model. Finance UI stopped calling these in commit 12.
+ * Kept for workers and admin tooling; planned removal in commit 19.
+ */
 export function treasuryInstructionRoutes(ctx: AppContext) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();
 

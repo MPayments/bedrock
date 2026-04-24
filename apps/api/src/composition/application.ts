@@ -351,12 +351,21 @@ export function createApplicationServices(
     },
     logger,
   });
+  // `PAYMENT_STEPS_ENABLED` is enabled by default after commit 10 of the
+  // payment-steps rollout. Operators can temporarily fall back to the legacy
+  // leg/operation path by setting `PAYMENT_STEPS_ENABLED=false`. This kill-
+  // switch stays wired until commit 19 drops the legacy tables.
+  const paymentStepsEnabled = process.env.PAYMENT_STEPS_ENABLED !== "false";
+  logger.info("deal-execution.payment-steps-flag", {
+    paymentStepsEnabled,
+    rawValue: process.env.PAYMENT_STEPS_ENABLED ?? null,
+  });
   const dealExecutionWorkflow = createDealExecutionWorkflow({
     agreements: agreementsModule,
     currencies: currenciesService,
     db,
     idempotency,
-    paymentStepsEnabled: process.env.PAYMENT_STEPS_ENABLED === "true",
+    paymentStepsEnabled,
     createDealStore: (tx) => new DrizzleDealStore(tx),
     createDealsModule: createDealsModuleForTransaction,
     createReconciliationService: createReconciliationServiceForTransaction,

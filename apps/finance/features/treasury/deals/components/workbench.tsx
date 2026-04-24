@@ -7,16 +7,18 @@ import { Info } from "lucide-react";
 
 import { Button } from "@bedrock/sdk-ui/components/button";
 
-import { getFinanceDealDisplayTitle } from "@/features/treasury/deals/labels";
+import {
+  getDealLegKindLabel,
+  getFinanceDealDisplayTitle,
+} from "@/features/treasury/deals/labels";
 import type { FinanceDealWorkbench } from "@/features/treasury/deals/lib/queries";
+import { StepCard } from "@/features/treasury/steps/components/step-card";
 
 import { DealAttachmentsCard } from "./deal-attachments-card";
 import { DealTimelineCard } from "./deal-timeline-card";
 import { ExecutionContextGrid } from "./execution/context-grid";
-import { ExecutionLegEditor } from "./execution/leg-editor";
 import { ExecutionReconciliationSection } from "./execution/reconciliation-section";
 import { ExecutionTimelinePane } from "./execution/timeline-pane";
-import { InstructionArtifactDrawer } from "./instruction-artifact-drawer";
 import { RouteSwapDialog } from "./route-swap-dialog";
 import { UploadAttachmentDialog } from "./upload-attachment-dialog";
 import { DealContextContent } from "./workbench/deal-context-content";
@@ -33,9 +35,6 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
   const router = useRouter();
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [isSwapRouteOpen, setIsSwapRouteOpen] = useState(false);
-  const [artifactInstructionId, setArtifactInstructionId] = useState<
-    string | null
-  >(null);
   const [selectedLegIdx, setSelectedLegIdx] = useState<number | null>(
     () => deal.executionPlan[0]?.idx ?? null,
   );
@@ -58,22 +57,25 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
     deal.summary.status === "cancelled"
   );
 
-  const operationsById = useMemo(
-    () =>
-      new Map(
-        deal.relatedResources.operations.map(
-          (operation) => [operation.id, operation] as const,
-        ),
-      ),
-    [deal.relatedResources.operations],
-  );
-
   const selectedLeg = useMemo(
     () =>
       deal.executionPlan.find((leg) => leg.idx === selectedLegIdx) ??
       deal.executionPlan[0] ??
       null,
     [deal.executionPlan, selectedLegIdx],
+  );
+
+  // `PaymentStep` is now the single primitive for rendering a step — the
+  // legacy LegEditor/operationsById/InstructionArtifactDrawer path has been
+  // retired. Timeline selection still drives matching by `dealLegIdx`.
+  const selectedStep = useMemo(
+    () =>
+      selectedLeg
+        ? (deal.executionSteps.find(
+            (step) => step.dealLegIdx === selectedLeg.idx,
+          ) ?? null)
+        : null,
+    [deal.executionSteps, selectedLeg],
   );
 
   return (
@@ -98,20 +100,17 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
                 </div>
               ) : null}
 
-              {selectedLeg ? (
-                <ExecutionLegEditor
-                  canWrite={canWrite}
-                  deal={deal}
-                  isCreatingLegOperationId={state.isCreatingLegOperationId}
-                  isRequestingExecution={state.isRequestingExecution}
-                  isResolvingLegId={state.isResolvingLegId}
-                  leg={selectedLeg}
-                  onAmended={() => router.refresh()}
-                  onCreateLegOperation={actions.createLegOperation}
-                  onOpenArtifact={setArtifactInstructionId}
-                  onRequestExecution={actions.requestExecution}
-                  onResolveLeg={actions.resolveLeg}
-                  operationsById={operationsById}
+              {selectedStep && selectedLeg ? (
+                <StepCard
+                  step={selectedStep}
+                  title={`Шаг ${selectedLeg.idx} · ${getDealLegKindLabel(
+                    selectedLeg.kind,
+                  )}`}
+                  uploadAssetPath={`/v1/deals/${encodeURIComponent(
+                    deal.summary.id,
+                  )}/attachments`}
+                  disabled={!canWrite}
+                  onChanged={() => router.refresh()}
                 />
               ) : (
                 <div className="bg-card text-muted-foreground rounded-lg border p-6 text-sm">
@@ -191,17 +190,6 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
         onOpenChange={setIsSwapRouteOpen}
         onSuccess={() => router.refresh()}
       />
-      {artifactInstructionId !== null ? (
-        <InstructionArtifactDrawer
-          dealId={deal.summary.id}
-          instructionId={artifactInstructionId}
-          open
-          onOpenChange={(open) => {
-            if (!open) setArtifactInstructionId(null);
-          }}
-          onSuccess={() => router.refresh()}
-        />
-      ) : null}
     </>
   );
 }

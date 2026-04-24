@@ -12,12 +12,9 @@ import { createIdempotencyKey, refreshPage } from "./utils";
 
 export interface WorkbenchActions {
   closeDeal: () => Promise<void>;
-  createLegOperation: (legId: string) => Promise<void>;
   deleteAttachment: (attachmentId: string) => Promise<void>;
   downloadAttachment: (attachmentId: string) => void;
   ignoreReconciliationException: (exceptionId: string) => Promise<void>;
-  requestExecution: () => Promise<void>;
-  resolveLeg: (legId: string) => Promise<void>;
   runReconciliation: () => Promise<void>;
 }
 
@@ -25,9 +22,6 @@ export interface WorkbenchActionsState {
   deletingAttachmentId: string | null;
   ignoringExceptionId: string | null;
   isClosingDeal: boolean;
-  isCreatingLegOperationId: string | null;
-  isRequestingExecution: boolean;
-  isResolvingLegId: string | null;
   isRunningReconciliation: boolean;
 }
 
@@ -36,15 +30,10 @@ export function useWorkbenchActions(
 ): { actions: WorkbenchActions; state: WorkbenchActionsState } {
   const router = useRouter();
   const [isClosingDeal, setIsClosingDeal] = useState(false);
-  const [isCreatingLegOperationId, setIsCreatingLegOperationId] = useState<
-    string | null
-  >(null);
   const [deletingAttachmentId, setDeletingAttachmentId] = useState<
     string | null
   >(null);
-  const [isRequestingExecution, setIsRequestingExecution] = useState(false);
   const [isRunningReconciliation, setIsRunningReconciliation] = useState(false);
-  const [isResolvingLegId, setIsResolvingLegId] = useState<string | null>(null);
   const [ignoringExceptionId, setIgnoringExceptionId] = useState<string | null>(
     null,
   );
@@ -81,89 +70,6 @@ export function useWorkbenchActions(
       "_blank",
       "noopener,noreferrer",
     );
-  }
-
-  async function requestExecution() {
-    setIsRequestingExecution(true);
-    const result = await executeMutation({
-      fallbackMessage: "Не удалось запросить исполнение",
-      request: () =>
-        fetch(`/v1/deals/${dealId}/execution/request`, {
-          method: "POST",
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-            "Idempotency-Key": createIdempotencyKey(),
-          },
-          body: JSON.stringify({}),
-        }),
-    });
-    setIsRequestingExecution(false);
-
-    if (!result.ok) {
-      toast.error(result.message);
-      return;
-    }
-
-    toast.success("Исполнение запрошено");
-    refreshPage(router);
-  }
-
-  async function createLegOperation(legId: string) {
-    setIsCreatingLegOperationId(legId);
-    const result = await executeMutation({
-      fallbackMessage: "Не удалось создать операцию по шагу",
-      request: () =>
-        fetch(
-          `/v1/deals/${dealId}/execution/legs/${encodeURIComponent(legId)}/operation`,
-          {
-            method: "POST",
-            credentials: "include",
-            headers: {
-              "Content-Type": "application/json",
-              "Idempotency-Key": createIdempotencyKey(),
-            },
-            body: JSON.stringify({}),
-          },
-        ),
-    });
-    setIsCreatingLegOperationId(null);
-
-    if (!result.ok) {
-      toast.error(result.message);
-      return;
-    }
-
-    toast.success("Операция по шагу создана");
-    refreshPage(router);
-  }
-
-  async function resolveLeg(legId: string) {
-    setIsResolvingLegId(legId);
-    const result = await executeMutation({
-      fallbackMessage: "Не удалось устранить блокер шага",
-      request: () =>
-        fetch(`/v1/deals/${dealId}/execution/blockers/resolve`, {
-          method: "POST",
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-            "Idempotency-Key": createIdempotencyKey(),
-          },
-          body: JSON.stringify({
-            legId,
-          }),
-        }),
-    });
-    setIsResolvingLegId(null);
-
-    if (!result.ok) {
-      toast.error(result.message);
-      return;
-    }
-
-    toast.success("Блокер шага устранён");
-    refreshPage(router);
   }
 
   async function runReconciliation() {
@@ -243,21 +149,15 @@ export function useWorkbenchActions(
   return {
     actions: {
       closeDeal,
-      createLegOperation,
       deleteAttachment,
       downloadAttachment,
       ignoreReconciliationException,
-      requestExecution,
-      resolveLeg,
       runReconciliation,
     },
     state: {
       deletingAttachmentId,
       ignoringExceptionId,
       isClosingDeal,
-      isCreatingLegOperationId,
-      isRequestingExecution,
-      isResolvingLegId,
       isRunningReconciliation,
     },
   };

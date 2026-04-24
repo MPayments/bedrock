@@ -74,35 +74,23 @@ export function TreasuryQueueRowActions({
     }
 
     case "failed_instruction": {
-      if (!row.instructionId) return null;
-      const instructionId = row.instructionId;
-      const retrying = state.retryingInstructionId === instructionId;
-      const voiding = state.voidingInstructionId === instructionId;
+      // Retry / void actions moved into the StepCard overflow menu on the
+      // deal workbench. The queue row now just links to the deal so the
+      // treasurer can pick up the failed step in context.
+      const href = buildDealHref(row, {
+        legIdx: row.legIdx,
+        tab: "execution",
+      });
+      if (!href) return null;
       return (
-        <div className="flex gap-2">
-          <Button
-            disabled={retrying || voiding}
-            onClick={() => void actions.retryInstruction(instructionId)}
-            size="sm"
-            variant="outline"
-          >
-            {retrying ? (
-              <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-            ) : null}
-            Повторить
-          </Button>
-          <Button
-            disabled={retrying || voiding}
-            onClick={() => void actions.voidInstruction(instructionId)}
-            size="sm"
-            variant="ghost"
-          >
-            {voiding ? (
-              <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-            ) : null}
-            Отменить
-          </Button>
-        </div>
+        <Button
+          nativeButton={false}
+          render={<Link href={href} />}
+          size="sm"
+          variant="outline"
+        >
+          Разобрать шаг
+        </Button>
       );
     }
 
