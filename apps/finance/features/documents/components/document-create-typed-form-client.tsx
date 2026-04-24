@@ -84,11 +84,7 @@ export function DocumentCreateTypedFormClient({
           returnTo: successHref,
         });
 
-        router.push(
-          reconciliationAdjustmentExceptionId
-            ? detailsHref ?? "/documents"
-            : successHref ?? detailsHref ?? "/documents",
-        );
+        router.push(detailsHref ?? successHref ?? "/documents");
       }}
     >
       <DocumentCreateTypedFormCard docType={docType} />

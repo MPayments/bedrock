@@ -1,3 +1,5 @@
+import { FORMAL_DOCUMENT_LABELS } from "@bedrock/deals/labels";
+
 import type {
   ApiDealTimelineEvent,
   DealLegKind,
@@ -7,6 +9,8 @@ import type {
   DealStatus,
   DealType,
 } from "./types";
+
+export { FORMAL_DOCUMENT_LABELS };
 
 export const STATUS_LABELS: Record<DealStatus, string> = {
   awaiting_funds: "Ожидание средств",
@@ -47,16 +51,6 @@ export const DEAL_PARTICIPANT_ROLE_LABELS: Record<string, string> = {
   internal_entity: "наша организация",
 };
 
-export const FORMAL_DOCUMENT_LABELS: Record<string, string> = {
-  acceptance: "Акт / подтверждение исполнения",
-  exchange: "Документ по обмену валюты",
-  fx_execute: "Исполнение конвертации",
-  fx_resolution: "Сверка по конвертации",
-  invoice: "Исходящий инвойс",
-  transfer_intra: "Внутренний перевод",
-  transfer_intercompany: "Межкомпанейский перевод",
-  transfer_resolution: "Сверка по переводу",
-};
 
 export const DEAL_LEG_KIND_LABELS: Record<DealLegKind, string> = {
   collect: "Сбор средств",

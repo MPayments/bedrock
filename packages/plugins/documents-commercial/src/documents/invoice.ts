@@ -124,7 +124,7 @@ export function createInvoiceDocumentModule(
       const payload = parseInvoicePayload(document);
 
       return {
-        title: "Исходящий инвойс",
+        title: "Счёт на оплату",
         amountMinor: BigInt(getInvoiceAmountMinor(payload)),
         currency: getInvoiceCurrency(payload),
         memo: payload.memo ?? null,

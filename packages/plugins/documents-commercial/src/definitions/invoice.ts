@@ -13,7 +13,7 @@ import {
 
 export const invoiceDocumentDefinition = {
   docType: "invoice",
-  label: "Исходящий инвойс",
+  label: "Счёт на оплату",
   family: "commercial",
   docNoPrefix: "INV",
   schema: InvoiceInputSchema,
@@ -23,7 +23,7 @@ export const invoiceDocumentDefinition = {
   listed: true,
   formDefinition: {
     docType: "invoice",
-    label: "Исходящий инвойс",
+    label: "Счёт на оплату",
     family: "commercial",
     schema: InvoiceInputSchema,
     sections: [

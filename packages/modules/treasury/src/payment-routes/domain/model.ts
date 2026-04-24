@@ -55,7 +55,8 @@ export type PaymentRouteLegSemanticTag =
   (typeof PAYMENT_ROUTE_LEG_SEMANTIC_TAG_VALUES)[number];
 export type PaymentRouteLegTreasuryOperationHint =
   (typeof PAYMENT_ROUTE_LEG_TREASURY_OPERATION_HINT_VALUES)[number];
-export type PaymentRouteFeeKind = (typeof PAYMENT_ROUTE_FEE_KIND_VALUES)[number];
+export type PaymentRouteFeeKind =
+  (typeof PAYMENT_ROUTE_FEE_KIND_VALUES)[number];
 export type PaymentRouteLockedSide =
   (typeof PAYMENT_ROUTE_LOCKED_SIDE_VALUES)[number];
 

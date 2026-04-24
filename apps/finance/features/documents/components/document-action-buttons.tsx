@@ -25,6 +25,7 @@ type DocumentActionButtonsProps = {
     exceptionId: string;
     returnToHref?: string;
   };
+  returnOnPostedHref?: string;
 };
 
 type ActionButtonConfig = {
@@ -41,6 +42,7 @@ export function DocumentActionButtons({
   documentId,
   allowedActions,
   reconciliationAdjustment,
+  returnOnPostedHref,
 }: DocumentActionButtonsProps) {
   const router = useRouter();
   const [activeAction, setActiveAction] = useState<string | null>(null);
@@ -152,6 +154,13 @@ export function DocumentActionButtons({
       }
 
       router.refresh();
+      return;
+    }
+
+    if (input.actionId === "post" && returnOnPostedHref) {
+      toast.success("Документ проведен — возвращаемся к сделке");
+      setActiveAction(null);
+      router.push(returnOnPostedHref);
       return;
     }
 

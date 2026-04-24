@@ -1,6 +1,9 @@
+import { FORMAL_DOCUMENT_LABELS } from "@bedrock/deals/labels";
 import { formatCompactId } from "@bedrock/shared/core/uuid";
 
 import type { Option } from "@bedrock/sdk-tables-ui/lib/types";
+
+export { FORMAL_DOCUMENT_LABELS };
 
 type DealBadgeVariant = "default" | "secondary" | "destructive" | "outline";
 
@@ -142,16 +145,6 @@ const FINANCE_PRIMARY_POSITION_LABELS: Record<string, string> = {
   provider_payable: "Выплата получателю",
 };
 
-export const FORMAL_DOCUMENT_LABELS: Record<string, string> = {
-  acceptance: "Акт / подтверждение исполнения",
-  exchange: "Документ по обмену валюты",
-  fx_execute: "Исполнение конвертации",
-  fx_resolution: "Сверка по конвертации",
-  invoice: "Исходящий инвойс",
-  transfer_intra: "Внутренний перевод",
-  transfer_intercompany: "Межкомпанейский перевод",
-  transfer_resolution: "Сверка по переводу",
-};
 
 export const DEAL_OPERATIONAL_POSITION_STATE_LABELS: Record<string, string> = {
   blocked: "Заблокирована",

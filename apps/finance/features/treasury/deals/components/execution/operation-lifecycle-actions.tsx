@@ -2,8 +2,16 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { MoreHorizontal } from "lucide-react";
 
 import { Button } from "@bedrock/sdk-ui/components/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@bedrock/sdk-ui/components/dropdown-menu";
 import { toast } from "@bedrock/sdk-ui/components/sonner";
 
 import type { FinanceDealWorkbench } from "@/features/treasury/deals/lib/queries";
@@ -14,7 +22,25 @@ type Outcome = "failed" | "returned" | "settled";
 
 export interface OperationLifecycleActionsProps {
   operation: Operation;
+  onOpenArtifact?: (instructionId: string) => void;
+  adminViewHref?: string;
 }
+
+type ActionKey =
+  | "prepare"
+  | "submit"
+  | "retry"
+  | "void"
+  | "return"
+  | "artifact"
+  | `outcome:${Outcome}`;
+
+type LifecycleAction = {
+  key: ActionKey;
+  label: string;
+  pendingLabel: string;
+  onRun: () => void | Promise<void>;
+};
 
 function createIdempotencyKey() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -34,38 +60,17 @@ function getOutcomeLabel(outcome: Outcome): string {
   }
 }
 
-function getOutcomeVariant(
-  outcome: Outcome,
-): "default" | "outline" | "destructive" {
-  switch (outcome) {
-    case "settled":
-      return "default";
-    case "failed":
-      return "destructive";
-    case "returned":
-      return "outline";
-  }
-}
-
 export function OperationLifecycleActions({
   operation,
+  onOpenArtifact,
+  adminViewHref,
 }: OperationLifecycleActionsProps) {
   const router = useRouter();
-  const [activeAction, setActiveAction] = useState<string | null>(null);
+  const [activeAction, setActiveAction] = useState<ActionKey | null>(null);
   const instructionId = operation.latestInstruction?.id ?? null;
 
-  const hasLifecycleAction =
-    operation.actions.canPrepareInstruction ||
-    (operation.actions.canSubmitInstruction && instructionId) ||
-    (operation.actions.canRetryInstruction && instructionId) ||
-    (operation.actions.canVoidInstruction && instructionId) ||
-    (operation.actions.canRequestReturn && instructionId) ||
-    (operation.availableOutcomeTransitions.length > 0 && instructionId);
-
-  if (!hasLifecycleAction) return null;
-
-  async function runAction(input: {
-    actionKey: string;
+  async function runMutation(input: {
+    actionKey: ActionKey;
     body: Record<string, unknown>;
     successMessage: string;
     url: string;
@@ -95,126 +100,217 @@ export function OperationLifecycleActions({
     router.refresh();
   }
 
+  const availableActions: LifecycleAction[] = [];
+
+  if (operation.actions.canPrepareInstruction) {
+    availableActions.push({
+      key: "prepare",
+      label: "Подготовить",
+      pendingLabel: "Подготавливаем...",
+      onRun: () =>
+        runMutation({
+          actionKey: "prepare",
+          body: {},
+          successMessage: "Инструкция подготовлена",
+          url: `/v1/treasury/operations/${encodeURIComponent(operation.id)}/instructions/prepare`,
+        }),
+    });
+  }
+
+  if (operation.actions.canSubmitInstruction && instructionId) {
+    availableActions.push({
+      key: "submit",
+      label: "Отправить",
+      pendingLabel: "Отправляем...",
+      onRun: () =>
+        runMutation({
+          actionKey: "submit",
+          body: {},
+          successMessage: "Инструкция отправлена",
+          url: `/v1/treasury/instructions/${encodeURIComponent(instructionId)}/submit`,
+        }),
+    });
+  }
+
+  for (const outcome of operation.availableOutcomeTransitions) {
+    if (!instructionId) continue;
+    availableActions.push({
+      key: `outcome:${outcome}`,
+      label: getOutcomeLabel(outcome),
+      pendingLabel: "Сохраняем...",
+      onRun: () =>
+        runMutation({
+          actionKey: `outcome:${outcome}`,
+          body: { outcome },
+          successMessage: "Результат инструкции сохранён",
+          url: `/v1/treasury/instructions/${encodeURIComponent(instructionId)}/outcome`,
+        }),
+    });
+  }
+
+  if (operation.actions.canRetryInstruction && instructionId) {
+    availableActions.push({
+      key: "retry",
+      label: "Повторить",
+      pendingLabel: "Создаём...",
+      onRun: () =>
+        runMutation({
+          actionKey: "retry",
+          body: {},
+          successMessage: "Повторная инструкция создана",
+          url: `/v1/treasury/instructions/${encodeURIComponent(instructionId)}/retry`,
+        }),
+    });
+  }
+
+  if (operation.actions.canRequestReturn && instructionId) {
+    availableActions.push({
+      key: "return",
+      label: "Запросить возврат",
+      pendingLabel: "Запрашиваем...",
+      onRun: () =>
+        runMutation({
+          actionKey: "return",
+          body: {},
+          successMessage: "Возврат запрошен",
+          url: `/v1/treasury/instructions/${encodeURIComponent(instructionId)}/return`,
+        }),
+    });
+  }
+
+  if (operation.actions.canVoidInstruction && instructionId) {
+    availableActions.push({
+      key: "void",
+      label: "Отменить",
+      pendingLabel: "Отменяем...",
+      onRun: () =>
+        runMutation({
+          actionKey: "void",
+          body: {},
+          successMessage: "Инструкция отменена",
+          url: `/v1/treasury/instructions/${encodeURIComponent(instructionId)}/void`,
+        }),
+    });
+  }
+
+  if (onOpenArtifact && instructionId) {
+    availableActions.push({
+      key: "artifact",
+      label: "Прикрепить подтверждение",
+      pendingLabel: "Прикрепить подтверждение",
+      onRun: () => onOpenArtifact(instructionId),
+    });
+  }
+
+  const primaryKey: ActionKey | null = (() => {
+    const priorities: ActionKey[] = [
+      "prepare",
+      "submit",
+      "outcome:settled",
+      "retry",
+      "artifact",
+      "outcome:returned",
+      "outcome:failed",
+    ];
+    for (const key of priorities) {
+      if (availableActions.some((a) => a.key === key)) return key;
+    }
+    return availableActions[0]?.key ?? null;
+  })();
+
+  const ghostKey: ActionKey | null = (() => {
+    if (!primaryKey) return null;
+    const ghostByPrimary: Partial<Record<ActionKey, ActionKey[]>> = {
+      submit: ["void"],
+      "outcome:settled": ["artifact", "outcome:failed"],
+      retry: ["return", "outcome:failed"],
+      prepare: ["void"],
+    };
+    const candidates = ghostByPrimary[primaryKey] ?? [];
+    for (const key of candidates) {
+      if (key === primaryKey) continue;
+      if (availableActions.some((a) => a.key === key)) return key;
+    }
+    return null;
+  })();
+
+  const primary = availableActions.find((a) => a.key === primaryKey);
+  const ghost =
+    ghostKey !== null
+      ? availableActions.find((a) => a.key === ghostKey)
+      : undefined;
+  const menuItems = availableActions.filter(
+    (a) => a.key !== primary?.key && a.key !== ghost?.key,
+  );
+
+  if (!primary && !ghost && menuItems.length === 0 && !adminViewHref) {
+    return null;
+  }
+
   return (
     <div
       className="flex flex-wrap items-center gap-2"
       data-testid={`finance-deal-operation-lifecycle-${operation.id}`}
     >
-      {operation.actions.canPrepareInstruction ? (
+      {primary ? (
         <Button
-          data-testid={`finance-deal-operation-prepare-${operation.id}`}
+          data-testid={`finance-deal-operation-primary-${operation.id}`}
           size="sm"
-          disabled={activeAction === "prepare"}
-          onClick={() =>
-            runAction({
-              actionKey: "prepare",
-              body: {},
-              successMessage: "Инструкция подготовлена",
-              url: `/v1/treasury/operations/${encodeURIComponent(operation.id)}/instructions/prepare`,
-            })
-          }
+          disabled={activeAction === primary.key}
+          onClick={() => void primary.onRun()}
         >
-          {activeAction === "prepare" ? "Подготавливаем..." : "Подготовить"}
+          {activeAction === primary.key ? primary.pendingLabel : primary.label}
         </Button>
       ) : null}
 
-      {operation.actions.canSubmitInstruction && instructionId ? (
+      {ghost ? (
         <Button
-          data-testid={`finance-deal-operation-submit-${operation.id}`}
+          data-testid={`finance-deal-operation-ghost-${operation.id}`}
           size="sm"
-          disabled={activeAction === "submit"}
-          onClick={() =>
-            runAction({
-              actionKey: "submit",
-              body: {},
-              successMessage: "Инструкция отправлена",
-              url: `/v1/treasury/instructions/${encodeURIComponent(instructionId)}/submit`,
-            })
-          }
+          variant="outline"
+          disabled={activeAction === ghost.key}
+          onClick={() => void ghost.onRun()}
         >
-          {activeAction === "submit" ? "Отправляем..." : "Отправить"}
+          {activeAction === ghost.key ? ghost.pendingLabel : ghost.label}
         </Button>
       ) : null}
 
-      {operation.availableOutcomeTransitions.map((outcome) =>
-        instructionId ? (
-          <Button
-            key={outcome}
-            data-testid={`finance-deal-operation-outcome-${outcome}-${operation.id}`}
-            size="sm"
-            variant={getOutcomeVariant(outcome)}
-            disabled={activeAction === `outcome:${outcome}`}
-            onClick={() =>
-              runAction({
-                actionKey: `outcome:${outcome}`,
-                body: { outcome },
-                successMessage: "Результат инструкции сохранён",
-                url: `/v1/treasury/instructions/${encodeURIComponent(instructionId)}/outcome`,
-              })
+      {menuItems.length > 0 || adminViewHref ? (
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                size="sm"
+                variant="ghost"
+                data-testid={`finance-deal-operation-menu-${operation.id}`}
+                aria-label="Дополнительные действия"
+              >
+                <MoreHorizontal className="size-4" />
+              </Button>
             }
-          >
-            {activeAction === `outcome:${outcome}`
-              ? "Сохраняем..."
-              : getOutcomeLabel(outcome)}
-          </Button>
-        ) : null,
-      )}
-
-      {operation.actions.canRetryInstruction && instructionId ? (
-        <Button
-          data-testid={`finance-deal-operation-retry-${operation.id}`}
-          size="sm"
-          variant="outline"
-          disabled={activeAction === "retry"}
-          onClick={() =>
-            runAction({
-              actionKey: "retry",
-              body: {},
-              successMessage: "Повторная инструкция создана",
-              url: `/v1/treasury/instructions/${encodeURIComponent(instructionId)}/retry`,
-            })
-          }
-        >
-          {activeAction === "retry" ? "Создаём..." : "Повторить"}
-        </Button>
-      ) : null}
-
-      {operation.actions.canVoidInstruction && instructionId ? (
-        <Button
-          data-testid={`finance-deal-operation-void-${operation.id}`}
-          size="sm"
-          variant="outline"
-          disabled={activeAction === "void"}
-          onClick={() =>
-            runAction({
-              actionKey: "void",
-              body: {},
-              successMessage: "Инструкция отменена",
-              url: `/v1/treasury/instructions/${encodeURIComponent(instructionId)}/void`,
-            })
-          }
-        >
-          {activeAction === "void" ? "Отменяем..." : "Отменить"}
-        </Button>
-      ) : null}
-
-      {operation.actions.canRequestReturn && instructionId ? (
-        <Button
-          data-testid={`finance-deal-operation-return-${operation.id}`}
-          size="sm"
-          variant="outline"
-          disabled={activeAction === "return"}
-          onClick={() =>
-            runAction({
-              actionKey: "return",
-              body: {},
-              successMessage: "Возврат запрошен",
-              url: `/v1/treasury/instructions/${encodeURIComponent(instructionId)}/return`,
-            })
-          }
-        >
-          {activeAction === "return" ? "Запрашиваем..." : "Запросить возврат"}
-        </Button>
+          />
+          <DropdownMenuContent align="end" className="min-w-[200px]">
+            {menuItems.map((action) => (
+              <DropdownMenuItem
+                key={action.key}
+                data-testid={`finance-deal-operation-menu-item-${action.key}-${operation.id}`}
+                disabled={activeAction === action.key}
+                onClick={() => void action.onRun()}
+              >
+                {action.label}
+              </DropdownMenuItem>
+            ))}
+            {menuItems.length > 0 && adminViewHref ? (
+              <DropdownMenuSeparator />
+            ) : null}
+            {adminViewHref ? (
+              <DropdownMenuItem
+                render={<a href={adminViewHref}>Админ-вид инструкции</a>}
+                data-testid={`finance-deal-operation-menu-admin-${operation.id}`}
+              />
+            ) : null}
+          </DropdownMenuContent>
+        </DropdownMenu>
       ) : null}
     </div>
   );

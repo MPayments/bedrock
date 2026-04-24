@@ -7,6 +7,7 @@
     ".": "./src/index.ts",
     "./adapters/drizzle": "./src/adapters/drizzle.ts",
     "./contracts": "./src/contracts.ts",
+    "./labels": "./src/labels.ts",
     "./schema": "./src/schema.ts"
   },
   "scripts": {

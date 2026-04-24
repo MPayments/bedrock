@@ -1,5 +1,39 @@
 import tseslint from "typescript-eslint";
 
+const moduleDomainFiles = [
+  "packages/modules/*/src/domain/**/*.{ts,tsx,mts,cts}",
+  "packages/modules/*/src/**/domain/**/*.{ts,tsx,mts,cts}",
+];
+
+const moduleApplicationFiles = [
+  "packages/modules/*/src/application/**/*.{ts,tsx,mts,cts}",
+  "packages/modules/*/src/**/application/**/*.{ts,tsx,mts,cts}",
+];
+
+const moduleApplicationPortFiles = [
+  "packages/modules/*/src/application/**/ports.{ts,tsx,mts,cts}",
+  "packages/modules/*/src/application/**/ports/**/*.{ts,tsx,mts,cts}",
+  "packages/modules/*/src/application/ports/**/*.{ts,tsx,mts,cts}",
+  "packages/modules/*/src/**/application/**/ports.{ts,tsx,mts,cts}",
+  "packages/modules/*/src/**/application/**/ports/**/*.{ts,tsx,mts,cts}",
+  "packages/modules/*/src/**/application/ports/**/*.{ts,tsx,mts,cts}",
+];
+
+const persistenceImportRestrictions = [
+  {
+    name: "drizzle-orm",
+    message: "Core module layers must not use Drizzle directly.",
+  },
+  {
+    name: "@bedrock/platform/persistence",
+    message: "Core module layers must not depend on persistence types.",
+  },
+  {
+    name: "@bedrock/platform/persistence/drizzle",
+    message: "Core module layers must not depend on persistence types.",
+  },
+];
+
 /** @type {import("eslint").Linter.Config[]} */
 export default [
   {
@@ -47,47 +81,32 @@ export default [
     },
   },
   {
-    files: ["**/accounting/src/domain/**/*.ts"],
+    files: moduleDomainFiles,
     rules: {
       "no-restricted-imports": [
         "error",
         {
-          paths: [
-            {
-              name: "drizzle-orm",
-              message: "Accounting domain must stay free of Drizzle.",
-            },
-            {
-              name: "@bedrock/platform/persistence",
-              message:
-                "Accounting domain must not depend on persistence types.",
-            },
-            {
-              name: "@bedrock/platform/persistence/drizzle",
-              message:
-                "Accounting domain must not depend on persistence types.",
-            },
-          ],
+          paths: persistenceImportRestrictions,
           patterns: [
             {
               group: ["@bedrock/*/queries"],
               message:
-                "Accounting domain must not depend on cross-context query adapters.",
+                "Module domain code must not depend on cross-context query adapters.",
             },
             {
               group: ["@bedrock/*/schema"],
-              message: "Accounting domain must not import schema surfaces.",
+              message: "Module domain code must not import schema surfaces.",
             },
             {
               group: [
-                "**/contracts",
-                "**/contracts/**",
                 "**/application",
                 "**/application/**",
+                "**/adapters",
+                "**/adapters/**",
                 "**/infra",
                 "**/infra/**",
               ],
-              message: "Accounting domain must depend inward only.",
+              message: "Module domain code must depend inward only.",
             },
           ],
         },
@@ -95,55 +114,56 @@ export default [
     },
   },
   {
-    files: ["**/accounting/src/application/**/*.ts"],
+    files: moduleApplicationFiles,
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: persistenceImportRestrictions,
+          patterns: [
+            {
+              group: ["@bedrock/*/queries"],
+              message:
+                "Module application code must depend on ports injected from composition, not cross-context query adapters.",
+            },
+            {
+              group: ["@bedrock/*/schema"],
+              message:
+                "Module application code must consume query or contract surfaces, not schemas.",
+            },
+            {
+              group: [
+                "**/adapters",
+                "**/adapters/**",
+                "**/infra",
+                "**/infra/**",
+              ],
+              message:
+                "Module application code must not import concrete adapters directly.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: moduleApplicationPortFiles,
     rules: {
       "no-restricted-imports": [
         "error",
         {
           paths: [
             {
-              name: "drizzle-orm",
-              message:
-                "Accounting application code must not use Drizzle directly.",
-            },
-            {
               name: "@bedrock/platform/persistence",
               message:
-                "Accounting application code must not depend on persistence types.",
+                "Application ports must not expose persistence transaction types.",
             },
             {
               name: "@bedrock/platform/persistence/drizzle",
               message:
-                "Accounting application code must not depend on persistence types.",
+                "Application ports must not expose persistence transaction types.",
             },
           ],
-          patterns: [
-            {
-              group: ["@bedrock/*/queries"],
-              message:
-                "Accounting application code must depend on ports injected from composition, not cross-context query adapters.",
-            },
-            {
-              group: ["@bedrock/*/schema"],
-              message:
-                "Accounting application code must consume query or contract surfaces, not schemas.",
-            },
-            {
-              group: ["**/infra", "**/infra/**"],
-              message:
-                "Accounting application code must not import infra adapters directly.",
-            },
-          ],
-        },
-      ],
-    },
-  },
-  {
-    files: ["**/accounting/src/application/**/ports.ts"],
-    rules: {
-      "no-restricted-imports": [
-        "error",
-        {
           patterns: [
             {
               group: [
@@ -151,8 +171,11 @@ export default [
                 "../schema/**",
                 "../../schema",
                 "../../schema/**",
+                "../../../schema",
+                "../../../schema/**",
+                "@bedrock/*/schema",
               ],
-              message: "Accounting ports must not import schema files.",
+              message: "Application ports must not import schema files.",
             },
           ],
         },

@@ -385,9 +385,6 @@ export function ExecutionLegEditor({
                           )}
                         </Badge>
                       </div>
-                      <div className="text-muted-foreground text-xs font-mono">
-                        {operation.sourceRef}
-                      </div>
                       <OperationDocumentTimeline
                         formalDocuments={deal.relatedResources.formalDocuments}
                         operationKind={operation.kind}
@@ -405,30 +402,13 @@ export function ExecutionLegEditor({
                           {nextAction.buttonLabel}
                         </Button>
                       ) : null}
-                      {operation.latestInstruction ? (
-                        <Button
-                          data-testid={`finance-deal-instruction-artifact-${operation.id}`}
-                          size="sm"
-                          variant="outline"
-                          onClick={() =>
-                            onOpenArtifact(operation.latestInstruction!.id)
-                          }
-                        >
-                          Подтверждение
-                        </Button>
-                      ) : null}
-                      <Button
-                        data-testid={`finance-deal-operation-open-${operation.id}`}
-                        size="sm"
-                        variant="ghost"
-                        nativeButton={false}
-                        render={<Link href={operation.operationHref} />}
-                      >
-                        Админ-вид
-                      </Button>
                     </div>
                   </div>
-                  <OperationLifecycleActions operation={operation} />
+                  <OperationLifecycleActions
+                    operation={operation}
+                    onOpenArtifact={onOpenArtifact}
+                    adminViewHref={operation.operationHref}
+                  />
                 </div>
               );
             })}
