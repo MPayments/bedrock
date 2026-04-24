@@ -1,4 +1,3 @@
-import type { CounterpartyGeneralFormValues } from "@bedrock/sdk-parties-ui/components/counterparty-general-editor";
 import type { OrganizationGeneralFormValues } from "@bedrock/sdk-parties-ui/components/organization-general-editor";
 import type {
   PartyAddressInput,
@@ -9,7 +8,37 @@ import type {
 import type { LocaleTextMap } from "@bedrock/sdk-parties-ui/lib/localized-text";
 import { clonePartyProfileBundleInput } from "@bedrock/sdk-parties-ui/lib/party-profile";
 
-import { translateFieldsToEnglish } from "./translate-fields";
+async function translateFieldsToEnglish(
+  fields: Record<string, string>,
+): Promise<Record<string, string>> {
+  const filtered: Record<string, string> = {};
+  for (const [key, value] of Object.entries(fields)) {
+    if (value && value.trim()) {
+      filtered[key] = value;
+    }
+  }
+
+  if (Object.keys(filtered).length === 0) {
+    return {};
+  }
+
+  const response = await fetch(`/v1/ai/translate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ fields: filtered }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(
+      (errorData as { message?: string }).message ||
+        `Ошибка перевода: ${response.status}`,
+    );
+  }
+
+  return response.json();
+}
 
 export type TranslatePartyProfileOptions = {
   onlyEmpty?: boolean;
@@ -163,123 +192,6 @@ function collectSlots(bundle: PartyProfileBundleInput): Slot[] {
   return slots;
 }
 
-export type CounterpartyGeneralTranslatable = {
-  shortName: string;
-  shortNameEn: string;
-  fullName: string;
-  fullNameEn: string;
-};
-
-export type TranslateCounterpartyResult = {
-  general: Partial<CounterpartyGeneralFormValues>;
-  profile: PartyProfileBundleInput | null;
-};
-
-const GENERAL_SLOT_PREFIX = "general.";
-
-type GeneralSlot = {
-  key: string;
-  target: keyof CounterpartyGeneralFormValues & ("shortNameEn" | "fullNameEn");
-  ru: string;
-  en: string;
-};
-
-function collectGeneralSlots(
-  general: CounterpartyGeneralTranslatable,
-): GeneralSlot[] {
-  return [
-    {
-      key: `${GENERAL_SLOT_PREFIX}shortName`,
-      target: "shortNameEn",
-      ru: general.shortName.trim(),
-      en: general.shortNameEn.trim(),
-    },
-    {
-      key: `${GENERAL_SLOT_PREFIX}fullName`,
-      target: "fullNameEn",
-      ru: general.fullName.trim(),
-      en: general.fullNameEn.trim(),
-    },
-  ];
-}
-
-export async function translateCounterpartyToEnglish(
-  input: {
-    bundle: PartyProfileBundleInput | null;
-    general: CounterpartyGeneralTranslatable | null;
-  },
-  options: TranslatePartyProfileOptions = {},
-): Promise<TranslateCounterpartyResult> {
-  const onlyEmpty = options.onlyEmpty ?? true;
-  const next = input.bundle ? clonePartyProfileBundleInput(input.bundle) : null;
-  const slots = next ? collectSlots(next) : [];
-
-  const request: Record<string, string> = {};
-  const candidateSlots: Slot[] = [];
-
-  if (next) {
-    for (const slot of slots) {
-      const localeMap = slot.read(next);
-      const ru = readRu(localeMap);
-      if (!ru) {
-        continue;
-      }
-
-      if (onlyEmpty && readEn(localeMap)) {
-        continue;
-      }
-
-      request[slot.key] = ru;
-      candidateSlots.push(slot);
-    }
-  }
-
-  const generalSlots = input.general ? collectGeneralSlots(input.general) : [];
-  const candidateGeneralSlots: GeneralSlot[] = [];
-
-  for (const slot of generalSlots) {
-    if (!slot.ru) {
-      continue;
-    }
-
-    if (onlyEmpty && slot.en) {
-      continue;
-    }
-
-    request[slot.key] = slot.ru;
-    candidateGeneralSlots.push(slot);
-  }
-
-  if (candidateSlots.length === 0 && candidateGeneralSlots.length === 0) {
-    return { general: {}, profile: next };
-  }
-
-  const translated = await translateFieldsToEnglish(request);
-
-  if (next) {
-    for (const slot of candidateSlots) {
-      const translation = translated[slot.key];
-      if (typeof translation !== "string" || translation.trim().length === 0) {
-        continue;
-      }
-
-      const currentMap = slot.read(next);
-      slot.write(next, writeEn(currentMap, translation));
-    }
-  }
-
-  const generalPatch: Partial<CounterpartyGeneralFormValues> = {};
-  for (const slot of candidateGeneralSlots) {
-    const translation = translated[slot.key];
-    if (typeof translation !== "string" || translation.trim().length === 0) {
-      continue;
-    }
-    generalPatch[slot.target] = translation;
-  }
-
-  return { general: generalPatch, profile: next };
-}
-
 export type OrganizationGeneralTranslatable = {
   shortName: string;
   shortNameEn: string;
@@ -292,7 +204,9 @@ export type TranslateOrganizationResult = {
   profile: PartyProfileBundleInput | null;
 };
 
-type OrganizationGeneralSlot = {
+const GENERAL_SLOT_PREFIX = "general.";
+
+type GeneralSlot = {
   key: string;
   target: keyof OrganizationGeneralFormValues & ("shortNameEn" | "fullNameEn");
   ru: string;
@@ -301,7 +215,7 @@ type OrganizationGeneralSlot = {
 
 function collectOrganizationGeneralSlots(
   general: OrganizationGeneralTranslatable,
-): OrganizationGeneralSlot[] {
+): GeneralSlot[] {
   return [
     {
       key: `${GENERAL_SLOT_PREFIX}shortName`,
@@ -352,7 +266,7 @@ export async function translateOrganizationToEnglish(
   const generalSlots = input.general
     ? collectOrganizationGeneralSlots(input.general)
     : [];
-  const candidateGeneralSlots: OrganizationGeneralSlot[] = [];
+  const candidateGeneralSlots: GeneralSlot[] = [];
 
   for (const slot of generalSlots) {
     if (!slot.ru) {

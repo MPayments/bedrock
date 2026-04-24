@@ -4,21 +4,23 @@ import { AlertCircle, Loader2 } from "lucide-react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import type { PartyProfileBundleInput } from "@bedrock/parties/contracts";
 import {
-  LOCALIZED_TEXT_VARIANTS,
-  type LocalizedTextVariant,
-} from "@bedrock/sdk-parties-ui/lib/localized-text";
+  BilingualToolbar,
+  type BilingualMode,
+} from "@bedrock/sdk-parties-ui/components/bilingual-toolbar";
+import type {
+  OrganizationGeneralEditorExternalPatch,
+  OrganizationGeneralFormValues,
+} from "@bedrock/sdk-parties-ui/components/organization-general-editor";
+import { computePartyProfileCompleteness } from "@bedrock/sdk-parties-ui/lib/party-profile-completeness";
 import { Alert, AlertDescription } from "@bedrock/sdk-ui/components/alert";
 import { Badge } from "@bedrock/sdk-ui/components/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@bedrock/sdk-ui/components/select";
 
 import { useCrmBreadcrumbs } from "@/components/app/breadcrumbs-provider";
+import type { PartyProfileOverride } from "@/lib/party-profile-patch";
+import { translateOrganizationToEnglish } from "@/lib/translate-party-profile";
+
 import { OrganizationBankRequisitesWorkspace } from "./_components/organization-bank-requisites-workspace";
 import { OrganizationCanonicalEditor } from "./_components/organization-canonical-editor";
 import { OrganizationFilesWorkspace } from "./_components/organization-files-workspace";
@@ -46,8 +48,17 @@ export default function OrganizationWorkspacePage() {
   const [organizationDirty, setOrganizationDirty] = useState(false);
   const [requisitesDirty, setRequisitesDirty] = useState(false);
   const [filesDirty, setFilesDirty] = useState(false);
-  const [localizedTextVariant, setLocalizedTextVariant] =
-    useState<LocalizedTextVariant>("ru");
+  const [bilingualMode, setBilingualMode] = useState<BilingualMode>("all");
+  const [externalPatch, setExternalPatch] =
+    useState<OrganizationGeneralEditorExternalPatch | null>(null);
+  const [partyProfileOverride, setPartyProfileOverride] =
+    useState<PartyProfileOverride | null>(null);
+  const [partyProfileDraft, setPartyProfileDraft] =
+    useState<PartyProfileBundleInput | null>(null);
+  const [generalValues, setGeneralValues] =
+    useState<OrganizationGeneralFormValues | null>(null);
+  const [translating, setTranslating] = useState(false);
+  const [translateError, setTranslateError] = useState<string | null>(null);
 
   const hasUnsavedChanges = organizationDirty || requisitesDirty || filesDirty;
 
@@ -93,6 +104,61 @@ export default function OrganizationWorkspacePage() {
         ]
       : [],
   );
+
+  const completeness = useMemo(
+    () =>
+      computePartyProfileCompleteness(partyProfileDraft, {
+        excludeProfileNames: true,
+        extraPairs: [
+          {
+            ru: generalValues?.shortName ?? "",
+            en: generalValues?.shortNameEn ?? "",
+          },
+          {
+            ru: generalValues?.fullName ?? "",
+            en: generalValues?.fullNameEn ?? "",
+          },
+        ],
+      }).ratio,
+    [partyProfileDraft, generalValues],
+  );
+
+  const handleTranslateAll = useCallback(async () => {
+    if (!generalValues && !partyProfileDraft) {
+      return;
+    }
+
+    setTranslating(true);
+    setTranslateError(null);
+    try {
+      const next = await translateOrganizationToEnglish({
+        bundle: partyProfileDraft,
+        general: generalValues
+          ? {
+              shortName: generalValues.shortName,
+              shortNameEn: generalValues.shortNameEn,
+              fullName: generalValues.fullName,
+              fullNameEn: generalValues.fullNameEn,
+            }
+          : null,
+      });
+      const nonce = Date.now();
+      if (next.profile) {
+        setPartyProfileOverride({ nonce, patch: next.profile });
+      }
+      if (Object.keys(next.general).length > 0) {
+        setExternalPatch({ nonce, patch: next.general });
+      }
+    } catch (translationError) {
+      setTranslateError(
+        translationError instanceof Error
+          ? translationError.message
+          : "Ошибка перевода полей",
+      );
+    } finally {
+      setTranslating(false);
+    }
+  }, [partyProfileDraft, generalValues]);
 
   function handleTabChange(nextTab: "organization" | "requisites" | "files") {
     router.replace(
@@ -154,34 +220,8 @@ export default function OrganizationWorkspacePage() {
     );
   }
 
-  const localizedTextControl =
-    activeTab === "organization" && organization.kind === "legal_entity" ? (
-      <div className="w-full space-y-1 sm:w-[180px]">
-        <Select
-          value={localizedTextVariant}
-          onValueChange={(value) =>
-            setLocalizedTextVariant((value as LocalizedTextVariant) ?? "base")
-          }
-        >
-          <SelectTrigger className="w-full bg-card">
-            <SelectValue>
-              {
-                LOCALIZED_TEXT_VARIANTS.find(
-                  (option) => option.value === localizedTextVariant,
-                )?.label
-              }
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            {LOCALIZED_TEXT_VARIANTS.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-    ) : null;
+  const showBilingualToolbar =
+    activeTab === "organization" && organization.kind === "legal_entity";
 
   return (
     <div className="space-y-4">
@@ -212,19 +252,39 @@ export default function OrganizationWorkspacePage() {
       <OrganizationSummaryCard organization={organization} />
       <OrganizationWorkspaceTabs
         activeTab={activeTab}
-        controls={localizedTextControl}
         onTabChange={handleTabChange}
       />
+
+      {showBilingualToolbar ? (
+        <BilingualToolbar
+          value={bilingualMode}
+          onChange={setBilingualMode}
+          completeness={completeness}
+          onTranslateAll={handleTranslateAll}
+          translating={translating}
+        />
+      ) : null}
+
+      {translateError ? (
+        <Alert variant="destructive">
+          <AlertDescription>{translateError}</AlertDescription>
+        </Alert>
+      ) : null}
 
       <div
         hidden={activeTab !== "organization"}
         aria-hidden={activeTab !== "organization"}
       >
         <OrganizationCanonicalEditor
-          localizedTextVariant={localizedTextVariant}
+          bilingualMode={bilingualMode}
+          externalPatch={externalPatch}
+          localizedTextVariant={bilingualMode}
           organizationId={organizationId}
           onDirtyChange={setOrganizationDirty}
+          onGeneralValuesChange={setGeneralValues}
+          onPartyProfileChange={setPartyProfileDraft}
           onSaved={handleWorkspaceSaved}
+          partyProfileOverride={partyProfileOverride}
         />
       </div>
 

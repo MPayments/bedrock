@@ -29,7 +29,7 @@ import { readJsonWithSchema } from "@/lib/api/response";
 import {
   applyPartyProfilePatch,
   type PartyProfileOverride,
-} from "./party-profile-patch";
+} from "@/lib/party-profile-patch";
 
 export type { PartyProfileOverride };
 
