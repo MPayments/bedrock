@@ -8,6 +8,7 @@ import {
   DealCalculationHistoryItemSchema,
   DealCounterpartySnapshotSchema,
   DealPricingContextSchema,
+  DealPricingProfitabilitySchema,
   DealRelatedFormalDocumentSchema,
   DealRelatedQuoteSchema,
   DealSummarySchema,
@@ -487,6 +488,7 @@ export const FinanceProfitabilitySnapshotSchema = z
   .object({
     calculationId: z.uuid(),
     feeRevenue: z.array(FinanceProfitabilityAmountSchema),
+    netProfit: DealPricingProfitabilitySchema.nullable(),
     providerFeeExpense: z.array(FinanceProfitabilityAmountSchema),
     spreadRevenue: z.array(FinanceProfitabilityAmountSchema),
     totalRevenue: z.array(FinanceProfitabilityAmountSchema),

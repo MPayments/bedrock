@@ -49,9 +49,9 @@ describe("document routes", () => {
   });
 
   it("returns null for non-documents-workspace types", () => {
-    expect(buildDocumentTypeHref("legacy_doc_type")).toBeNull();
+    expect(buildDocumentTypeHref("unknown_doc_type")).toBeNull();
     expect(buildDocumentCreateHref("unknown_doc_type")).toBeNull();
-    expect(buildDocumentDetailsHref("legacy_doc_type", "doc-123")).toBeNull();
+    expect(buildDocumentDetailsHref("unknown_doc_type", "doc-123")).toBeNull();
   });
 
   it("accepts only internal absolute returnTo paths", () => {

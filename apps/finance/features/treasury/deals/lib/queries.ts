@@ -168,6 +168,19 @@ const FinanceProfitabilityAmountSchema = z.object({
   currencyId: z.string().uuid(),
 });
 
+const FinanceDealNetProfitSchema = z
+  .object({
+    commercialRevenueMinor: z.string(),
+    costPriceMinor: z.string(),
+    currency: z.string(),
+    customerPrincipalMinor: z.string(),
+    customerTotalMinor: z.string(),
+    passThroughMinor: z.string(),
+    profitMinor: z.string(),
+    profitPercentOnCost: z.string(),
+  })
+  .nullable();
+
 const FinanceDealCashflowSummarySchema = z.object({
   receivedIn: z.array(FinanceProfitabilityAmountSchema),
   scheduledOut: z.array(FinanceProfitabilityAmountSchema),
@@ -194,6 +207,7 @@ const FinanceDealListItemSchema = z.object({
     .object({
       calculationId: z.string().uuid(),
       feeRevenue: z.array(FinanceProfitabilityAmountSchema),
+      netProfit: FinanceDealNetProfitSchema,
       providerFeeExpense: z.array(FinanceProfitabilityAmountSchema),
       spreadRevenue: z.array(FinanceProfitabilityAmountSchema),
       totalRevenue: z.array(FinanceProfitabilityAmountSchema),
@@ -579,6 +593,7 @@ const FinanceDealWorkspaceSchema = z.object({
     .object({
       calculationId: z.string().uuid(),
       feeRevenue: z.array(FinanceProfitabilityAmountSchema),
+      netProfit: FinanceDealNetProfitSchema,
       providerFeeExpense: z.array(FinanceProfitabilityAmountSchema),
       spreadRevenue: z.array(FinanceProfitabilityAmountSchema),
       totalRevenue: z.array(FinanceProfitabilityAmountSchema),

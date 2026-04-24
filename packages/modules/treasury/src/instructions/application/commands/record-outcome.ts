@@ -76,8 +76,14 @@ export class RecordTreasuryInstructionOutcomeCommand {
         );
 
       if (evidence.length === 0) {
+        // Build a concrete list of accepted purposes so the caller knows
+        // which artifact types to look for. `submission_confirmation` and
+        // `exception_note` intentionally do not count as settlement evidence.
+        const acceptedPurposes = [
+          ...TREASURY_INSTRUCTION_SETTLEMENT_EVIDENCE_PURPOSES,
+        ].join(", ");
         throw new ValidationError(
-          "settlement requires evidence artifact",
+          `settlement requires evidence artifact (attach an artifact with purpose one of: ${acceptedPurposes})`,
         );
       }
     }

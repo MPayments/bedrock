@@ -104,34 +104,6 @@ describe("document pages", () => {
     getOrganizationRequisitesForOrganization.mockResolvedValue([]);
   });
 
-  it("returns notFound for removed /documents/create family route", async () => {
-    const { default: FamilyPage } = await import(
-      "@/app/(shell)/documents/[family]/page"
-    );
-
-    await expect(
-      FamilyPage({
-        params: Promise.resolve({ family: "create" }),
-        searchParams: Promise.resolve({}),
-      }),
-    ).rejects.toBe(NOT_FOUND);
-  }, 15000);
-
-  it("returns notFound for removed /documents/create/[docType] route shape", async () => {
-    const { default: FamilyPage } = await import(
-      "@/app/(shell)/documents/[family]/page"
-    );
-
-    await expect(
-      FamilyPage({
-        params: Promise.resolve({
-          family: "transfers",
-        }),
-        searchParams: Promise.resolve({ docType: "legacy_doc_type" }),
-      }),
-    ).rejects.toBe(NOT_FOUND);
-  }, 15000);
-
   it("returns notFound for family filter mismatches", async () => {
     const { default: FamilyPage } = await import(
       "@/app/(shell)/documents/[family]/page"

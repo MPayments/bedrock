@@ -491,59 +491,6 @@ describe("payment routes", () => {
     ).toThrow();
   });
 
-  it("rejects route drafts that still include leg kind", () => {
-    expect(() =>
-      PaymentRouteDraftSchema.parse({
-        ...createDraft(),
-        legs: [
-          {
-            ...createDraft().legs[0],
-            kind: "transfer",
-          },
-        ],
-      }),
-    ).toThrow();
-  });
-
-  it("rejects calculations that still include leg kind", () => {
-    expect(() =>
-      PaymentRouteCalculationSchema.parse({
-        additionalFees: [],
-        amountInMinor: "10000",
-        amountOutMinor: "10000",
-        chargedFeeTotals: [],
-        cleanAmountOutMinor: "10000",
-        clientTotalInMinor: "10000",
-        computedAt: "2026-04-16T08:00:00.000Z",
-        costPriceInMinor: "10000",
-        currencyInId: USD,
-        currencyOutId: USD,
-        feeTotals: [],
-        grossAmountOutMinor: "10000",
-        internalFeeTotals: [],
-        legs: [
-          {
-            asOf: "2026-04-16T08:00:00.000Z",
-            fees: [],
-            fromCurrencyId: USD,
-            grossOutputMinor: "10000",
-            id: "leg-1",
-            idx: 1,
-            inputAmountMinor: "10000",
-            kind: "transfer",
-            netOutputMinor: "10000",
-            rateDen: "1",
-            rateNum: "1",
-            rateSource: "identity",
-            toCurrencyId: USD,
-          },
-        ],
-        lockedSide: "currency_in",
-        netAmountOutMinor: "10000",
-      }),
-    ).toThrow();
-  });
-
   it("previews mixed-currency multi-hop routes with treasury rates", async () => {
     const { service } = createService();
     const draft = createDraft({

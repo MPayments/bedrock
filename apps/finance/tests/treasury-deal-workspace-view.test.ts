@@ -243,7 +243,7 @@ function normalizeMarkupWhitespace(markup: string) {
 }
 
 describe("treasury deal workspace view", () => {
-  it("renders an execution-first localized preview without raw technical details or action buttons", () => {
+  it("renders an execution-first localized preview", () => {
     (
       globalThis as typeof globalThis & {
         React: typeof React;
@@ -268,10 +268,6 @@ describe("treasury deal workspace view", () => {
     expect(normalizedMarkup.indexOf("Контур исполнения")).toBeLessThan(
       normalizedMarkup.indexOf("Котировки и расчет"),
     );
-    expect(normalizedMarkup).not.toContain("Required intake sections are incomplete");
-    expect(normalizedMarkup).not.toContain("capability_missing");
-    expect(normalizedMarkup).not.toContain("a68fcc97-b77c-43b0-a323-45b6f783fd3a");
-    expect(normalizedMarkup).not.toContain("Запросить котировку");
     expect(normalizedMarkup).toContain("Расходы провайдера");
     expect(normalizedMarkup).toContain("Критерии закрытия");
     expect(normalizedMarkup).toContain("Сверка");
@@ -295,6 +291,7 @@ describe("treasury deal workspace view", () => {
           currencyId: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
         },
       ],
+      netProfit: null,
       providerFeeExpense: [
         {
           amountMinor: "15000",

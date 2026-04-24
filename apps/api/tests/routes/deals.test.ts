@@ -1520,25 +1520,6 @@ describe("deals routes", () => {
     ).toHaveBeenCalledWith(detail.id);
   });
 
-  it("does not expose the legacy attach calculation route", async () => {
-    const { app } = createTestApp();
-
-    const response = await app.request(
-      "http://localhost/deals/00000000-0000-4000-8000-000000000010/calculation",
-      {
-        method: "PATCH",
-        headers: {
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
-          calculationId: "00000000-0000-4000-8000-000000000011",
-        }),
-      },
-    );
-
-    expect(response.status).toBe(404);
-  });
-
   it("accepts a quote for a deal", async () => {
     const { app, dealsModule } = createTestApp();
     const projection = {

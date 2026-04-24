@@ -94,24 +94,65 @@ function renderProgressTile(
 
 function renderMarginTile(deal: FinanceDealWorkbench) {
   const snapshot = deal.profitabilitySnapshot;
-  const primary = snapshot?.totalRevenue[0] ?? null;
 
   if (!snapshot) {
     return (
       <MetricTile
         testId="finance-deal-header-margin"
-        label="Маржа"
+        label="Чистая прибыль"
         value={<span className="text-muted-foreground">—</span>}
         sublabel="нет расчёта"
       />
     );
   }
 
+  // Prefer the net P&L computed by the pricing workflow (commercial revenue
+  // minus the cost-vs-principal gap). Falls back to gross commercial revenue
+  // on legacy/unaccepted quotes that don't carry the pricing snapshot.
+  const netProfit = snapshot.netProfit;
+  if (netProfit) {
+    const value = formatMinorAmountWithCurrency(
+      netProfit.profitMinor,
+      netProfit.currency,
+    );
+    let sign: "+" | "-" | "" = "";
+    let tone: MetricTileTone = "default";
+    try {
+      const profitBig = BigInt(netProfit.profitMinor);
+      if (profitBig > 0n) {
+        sign = "+";
+        tone = "positive";
+      } else if (profitBig < 0n) {
+        sign = "-";
+        tone = "negative";
+      }
+    } catch {
+      // Malformed amount — keep neutral tone.
+    }
+    const trimmedPercent = (() => {
+      const asNumber = Number(netProfit.profitPercentOnCost);
+      if (!Number.isFinite(asNumber)) return netProfit.profitPercentOnCost;
+      return netProfit.profitPercentOnCost;
+    })();
+
+    return (
+      <MetricTile
+        testId="finance-deal-header-margin"
+        label="Чистая прибыль"
+        tone={tone}
+        value={sign === "-" ? `−${value.replace(/^-/, "")}` : `${sign}${value}`}
+        sublabel={`маржа ${trimmedPercent}%`}
+      />
+    );
+  }
+
+  // Fallback: show commercial revenue (fees + spread) in the primary currency.
+  const primary = snapshot.totalRevenue[0] ?? null;
   if (!primary) {
     return (
       <MetricTile
         testId="finance-deal-header-margin"
-        label="Маржа"
+        label="Чистая прибыль"
         value={<span className="text-muted-foreground">—</span>}
         sublabel="ожидается"
       />
@@ -133,10 +174,10 @@ function renderMarginTile(deal: FinanceDealWorkbench) {
   return (
     <MetricTile
       testId="finance-deal-header-margin"
-      label="Маржа"
+      label="Коммерч. выручка"
       tone={isPositive ? "positive" : "default"}
       value={isPositive ? `+${value}` : value}
-      sublabel="захвачено"
+      sublabel="без вычета себестоимости"
     />
   );
 }

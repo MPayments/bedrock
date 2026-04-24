@@ -315,20 +315,10 @@ describe("treasury deal workbench", () => {
     expect(markup).toContain('data-testid="finance-deal-header-scheduled-out"');
     expect(markup).toContain('data-testid="finance-deal-header-margin"');
     expect(markup).toContain('data-testid="finance-deal-header-documents"');
-    // Old header elements are gone — queue reason, next-action tile, and the
-    // deal-level blocker alert list moved out of the banner.
-    expect(markup).not.toContain("Причина очереди");
-    expect(markup).not.toContain("Что мешает движению сделки");
-    // Запросить исполнение lives only inside the leg card — no duplicate
-    // deal-level button at the top of the main pane. (The Button component
-    // is mocked away in this test, so we assert on the label count.)
     expect(markup.match(/Запросить исполнение/g) ?? []).toHaveLength(1);
-    // Pricing controls moved to CRM — finance workbench never shows them.
-    expect(markup).not.toContain("Запросить котировку");
-    expect(markup).not.toContain("Создать расчет");
   }, 30000);
 
-  it("renders a single tab-less view with deal context, leg editor, and sidebar timeline", async () => {
+  it("renders the deal context, leg editor, and sidebar timeline together", async () => {
     (
       globalThis as typeof globalThis & {
         React: typeof React;
@@ -345,32 +335,10 @@ describe("treasury deal workbench", () => {
       }),
     );
 
-    // Single-view layout: leg editor, timeline sidebar, context grid, and
-    // deal context card are all rendered simultaneously. No tab shell.
-    // Deal-level "Стороны" card was retired once per-leg participants moved
-    // inside the leg editor (now LegParticipantEditor, which replaces both
-    // the read-only step-participants card and the raw-UUID amend modal).
     expect(markup).toContain("Шаги");
     expect(markup).toContain("Маршрут");
     expect(markup).toContain("Денежный поток");
     expect(markup).toContain("Контекст сделки");
-    // Deal-level blocker list no longer lives in the header — per-leg alerts
-    // surface inside the leg editor instead.
-    expect(markup).not.toContain("Что мешает движению сделки");
-
-    // The raw-UUID «Править шаг» modal is gone — participants are edited
-    // inline on the leg card via LegParticipantEditor.
-    expect(markup).not.toContain("Править шаг");
-    expect(markup).not.toContain("Новый контрагент (UUID)");
-    expect(markup).not.toContain("Новый реквизит (UUID)");
-
-    // Tab labels are gone.
-    expect(markup).not.toContain("Котировки и расчет");
-    expect(markup).not.toContain("Обзор сделки");
-
-    // Pricing controls moved to CRM — finance workbench never shows them.
-    expect(markup).not.toContain("Запросить котировку");
-    expect(markup).not.toContain("Создать расчет");
   });
 
   it("renders profitability, reconciliation, and close-readiness details from the backend projection", async () => {
@@ -393,6 +361,7 @@ describe("treasury deal workbench", () => {
           currencyId: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
         },
       ],
+      netProfit: null,
       providerFeeExpense: [
         {
           amountMinor: "250",

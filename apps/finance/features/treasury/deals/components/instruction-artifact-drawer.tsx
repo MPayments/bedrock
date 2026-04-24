@@ -27,12 +27,37 @@ import { executeMutation } from "@/lib/resources/http";
 
 import { formatFileSize } from "./file-utils";
 
+// Settlement-evidence purposes (those accepted by the backend for marking
+// an instruction as `settled`) come first so the default upload satisfies the
+// evidence check. `submission_confirmation` is *not* valid evidence and is
+// kept mainly for pre-settlement progress notes; `exception_note` is for
+// failure/return scenarios.
 const PURPOSE_OPTIONS = [
-  { label: "Подтверждение отправки", value: "submission_confirmation" },
-  { label: "Подтверждение из банка", value: "bank_confirmation" },
-  { label: "Квитанция контрагента", value: "counterparty_receipt" },
-  { label: "Подтверждение расчётов", value: "settlement_confirmation" },
-  { label: "Заметка об исключении", value: "exception_note" },
+  {
+    label: "Подтверждение расчётов",
+    value: "settlement_confirmation",
+    hint: "Подтверждает исполнение — позволяет перевести в «Исполнена»",
+  },
+  {
+    label: "Подтверждение из банка",
+    value: "bank_confirmation",
+    hint: "Выписка/ответ банка — засчитывается как доказательство расчёта",
+  },
+  {
+    label: "Квитанция контрагента",
+    value: "counterparty_receipt",
+    hint: "Подтверждение получения от контрагента — засчитывается как доказательство",
+  },
+  {
+    label: "Подтверждение отправки",
+    value: "submission_confirmation",
+    hint: "Квитанция о передаче — НЕ засчитывается для статуса «Исполнена»",
+  },
+  {
+    label: "Заметка об исключении",
+    value: "exception_note",
+    hint: "Используется при ошибке или возврате",
+  },
 ];
 
 type InstructionArtifactDrawerProps = {
@@ -187,6 +212,9 @@ export function InstructionArtifactDrawer({
                 ))}
               </SelectContent>
             </Select>
+            <div className="text-muted-foreground text-xs">
+              {PURPOSE_OPTIONS.find((opt) => opt.value === purpose)?.hint}
+            </div>
           </div>
 
           <div className="space-y-2">
