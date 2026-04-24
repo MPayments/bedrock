@@ -1,4 +1,18 @@
 export type {
+  ArtifactRef,
+  PaymentStepAttemptOutcome,
+  PaymentStepAttemptRecord,
+  PaymentStepDealLegRole,
+  PaymentStepKind,
+  PaymentStepPartyRef,
+  PaymentStepPurpose,
+  PaymentStepRate,
+  PaymentStepRateLockedSide,
+  PaymentStepRecord,
+  PaymentStepState,
+  PostingDocumentRef,
+} from "./payment-steps/domain/types";
+export type {
   PaymentRouteAmountTotal,
   PaymentRouteCalculation,
   PaymentRouteCalculationFee,

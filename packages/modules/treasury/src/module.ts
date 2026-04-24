@@ -14,6 +14,7 @@ import { createTreasuryOperationsService } from "./operations/application";
 import type { TreasuryOperationsRepository } from "./operations/application/ports/operations.repository";
 import { createPaymentRoutesService } from "./payment-routes/application";
 import type { PaymentRouteTemplatesRepository } from "./payment-routes/application/ports/payment-routes.repository";
+import { createPaymentStepsService } from "./payment-steps/service";
 import { createQuotesService } from "./quotes/application";
 import type {
   QuoteFeeComponentsRepository,
@@ -90,6 +91,7 @@ export function createTreasuryModule(deps: TreasuryModuleDeps) {
       operationsRepository: deps.operationsRepository,
       runtime: createRuntime("treasury.operations"),
     }),
+    paymentSteps: createPaymentStepsService(),
     rates,
     quotes: createQuotesService({
       runtime: createRuntime("treasury.quotes"),
