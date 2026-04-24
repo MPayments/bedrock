@@ -17,7 +17,7 @@ export function CrmShell({
   return (
     <CrmBreadcrumbsProvider>
       <AppHeader session={session} />
-      <main className="mx-auto max-w-[1920px] p-4">{children}</main>
+      <main className="mx-auto max-w-[1920px] py-4 px-8">{children}</main>
     </CrmBreadcrumbsProvider>
   );
 }

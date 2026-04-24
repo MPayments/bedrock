@@ -10,6 +10,10 @@ type ApiMutationResult<T> =
       ok: false;
       message: string;
       status?: number;
+      // Raw error payload from the server. Helpful for Zod-style errors where
+      // callers want to parse structured details (field-level errors) beyond
+      // the resolved display `message`.
+      payload?: unknown;
     };
 
 function resolveApiErrorMessage(
@@ -62,6 +66,7 @@ export async function executeApiMutation<T>({
           payload,
           fallbackMessage,
         ),
+        payload,
       };
     }
 

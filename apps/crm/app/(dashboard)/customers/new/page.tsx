@@ -60,6 +60,10 @@ import { CustomerBankingSection } from "@/components/customers/customer-banking-
 import { apiClient } from "@/lib/api-client";
 import { readJsonWithSchema } from "@/lib/api/response";
 import { API_BASE_URL } from "@/lib/constants";
+import {
+  lookupCounterpartyByInn,
+  parseCounterpartyCardPdf,
+} from "@/lib/counterparty-prefill";
 import { mapFlatBankingToFormValues } from "@/lib/customer-banking";
 import { translateFieldsToEnglish } from "@/lib/translate-fields";
 import type { CustomerBankingFormData } from "@/lib/validation";
@@ -382,48 +386,12 @@ export default function NewCustomerPage() {
   }
 
   async function handleInnSearch() {
-    const inn = innSearchValue.trim();
-
-    if (!inn) {
-      setError("Введите ИНН для поиска");
-      return;
-    }
-
-    if (!/^\d{10,12}$/.test(inn)) {
-      setError("ИНН должен содержать 10 или 12 цифр");
-      return;
-    }
-
     setSearchingByInn(true);
     setError(null);
     setInnSearchSuccess(false);
 
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/counterparties/lookup-by-inn?inn=${encodeURIComponent(inn)}`,
-        {
-          credentials: "include",
-        },
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(
-          getResponseErrorMessage(
-            errorData,
-            `Ошибка поиска: ${response.status}`,
-          ),
-        );
-      }
-
-      const companyData = (await response.json()) as Record<
-        string,
-        unknown
-      > | null;
-      if (!companyData || typeof companyData !== "object") {
-        setError("Компания с таким ИНН не найдена");
-        return;
-      }
+      const companyData = await lookupCounterpartyByInn(innSearchValue);
 
       const fieldsToSet: Path<CustomerCreateFormData>[] = [
         "orgName",
@@ -440,7 +408,7 @@ export default function NewCustomerPage() {
       ];
 
       fieldsToSet.forEach((field) => {
-        const value = companyData[field];
+        const value = companyData[field as keyof typeof companyData];
         if (typeof value === "string" && value.length > 0) {
           form.setValue(
             field,
@@ -537,39 +505,12 @@ export default function NewCustomerPage() {
       return;
     }
 
-    if (file.type !== "application/pdf") {
-      setError("Поддерживается только PDF формат");
-      return;
-    }
-
     setParsingFile(true);
     setError(null);
     setUploadedFileName(file.name);
 
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const response = await fetch(
-        `${API_BASE_URL}/counterparties/parse-card`,
-        {
-          body: formData,
-          credentials: "include",
-          method: "POST",
-        },
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(
-          getResponseErrorMessage(
-            errorData,
-            `Ошибка распознавания: ${response.status}`,
-          ),
-        );
-      }
-
-      const extractedData = await response.json();
+      const extractedData = await parseCounterpartyCardPdf(file);
       const bankDefaults = mapFlatBankingToFormValues({
         account: extractedData.account,
         bankAddress: extractedData.bankAddress,
@@ -595,7 +536,7 @@ export default function NewCustomerPage() {
       ];
 
       fieldsToSet.forEach((field) => {
-        const value = extractedData[field];
+        const value = extractedData[field as keyof typeof extractedData];
         if (typeof value === "string" && value.length > 0) {
           form.setValue(
             field,
@@ -929,6 +870,7 @@ export default function NewCustomerPage() {
   return (
     <div className="space-y-4">
       <CustomerCreateHeader
+        customerName={form.watch("name")}
         onCancel={attemptLeave}
         saving={loading}
       />
