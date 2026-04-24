@@ -71,6 +71,44 @@ export function rationalToDecimalString(
   });
 }
 
+export function formatSignedPercentVsRate(
+  clientRateNum: string,
+  clientRateDen: string,
+  referenceRateNum: string,
+  referenceRateDen: string,
+): string | null {
+  try {
+    const clientNum = BigInt(clientRateNum);
+    const clientDen = BigInt(clientRateDen);
+    const refNum = BigInt(referenceRateNum);
+    const refDen = BigInt(referenceRateDen);
+
+    if (clientNum === 0n || refNum === 0n || refDen === 0n) {
+      return null;
+    }
+
+    const deltaNum = clientDen * refNum - refDen * clientNum;
+    const deltaDen = clientNum * refDen;
+    if (deltaDen === 0n) {
+      return null;
+    }
+
+    const absDeltaNum = deltaNum < 0n ? -deltaNum : deltaNum;
+    const magnitude = formatFractionDecimal(absDeltaNum * 100n, deltaDen, {
+      scale: 2,
+      trimTrailingZeros: false,
+    });
+
+    if (deltaNum === 0n) {
+      return `${magnitude}%`;
+    }
+
+    return `${deltaNum < 0n ? "−" : "+"}${magnitude}%`;
+  } catch {
+    return null;
+  }
+}
+
 export function feeBpsToPercentString(feeBps: string) {
   return minorToDecimalString(feeBps, 2);
 }

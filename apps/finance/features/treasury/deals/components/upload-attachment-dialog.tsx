@@ -33,6 +33,14 @@ type UploadAttachmentDialogProps = {
   open: boolean;
 };
 
+type AttachmentPurpose = "invoice" | "contract" | "other";
+
+const PURPOSE_LABEL: Record<AttachmentPurpose, string> = {
+  invoice: "Инвойс",
+  contract: "Контракт",
+  other: "Другое",
+};
+
 export function UploadAttachmentDialog({
   dealId,
   onOpenChange,
@@ -44,12 +52,14 @@ export function UploadAttachmentDialog({
   const [uploadVisibility, setUploadVisibility] = useState<
     "customer_safe" | "internal"
   >("internal");
+  const [uploadPurpose, setUploadPurpose] = useState<AttachmentPurpose>("other");
   const [isUploading, setIsUploading] = useState(false);
 
   function resetState() {
     setUploadDescription("");
     setUploadFile(null);
     setUploadVisibility("internal");
+    setUploadPurpose("other");
   }
 
   async function handleSubmit() {
@@ -68,6 +78,7 @@ export function UploadAttachmentDialog({
     }
 
     formData.append("visibility", uploadVisibility);
+    formData.append("purpose", uploadPurpose);
 
     const result = await executeMutation({
       fallbackMessage: "Не удалось загрузить вложение",
@@ -134,6 +145,32 @@ export function UploadAttachmentDialog({
               value={uploadDescription}
               onChange={(event) => setUploadDescription(event.target.value)}
             />
+          </div>
+          <div className="grid gap-2">
+            <Label>Назначение</Label>
+            <Select
+              value={uploadPurpose}
+              onValueChange={(value) => {
+                if (
+                  value === "invoice" ||
+                  value === "contract" ||
+                  value === "other"
+                ) {
+                  setUploadPurpose(value);
+                }
+              }}
+            >
+              <SelectTrigger data-testid="deal-attachment-purpose">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="invoice">{PURPOSE_LABEL.invoice}</SelectItem>
+                <SelectItem value="contract">
+                  {PURPOSE_LABEL.contract}
+                </SelectItem>
+                <SelectItem value="other">{PURPOSE_LABEL.other}</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="grid gap-2">
             <Label>Видимость</Label>

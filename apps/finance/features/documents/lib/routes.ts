@@ -18,8 +18,13 @@ function encodeSegment(value: string): string {
   return encodeURIComponent(value);
 }
 
+/**
+ * Return-to URL for a deal workbench. The finance workbench is a single tab-less
+ * view after the 2026-04-23 redesign; the legacy `?tab=documents` query is no
+ * longer needed. Name preserved for call-site compatibility.
+ */
 export function buildDealDocumentsTabHref(dealId: string): string {
-  return `/treasury/deals/${encodeSegment(dealId)}?tab=documents`;
+  return `/treasury/deals/${encodeSegment(dealId)}`;
 }
 
 export function normalizeInternalReturnToPath(

@@ -32,6 +32,7 @@ function mapOperation(input: {
     id: input.id,
     internalEntityOrganizationId: input.internalEntityOrganizationId,
     kind: input.kind,
+    projectedState: null,
     quoteId: input.quoteId,
     sourceRef: input.sourceRef,
     state: input.state,

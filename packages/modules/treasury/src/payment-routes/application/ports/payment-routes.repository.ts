@@ -1,47 +1,24 @@
 import type {
-  PaymentRouteCalculation,
   PaymentRouteTemplate,
   PaymentRouteTemplateListItem,
 } from "../contracts/dto";
 import { PaymentRouteCalculationSchema } from "../contracts/dto";
 import type { ListPaymentRouteTemplatesQuery } from "../contracts/queries";
-import type {
-  PaymentRouteDraft,
-  PaymentRouteTemplateStatus,
-  PaymentRouteVisualMetadata,
-} from "../contracts/zod";
 import {
   PaymentRouteDraftSchema,
   normalizePaymentRouteDraft,
 } from "../contracts/zod";
+import type {
+  PaymentRouteCalculation,
+  PaymentRouteDraft,
+  PaymentRouteTemplateRecord,
+  PaymentRouteTemplateWriteModel,
+} from "../../domain/model";
 
-export interface PaymentRouteTemplateRecord {
-  createdAt: Date;
-  draft: PaymentRouteDraft;
-  id: string;
-  lastCalculation: PaymentRouteCalculation | null;
-  maxMarginBps: number | null;
-  minMarginBps: number | null;
-  name: string;
-  snapshotPolicy: "clone_on_attach";
-  status: PaymentRouteTemplateStatus;
-  updatedAt: Date;
-  visual: PaymentRouteVisualMetadata;
-}
-
-export interface PaymentRouteTemplateWriteModel {
-  createdAt: Date;
-  draft: PaymentRouteDraft;
-  id: string;
-  lastCalculation: PaymentRouteCalculation | null;
-  maxMarginBps: number | null;
-  minMarginBps: number | null;
-  name: string;
-  snapshotPolicy: "clone_on_attach";
-  status: PaymentRouteTemplateStatus;
-  updatedAt: Date;
-  visual: PaymentRouteVisualMetadata;
-}
+export type {
+  PaymentRouteTemplateRecord,
+  PaymentRouteTemplateWriteModel,
+} from "../../domain/model";
 
 export interface PaymentRouteTemplatesRepository {
   insertTemplate(

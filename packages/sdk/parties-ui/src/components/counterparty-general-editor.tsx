@@ -1,9 +1,10 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ChevronDown, ChevronRight, Save, X } from "lucide-react";
+import type { Control, FieldPath } from "react-hook-form";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 
@@ -51,7 +52,9 @@ export type CounterpartyGroupOption = {
 
 export type CounterpartyGeneralFormValues = {
   shortName: string;
+  shortNameEn: string;
   fullName: string;
+  fullNameEn: string;
   kind: "legal_entity" | "individual";
   country: string;
   description: string;
@@ -59,10 +62,17 @@ export type CounterpartyGeneralFormValues = {
   groupIds: string[];
 };
 
+export type CounterpartyGeneralBilingualMode = "ru" | "en" | "all";
+
 type CounterpartyGeneralFormSubmit =
   | Promise<CounterpartyGeneralFormValues | void>
   | CounterpartyGeneralFormValues
   | void;
+
+export type CounterpartyGeneralEditorExternalPatch = {
+  nonce: number;
+  patch: Partial<CounterpartyGeneralFormValues>;
+};
 
 type CounterpartyGeneralEditorProps = {
   initialValues?: Partial<CounterpartyGeneralFormValues>;
@@ -72,6 +82,8 @@ type CounterpartyGeneralEditorProps = {
   updatedAt?: string | null;
   submitting?: boolean;
   error?: string | null;
+  externalPatch?: CounterpartyGeneralEditorExternalPatch | null;
+  bilingualMode?: CounterpartyGeneralBilingualMode;
   onDirtyChange?: (dirty: boolean) => void;
   onValuesChange?: (values: CounterpartyGeneralFormValues) => void;
   onSubmit?: (
@@ -94,7 +106,9 @@ const EMPTY_GROUP_IDS: string[] = [];
 
 const DEFAULT_VALUES: CounterpartyGeneralFormValues = {
   shortName: "",
+  shortNameEn: "",
   fullName: "",
+  fullNameEn: "",
   kind: "legal_entity",
   country: "",
   description: "",
@@ -112,7 +126,9 @@ const COUNTERPARTY_KIND_OPTIONS = [
 
 const CounterpartyGeneralFormSchema = z.object({
   shortName: z.string().trim().min(1, "Краткое наименование обязательно"),
+  shortNameEn: z.string(),
   fullName: z.string().trim().min(1, "Полное наименование обязательно"),
+  fullNameEn: z.string(),
   kind: z.enum(["legal_entity", "individual"]),
   country: z
     .string()
@@ -226,6 +242,115 @@ function getCounterpartyGroupDisplayLabel(
   return `${label} · ${customerLabel}`;
 }
 
+type BilingualTextFieldProps = {
+  bilingualMode: CounterpartyGeneralBilingualMode;
+  control: Control<CounterpartyGeneralFormValues>;
+  ruName: FieldPath<CounterpartyGeneralFormValues>;
+  enName: FieldPath<CounterpartyGeneralFormValues>;
+  idBase: string;
+  label: ReactNode;
+  placeholderRu?: string;
+  placeholderEn?: string;
+  required?: boolean;
+  multiline?: boolean;
+  rows?: number;
+  disabled?: boolean;
+};
+
+function BilingualTextField({
+  bilingualMode,
+  control,
+  ruName,
+  enName,
+  idBase,
+  label,
+  placeholderRu,
+  placeholderEn,
+  required,
+  multiline,
+  rows = 3,
+  disabled,
+}: BilingualTextFieldProps) {
+  const showBoth = bilingualMode === "all";
+  const showEnOnly = bilingualMode === "en";
+
+  const renderInput = (
+    name: FieldPath<CounterpartyGeneralFormValues>,
+    inputId: string,
+    placeholder?: string,
+  ) => (
+    <Controller
+      name={name}
+      control={control}
+      render={({ field, fieldState }) => {
+        const fieldValue = typeof field.value === "string" ? field.value : "";
+        const commonProps = {
+          id: inputId,
+          "aria-invalid": fieldState.invalid,
+          placeholder,
+          disabled,
+        } as const;
+        return (
+          <>
+            {multiline ? (
+              <Textarea
+                {...commonProps}
+                name={field.name}
+                ref={field.ref}
+                value={fieldValue}
+                onBlur={field.onBlur}
+                onChange={field.onChange}
+                rows={rows}
+              />
+            ) : (
+              <Input
+                {...commonProps}
+                name={field.name}
+                ref={field.ref}
+                value={fieldValue}
+                onBlur={field.onBlur}
+                onChange={field.onChange}
+              />
+            )}
+            {fieldState.invalid ? (
+              <FieldError errors={[fieldState.error]} />
+            ) : null}
+          </>
+        );
+      }}
+    />
+  );
+
+  return (
+    <Field className="md:col-span-2">
+      <FieldLabel htmlFor={showEnOnly ? `${idBase}-en` : idBase}>
+        {label}
+        {required ? <span className="text-destructive"> *</span> : null}
+      </FieldLabel>
+      {showBoth ? (
+        <div className="grid gap-3 md:grid-cols-2">
+          <div className="space-y-1">
+            <span className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
+              RU
+            </span>
+            {renderInput(ruName, idBase, placeholderRu)}
+          </div>
+          <div className="space-y-1">
+            <span className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
+              EN
+            </span>
+            {renderInput(enName, `${idBase}-en`, placeholderEn)}
+          </div>
+        </div>
+      ) : showEnOnly ? (
+        renderInput(enName, `${idBase}-en`, placeholderEn)
+      ) : (
+        renderInput(ruName, idBase, placeholderRu)
+      )}
+    </Field>
+  );
+}
+
 export function CounterpartyGeneralEditor({
   initialValues,
   groupOptions,
@@ -234,6 +359,8 @@ export function CounterpartyGeneralEditor({
   updatedAt,
   submitting = false,
   error,
+  externalPatch,
+  bilingualMode = "ru",
   onDirtyChange,
   onValuesChange,
   onSubmit,
@@ -516,6 +643,7 @@ export function CounterpartyGeneralEditor({
 
   const {
     control,
+    getValues,
     handleSubmit,
     register,
     reset,
@@ -584,20 +712,42 @@ export function CounterpartyGeneralEditor({
     reset(initial);
   }, [initial, reset]);
 
+  const externalPatchNonce = externalPatch?.nonce ?? null;
   useEffect(() => {
-    onShortNameChange?.(watchedShortName ?? "");
-  }, [onShortNameChange, watchedShortName]);
+    if (!externalPatch) {
+      return;
+    }
+
+    const current = getValues();
+    reset(
+      { ...current, ...externalPatch.patch },
+      { keepDirty: true, keepTouched: true },
+    );
+    // `reset` is from react-hook-form: replacing form values programmatically
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalPatchNonce]);
+
+  const onShortNameChangeRef = useRef(onShortNameChange);
+  onShortNameChangeRef.current = onShortNameChange;
+  const onValuesChangeRef = useRef(onValuesChange);
+  onValuesChangeRef.current = onValuesChange;
+  const onDirtyChangeRef = useRef(onDirtyChange);
+  onDirtyChangeRef.current = onDirtyChange;
 
   useEffect(() => {
-    onValuesChange?.({
+    onShortNameChangeRef.current?.(watchedShortName ?? "");
+  }, [watchedShortName]);
+
+  useEffect(() => {
+    onValuesChangeRef.current?.({
       ...DEFAULT_VALUES,
       ...watchedValues,
     });
-  }, [onValuesChange, watchedValues]);
+  }, [watchedValues]);
 
   useEffect(() => {
-    onDirtyChange?.(isDirty);
-  }, [isDirty, onDirtyChange]);
+    onDirtyChangeRef.current?.(isDirty);
+  }, [isDirty]);
 
   useEffect(() => {
     if (areGroupIdSetsEqual(selectedGroupIdsRaw, selectedGroupIds)) {
@@ -802,176 +952,170 @@ export function CounterpartyGeneralEditor({
           <input type="hidden" {...register("customerId")} />
           <FieldGroup>
             <FieldSet>
-              <FieldGroup>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <Controller
-                    name="shortName"
-                    control={control}
-                    render={({ field, fieldState }) => (
-                      <Field data-invalid={fieldState.invalid}>
-                        <FieldLabel htmlFor="counterparty-short-name">
-                          Краткое наименование
-                        </FieldLabel>
-                        <Input
-                          {...field}
-                          id="counterparty-short-name"
-                          aria-invalid={fieldState.invalid}
-                          placeholder="Например: Acme"
-                        />
-                        {fieldState.invalid ? (
-                          <FieldError errors={[fieldState.error]} />
-                        ) : null}
-                      </Field>
-                    )}
-                  />
-                  <Controller
-                    name="fullName"
-                    control={control}
-                    render={({ field, fieldState }) => (
-                      <Field data-invalid={fieldState.invalid}>
-                        <FieldLabel htmlFor="counterparty-full-name">
-                          Полное наименование
-                        </FieldLabel>
-                        <Input
-                          {...field}
-                          id="counterparty-full-name"
-                          aria-invalid={fieldState.invalid}
-                          placeholder="Например: Acme Incorporated"
-                        />
-                        {fieldState.invalid ? (
-                          <FieldError errors={[fieldState.error]} />
-                        ) : null}
-                      </Field>
-                    )}
-                  />
-                </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <BilingualTextField
+                  bilingualMode={bilingualMode}
+                  control={control}
+                  ruName="shortName"
+                  enName="shortNameEn"
+                  idBase="counterparty-short-name"
+                  label="Краткое наименование"
+                  placeholderRu="Например: Acme"
+                  placeholderEn="e.g., Acme"
+                  required
+                  disabled={submitting}
+                />
+                <BilingualTextField
+                  bilingualMode={bilingualMode}
+                  control={control}
+                  ruName="fullName"
+                  enName="fullNameEn"
+                  idBase="counterparty-full-name"
+                  label="Полное наименование"
+                  placeholderRu="Например: Acme Incorporated"
+                  placeholderEn="e.g., Acme Incorporated"
+                  required
+                  disabled={submitting}
+                />
 
-                <div className="grid gap-4 md:grid-cols-2">
-                  <Controller
-                    name="kind"
-                    control={control}
-                    render={({ field, fieldState }) => (
-                      <Field data-invalid={fieldState.invalid}>
-                        <FieldLabel htmlFor="counterparty-kind">
-                          Тип субъекта
-                        </FieldLabel>
-                        <Select
-                          name={field.name}
-                          value={field.value}
-                          onValueChange={field.onChange}
-                          disabled={submitting || kindReadonly}
+                <Controller
+                  name="kind"
+                  control={control}
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel htmlFor="counterparty-kind">
+                        Тип субъекта
+                      </FieldLabel>
+                      <Select
+                        name={field.name}
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        disabled={submitting || kindReadonly}
+                      >
+                        <SelectTrigger
+                          id="counterparty-kind"
+                          aria-invalid={fieldState.invalid}
+                          className="w-full"
                         >
-                          <SelectTrigger
-                            id="counterparty-kind"
-                            aria-invalid={fieldState.invalid}
-                            className="w-full"
-                          >
-                            <SelectValue placeholder="Выберите тип">
-                              {
-                                COUNTERPARTY_KIND_OPTIONS.find(
-                                  (option) => option.value === field.value,
-                                )?.label
-                              }
-                            </SelectValue>
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectGroup>
-                              {COUNTERPARTY_KIND_OPTIONS.map((option) => (
-                                <SelectItem
-                                  key={option.value}
-                                  value={option.value}
-                                >
-                                  {option.label}
-                                </SelectItem>
-                              ))}
-                            </SelectGroup>
-                          </SelectContent>
-                        </Select>
-                        {fieldState.invalid ? (
-                          <FieldError errors={[fieldState.error]} />
-                        ) : null}
-                      </Field>
-                    )}
-                  />
+                          <SelectValue placeholder="Выберите тип">
+                            {
+                              COUNTERPARTY_KIND_OPTIONS.find(
+                                (option) => option.value === field.value,
+                              )?.label
+                            }
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectGroup>
+                            {COUNTERPARTY_KIND_OPTIONS.map((option) => (
+                              <SelectItem
+                                key={option.value}
+                                value={option.value}
+                              >
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                      {fieldState.invalid ? (
+                        <FieldError errors={[fieldState.error]} />
+                      ) : null}
+                    </Field>
+                  )}
+                />
+                <Controller
+                  name="country"
+                  control={control}
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel htmlFor="counterparty-country">
+                        Страна
+                      </FieldLabel>
+                      <CountrySelect
+                        id="counterparty-country"
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        disabled={submitting}
+                        invalid={fieldState.invalid}
+                        placeholder="Выберите страну"
+                        searchPlaceholder="Поиск страны..."
+                        emptyLabel="Страна не найдена"
+                        clearable
+                        clearLabel="Очистить"
+                      />
+                      {fieldState.invalid ? (
+                        <FieldError errors={[fieldState.error]} />
+                      ) : null}
+                    </Field>
+                  )}
+                />
+
+                {showGroups ? (
                   <Controller
-                    name="country"
+                    name="groupIds"
                     control={control}
                     render={({ field, fieldState }) => (
-                      <Field data-invalid={fieldState.invalid}>
-                        <FieldLabel htmlFor="counterparty-country">
-                          Страна
-                        </FieldLabel>
-                        <CountrySelect
-                          id="counterparty-country"
-                          value={field.value}
-                          onValueChange={field.onChange}
-                          disabled={submitting}
-                          invalid={fieldState.invalid}
-                          placeholder="Выберите страну"
-                          searchPlaceholder="Поиск страны..."
-                          emptyLabel="Страна не найдена"
-                          clearable
-                          clearLabel="Очистить"
-                        />
+                      <Field
+                        data-invalid={fieldState.invalid}
+                        className="md:col-span-2"
+                      >
+                        <FieldLabel>Группы</FieldLabel>
+                        <FieldDescription>
+                          Можно сочетать пользовательские группы и группы одного
+                          клиента. Группы разных клиентов смешивать нельзя.
+                        </FieldDescription>
+                        <div className="max-h-48 space-y-2 overflow-y-auto rounded-md border p-3">
+                          {groupOptions.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">
+                              Группы не найдены.
+                            </p>
+                          ) : (
+                            renderGroupTree(
+                              normalizeSelectedGroupIds(field.value ?? []),
+                              (nextValue) => field.onChange(nextValue),
+                              ROOT_GROUP,
+                            )
+                          )}
+                        </div>
                         {fieldState.invalid ? (
                           <FieldError errors={[fieldState.error]} />
                         ) : null}
                       </Field>
                     )}
                   />
-                </div>
+                ) : null}
 
-                <div className="grid gap-4 md:grid-cols-2">
-                  {showGroups ? (
-                    <Controller
-                      name="groupIds"
-                      control={control}
-                      render={({ field, fieldState }) => (
-                        <Field data-invalid={fieldState.invalid}>
-                          <FieldLabel>Группы</FieldLabel>
-                          <FieldDescription>
-                            Можно сочетать пользовательские группы и группы одного
-                            клиента. Группы разных клиентов смешивать нельзя.
-                          </FieldDescription>
-                          <div className="max-h-48 space-y-2 overflow-y-auto rounded-md border p-3">
-                            {groupOptions.length === 0 ? (
-                              <p className="text-sm text-muted-foreground">
-                                Группы не найдены.
-                              </p>
-                            ) : (
-                              renderGroupTree(
-                                normalizeSelectedGroupIds(field.value ?? []),
-                                (nextValue) => field.onChange(nextValue),
-                                ROOT_GROUP,
-                              )
-                            )}
-                          </div>
-                          {fieldState.invalid ? (
-                            <FieldError errors={[fieldState.error]} />
-                          ) : null}
-                        </Field>
-                      )}
-                    />
-                  ) : null}
-                  <div className={showGroups ? undefined : "md:col-span-2"}>
-                    <Field data-invalid={Boolean(errors.description)}>
+                <Controller
+                  name="description"
+                  control={control}
+                  render={({ field, fieldState }) => (
+                    <Field
+                      data-invalid={fieldState.invalid}
+                      className="md:col-span-2"
+                    >
                       <FieldLabel htmlFor="counterparty-description">
                         Описание
                       </FieldLabel>
-                      <FieldDescription>
-                        Дополнительная информация о контрагенте
-                      </FieldDescription>
                       <Textarea
-                        {...register("description")}
                         id="counterparty-description"
-                        aria-invalid={Boolean(errors.description)}
+                        name={field.name}
+                        ref={field.ref}
+                        value={typeof field.value === "string" ? field.value : ""}
+                        onBlur={field.onBlur}
+                        onChange={field.onChange}
                         rows={3}
+                        aria-invalid={fieldState.invalid}
+                        placeholder="Дополнительная информация о контрагенте"
+                        disabled={submitting}
                       />
-                      <FieldError errors={[errors.description]} />
+                      {fieldState.invalid ? (
+                        <FieldError errors={[fieldState.error]} />
+                      ) : null}
                     </Field>
-                  </div>
-                </div>
-              </FieldGroup>
+                  )}
+                />
+              </div>
             </FieldSet>
             {showDates ? (
               <>

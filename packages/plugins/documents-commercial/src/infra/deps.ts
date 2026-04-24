@@ -1,16 +1,16 @@
 import type { CalculationDetails } from "@bedrock/calculations/contracts";
 import type { CurrenciesService } from "@bedrock/currencies";
 import type { DealWorkflowProjection } from "@bedrock/deals/contracts";
-import { normalizeFinancialLine } from "@bedrock/documents/contracts";
 import type { DocumentsReadModel } from "@bedrock/documents/read-model";
 import {
   DocumentValidationError,
   type DocumentModuleRuntime,
 } from "@bedrock/plugin-documents-sdk";
-import { canonicalJson } from "@bedrock/shared/core/canon";
-import { sha256Hex } from "@bedrock/shared/core/crypto";
-import { ServiceError } from "@bedrock/shared/core/errors";
-import { minorToAmountString } from "@bedrock/shared/money";
+import {
+  buildQuoteSnapshotBase,
+  buildQuoteSnapshotHash,
+  rethrowAsDocumentValidationError,
+} from "@bedrock/plugin-documents-sdk/module-kit";
 import type {
   CreateQuoteInput,
   GetQuoteDetailsInput,
@@ -46,7 +46,9 @@ function isCommercialCalculationFinancialLineKind(
   | "provider_fee_expense"
   | "spread_revenue" {
   return DEAL_CALCULATION_FINANCIAL_LINE_KINDS.has(
-    kind as (typeof DEAL_CALCULATION_FINANCIAL_LINE_KINDS extends Set<infer T> ? T : never),
+    kind as typeof DEAL_CALCULATION_FINANCIAL_LINE_KINDS extends Set<infer T>
+      ? T
+      : never,
   );
 }
 
@@ -58,20 +60,10 @@ function isCommercialCalculationFinancialLine(
   return isCommercialCalculationFinancialLineKind(line.kind);
 }
 
-function buildQuoteSnapshotHash(snapshot: Record<string, unknown>) {
-  return sha256Hex(canonicalJson(snapshot));
-}
-
 interface CommercialTreasuryQuotesPort {
-  getQuoteDetails(
-    input: GetQuoteDetailsInput,
-  ): Promise<QuoteDetailsRecord>;
-  markQuoteUsed(
-    input: MarkQuoteUsedInput,
-  ): Promise<QuoteRecord>;
-  createQuote(
-    input: CreateQuoteInput,
-  ): Promise<QuoteRecord>;
+  getQuoteDetails(input: GetQuoteDetailsInput): Promise<QuoteDetailsRecord>;
+  markQuoteUsed(input: MarkQuoteUsedInput): Promise<QuoteRecord>;
+  createQuote(input: CreateQuoteInput): Promise<QuoteRecord>;
 }
 
 async function loadDocumentByType(input: {
@@ -93,109 +85,6 @@ async function loadDocumentByType(input: {
   }
 
   return document;
-}
-
-function rethrowAsDocumentValidationError(error: unknown): never {
-  if (error instanceof DocumentValidationError) {
-    throw error;
-  }
-
-  if (error instanceof ServiceError) {
-    throw new DocumentValidationError(error.message);
-  }
-
-  throw error;
-}
-
-async function buildCurrencyPrecisionMap(
-  currenciesService: Pick<CurrenciesService, "findByCode">,
-  currencyCodes: string[],
-) {
-  const uniqueCurrencyCodes = [...new Set(currencyCodes)];
-  const precisionByCode = new Map<string, number>();
-
-  await Promise.all(
-    uniqueCurrencyCodes.map(async (code) => {
-      const currency = await currenciesService.findByCode(code);
-      precisionByCode.set(code, currency.precision);
-    }),
-  );
-
-  return precisionByCode;
-}
-
-async function buildQuoteSnapshotBase(input: {
-  currenciesService: CurrenciesService;
-  details: QuoteDetailsRecord;
-}) {
-  const { currenciesService, details } = input;
-  const fromCurrency = details.quote.fromCurrency;
-  const toCurrency = details.quote.toCurrency;
-
-  if (!fromCurrency || !toCurrency) {
-    throw new DocumentValidationError(
-      `Quote ${details.quote.id} is missing currency codes`,
-    );
-  }
-
-  const precisionByCode = await buildCurrencyPrecisionMap(
-    { findByCode: currenciesService.findByCode },
-    [
-      fromCurrency,
-      toCurrency,
-      ...details.legs.flatMap((leg) => [
-        leg.fromCurrency ?? fromCurrency,
-        leg.toCurrency ?? toCurrency,
-      ]),
-      ...details.financialLines.map((line) => line.currency),
-    ],
-  );
-
-  return {
-    quoteId: details.quote.id,
-    idempotencyKey: details.quote.idempotencyKey,
-    fromCurrency,
-    toCurrency,
-    fromAmountMinor: details.quote.fromAmountMinor.toString(),
-    toAmountMinor: details.quote.toAmountMinor.toString(),
-    pricingMode: details.quote.pricingMode,
-    rateNum: details.quote.rateNum.toString(),
-    rateDen: details.quote.rateDen.toString(),
-    expiresAt: details.quote.expiresAt.toISOString(),
-    pricingTrace: (details.quote.pricingTrace ?? {}) as Record<string, unknown>,
-    legs: details.legs.map((leg) => ({
-      idx: leg.idx,
-      fromCurrency: leg.fromCurrency ?? fromCurrency,
-      toCurrency: leg.toCurrency ?? toCurrency,
-      fromAmountMinor: leg.fromAmountMinor.toString(),
-      toAmountMinor: leg.toAmountMinor.toString(),
-      rateNum: leg.rateNum.toString(),
-      rateDen: leg.rateDen.toString(),
-      sourceKind: leg.sourceKind,
-      sourceRef: leg.sourceRef ?? null,
-      asOf: leg.asOf.toISOString(),
-      executionCounterpartyId: leg.executionCounterpartyId ?? null,
-    })),
-    financialLines: details.financialLines.map((line) => {
-      const normalizedLine = normalizeFinancialLine(line);
-      const precision = precisionByCode.get(normalizedLine.currency);
-
-      if (precision === undefined) {
-        throw new DocumentValidationError(
-          `Missing currency precision for ${normalizedLine.currency}`,
-        );
-      }
-
-      return {
-        ...normalizedLine,
-        amount: minorToAmountString(normalizedLine.amountMinor, {
-          precision,
-        }),
-        amountMinor: normalizedLine.amountMinor.toString(),
-        settlementMode: normalizedLine.settlementMode ?? "in_ledger",
-      };
-    }),
-  };
 }
 
 async function loadQuoteSnapshotRecord(input: {
@@ -257,9 +146,7 @@ export function createCommercialDocumentDeps(input: {
   documentsReadModel?: Pick<DocumentsReadModel, "findBusinessLinkByDocumentId">;
   treasuryQuotes: CommercialTreasuryQuotesPort;
   requisitesService: {
-    resolveBindings(input: {
-      requisiteIds: string[];
-    }): Promise<
+    resolveBindings(input: { requisiteIds: string[] }): Promise<
       {
         requisiteId: string;
         bookId: string;
@@ -287,8 +174,7 @@ export function createCommercialDocumentDeps(input: {
     treasuryQuotes,
     requisitesService,
     partiesService,
-  } =
-    input;
+  } = input;
 
   return {
     dealFx: {
@@ -349,7 +235,10 @@ export function createCommercialDocumentDeps(input: {
                 .filter((line: CalculationDetails["lines"][number]) =>
                   isCommercialCalculationFinancialLineKind(line.kind),
                 )
-                .map((line: CalculationDetails["lines"][number]) => line.currencyId),
+                .map(
+                  (line: CalculationDetails["lines"][number]) =>
+                    line.currencyId,
+                ),
             ),
           ];
           const currenciesById = new Map(
@@ -376,38 +265,37 @@ export function createCommercialDocumentDeps(input: {
             calculation.lines
               .filter(isCommercialCalculationFinancialLine)
               .map((line) => {
-              const currency = currenciesById.get(line.currencyId);
+                const currency = currenciesById.get(line.currencyId);
 
-              if (!currency) {
-                throw new DocumentValidationError(
-                  `Calculation line currency ${line.currencyId} is missing`,
-                );
-              }
+                if (!currency) {
+                  throw new DocumentValidationError(
+                    `Calculation line currency ${line.currencyId} is missing`,
+                  );
+                }
 
-              return {
-                amountMinor: BigInt(line.amountMinor),
-                bucket: line.kind,
-                currency: currency.code,
-                id: `calculation:${line.id}`,
-                settlementMode: "in_ledger" as const,
-                source: "rule" as const,
-              };
+                return {
+                  amountMinor: BigInt(line.amountMinor),
+                  bucket: line.kind,
+                  currency: currency.code,
+                  id: `calculation:${line.id}`,
+                  settlementMode: "in_ledger" as const,
+                  source: "rule" as const,
+                };
               })
               .filter((line) => line.amountMinor !== 0n);
           const storedQuoteSnapshot = calculation.currentSnapshot.quoteSnapshot;
           const parsedStoredQuoteSnapshot = storedQuoteSnapshot
             ? QuoteSnapshotSchema.safeParse(storedQuoteSnapshot)
             : null;
-          const quoteSnapshot =
-            parsedStoredQuoteSnapshot?.success
-              ? parsedStoredQuoteSnapshot.data
-              : calculation.currentSnapshot.fxQuoteId
-                ? await loadQuoteSnapshotRecord({
-                    currenciesService,
-                    treasuryQuotes,
-                    quoteRef: calculation.currentSnapshot.fxQuoteId,
-                  })
-                : null;
+          const quoteSnapshot = parsedStoredQuoteSnapshot?.success
+            ? parsedStoredQuoteSnapshot.data
+            : calculation.currentSnapshot.fxQuoteId
+              ? await loadQuoteSnapshotRecord({
+                  currenciesService,
+                  treasuryQuotes,
+                  quoteRef: calculation.currentSnapshot.fxQuoteId,
+                })
+              : null;
 
           return {
             calculationCurrency: calculationCurrency.code,
@@ -417,7 +305,8 @@ export function createCommercialDocumentDeps(input: {
             financialLines,
             fundingResolution: workflow.fundingResolution,
             hasConvertLeg,
-            originalAmountMinor: calculation.currentSnapshot.originalAmountMinor,
+            originalAmountMinor:
+              calculation.currentSnapshot.originalAmountMinor,
             quoteSnapshot,
             totalAmountMinor: calculation.currentSnapshot.totalAmountMinor,
           };
@@ -478,11 +367,7 @@ export function createCommercialDocumentDeps(input: {
       },
     },
     quoteUsage: {
-      async markQuoteUsedForInvoice({
-        quoteId,
-        invoiceDocumentId,
-        at,
-      }) {
+      async markQuoteUsedForInvoice({ quoteId, invoiceDocumentId, at }) {
         await markQuoteUsedForRef({
           treasuryQuotes,
           quoteId,

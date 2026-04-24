@@ -1,4 +1,3 @@
-import type { IdempotencyPort } from "@bedrock/platform/idempotency";
 import type { ModuleRuntime } from "@bedrock/shared/core";
 
 import { ArchiveAgreementCommand } from "./commands/archive-agreement";
@@ -13,7 +12,6 @@ import { ListAgreementsQuery } from "./queries/list-agreements";
 
 export interface AgreementsServiceDeps {
   commandUow: AgreementsCommandUnitOfWork;
-  idempotency: IdempotencyPort;
   reads: AgreementReads;
   references: AgreementReferencesPort;
   runtime: ModuleRuntime;
@@ -23,13 +21,11 @@ export function createAgreementsService(deps: AgreementsServiceDeps) {
   const createAgreement = new CreateAgreementCommand(
     deps.runtime,
     deps.commandUow,
-    deps.idempotency,
     deps.references,
   );
   const updateAgreement = new UpdateAgreementCommand(
     deps.runtime,
     deps.commandUow,
-    deps.idempotency,
     deps.references,
   );
   const archiveAgreement = new ArchiveAgreementCommand(

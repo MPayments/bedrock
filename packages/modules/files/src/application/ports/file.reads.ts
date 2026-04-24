@@ -37,6 +37,13 @@ export interface StoredFileRecord {
   generatedLang: FileGeneratedLang | null;
 }
 
+export interface FileVersionMetadata {
+  assetId: string;
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
+}
+
 export interface FileReads {
   findAttachmentByOwnerAndId(input: {
     fileAssetId: string;
@@ -55,4 +62,7 @@ export interface FileReads {
     ownerId: string;
     ownerType: FileOwnerType;
   }): Promise<FileAttachment[]>;
+  listCurrentFileVersionsByAssetIds(
+    assetIds: string[],
+  ): Promise<FileVersionMetadata[]>;
 }

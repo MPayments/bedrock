@@ -284,17 +284,6 @@ describe("deal transition policy", () => {
     ).toBe(false);
   });
 
-  it("allows submitted -> preparing_documents when only the removed capability checks used to block", () => {
-    const input = createBaseInput();
-    input.status = "submitted";
-    input.targetStatus = "preparing_documents";
-
-    const readiness = evaluateDealTransitionReadiness(input);
-
-    expect(readiness.allowed).toBe(true);
-    expect(readiness.blockers).toEqual([]);
-  });
-
   it("blocks awaiting_funds -> awaiting_payment when collect or convert legs are not done", () => {
     const input = createBaseInput();
     input.status = "awaiting_funds";

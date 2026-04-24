@@ -1,6 +1,6 @@
 import type { RateObservation } from "./rate-book";
+import type { CrossRate } from "./model";
 import { RateNotFoundError } from "../../errors";
-import type { CrossRate } from "../application/ports/rates.repository";
 
 export class CrossRateResolver {
   resolve(input: {

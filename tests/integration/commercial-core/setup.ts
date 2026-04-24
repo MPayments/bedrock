@@ -14,7 +14,7 @@ import { schema as treasurySchema } from "../../../packages/modules/treasury/src
 
 import { seedCurrencies } from "../../../packages/modules/treasury/tests/helpers";
 import { assertIntegrationDbSchemaState } from "../preflight";
-import { COMMERCIAL_CORE_ACTOR_USER_ID } from "./fixtures";
+import { COMMERCIAL_CORE_ACTOR_USER_ID } from "./constants";
 
 const pool = createTestPgPool();
 const db = createTestDrizzleDb(pool, {
@@ -28,10 +28,8 @@ const db = createTestDrizzleDb(pool, {
 });
 
 async function cleanupCommercialCoreTables() {
-  await deleteIfTableExists(pool, "deal_operational_positions");
   await deleteIfTableExists(pool, "deal_timeline_events");
   await deleteIfTableExists(pool, "deal_quote_acceptances");
-  await deleteIfTableExists(pool, "deal_capability_states");
   await deleteIfTableExists(pool, "deal_approvals");
   await deleteIfTableExists(pool, "deal_calculation_links");
   await deleteIfTableExists(pool, "deal_legs");

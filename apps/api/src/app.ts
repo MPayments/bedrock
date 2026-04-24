@@ -23,6 +23,7 @@ import {
   activityRoutes,
   agentsRoutes,
   agreementsRoutes,
+  aiRoutes,
   balancesRoutes,
   calculationsRoutes,
   counterpartiesRoutes,
@@ -42,6 +43,7 @@ import {
   treasuryOrganizationBalancesRoutes,
   treasuryInstructionRoutes,
   treasuryOperationsRoutes,
+  treasuryQueueRoutes,
   treasuryQuotesRoutes,
   treasuryRatesRoutes,
   usersRoutes,
@@ -206,6 +208,7 @@ function createV1Routes(ctx: AppContext) {
     .route("/activity", activityRoutes(ctx))
     .route("/agents", agentsRoutes(ctx))
     .route("/agreements", agreementsRoutes(ctx))
+    .route("/ai", aiRoutes(ctx))
     .route("/balances", balancesRoutes(ctx))
     .route("/calculations", calculationsRoutes(ctx))
     .route("/counterparties", counterpartyDirectoryRoutes(ctx))
@@ -227,6 +230,7 @@ function createV1Routes(ctx: AppContext) {
     )
     .route("/treasury/instructions", treasuryInstructionRoutes(ctx))
     .route("/treasury/operations", treasuryOperationsRoutes(ctx))
+    .route("/treasury/queue", treasuryQueueRoutes(ctx))
     .route("/treasury/quotes", treasuryQuotesRoutes(ctx))
     .route("/treasury/rates", treasuryRatesRoutes(ctx))
     .route("/users", usersRoutes(ctx))

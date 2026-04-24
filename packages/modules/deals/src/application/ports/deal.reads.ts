@@ -14,6 +14,10 @@ import type {
   PortalDealProjection,
 } from "../contracts/dto";
 import type { ListDealsQuery } from "../contracts/queries";
+import type {
+  ListTreasuryExceptionQueueInput,
+  TreasuryExceptionQueueRow,
+} from "../queries/list-treasury-exception-queue";
 
 export interface DealFundingAssessmentPort {
   assessFunding(input: {
@@ -47,4 +51,7 @@ export interface DealReads {
     limit: number;
     offset: number;
   }): Promise<PortalDealListProjection>;
+  listTreasuryExceptionQueue?(
+    input: ListTreasuryExceptionQueueInput,
+  ): Promise<TreasuryExceptionQueueRow[]>;
 }

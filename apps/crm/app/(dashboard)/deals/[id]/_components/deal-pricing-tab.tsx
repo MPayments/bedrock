@@ -60,6 +60,7 @@ import {
   formatCurrency,
   formatDate,
   formatDateTimeInput,
+  formatSignedPercentVsRate,
   minorToDecimalString,
   rationalToDecimalString,
 } from "./format";
@@ -231,17 +232,23 @@ function extractStoredPricingSnapshot(
     (nestedSnapshot?.benchmarks as
       | ApiDealPricingBenchmarks
       | null
-      | undefined) ?? quote.benchmarks ?? null;
+      | undefined) ??
+    quote.benchmarks ??
+    null;
   const formulaTrace =
     (nestedSnapshot?.formulaTrace as
       | ApiDealPricingFormulaTrace
       | null
-      | undefined) ?? quote.formulaTrace ?? null;
+      | undefined) ??
+    quote.formulaTrace ??
+    null;
   const profitability =
     (nestedSnapshot?.profitability as
       | ApiDealPricingProfitability
       | null
-      | undefined) ?? quote.profitability ?? null;
+      | undefined) ??
+    quote.profitability ??
+    null;
 
   if (!benchmarks && !formulaTrace && !profitability) {
     return null;
@@ -460,6 +467,16 @@ function formatFundingDeadline(iso: string | null | undefined): string {
   return DEADLINE_DATETIME_FORMATTER.format(date);
 }
 
+const REVOCATION_REASON_LABELS: Record<string, string> = {
+  operator_commercial_amendment: "условия изменены казначейством",
+  operator_route_swap: "маршрут изменён казначейством",
+};
+
+function formatRevocationReason(reason: string | null | undefined): string | null {
+  if (!reason) return null;
+  return REVOCATION_REASON_LABELS[reason] ?? reason;
+}
+
 function formatFeeBasis(fee: {
   kind: "fixed" | "fx_spread" | "gross_percent" | "net_percent";
   percentage?: string;
@@ -652,8 +669,9 @@ export function DealPricingTab({
     ApiDealQuoteAcceptanceHistoryItem[]
   >([]);
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [downloadingHistoryQuoteId, setDownloadingHistoryQuoteId] =
-    useState<string | null>(null);
+  const [downloadingHistoryQuoteId, setDownloadingHistoryQuoteId] = useState<
+    string | null
+  >(null);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -783,23 +801,24 @@ export function DealPricingTab({
   const previewOrAcceptedSnapshot =
     previewSnapshot ?? (lastSyncedAt ? null : acceptedDetailedQuoteSnapshot);
 
-  const pricingState: "none" | "locked" | "drifted" | "expired" = useMemo(() => {
-    if (!acceptedQuote) return "none";
-    const expiresAt = acceptedQuote.expiresAt
-      ? new Date(acceptedQuote.expiresAt).getTime()
-      : null;
-    if (expiresAt !== null && nowTick > expiresAt) return "expired";
-    const acceptedFp = acceptedDetailedQuote?.pricingFingerprint ?? null;
-    const previewFp = preview?.pricingFingerprint ?? null;
-    if (acceptedFp === null || previewFp === null) return "locked";
-    if (acceptedFp === previewFp) return "locked";
-    return "drifted";
-  }, [
-    acceptedQuote,
-    acceptedDetailedQuote?.pricingFingerprint,
-    preview?.pricingFingerprint,
-    nowTick,
-  ]);
+  const pricingState: "none" | "locked" | "drifted" | "expired" =
+    useMemo(() => {
+      if (!acceptedQuote) return "none";
+      const expiresAt = acceptedQuote.expiresAt
+        ? new Date(acceptedQuote.expiresAt).getTime()
+        : null;
+      if (expiresAt !== null && nowTick > expiresAt) return "expired";
+      const acceptedFp = acceptedDetailedQuote?.pricingFingerprint ?? null;
+      const previewFp = preview?.pricingFingerprint ?? null;
+      if (acceptedFp === null || previewFp === null) return "locked";
+      if (acceptedFp === previewFp) return "locked";
+      return "drifted";
+    }, [
+      acceptedQuote,
+      acceptedDetailedQuote?.pricingFingerprint,
+      preview?.pricingFingerprint,
+      nowTick,
+    ]);
 
   function applyServerContext(nextContext: ApiDealPricingContext) {
     setServerContext(nextContext);
@@ -1189,7 +1208,7 @@ export function DealPricingTab({
                     label="Сумма сделки"
                     sublabel="клиент платит"
                     value={formatMinorAmount(
-                      profit.customerPrincipalMinor,
+                      profit.customerTotalMinor,
                       profit.currency,
                     )}
                   />
@@ -1243,23 +1262,42 @@ export function DealPricingTab({
                         : "—"
                     }
                   />
-                  <PricingMetricTile
-                    label="Курс клиенту"
-                    sublabel={
-                      referenceBench
-                        ? `База ${rationalToDecimalString(referenceBench.rateDen, referenceBench.rateNum, 4)}`
-                        : undefined
-                    }
-                    value={
-                      clientBench
-                        ? rationalToDecimalString(
-                            clientBench.rateDen,
+                  {(() => {
+                    const markupVsMarket =
+                      clientBench && marketBench
+                        ? formatSignedPercentVsRate(
                             clientBench.rateNum,
-                            4,
+                            clientBench.rateDen,
+                            marketBench.rateNum,
+                            marketBench.rateDen,
                           )
-                        : "—"
-                    }
-                  />
+                        : null;
+                    const baseLabel = referenceBench
+                      ? `База ${rationalToDecimalString(referenceBench.rateDen, referenceBench.rateNum, 4)}`
+                      : null;
+                    const markupLabel = markupVsMarket
+                      ? `${markupVsMarket} к рынку`
+                      : null;
+                    const sublabel =
+                      baseLabel && markupLabel
+                        ? `${baseLabel} · ${markupLabel}`
+                        : (baseLabel ?? markupLabel ?? undefined);
+                    return (
+                      <PricingMetricTile
+                        label="Курс клиенту"
+                        sublabel={sublabel}
+                        value={
+                          clientBench
+                            ? rationalToDecimalString(
+                                clientBench.rateDen,
+                                clientBench.rateNum,
+                                4,
+                              )
+                            : "—"
+                        }
+                      />
+                    );
+                  })()}
                   <PricingMetricTile
                     label="Итого комиссия"
                     tone={isFeeNegative ? "negative" : "default"}
@@ -1452,15 +1490,17 @@ export function DealPricingTab({
 
       {(() => {
         const expiresIso =
-          acceptedQuote?.expiresAt ??
-          preview?.quotePreview?.expiresAt ??
-          null;
+          acceptedQuote?.expiresAt ?? preview?.quotePreview?.expiresAt ?? null;
         const countdown = formatExpiresCountdown(expiresIso, nowTick);
+        const revocationLabel =
+          acceptedQuote?.revokedAt
+            ? formatRevocationReason(acceptedQuote.revocationReason)
+            : null;
         const countdownSublabel =
           pricingState === "drifted"
             ? "лок действителен, но пришли новые условия"
             : pricingState === "expired"
-              ? "требуется новый лок"
+              ? (revocationLabel ?? "требуется новый лок")
               : "по умолчанию — 1 день";
         return (
           <Card>
@@ -1578,9 +1618,7 @@ export function DealPricingTab({
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
                             <Button
-                              onClick={() =>
-                                handleCopyHistoryRow(row.quoteId)
-                              }
+                              onClick={() => handleCopyHistoryRow(row.quoteId)}
                               size="sm"
                               variant="ghost"
                             >
@@ -1628,10 +1666,7 @@ export function DealPricingTab({
           4,
         );
         const oldTotal = oldProfit
-          ? formatMinorAmount(
-              oldProfit.customerTotalMinor,
-              oldProfit.currency,
-            )
+          ? formatMinorAmount(oldProfit.customerTotalMinor, oldProfit.currency)
           : "—";
         const oldFee = oldProfit
           ? formatMinorAmount(
@@ -1651,10 +1686,7 @@ export function DealPricingTab({
           4,
         );
         const newTotal = newProfit
-          ? formatMinorAmount(
-              newProfit.customerTotalMinor,
-              newProfit.currency,
-            )
+          ? formatMinorAmount(newProfit.customerTotalMinor, newProfit.currency)
           : "—";
         const newFee = newProfit
           ? formatMinorAmount(
@@ -1677,8 +1709,8 @@ export function DealPricingTab({
                   Обновить зафиксированный курс?
                 </AlertDialogTitle>
                 <AlertDialogDescription>
-                  Текущая зафиксированная котировка будет заменена новой.
-                  Клиент получит новые условия.
+                  Текущая зафиксированная котировка будет заменена новой. Клиент
+                  получит новые условия.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <div className="grid grid-cols-2 gap-4 py-2 text-sm">
@@ -1712,9 +1744,7 @@ export function DealPricingTab({
                     void handleCommit();
                   }}
                 >
-                  {isCreatingQuote
-                    ? "Обновляем..."
-                    : "Подтвердить обновление"}
+                  {isCreatingQuote ? "Обновляем..." : "Подтвердить обновление"}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>

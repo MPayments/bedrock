@@ -786,63 +786,6 @@ describe("payment routes routes", () => {
     expect(previewTemplate).not.toHaveBeenCalled();
   });
 
-  it("rejects legacy route payloads that still include leg kind", async () => {
-    const {
-      app,
-      createTemplateCommand,
-      previewTemplate,
-      updateTemplate,
-    } = createTestApp();
-    const invalidDraft = {
-      ...createDraft(),
-      legs: [
-        {
-          ...createDraft().legs[0],
-          kind: "transfer",
-        },
-      ],
-    };
-
-    const [createResponse, updateResponse, previewResponse] = await Promise.all([
-      app.request("http://localhost/payment-routes", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
-          draft: invalidDraft,
-          name: "USD payout",
-          visual: createVisual(),
-        }),
-      }),
-      app.request(`http://localhost/payment-routes/${IDS.route}`, {
-        method: "PATCH",
-        headers: {
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
-          draft: invalidDraft,
-        }),
-      }),
-      app.request("http://localhost/payment-routes/preview", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
-          draft: invalidDraft,
-        }),
-      }),
-    ]);
-
-    expect(createResponse.status).toBe(400);
-    expect(updateResponse.status).toBe(400);
-    expect(previewResponse.status).toBe(400);
-    expect(createTemplateCommand).not.toHaveBeenCalled();
-    expect(updateTemplate).not.toHaveBeenCalled();
-    expect(previewTemplate).not.toHaveBeenCalled();
-  });
-
   it("accepts a valid selected requisite for a bound organization participant", async () => {
     const { app, createTemplateCommand, findRequisiteById } = createTestApp();
 

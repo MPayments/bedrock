@@ -5,7 +5,7 @@ import type {
   ApiDealSectionCompleteness,
   ApiDealTransitionReadiness,
   ApiDealWorkflowLeg,
-  DealLegState,
+  DealLegManualOverride,
   DealStatus,
 } from "./types";
 
@@ -13,7 +13,7 @@ type DealExecutionTabProps = {
   executionPlan: ApiDealWorkflowLeg[];
   isUpdatingLegKey: string | null;
   onBlockedTransitionClick: (status: DealStatus) => void;
-  onUpdateLegState: (idx: number, state: DealLegState) => void;
+  onOverrideLeg: (idx: number, override: DealLegManualOverride) => void;
   operationalState: ApiDealOperationalState;
   sectionCompleteness: ApiDealSectionCompleteness[];
   transitionReadiness: ApiDealTransitionReadiness[];
@@ -23,7 +23,7 @@ export function DealExecutionTab({
   executionPlan,
   isUpdatingLegKey,
   onBlockedTransitionClick,
-  onUpdateLegState,
+  onOverrideLeg,
   operationalState,
   sectionCompleteness,
   transitionReadiness,
@@ -34,7 +34,7 @@ export function DealExecutionTab({
         executionPlan={executionPlan}
         isUpdatingLegKey={isUpdatingLegKey}
         onBlockedTransitionClick={onBlockedTransitionClick}
-        onUpdateLegState={onUpdateLegState}
+        onOverrideLeg={onOverrideLeg}
         sectionCompleteness={sectionCompleteness}
         transitionReadiness={transitionReadiness}
       />

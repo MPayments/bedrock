@@ -1,4 +1,3 @@
-import type { IdempotencyPort } from "@bedrock/platform/idempotency";
 import type { Logger } from "@bedrock/platform/observability/logger";
 import {
   createModuleRuntime,
@@ -18,7 +17,6 @@ export interface AgreementsModuleDeps {
   logger: Logger;
   now: Clock;
   generateUuid: UuidGenerator;
-  idempotency: IdempotencyPort;
   reads: AgreementReads;
   references: AgreementReferencesPort;
   commandUow: AgreementsCommandUnitOfWork;
@@ -34,7 +32,6 @@ export function createAgreementsModule(
   return {
     agreements: createAgreementsService({
       commandUow: deps.commandUow,
-      idempotency: deps.idempotency,
       reads: deps.reads,
       references: deps.references,
       runtime: createModuleRuntime({

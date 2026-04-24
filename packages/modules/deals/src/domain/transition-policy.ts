@@ -12,12 +12,13 @@ import type {
   DealQuoteAcceptance,
   DealRelatedFormalDocument,
   DealSectionCompleteness,
+  DealStatus,
   DealTransitionBlocker,
   DealTransitionReadiness,
+  DealType,
   DealWorkflowLeg,
   DealWorkflowParticipant,
-} from "../application/contracts/dto";
-import type { DealStatus, DealType } from "../application/contracts/zod";
+} from "./model";
 
 const OPENING_DOCUMENT_TYPE_BY_DEAL_TYPE: Record<DealType, string> = {
   payment: "invoice",

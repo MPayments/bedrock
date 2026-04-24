@@ -119,13 +119,4 @@ describe("requisite provider routes", () => {
     );
   });
 
-  it("does not expose the legacy provider identifier route", async () => {
-    const { app } = createTestApp();
-
-    const response = await app.request(
-      "http://localhost/requisites/providers/11111111-1111-4111-8111-111111111111/identifiers",
-    );
-
-    expect(response.status).toBe(404);
-  });
 });

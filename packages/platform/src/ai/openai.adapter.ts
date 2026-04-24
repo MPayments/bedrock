@@ -19,6 +19,7 @@ const SYSTEM_EXTRACT = [
   "You are a strict JSON extraction engine.",
   "Extract all relevant data from the provided document.",
   "Use the schema to answer with valid JSON only — no prose.",
+  "If an address is present, keep `address` as the full single-line form and ALSO split it into `postalCode`, `city`, `streetAddress` (street with house/building), and `addressDetails` (block, flat, office, etc.). Set any component to null when it is not present in the document.",
 ].join(" ");
 
 const extractedDocumentZodSchema = z.object({
@@ -27,6 +28,10 @@ const extractedDocumentZodSchema = z.object({
   kpp: z.string().nullable(),
   ogrn: z.string().nullable(),
   address: z.string().nullable(),
+  postalCode: z.string().nullable(),
+  city: z.string().nullable(),
+  streetAddress: z.string().nullable(),
+  addressDetails: z.string().nullable(),
   directorName: z.string().nullable(),
   directorPosition: z.string().nullable(),
   bankName: z.string().nullable(),

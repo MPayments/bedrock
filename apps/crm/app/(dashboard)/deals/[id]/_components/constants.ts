@@ -71,7 +71,7 @@ export const DEAL_LEG_STATE_LABELS: Record<DealLegState, string> = {
   done: "Завершен",
   in_progress: "В работе",
   pending: "Ожидает",
-  ready: "Готов",
+  ready: "Подготовлен",
   skipped: "Пропущен",
 };
 
@@ -150,7 +150,7 @@ const DEAL_NEXT_ACTION_LABELS: Record<string, string> = {
   "Resolve approvals": "Завершить согласование",
   "Resolve operational state": "Разобрать операционное состояние",
   "Submit deal": "Отправить сделку",
-  "Update execution leg state": "Обновить этап исполнения",
+  "Update execution leg state": "Обновить шаг исполнения",
 };
 
 const DEAL_MESSAGE_LABELS: Record<string, string> = {
@@ -201,8 +201,10 @@ export const DEAL_TIMELINE_EVENT_LABELS: Record<
   instruction_settled: "Инструкция исполнена",
   instruction_submitted: "Инструкция отправлена",
   instruction_voided: "Инструкция отменена",
+  leg_manual_override_cleared: "Оператор снял ручную блокировку шага",
+  leg_manual_override_set: "Оператор заблокировал или пропустил шаг",
   leg_operation_created: "Создана казначейская операция",
-  leg_state_changed: "Состояние этапа изменено",
+  leg_state_changed: "Состояние шага изменено",
   participant_changed: "Участники изменены",
   quote_accepted: "Котировка принята",
   quote_created: "Котировка создана",

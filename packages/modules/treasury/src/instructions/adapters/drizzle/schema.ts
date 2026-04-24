@@ -11,6 +11,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { treasuryOperations } from "../../../operations/adapters/drizzle/schema";
+import type { TreasuryInstructionArtifactPurpose } from "../../domain/instruction-types";
 import type { TreasuryInstructionState } from "../../domain/instruction-types";
 
 export const treasuryInstructions = pgTable(
@@ -51,5 +52,34 @@ export const treasuryInstructions = pgTable(
     ),
     index("treasury_instructions_operation_idx").on(table.operationId),
     index("treasury_instructions_state_idx").on(table.state),
+  ],
+);
+
+export const treasuryInstructionArtifacts = pgTable(
+  "treasury_instruction_artifacts",
+  {
+    id: uuid("id").primaryKey(),
+    instructionId: uuid("instruction_id")
+      .notNull()
+      .references(() => treasuryInstructions.id, { onDelete: "cascade" }),
+    fileAssetId: uuid("file_asset_id").notNull(),
+    purpose: text("purpose")
+      .$type<TreasuryInstructionArtifactPurpose>()
+      .notNull(),
+    memo: text("memo"),
+    uploadedByUserId: text("uploaded_by_user_id").notNull(),
+    uploadedAt: timestamp("uploaded_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+  },
+  (table) => [
+    index("treasury_instruction_artifacts_instruction_uploaded_idx").on(
+      table.instructionId,
+      table.uploadedAt.desc(),
+    ),
+    index("treasury_instruction_artifacts_instruction_purpose_idx").on(
+      table.instructionId,
+      table.purpose,
+    ),
   ],
 );

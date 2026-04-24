@@ -1,4 +1,3 @@
-import type { IdempotencyPort } from "@bedrock/platform/idempotency";
 import type { ModuleRuntime } from "@bedrock/shared/core";
 
 import { ArchiveCalculationCommand } from "./commands/archive-calculation";
@@ -11,7 +10,6 @@ import { ListCalculationsQuery } from "./queries/list-calculations";
 
 export interface CalculationsServiceDeps {
   commandUow: CalculationsCommandUnitOfWork;
-  idempotency: IdempotencyPort;
   reads: CalculationReads;
   references: CalculationReferencesPort;
   runtime: ModuleRuntime;
@@ -21,7 +19,6 @@ export function createCalculationsService(deps: CalculationsServiceDeps) {
   const createCalculation = new CreateCalculationCommand(
     deps.runtime,
     deps.commandUow,
-    deps.idempotency,
     deps.references,
   );
   const archiveCalculation = new ArchiveCalculationCommand(

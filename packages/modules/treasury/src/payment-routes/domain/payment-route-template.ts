@@ -1,26 +1,21 @@
 import { Entity } from "@bedrock/shared/core/domain";
 
-import type { PaymentRouteCalculation } from "../application/contracts/dto";
-import {
-  PaymentRouteDraftSchema,
-  PaymentRouteVisualMetadataSchema,
-  normalizePaymentRouteDraft,
-  type PaymentRouteDraft,
-  type PaymentRouteTemplateStatus,
-  type PaymentRouteVisualMetadata,
-} from "../application/contracts/zod";
-import type { PaymentRouteTemplateRecord } from "../application/ports/payment-routes.repository";
+import type {
+  PaymentRouteCalculation,
+  PaymentRouteDraft,
+  PaymentRouteTemplateRecord,
+  PaymentRouteTemplateStatus,
+  PaymentRouteVisualMetadata,
+} from "./model";
 
 function cloneDraft(draft: PaymentRouteDraft): PaymentRouteDraft {
-  return PaymentRouteDraftSchema.parse(
-    normalizePaymentRouteDraft(structuredClone(draft)),
-  );
+  return structuredClone(draft);
 }
 
 function cloneVisual(
   visual: PaymentRouteVisualMetadata,
 ): PaymentRouteVisualMetadata {
-  return PaymentRouteVisualMetadataSchema.parse(structuredClone(visual));
+  return structuredClone(visual);
 }
 
 function cloneCalculation(

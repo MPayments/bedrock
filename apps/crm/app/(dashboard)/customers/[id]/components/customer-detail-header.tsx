@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  Archive,
-  EllipsisVertical,
-  Loader2,
-  Trash2,
-} from "lucide-react";
+import { Archive, EllipsisVertical, Loader2, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@bedrock/sdk-ui/components/button";
@@ -26,46 +21,48 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  EntityPageHeader,
+  getEntityInitials,
+} from "@/components/app/entity-page-header";
+import { formatDate } from "@/lib/utils/currency";
 
 type CustomerDetailHeaderProps = {
+  createdAt: string;
+  customerId: string;
   deleting: boolean;
-  counterpartyCount: number;
+  externalRef: string | null;
   onArchive: () => Promise<void>;
   title: string;
 };
 
 export function CustomerDetailHeader({
+  createdAt,
+  customerId,
   deleting,
-  counterpartyCount,
+  externalRef,
   onArchive,
   title,
 }: CustomerDetailHeaderProps) {
   const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
-  const customerInitials = getCustomerInitials(title);
 
   return (
-    <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-      <div className="flex items-start gap-3">
-        <div className="bg-background flex h-10 w-10 items-center justify-center rounded-lg">
-          <div className="text-foreground text-sm font-medium">
-            {customerInitials}
-          </div>
-        </div>
-        <div className="space-y-1">
-          <h1 className="text-2xl font-bold">{title}</h1>
-          <p className="text-sm text-muted-foreground">
-            {counterpartyCount}{" "}
-            {counterpartyCount === 1
-              ? "контрагент"
-              : counterpartyCount < 5
-                ? "контрагента"
-                : "контрагентов"}
-          </p>
-        </div>
-      </div>
-
-      <div className="flex w-full flex-col items-stretch gap-2 lg:w-auto lg:min-w-0 lg:items-end">
-        <div className="flex w-full flex-col items-stretch gap-2 md:flex-row md:flex-wrap md:items-center md:justify-end">
+    <>
+      <EntityPageHeader
+        avatar={{ initials: getEntityInitials(title) }}
+        title={title}
+        infoItems={[
+          <span key="id" className="font-mono">
+            ID {shortenId(customerId)}
+          </span>,
+          externalRef ? (
+            <span key="ext" className="font-mono">
+              {externalRef}
+            </span>
+          ) : null,
+          `Создан ${formatDate(createdAt)}`,
+        ]}
+        actions={
           <DropdownMenu>
             <DropdownMenuTrigger
               render={<Button variant="outline" size="icon" />}
@@ -82,8 +79,8 @@ export function CustomerDetailHeader({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-        </div>
-      </div>
+        }
+      />
 
       <AlertDialog open={archiveDialogOpen} onOpenChange={setArchiveDialogOpen}>
         <AlertDialogContent>
@@ -112,32 +109,13 @@ export function CustomerDetailHeader({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </>
   );
 }
 
-function getCustomerInitials(name: string) {
-  const parts = name
-    .trim()
-    .split(/\s+/u)
-    .map((part) => part.replace(/^[^0-9\p{L}]+|[^0-9\p{L}]+$/gu, ""))
-    .filter(Boolean);
-
-  if (parts.length === 0) {
-    return "К";
+function shortenId(id: string) {
+  if (id.length <= 10) {
+    return id;
   }
-
-  if (parts.length === 1) {
-    const firstPart = parts[0] ?? "";
-    return Array.from(firstPart)
-      .slice(0, 2)
-      .join("")
-      .toLocaleUpperCase("ru-RU");
-  }
-
-  return parts
-    .slice(0, 2)
-    .map((part) => Array.from(part)[0] ?? "")
-    .join("")
-    .toLocaleUpperCase("ru-RU");
+  return `${id.slice(0, 8)}…`;
 }

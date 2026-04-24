@@ -329,6 +329,8 @@ const CustomerPortalBankProviderSearchResultSchema = z.object({
 
 const CustomerPortalCompanyLookupResultSchema = z.object({
   address: z.string().nullable(),
+  addressDetails: z.string().nullable(),
+  city: z.string().nullable(),
   directorBasis: z.string().nullable(),
   directorName: z.string().nullable(),
   inn: z.string(),
@@ -339,6 +341,8 @@ const CustomerPortalCompanyLookupResultSchema = z.object({
   orgName: z.string(),
   orgType: z.string().nullable(),
   position: z.string().nullable(),
+  postalCode: z.string().nullable(),
+  streetAddress: z.string().nullable(),
 });
 
 const CustomerPortalDealIdParamSchema = z.object({

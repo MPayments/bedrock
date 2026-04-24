@@ -11,11 +11,14 @@ function createExecutionLeg(
   state: "ready" | "pending",
 ) {
   return {
+    fromCurrencyId: null,
     id: `leg-${idx}`,
     idx,
     kind,
     operationRefs: [],
+    routeSnapshotLegId: null,
     state,
+    toCurrencyId: null,
   };
 }
 
@@ -357,6 +360,16 @@ function createWorkflow(overrides?: {
         findById: vi.fn(async () => ({
           approvals: [],
         })),
+        findPricingContextByDealId: vi.fn(async () => ({
+          commercialDraft: {
+            fixedFeeAmount: null,
+            fixedFeeCurrency: null,
+            quoteMarkupBps: null,
+          },
+          fundingAdjustments: [],
+          revision: 1,
+          routeAttachment: null,
+        })),
         findWorkflowById: vi.fn(async () => workflow),
         list: vi.fn(async () => ({
           data: [
@@ -425,6 +438,7 @@ function createWorkflow(overrides?: {
     files: {
       files: {
         queries: {
+          listCurrentFileVersionsByAssetIds: vi.fn(async () => []),
           listDealAttachments: vi.fn(async () => attachments),
         },
       },
@@ -489,6 +503,10 @@ function createWorkflow(overrides?: {
     treasury: {
       instructions: {
         queries: {
+          listArtifactsByInstructionIds: vi.fn(async () => []),
+          listByOperationIds: vi.fn(
+            async () => overrides?.latestInstructions ?? [],
+          ),
           listLatestByOperationIds: vi.fn(
             async () => overrides?.latestInstructions ?? [],
           ),
@@ -506,6 +524,7 @@ function createWorkflow(overrides?: {
       },
       quotes: {
         queries: {
+          getQuoteDetails: vi.fn(async () => null),
           listQuotes: vi.fn(async () => ({
             data: overrides?.treasuryQuotes ?? [],
             limit: MAX_QUERY_LIST_LIMIT,
@@ -751,6 +770,7 @@ describe("createDealProjectionsWorkflow", () => {
           quoteId: "quote-1",
           quoteStatus: "active",
           replacedByQuoteId: null,
+          revocationReason: null,
           revokedAt: null,
           usedAt: null,
           usedDocumentId: null,
@@ -1057,6 +1077,7 @@ describe("createDealProjectionsWorkflow", () => {
         ...createBaseWorkflow(),
         executionPlan: [
           {
+            fromCurrencyId: null,
             id: "leg-1",
             idx: 1,
             kind: "payout",
@@ -1067,7 +1088,9 @@ describe("createDealProjectionsWorkflow", () => {
                 sourceRef: "deal:deal-1:leg:1:payout:1",
               },
             ],
+            routeSnapshotLegId: null,
             state: "ready",
+            toCurrencyId: null,
           },
         ],
         acceptedQuote: {
@@ -1081,6 +1104,7 @@ describe("createDealProjectionsWorkflow", () => {
           quoteId: "quote-1",
           quoteStatus: "active",
           replacedByQuoteId: null,
+          revocationReason: null,
           revokedAt: null,
           usedAt: null,
           usedDocumentId: null,
@@ -1160,7 +1184,7 @@ describe("createDealProjectionsWorkflow", () => {
       pricing: {
         quoteAmount: "1000",
         quoteAmountSide: "target",
-        quoteEligibility: false,
+        quoteEligibility: true,
         sourceCurrencyId: "currency-rub",
         targetCurrencyId: "currency-usd",
       },
@@ -1190,6 +1214,17 @@ describe("createDealProjectionsWorkflow", () => {
         totalRevenue: [
           {
             amountMinor: "600",
+            currencyCode: "RUB",
+            currencyId: "currency-rub",
+          },
+        ],
+      },
+      cashflowSummary: {
+        receivedIn: [],
+        scheduledOut: [],
+        settledOut: [
+          {
+            amountMinor: "10000000",
             currencyCode: "RUB",
             currencyId: "currency-rub",
           },

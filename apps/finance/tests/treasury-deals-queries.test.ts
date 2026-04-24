@@ -81,12 +81,17 @@ function createFinanceWorkspacePayload(): SerializedDates<FinanceDealWorkspace> 
         state: "missing",
       },
     ],
+    cashflowSummary: {
+      receivedIn: [],
+      scheduledOut: [],
+      settledOut: [],
+    },
     closeReadiness: {
       blockers: ["Required intake sections are incomplete"],
       criteria: [
         {
           code: "operations_materialized",
-          label: "Казначейские операции созданы для всех этапов",
+          label: "Казначейские операции созданы для всех шагов",
           satisfied: false,
         },
       ],
@@ -98,11 +103,14 @@ function createFinanceWorkspacePayload(): SerializedDates<FinanceDealWorkspace> 
           canCreateLegOperation: false,
           exchangeDocument: null,
         },
+        fromCurrencyId: null,
         id: "714fb6eb-a1bd-429e-9628-e97d0f2efa0b",
         idx: 1,
         kind: "collect",
         operationRefs: [],
+        routeSnapshotLegId: null,
         state: "pending",
+        toCurrencyId: null,
       },
     ],
     formalDocumentRequirements: [
@@ -145,6 +153,7 @@ function createFinanceWorkspacePayload(): SerializedDates<FinanceDealWorkspace> 
       quoteAmount: "125000.00",
       quoteAmountSide: "target",
       quoteEligibility: true,
+      routeAttachment: null,
       sourceCurrencyId: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
       targetCurrencyId: "0f9d972c-b95b-4544-95d8-8ccdc7496ed8",
     },
@@ -179,6 +188,7 @@ function createFinanceWorkspacePayload(): SerializedDates<FinanceDealWorkspace> 
         },
       ],
       formalDocuments: [],
+      instructionArtifacts: [],
       operations: [],
       quotes: [
         {
@@ -629,6 +639,7 @@ describe("treasury deals queries", () => {
           voidedAt: null,
         },
         operationHref: "/treasury/operations/114fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+        projectedState: null,
         sourceRef: "deal:614fb6eb-a1bd-429e-9628-e97d0f2efa0b:leg:2:payout:1",
         state: "planned",
       },

@@ -11,7 +11,7 @@ export default function TreasuryError({
   return (
     <SectionErrorState
       title="Не удалось загрузить казначейство"
-      description="Treasury-раздел сейчас недоступен."
+      description="Казначейский раздел сейчас недоступен."
       reset={reset}
     />
   );

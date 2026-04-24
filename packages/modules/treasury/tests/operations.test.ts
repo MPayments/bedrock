@@ -141,6 +141,7 @@ describe("treasury operations service", () => {
           internalEntityOrganizationId:
             "00000000-0000-4000-8000-000000000501",
           kind: "payin",
+          projectedState: null,
           quoteId: null,
           sourceRef: "deal:deal-1:leg:1:payin:1",
           state: "planned",

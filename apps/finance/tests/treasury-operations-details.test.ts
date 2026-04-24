@@ -62,6 +62,7 @@ describe("treasury operations details", () => {
           },
           latestInstruction: null,
           nextAction: "Prepare documents",
+          projectedState: null,
           providerRoute: "Route A -> B",
           queueContext: {
             blockers: ["Required intake sections are incomplete"],

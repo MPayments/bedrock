@@ -141,18 +141,12 @@ export const PaymentRouteTemplateListItemSchema = z.object({
 export const PaymentRouteTemplateListResponseSchema =
   createPaginatedListSchema(PaymentRouteTemplateListItemSchema);
 
-export type PaymentRouteCalculationFee = z.infer<
-  typeof PaymentRouteCalculationFeeSchema
->;
-export type PaymentRouteCalculationLeg = z.infer<
-  typeof PaymentRouteCalculationLegSchema
->;
-export type PaymentRouteAmountTotal = z.infer<
-  typeof PaymentRouteAmountTotalSchema
->;
-export type PaymentRouteCalculation = z.infer<
-  typeof PaymentRouteCalculationSchema
->;
+export type {
+  PaymentRouteAmountTotal,
+  PaymentRouteCalculation,
+  PaymentRouteCalculationFee,
+  PaymentRouteCalculationLeg,
+} from "../../domain/model";
 export type PaymentRouteTemplate = z.infer<typeof PaymentRouteTemplateSchema>;
 export type PaymentRouteTemplateListItem = z.infer<
   typeof PaymentRouteTemplateListItemSchema

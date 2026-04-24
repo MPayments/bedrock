@@ -8,9 +8,6 @@ import type {
   DealApprovalType,
   DealLegKind,
   DealLegOperationKind,
-  DealLegState,
-  DealOperationalPositionKind,
-  DealOperationalPositionState,
   DealParticipantRole,
   DealStatus,
   DealTimelineEventType,
@@ -46,10 +43,12 @@ export interface CreateDealPricingContextStoredInput {
 
 export interface CreateDealLegStoredInput {
   dealId: string;
+  fromCurrencyId: string | null;
   id: string;
   idx: number;
   kind: DealLegKind;
-  state: DealLegState;
+  routeSnapshotLegId: string | null;
+  toCurrencyId: string | null;
 }
 
 export interface CreateDealParticipantStoredInput {
@@ -120,17 +119,6 @@ export interface CreateDealApprovalStoredInput {
   status: DealApprovalStatus;
 }
 
-export interface ReplaceDealOperationalPositionStoredInput {
-  amountMinor: bigint | null;
-  currencyId: string | null;
-  dealId: string;
-  id: string;
-  kind: DealOperationalPositionKind;
-  reasonCode: string | null;
-  sourceRefs: string[];
-  state: DealOperationalPositionState;
-}
-
 export interface DealStore {
   claimAttachmentIngestions(input: {
     batchSize: number;
@@ -186,10 +174,6 @@ export interface DealStore {
     skippedFields?: string[];
     status?: DealAttachmentIngestionStatus;
   }): Promise<void>;
-  replaceDealOperationalPositions(input: {
-    dealId: string;
-    positions: ReplaceDealOperationalPositionStoredInput[];
-  }): Promise<void>;
   replaceDealLegs(input: {
     dealId: string;
     legs: CreateDealLegStoredInput[];
@@ -227,6 +211,11 @@ export interface DealStore {
     replacedByQuoteId: string;
     revokedAt: Date;
   }): Promise<void>;
+  revokeCurrentQuoteAcceptances(input: {
+    dealId: string;
+    revocationReason: string;
+    revokedAt: Date;
+  }): Promise<boolean>;
   upsertDealAttachmentIngestion(input: {
     availableAt: Date;
     dealId: string;
@@ -234,9 +223,11 @@ export interface DealStore {
     id: string;
     observedRevision: number;
   }): Promise<void>;
-  updateDealLegState(input: {
+  setDealLegManualOverride(input: {
     dealId: string;
     idx: number;
-    state: DealLegState;
+    manualOverrideState: "blocked" | "skipped" | null;
+    reasonCode: string | null;
+    comment: string | null;
   }): Promise<boolean>;
 }

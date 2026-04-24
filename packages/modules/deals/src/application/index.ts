@@ -1,10 +1,10 @@
-import type { IdempotencyPort } from "@bedrock/platform/idempotency";
 import type { ModuleRuntime } from "@bedrock/shared/core";
 
 import { AcceptDealQuoteCommand } from "./commands/accept-deal-quote";
-import { AttachDealPricingRouteCommand } from "./commands/attach-deal-pricing-route";
+import { AmendDealLegCommand } from "./commands/amend-deal-leg";
 import { AppendDealTimelineEventCommand } from "./commands/append-deal-timeline-event";
 import { AssignDealAgentCommand } from "./commands/assign-deal-agent";
+import { AttachDealPricingRouteCommand } from "./commands/attach-deal-pricing-route";
 import { ClaimDealAttachmentIngestionsCommand } from "./commands/claim-deal-attachment-ingestions";
 import { CompleteDealAttachmentIngestionCommand } from "./commands/complete-deal-attachment-ingestion";
 import { CreateDealDraftCommand } from "./commands/create-deal-draft";
@@ -14,10 +14,11 @@ import { FailDealAttachmentIngestionCommand } from "./commands/fail-deal-attachm
 import { LinkCalculationCommand } from "./commands/link-calculation";
 import { LinkCalculationFromAcceptedQuoteCommand } from "./commands/link-calculation-from-accepted-quote";
 import { ReplaceDealIntakeCommand } from "./commands/replace-deal-intake";
+import { SetDealLegManualOverrideCommand } from "./commands/set-deal-leg-manual-override";
+import { SwapDealRouteTemplateCommand } from "./commands/swap-deal-route-template";
 import { TransitionDealStatusCommand } from "./commands/transition-deal-status";
 import { UpdateDealAgreementCommand } from "./commands/update-deal-agreement";
 import { UpdateDealCommentCommand } from "./commands/update-deal-comment";
-import { UpdateDealLegStateCommand } from "./commands/update-deal-leg-state";
 import { UpdateDealPricingContextCommand } from "./commands/update-deal-pricing-context";
 import type { DealReads } from "./ports/deal.reads";
 import type { DealsCommandUnitOfWork } from "./ports/deals.uow";
@@ -34,10 +35,10 @@ import { ListDealCalculationHistoryQuery } from "./queries/list-deal-calculation
 import { ListDealQuoteAcceptancesQuery } from "./queries/list-deal-quote-acceptances";
 import { ListDealsQuery } from "./queries/list-deals";
 import { ListPortalDealsQuery } from "./queries/list-portal-deals";
+import { ListTreasuryExceptionQueueQuery } from "./queries/list-treasury-exception-queue";
 
 export interface DealsServiceDeps {
   commandUow: DealsCommandUnitOfWork;
-  idempotency: IdempotencyPort;
   reads: DealReads;
   references: DealReferencesPort;
   runtime: ModuleRuntime;
@@ -47,7 +48,6 @@ export function createDealsService(deps: DealsServiceDeps) {
   const createDealDraft = new CreateDealDraftCommand(
     deps.runtime,
     deps.commandUow,
-    deps.idempotency,
     deps.references,
   );
   const enqueueAttachmentIngestion = new EnqueueDealAttachmentIngestionCommand(
@@ -97,18 +97,26 @@ export function createDealsService(deps: DealsServiceDeps) {
     deps.commandUow,
   );
   const detachDealPricingRoute = new DetachDealPricingRouteCommand(
+    deps.runtime,
     deps.commandUow,
   );
-  const updateDealLegState = new UpdateDealLegStateCommand(
+  const setDealLegManualOverride = new SetDealLegManualOverrideCommand(
     deps.runtime,
     deps.commandUow,
   );
   const updateDealPricingContext = new UpdateDealPricingContextCommand(
+    deps.runtime,
     deps.commandUow,
   );
   const appendTimelineEvent = new AppendDealTimelineEventCommand(
     deps.runtime,
     deps.commandUow,
+  );
+  const amendDealLeg = new AmendDealLegCommand(deps.runtime, deps.commandUow);
+  const swapDealRouteTemplate = new SwapDealRouteTemplateCommand(
+    deps.runtime,
+    deps.commandUow,
+    deps.references,
   );
   const assignDealAgent = new AssignDealAgentCommand(
     deps.runtime,
@@ -135,10 +143,14 @@ export function createDealsService(deps: DealsServiceDeps) {
   const listQuoteAcceptances = new ListDealQuoteAcceptancesQuery(deps.reads);
   const listDeals = new ListDealsQuery(deps.reads);
   const listPortalDeals = new ListPortalDealsQuery(deps.reads);
+  const listTreasuryExceptionQueue = new ListTreasuryExceptionQueueQuery(
+    deps.reads,
+  );
 
   return {
     commands: {
       acceptQuote: acceptDealQuote.execute.bind(acceptDealQuote),
+      amendDealLeg: amendDealLeg.execute.bind(amendDealLeg),
       attachPricingRoute:
         attachDealPricingRoute.execute.bind(attachDealPricingRoute),
       assignAgent: assignDealAgent.execute.bind(assignDealAgent),
@@ -160,10 +172,15 @@ export function createDealsService(deps: DealsServiceDeps) {
         ),
       linkCalculation: linkCalculation.execute.bind(linkCalculation),
       replaceIntake: replaceDealIntake.execute.bind(replaceDealIntake),
+      swapDealRouteTemplate: swapDealRouteTemplate.execute.bind(
+        swapDealRouteTemplate,
+      ),
       transitionStatus: transitionDealStatus.execute.bind(transitionDealStatus),
       updateAgreement: updateDealAgreement.execute.bind(updateDealAgreement),
       updateComment: updateDealComment.execute.bind(updateDealComment),
-      updateLegState: updateDealLegState.execute.bind(updateDealLegState),
+      setLegManualOverride: setDealLegManualOverride.execute.bind(
+        setDealLegManualOverride,
+      ),
       updatePricingContext:
         updateDealPricingContext.execute.bind(updateDealPricingContext),
     },
@@ -192,6 +209,9 @@ export function createDealsService(deps: DealsServiceDeps) {
       ),
       list: listDeals.execute.bind(listDeals),
       listPortalDeals: listPortalDeals.execute.bind(listPortalDeals),
+      listTreasuryExceptionQueue: listTreasuryExceptionQueue.execute.bind(
+        listTreasuryExceptionQueue,
+      ),
     },
   };
 }

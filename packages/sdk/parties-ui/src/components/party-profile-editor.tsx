@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Save, Trash2, X } from "lucide-react";
 
 import {
@@ -28,6 +28,7 @@ import { Checkbox } from "@bedrock/sdk-ui/components/checkbox";
 import {
   Field,
   FieldDescription,
+  FieldError,
   FieldGroup,
   FieldLabel,
   FieldSet,
@@ -51,11 +52,20 @@ import {
   type PartyProfileSeed,
 } from "../lib/party-profile";
 import { type LocalizedTextVariant } from "../lib/localized-text";
+import {
+  hasPartyProfileValidationErrors,
+  type PartyProfileValidationErrors,
+  validatePartyProfileBundle,
+} from "../lib/party-profile-validation";
 
 type PartyProfileEditorProps = {
   bundle: PartyProfileBundleSource | PartyProfileBundleInput | null;
   description?: string;
   error?: string | null;
+  // Errors supplied from outside (e.g. server Zod errors parsed via
+  // parsePartyProfileZodErrorMessage). Merged with internal validation; shown
+  // regardless of `showValidationErrors`.
+  externalErrors?: PartyProfileValidationErrors;
   localizedTextVariant?: LocalizedTextVariant;
   onChange?: (bundle: PartyProfileBundleInput, dirty: boolean) => void;
   onDirtyChange?: (dirty: boolean) => void;
@@ -69,6 +79,11 @@ type PartyProfileEditorProps = {
     | void;
   seed?: PartyProfileSeed;
   partyKind?: "individual" | "legal_entity";
+  // When `true`, inline validation errors are shown next to each invalid field
+  // regardless of whether the user has submitted yet. Parents that submit
+  // externally (e.g. create-editor via the general form) can flip this to
+  // surface errors before the network call.
+  showValidationErrors?: boolean;
   showActions?: boolean;
   showIdentityFields?: boolean;
   showLocalizedTextModeSwitcher?: boolean;
@@ -341,6 +356,7 @@ export function PartyProfileEditor({
   bundle,
   description,
   error,
+  externalErrors,
   localizedTextVariant: controlledLocalizedTextVariant,
   onChange,
   onDirtyChange,
@@ -351,6 +367,7 @@ export function PartyProfileEditor({
   showActions = true,
   showIdentityFields = true,
   showLocalizedTextModeSwitcher = true,
+  showValidationErrors = false,
   submitLabel = "Сохранить",
   submitting = false,
   submittingLabel = "Сохранение...",
@@ -369,8 +386,21 @@ export function PartyProfileEditor({
   );
   const [localError, setLocalError] = useState<string | null>(null);
   const [internalLocalizedTextVariant, setInternalLocalizedTextVariant] =
-    useState<LocalizedTextVariant>("base");
-  const lastInitialDraftSerializedRef = useRef(initialDraftSerialized);
+    useState<LocalizedTextVariant>("ru");
+  const [submitAttempted, setSubmitAttempted] = useState(false);
+  // Tracks the last serialization we already synchronized into `draft`. Any bundle
+  // prop with this serialization is considered "already applied" and does not
+  // trigger re-sync. Updated on (a) external sync and (b) own emits — so that the
+  // parent echoing back our own emit does not trigger an infinite loop.
+  const lastSyncedSerializedRef = useRef(initialDraftSerialized);
+  // Set by the external-sync Effect so the emit-Effect running in the same
+  // render skips its emit (Effect 2 still sees the pre-sync `draft` and would
+  // otherwise overwrite the external change in the parent).
+  const skipNextEmitRef = useRef(false);
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+  const onDirtyChangeRef = useRef(onDirtyChange);
+  onDirtyChangeRef.current = onDirtyChange;
   const availableIdentifierSchemes = useMemo(
     () => getAvailableIdentifierSchemes(draft.identifiers),
     [draft.identifiers],
@@ -381,11 +411,12 @@ export function PartyProfileEditor({
     onLocalizedTextVariantChange ?? setInternalLocalizedTextVariant;
 
   useEffect(() => {
-    if (lastInitialDraftSerializedRef.current === initialDraftSerialized) {
+    if (lastSyncedSerializedRef.current === initialDraftSerialized) {
       return;
     }
 
-    lastInitialDraftSerializedRef.current = initialDraftSerialized;
+    lastSyncedSerializedRef.current = initialDraftSerialized;
+    skipNextEmitRef.current = true;
     setDraft(clonePartyProfileBundleInput(initialDraft));
     setLocalError(null);
   }, [initialDraft, initialDraftSerialized]);
@@ -396,25 +427,53 @@ export function PartyProfileEditor({
       serializeBundleForCompare(initialDraft),
     [draft, initialDraft],
   );
-  const emitDirtyChange = useEffectEvent((nextDirty: boolean) => {
-    onDirtyChange?.(nextDirty);
-  });
-  const emitChange = useEffectEvent(
-    (nextDraft: PartyProfileBundleInput, nextDirty: boolean) => {
-      onChange?.(clonePartyProfileBundleInput(nextDraft), nextDirty);
-    },
-  );
 
   useEffect(() => {
-    emitDirtyChange(isDirty);
+    onDirtyChangeRef.current?.(isDirty);
   }, [isDirty]);
 
   useEffect(() => {
-    emitChange(draft, isDirty);
+    if (skipNextEmitRef.current) {
+      skipNextEmitRef.current = false;
+      return;
+    }
+    const draftSerialized = serializeBundleForCompare(draft);
+    // Record what we are about to emit so the parent echoing it back via the
+    // `bundle` prop does not trigger a spurious re-sync.
+    lastSyncedSerializedRef.current = draftSerialized;
+    onChangeRef.current?.(clonePartyProfileBundleInput(draft), isDirty);
   }, [draft, isDirty]);
+
+  const validationErrors = useMemo(
+    () => validatePartyProfileBundle(draft),
+    [draft],
+  );
+  const shouldShowValidationErrors = showValidationErrors || submitAttempted;
+  const displayedErrors = useMemo<PartyProfileValidationErrors>(() => {
+    const merged: PartyProfileValidationErrors = {};
+    if (shouldShowValidationErrors) {
+      for (const [key, message] of Object.entries(validationErrors)) {
+        merged[key] = message;
+      }
+    }
+    if (externalErrors) {
+      for (const [key, message] of Object.entries(externalErrors)) {
+        merged[key] = message;
+      }
+    }
+    return merged;
+  }, [externalErrors, shouldShowValidationErrors, validationErrors]);
+  const getError = (path: string): string | undefined => displayedErrors[path];
 
   async function handleSubmit() {
     if (!onSubmit) {
+      return;
+    }
+
+    setSubmitAttempted(true);
+
+    if (hasPartyProfileValidationErrors(validationErrors)) {
+      setLocalError("Исправьте ошибки в форме перед сохранением");
       return;
     }
 
@@ -428,6 +487,7 @@ export function PartyProfileEditor({
       setDraft(
         clonePartyProfileBundleInput(toPartyProfileBundleInput(nextValue)),
       );
+      setSubmitAttempted(false);
     } catch (submitError) {
       setLocalError(
         submitError instanceof Error
@@ -748,8 +808,11 @@ export function PartyProfileEditor({
                     </SelectContent>
                   </Select>
                 </Field>
-                <Field>
-                  <FieldLabel>Значение</FieldLabel>
+                <Field data-invalid={Boolean(getError(`identifiers.${index}.value`))}>
+                  <FieldLabel>
+                    Значение
+                    <span className="text-destructive"> *</span>
+                  </FieldLabel>
                   <Input
                     value={identifier.value}
                     onChange={(event) =>
@@ -764,7 +827,11 @@ export function PartyProfileEditor({
                       }))
                     }
                     disabled={submitting}
+                    aria-invalid={Boolean(getError(`identifiers.${index}.value`))}
                   />
+                  {getError(`identifiers.${index}.value`) ? (
+                    <FieldError errors={[{ message: getError(`identifiers.${index}.value`)! }]} />
+                  ) : null}
                 </Field>
 
                 <RemoveButton
@@ -1002,6 +1069,8 @@ export function PartyProfileEditor({
                     }))
                   }
                   disabled={submitting}
+                  required
+                  error={getError(`representatives.${index}.fullName`)}
                 />
                 <LocalizedTextInputField
                   label="Должность"
@@ -1131,8 +1200,11 @@ export function PartyProfileEditor({
                       </SelectContent>
                     </Select>
                   </Field>
-                  <Field>
-                    <FieldLabel>Значение</FieldLabel>
+                  <Field data-invalid={Boolean(getError(`contacts.${index}.value`))}>
+                    <FieldLabel>
+                      Значение
+                      <span className="text-destructive"> *</span>
+                    </FieldLabel>
                     <Input
                       value={contact.value}
                       onChange={(event) =>
@@ -1146,7 +1218,13 @@ export function PartyProfileEditor({
                         }))
                       }
                       disabled={submitting}
+                      aria-invalid={Boolean(getError(`contacts.${index}.value`))}
                     />
+                    {getError(`contacts.${index}.value`) ? (
+                      <FieldError
+                        errors={[{ message: getError(`contacts.${index}.value`)! }]}
+                      />
+                    ) : null}
                   </Field>
                   <RemoveButton
                     onRemove={() =>
@@ -1261,8 +1339,11 @@ export function PartyProfileEditor({
                     </SelectContent>
                   </Select>
                 </Field>
-                <Field>
-                  <FieldLabel>Номер лицензии</FieldLabel>
+                <Field data-invalid={Boolean(getError(`licenses.${index}.licenseNumber`))}>
+                  <FieldLabel>
+                    Номер лицензии
+                    <span className="text-destructive"> *</span>
+                  </FieldLabel>
                   <Input
                     value={license.licenseNumber}
                     onChange={(event) =>
@@ -1276,7 +1357,13 @@ export function PartyProfileEditor({
                       }))
                     }
                     disabled={submitting}
+                    aria-invalid={Boolean(getError(`licenses.${index}.licenseNumber`))}
                   />
+                  {getError(`licenses.${index}.licenseNumber`) ? (
+                    <FieldError
+                      errors={[{ message: getError(`licenses.${index}.licenseNumber`)! }]}
+                    />
+                  ) : null}
                 </Field>
                 <LocalizedTextInputField
                   label="Кем выдана"

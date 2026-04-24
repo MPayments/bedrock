@@ -6,6 +6,7 @@ import {
   CreateCalculationInputSchema,
 } from "@bedrock/calculations/contracts";
 import {
+  AmendDealLegBodyInputSchema,
   AssignDealAgentInputSchema,
   AttachDealPricingRouteRequestSchema,
   CloseDealInputSchema,
@@ -28,11 +29,12 @@ import {
   PreviewDealPricingInputSchema,
   ReplaceDealIntakeInputSchema,
   ResolveDealExecutionBlockerInputSchema,
+  SetDealLegManualOverrideInputSchema,
+  SwapDealRouteTemplateInputSchema,
   TransitionDealStatusInputSchema,
   UpdateDealAgreementInputSchema,
   UpdateDealCommentInputSchema,
   UpdateDealPricingContextInputSchema,
-  UpdateDealLegStateInputSchema,
 } from "@bedrock/deals/contracts";
 import {
   FileAttachmentPurposeSchema,
@@ -1160,18 +1162,18 @@ export function dealsRoutes(ctx: AppContext) {
     },
   });
 
-  const updateLegStateRoute = createRoute({
+  const setLegManualOverrideRoute = createRoute({
     middleware: [requirePermission({ deals: ["update"] })],
     method: "post",
-    path: "/{id}/legs/{idx}/state",
+    path: "/{id}/legs/{idx}/override",
     tags: ["Deals"],
-    summary: "Update execution leg state",
+    summary: "Set manual leg override (block / skip / clear)",
     request: {
       params: DealLegParamsSchema,
       body: {
         content: {
           "application/json": {
-            schema: UpdateDealLegStateInputSchema,
+            schema: SetDealLegManualOverrideInputSchema,
           },
         },
         required: true,
@@ -1182,15 +1184,67 @@ export function dealsRoutes(ctx: AppContext) {
         content: {
           "application/json": { schema: DealWorkflowProjectionSchema },
         },
-        description: "Execution leg state updated",
+        description: "Leg manual override updated",
+      },
+    },
+  });
+
+  const amendLegRoute = createRoute({
+    middleware: [requirePermission({ deals: ["update"] })],
+    method: "post",
+    path: "/{id}/legs/{idx}/amend",
+    tags: ["Deals"],
+    summary: "Amend execution leg (counterparty/requisite/fees)",
+    request: {
+      params: DealLegParamsSchema,
+      body: {
+        content: {
+          "application/json": {
+            schema: AmendDealLegBodyInputSchema,
+          },
+        },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": { schema: DealWorkflowProjectionSchema },
+        },
+        description: "Leg amended",
       },
       409: {
         content: {
+          "application/json": { schema: ErrorSchema },
+        },
+        description: "Amendment conflicts with current state",
+      },
+    },
+  });
+
+  const swapRouteTemplateRoute = createRoute({
+    middleware: [requirePermission({ deals: ["update"] })],
+    method: "post",
+    path: "/{id}/pricing/route/swap",
+    tags: ["Deals"],
+    summary: "Swap the attached payment route template",
+    request: {
+      params: IdParamSchema,
+      body: {
+        content: {
           "application/json": {
-            schema: ErrorSchema,
+            schema: SwapDealRouteTemplateInputSchema,
           },
         },
-        description: "Leg state transition blocked",
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": { schema: DealWorkflowProjectionSchema },
+        },
+        description: "Route template swapped",
       },
     },
   });
@@ -2224,16 +2278,49 @@ export function dealsRoutes(ctx: AppContext) {
         return handleRouteError(c, error);
       }
     })
-    .openapi(updateLegStateRoute, async (c) => {
+    .openapi(setLegManualOverrideRoute, async (c) => {
       try {
         const { id, idx } = c.req.valid("param");
         const body = c.req.valid("json");
-        const result = await ctx.dealsModule.deals.commands.updateLegState({
+        const result =
+          await ctx.dealsModule.deals.commands.setLegManualOverride({
+            ...body,
+            actorUserId: c.get("user")!.id,
+            dealId: id,
+            idx,
+          });
+
+        return jsonOk(c, result);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(amendLegRoute, async (c) => {
+      try {
+        const { id, idx } = c.req.valid("param");
+        const body = c.req.valid("json");
+        const result = await ctx.dealsModule.deals.commands.amendDealLeg({
           ...body,
           actorUserId: c.get("user")!.id,
           dealId: id,
-          idx,
+          legIdx: idx,
         });
+
+        return jsonOk(c, result);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(swapRouteTemplateRoute, async (c) => {
+      try {
+        const { id } = c.req.valid("param");
+        const body = c.req.valid("json");
+        const result =
+          await ctx.dealsModule.deals.commands.swapDealRouteTemplate({
+            ...body,
+            actorUserId: c.get("user")!.id,
+            dealId: id,
+          });
 
         return jsonOk(c, result);
       } catch (error) {

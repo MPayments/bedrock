@@ -7,6 +7,7 @@ import type { FileAttachment } from "../../application/contracts/dto";
 import type {
   FileOwnerType,
   FileReads,
+  FileVersionMetadata,
   StoredFileRecord,
 } from "../../application/ports/file.reads";
 
@@ -149,6 +150,31 @@ export class DrizzleFileReads implements FileReads {
       .limit(1);
 
     return row ? mapStoredFile(row) : null;
+  }
+
+  async listCurrentFileVersionsByAssetIds(
+    assetIds: string[],
+  ): Promise<FileVersionMetadata[]> {
+    if (assetIds.length === 0) return [];
+    const rows = await this.db
+      .select({
+        assetId: fileAssets.id,
+        fileName: fileVersions.fileName,
+        fileSize: fileVersions.fileSize,
+        mimeType: fileVersions.mimeType,
+      })
+      .from(fileAssets)
+      .innerJoin(
+        fileVersions,
+        eq(fileVersions.id, fileAssets.currentVersionId),
+      )
+      .where(inArray(fileAssets.id, assetIds));
+    return rows.map((row) => ({
+      assetId: row.assetId,
+      fileName: row.fileName,
+      fileSize: row.fileSize,
+      mimeType: row.mimeType,
+    }));
   }
 
   async listAttachmentsByOwner(input: {
