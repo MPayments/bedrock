@@ -17,6 +17,8 @@ const TO_PARTY_ID = "00000000-0000-4000-8000-000000014002";
 const FROM_REQUISITE_ID = "00000000-0000-4000-8000-000000015001";
 const TO_REQUISITE_ID = "00000000-0000-4000-8000-000000015002";
 const SETTLEMENT_EVIDENCE_FILE_ID = "00000000-0000-4000-8000-000000016001";
+const POSTING_STEP_ID = "00000000-0000-4000-8000-000000011003";
+const POSTING_DOCUMENT_ID = "00000000-0000-4000-8000-000000017001";
 
 function createService(now: Date) {
   return createPaymentStepsService({
@@ -164,5 +166,49 @@ describe("PaymentSteps repository integration", () => {
       },
     ]);
     expect(listed.data[0]?.artifacts).toEqual(found.artifacts);
+  });
+
+  it("links a posting document idempotently via attachPosting", async () => {
+    const createdAt = new Date("2026-04-24T12:00:00.000Z");
+    const firstAttachAt = new Date("2026-04-24T12:05:00.000Z");
+    const secondAttachAt = new Date("2026-04-24T12:10:00.000Z");
+
+    await createService(createdAt).commands.create(
+      createDealLegStepInput(POSTING_STEP_ID),
+    );
+
+    const firstAttach = await createService(
+      firstAttachAt,
+    ).commands.attachPosting({
+      documentId: POSTING_DOCUMENT_ID,
+      kind: "exchange",
+      stepId: POSTING_STEP_ID,
+    });
+    expect(firstAttach.postings).toEqual([
+      { documentId: POSTING_DOCUMENT_ID, kind: "exchange" },
+    ]);
+    expect(firstAttach.updatedAt).toEqual(firstAttachAt);
+
+    // Re-attaching the same `(documentId, kind)` pair is a no-op: postings
+    // stay as one entry and `updatedAt` does not advance because the
+    // aggregate returns a clone when nothing changed.
+    const secondAttach = await createService(
+      secondAttachAt,
+    ).commands.attachPosting({
+      documentId: POSTING_DOCUMENT_ID,
+      kind: "exchange",
+      stepId: POSTING_STEP_ID,
+    });
+    expect(secondAttach.postings).toEqual([
+      { documentId: POSTING_DOCUMENT_ID, kind: "exchange" },
+    ]);
+    expect(secondAttach.updatedAt).toEqual(firstAttachAt);
+
+    const persisted = await createService(secondAttachAt).queries.findById({
+      stepId: POSTING_STEP_ID,
+    });
+    expect(persisted.postings).toEqual([
+      { documentId: POSTING_DOCUMENT_ID, kind: "exchange" },
+    ]);
   });
 });

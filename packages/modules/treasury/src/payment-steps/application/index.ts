@@ -1,4 +1,5 @@
 import { createAmendPaymentStepHandler } from "./commands/amend-step";
+import { createAttachPaymentStepPostingHandler } from "./commands/attach-posting";
 import { createCancelPaymentStepHandler } from "./commands/cancel-step";
 import { createConfirmPaymentStepHandler } from "./commands/confirm-step";
 import { createCreatePaymentStepHandler } from "./commands/create-step";
@@ -17,6 +18,7 @@ export function createPaymentStepsService(deps: PaymentStepsServiceDeps) {
   return {
     commands: {
       amend: createAmendPaymentStepHandler(context),
+      attachPosting: createAttachPaymentStepPostingHandler(context),
       cancel: createCancelPaymentStepHandler(context),
       confirm: createConfirmPaymentStepHandler(context),
       create: createCreatePaymentStepHandler(context),

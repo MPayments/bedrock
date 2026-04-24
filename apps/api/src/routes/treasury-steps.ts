@@ -79,6 +79,11 @@ const AmendPaymentStepBodySchema = z.object({
   toParty: PaymentStepPartyInputSchema.optional(),
 });
 
+const AttachPaymentStepPostingBodySchema = z.object({
+  documentId: z.uuid(),
+  kind: z.string().trim().min(1).max(64),
+});
+
 const ListPaymentStepsQuerySchema = z.object({
   batchId: z.uuid().optional(),
   dealId: z.uuid().optional(),
@@ -527,6 +532,59 @@ export function treasuryStepsRoutes(ctx: AppContext) {
     },
   });
 
+  const attachPostingRoute = createRoute({
+    middleware: [requirePermission({ deals: ["update"] })],
+    method: "post",
+    path: "/{stepId}/postings",
+    tags: ["Treasury"],
+    summary: "Link a posting document to a treasury payment step",
+    request: {
+      params: PaymentStepIdParamsSchema,
+      body: {
+        content: {
+          "application/json": {
+            schema: AttachPaymentStepPostingBodySchema,
+          },
+        },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        description: "Payment step updated with the linked posting",
+        content: {
+          "application/json": {
+            schema: PaymentStepResponseSchema,
+          },
+        },
+      },
+      400: {
+        description: "Validation or idempotency header error",
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+      },
+      404: {
+        description: "Payment step not found",
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+      },
+      409: {
+        description: "Idempotency conflict",
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+      },
+    },
+  });
+
   const skipStepRoute = createRoute({
     middleware: [requirePermission({ deals: ["update"] })],
     method: "post",
@@ -710,6 +768,30 @@ export function treasuryStepsRoutes(ctx: AppContext) {
           action: "skip",
           request: { stepId },
           run: (paymentSteps) => paymentSteps.commands.skip({ stepId }),
+        });
+
+        return result instanceof Response ? result : c.json(result, 200);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(attachPostingRoute, async (c) => {
+      try {
+        const { stepId } = c.req.valid("param");
+        const body = c.req.valid("json");
+        const result = await runIdempotentStepMutation(ctx, c, {
+          action: "attach_posting",
+          request: {
+            documentId: body.documentId,
+            kind: body.kind,
+            stepId,
+          },
+          run: (paymentSteps) =>
+            paymentSteps.commands.attachPosting({
+              documentId: body.documentId,
+              kind: body.kind,
+              stepId,
+            }),
         });
 
         return result instanceof Response ? result : c.json(result, 200);

@@ -16,10 +16,12 @@ function makeValues(): Parameters<typeof buildAmendRouteBody>[0]["before"] {
   return {
     fromAmountMinor: "1000",
     fromCurrencyId: "00000000-0000-4000-8000-000000000001",
+    fromPartyId: "00000000-0000-4000-8000-000000000100",
     fromRequisiteId: null,
     rate: null,
     toAmountMinor: "1000",
     toCurrencyId: "00000000-0000-4000-8000-000000000001",
+    toPartyId: "00000000-0000-4000-8000-000000000200",
     toRequisiteId: null,
   };
 }
@@ -104,7 +106,7 @@ describe("buildAmendRouteBody", () => {
     });
   });
 
-  it("wraps requisite changes in fromParty/toParty objects", () => {
+  it("wraps requisite changes in full fromParty/toParty payloads", () => {
     const before = makeValues();
     const after = {
       ...before,
@@ -112,8 +114,28 @@ describe("buildAmendRouteBody", () => {
       toRequisiteId: "00000000-0000-4000-8000-000000000021",
     };
     expect(buildAmendRouteBody({ before, after })).toEqual({
-      fromParty: { requisiteId: "00000000-0000-4000-8000-000000000020" },
-      toParty: { requisiteId: "00000000-0000-4000-8000-000000000021" },
+      fromParty: {
+        id: before.fromPartyId,
+        requisiteId: "00000000-0000-4000-8000-000000000020",
+      },
+      toParty: {
+        id: before.toPartyId,
+        requisiteId: "00000000-0000-4000-8000-000000000021",
+      },
+    });
+  });
+
+  it("includes full party payload when the party entity id changes", () => {
+    const before = makeValues();
+    const after = {
+      ...before,
+      fromPartyId: "00000000-0000-4000-8000-000000000999",
+    };
+    expect(buildAmendRouteBody({ before, after })).toEqual({
+      fromParty: {
+        id: "00000000-0000-4000-8000-000000000999",
+        requisiteId: null,
+      },
     });
   });
 

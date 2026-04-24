@@ -11,8 +11,13 @@ import {
   getDealLegKindLabel,
   getFinanceDealDisplayTitle,
 } from "@/features/treasury/deals/labels";
-import type { FinanceDealWorkbench } from "@/features/treasury/deals/lib/queries";
+import type {
+  FinanceDealPaymentStep,
+  FinanceDealWorkbench,
+} from "@/features/treasury/deals/lib/queries";
 import { StepCard } from "@/features/treasury/steps/components/step-card";
+import type { PartyKind } from "@/features/treasury/steps/lib/party-options";
+import { executeMutation } from "@/lib/resources/http";
 
 import { DealAttachmentsCard } from "./deal-attachments-card";
 import { DealTimelineCard } from "./deal-timeline-card";
@@ -26,6 +31,40 @@ import { DealExecutionHeaderSummary } from "./workbench/deal-execution-header-su
 import { useWorkbenchActions } from "./workbench/use-workbench-actions";
 import { refreshPage } from "./workbench/utils";
 import { FinanceDealWorkspaceLayout } from "./workspace-layout";
+
+/**
+ * Kind-heuristic mapping from a payment step's transactional kind to the
+ * posting-document types that we expect to appear on the deal for that kind.
+ * Used by the auto-link hook after StepCard mutations — treasurers no longer
+ * need to manually attach documents in the common path.
+ */
+function expectedPostingDocTypes(
+  kind: FinanceDealPaymentStep["kind"],
+): string[] {
+  switch (kind) {
+    case "payin":
+      return ["invoice"];
+    case "fx_conversion":
+      return ["exchange", "fx_execute"];
+    case "intracompany_transfer":
+      return ["transfer_intra"];
+    case "intercompany_funding":
+      return ["transfer_intercompany"];
+    case "payout":
+      return ["transfer_resolution"];
+    case "internal_transfer":
+      return ["transfer_intra"];
+    default:
+      return [];
+  }
+}
+
+function createIdempotencyKey() {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `idem-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
 
 export type FinanceDealWorkbenchProps = {
   deal: FinanceDealWorkbench;
@@ -78,6 +117,77 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
     [deal.executionSteps, selectedLeg],
   );
 
+  // The route editor's inline party/requisite selects need to know the entity
+  // kind for each side. For `deal_leg` steps the parent derives it from the
+  // attached route's participants list (positional: source at idx-1,
+  // destination at idx). Returns null when no kind info is available (e.g.
+  // dangling route, standalone step) — the editor then stays read-only.
+  const { fromPartyKind, toPartyKind } = useMemo(() => {
+    const attachment = deal.pricing.routeAttachment;
+    if (!attachment || !selectedLeg) {
+      return { fromPartyKind: null, toPartyKind: null };
+    }
+    const source = attachment.participants[selectedLeg.idx - 1] ?? null;
+    const destination = attachment.participants[selectedLeg.idx] ?? null;
+    const pickKind = (entityKind: string | null): PartyKind | null =>
+      entityKind === "organization" ||
+      entityKind === "counterparty" ||
+      entityKind === "customer"
+        ? entityKind
+        : null;
+    return {
+      fromPartyKind: pickKind(source?.entityKind ?? null),
+      toPartyKind: pickKind(destination?.entityKind ?? null),
+    };
+  }, [deal.pricing.routeAttachment, selectedLeg]);
+
+  /**
+   * After any StepCard mutation, try to link any active posting document on
+   * the deal that matches this step's kind-heuristic and isn't already
+   * attached. The backend `attachPosting` command is idempotent per
+   * `(documentId, kind)`, so double-invoking is safe. Errors are swallowed —
+   * auto-link is best-effort; the treasurer still sees the step mutation.
+   */
+  async function autoLinkPostingsForStep(step: FinanceDealPaymentStep) {
+    const expectedDocTypes = expectedPostingDocTypes(step.kind);
+    if (expectedDocTypes.length === 0) return;
+    const alreadyLinked = new Set(
+      step.postings.map((posting) => posting.kind),
+    );
+    const candidates = deal.relatedResources.formalDocuments.filter(
+      (doc) =>
+        expectedDocTypes.includes(doc.docType) &&
+        !alreadyLinked.has(doc.docType) &&
+        doc.lifecycleStatus !== "cancelled",
+    );
+    for (const doc of candidates) {
+      await executeMutation({
+        fallbackMessage: "Не удалось связать документ со шагом",
+        request: () =>
+          fetch(
+            `/v1/treasury/steps/${encodeURIComponent(step.id)}/postings`,
+            {
+              method: "POST",
+              credentials: "include",
+              headers: {
+                "Content-Type": "application/json",
+                "Idempotency-Key": createIdempotencyKey(),
+              },
+              body: JSON.stringify({
+                documentId: doc.id,
+                kind: doc.docType,
+              }),
+            },
+          ),
+      });
+    }
+  }
+
+  async function handleStepChanged(step: FinanceDealPaymentStep) {
+    await autoLinkPostingsForStep(step);
+    router.refresh();
+  }
+
   return (
     <>
       <FinanceDealWorkspaceLayout title={title}>
@@ -109,8 +219,10 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
                   uploadAssetPath={`/v1/deals/${encodeURIComponent(
                     deal.summary.id,
                   )}/attachments`}
+                  fromPartyKind={fromPartyKind}
+                  toPartyKind={toPartyKind}
                   disabled={!canWrite}
-                  onChanged={() => router.refresh()}
+                  onChanged={handleStepChanged}
                 />
               ) : (
                 <div className="bg-card text-muted-foreground rounded-lg border p-6 text-sm">

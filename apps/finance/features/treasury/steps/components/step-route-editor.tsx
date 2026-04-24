@@ -5,6 +5,13 @@ import { ArrowRight, Check, Loader2, TriangleAlert } from "lucide-react";
 
 import { Input } from "@bedrock/sdk-ui/components/input";
 import { Label } from "@bedrock/sdk-ui/components/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@bedrock/sdk-ui/components/select";
 
 import type { FinanceDealPaymentStep } from "@/features/treasury/deals/lib/queries";
 import { executeMutation } from "@/lib/resources/http";
@@ -13,6 +20,13 @@ import {
   buildAmendRouteBody,
   type AmendFieldValues,
 } from "../lib/step-helpers";
+import {
+  listPartyOptions,
+  listRequisiteOptions,
+  type PartyKind,
+  type PartyOption,
+  type RequisiteOption,
+} from "../lib/party-options";
 import { useDebouncedCallback } from "../lib/use-debounced-callback";
 
 function createIdempotencyKey() {
@@ -38,14 +52,30 @@ const MUTABLE_STATES: ReadonlySet<FinanceDealPaymentStep["state"]> = new Set([
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 
+type SideKey = "from" | "to";
+
+const SIDE_LABELS: Record<SideKey, string> = {
+  from: "Отправитель",
+  to: "Получатель",
+};
+
+const PARTY_KIND_LABELS: Record<PartyKind, string> = {
+  counterparty: "Контрагент",
+  customer: "Клиент",
+  organization: "Организация",
+};
+
 export interface StepRouteEditorProps {
   step: FinanceDealPaymentStep;
   /**
-   * Debounce window for inline edits. Defaults to 500ms which keeps the
-   * network quiet without feeling laggy.
+   * Kind of the source party, as known by the parent (usually derived from
+   * the deal's `routeAttachment.participants`). When set, the editor renders
+   * an inline Select for both the party and its requisite. When null or
+   * undefined (e.g. for standalone steps), the side stays read-only.
    */
+  fromPartyKind?: PartyKind | null;
+  toPartyKind?: PartyKind | null;
   debounceMs?: number;
-  /** Called after an amend succeeds (e.g. workbench router.refresh). */
   onAmended?: () => void;
   disabled?: boolean;
 }
@@ -53,8 +83,10 @@ export interface StepRouteEditorProps {
 export function StepRouteEditor({
   debounceMs = 500,
   disabled,
+  fromPartyKind = null,
   onAmended,
   step,
+  toPartyKind = null,
 }: StepRouteEditorProps) {
   const isEditable = MUTABLE_STATES.has(step.state) && !disabled;
 
@@ -62,10 +94,12 @@ export function StepRouteEditor({
     () => ({
       fromAmountMinor: step.fromAmountMinor,
       fromCurrencyId: step.fromCurrencyId,
+      fromPartyId: step.fromParty.id,
       fromRequisiteId: step.fromParty.requisiteId,
       rate: step.rate,
       toAmountMinor: step.toAmountMinor,
       toCurrencyId: step.toCurrencyId,
+      toPartyId: step.toParty.id,
       toRequisiteId: step.toParty.requisiteId,
     }),
     [step],
@@ -74,9 +108,6 @@ export function StepRouteEditor({
   const [values, setValues] = useState<AmendFieldValues>(initialValues);
   const [status, setStatus] = useState<SaveStatus>("idle");
 
-  // Reset local state whenever the underlying step revision rolls (e.g. after
-  // a router.refresh triggered by another action). Otherwise we'd keep stale
-  // "dirty" values.
   useEffect(() => {
     setValues(initialValues);
     setStatus("idle");
@@ -115,15 +146,16 @@ export function StepRouteEditor({
 
   const debouncedSave = useDebouncedCallback(save, debounceMs);
 
+  function applyChange(next: AmendFieldValues) {
+    setValues(next);
+    debouncedSave(next);
+  }
+
   function updateField<K extends keyof AmendFieldValues>(
     key: K,
     value: AmendFieldValues[K],
   ) {
-    setValues((prev) => {
-      const next = { ...prev, [key]: value };
-      debouncedSave(next);
-      return next;
-    });
+    applyChange({ ...values, [key]: value });
   }
 
   return (
@@ -131,24 +163,48 @@ export function StepRouteEditor({
       className="border-muted bg-muted/20 space-y-3 rounded-md border px-4 py-3"
       data-testid={`finance-step-route-editor-${step.id}`}
     >
-      <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-end gap-x-3 gap-y-3">
-        <div className="space-y-2">
-          <Label>Отправитель</Label>
-          <div className="text-sm font-medium">{step.fromParty.id}</div>
-          <div className="text-muted-foreground text-xs">
-            {step.fromParty.requisiteId ?? "Реквизит не задан"}
-          </div>
-        </div>
+      <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-x-3 gap-y-3">
+        <PartySideEditor
+          side="from"
+          stepId={step.id}
+          kind={fromPartyKind}
+          editable={isEditable}
+          partyId={values.fromPartyId}
+          requisiteId={values.fromRequisiteId}
+          onChangePartyId={(nextPartyId) =>
+            applyChange({
+              ...values,
+              fromPartyId: nextPartyId,
+              // Requisite must be revalidated against the new owner — reset
+              // it locally; the treasurer picks a new one in the Select below.
+              fromRequisiteId: null,
+            })
+          }
+          onChangeRequisiteId={(nextRequisiteId) =>
+            updateField("fromRequisiteId", nextRequisiteId)
+          }
+        />
 
         <ArrowRight className="text-muted-foreground mb-2 h-4 w-4 shrink-0 self-end" />
 
-        <div className="space-y-2">
-          <Label>Получатель</Label>
-          <div className="text-sm font-medium">{step.toParty.id}</div>
-          <div className="text-muted-foreground text-xs">
-            {step.toParty.requisiteId ?? "Реквизит не задан"}
-          </div>
-        </div>
+        <PartySideEditor
+          side="to"
+          stepId={step.id}
+          kind={toPartyKind}
+          editable={isEditable}
+          partyId={values.toPartyId}
+          requisiteId={values.toRequisiteId}
+          onChangePartyId={(nextPartyId) =>
+            applyChange({
+              ...values,
+              toPartyId: nextPartyId,
+              toRequisiteId: null,
+            })
+          }
+          onChangeRequisiteId={(nextRequisiteId) =>
+            updateField("toRequisiteId", nextRequisiteId)
+          }
+        />
       </div>
 
       <div className="grid grid-cols-2 gap-x-3 gap-y-3">
@@ -219,6 +275,147 @@ export function StepRouteEditor({
           </span>
         ) : null}
       </div>
+    </div>
+  );
+}
+
+interface PartySideEditorProps {
+  side: SideKey;
+  stepId: string;
+  kind: PartyKind | null;
+  editable: boolean;
+  partyId: string;
+  requisiteId: string | null;
+  onChangePartyId: (partyId: string) => void;
+  onChangeRequisiteId: (requisiteId: string | null) => void;
+}
+
+function PartySideEditor({
+  editable,
+  kind,
+  onChangePartyId,
+  onChangeRequisiteId,
+  partyId,
+  requisiteId,
+  side,
+  stepId,
+}: PartySideEditorProps) {
+  const [partyOptions, setPartyOptions] = useState<PartyOption[]>([]);
+  const [requisiteOptions, setRequisiteOptions] = useState<RequisiteOption[]>(
+    [],
+  );
+
+  useEffect(() => {
+    if (!kind || !editable) {
+      setPartyOptions([]);
+      return;
+    }
+    let cancelled = false;
+    listPartyOptions(kind).then((options) => {
+      if (!cancelled) setPartyOptions(options);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [editable, kind]);
+
+  useEffect(() => {
+    if (!kind || !editable || !partyId) {
+      setRequisiteOptions([]);
+      return;
+    }
+    let cancelled = false;
+    listRequisiteOptions({ ownerType: kind, ownerId: partyId }).then(
+      (options) => {
+        if (!cancelled) setRequisiteOptions(options);
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [editable, kind, partyId]);
+
+  if (!kind) {
+    return (
+      <div className="space-y-2">
+        <Label>{SIDE_LABELS[side]}</Label>
+        <div className="text-sm font-medium">{partyId}</div>
+        <div className="text-muted-foreground text-xs">
+          {requisiteId ?? "Реквизит не задан"}
+        </div>
+      </div>
+    );
+  }
+
+  const selectedPartyLabel =
+    partyOptions.find((opt) => opt.id === partyId)?.label ?? partyId;
+  const selectedRequisiteLabel =
+    requisiteOptions.find((opt) => opt.id === requisiteId)?.label ??
+    (requisiteId ?? undefined);
+
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={`step-${stepId}-${side}-party`}>
+        {SIDE_LABELS[side]}
+        <span className="text-muted-foreground ml-2 text-xs">
+          · {PARTY_KIND_LABELS[kind]}
+        </span>
+      </Label>
+      <Select
+        value={partyId}
+        onValueChange={(value) => {
+          if (value) onChangePartyId(value);
+        }}
+        disabled={!editable}
+      >
+        <SelectTrigger
+          id={`step-${stepId}-${side}-party`}
+          data-testid={`finance-step-${side}-party-${stepId}`}
+          className="w-full"
+        >
+          <SelectValue placeholder="Выберите контрагента">
+            {selectedPartyLabel}
+          </SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          {partyOptions.map((opt) => (
+            <SelectItem key={opt.id} value={opt.id}>
+              {opt.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      <Select
+        value={requisiteId ?? ""}
+        onValueChange={(value) =>
+          onChangeRequisiteId(value ? value : null)
+        }
+        disabled={!editable || requisiteOptions.length === 0}
+      >
+        <SelectTrigger
+          id={`step-${stepId}-${side}-requisite`}
+          data-testid={`finance-step-${side}-requisite-${stepId}`}
+          className="w-full"
+        >
+          <SelectValue
+            placeholder={
+              requisiteOptions.length === 0
+                ? "Нет подходящих реквизитов"
+                : "Выберите реквизит"
+            }
+          >
+            {selectedRequisiteLabel ?? undefined}
+          </SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          {requisiteOptions.map((opt) => (
+            <SelectItem key={opt.id} value={opt.id}>
+              {opt.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   );
 }

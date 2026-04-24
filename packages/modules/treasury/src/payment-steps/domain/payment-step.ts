@@ -573,6 +573,32 @@ export class PaymentStep extends AggregateRoot<string> {
     );
   }
 
+  /**
+   * Attach a posting-document reference. Idempotent per `(documentId, kind)`
+   * tuple — a second attach with the same pair is a no-op so deal-execution
+   * workflows can safely auto-link on every Submit/Confirm without risking
+   * duplicates. Allowed in every state: treasurers may surface a
+   * retroactive document after the step already completed.
+   */
+  attachPosting(input: PostingDocumentRef, now: Date): PaymentStep {
+    const documentId = normalizeRequiredText(input.documentId, "documentId");
+    const kind = normalizeRequiredText(input.kind, "kind");
+    const alreadyLinked = this.snapshot.postings.some(
+      (existing) => existing.documentId === documentId && existing.kind === kind,
+    );
+    if (alreadyLinked) {
+      return new PaymentStep(cloneSnapshot(this.snapshot));
+    }
+
+    return new PaymentStep(
+      normalizeSnapshot({
+        ...this.snapshot,
+        postings: [...this.snapshot.postings, { documentId, kind }],
+        updatedAt: now,
+      }),
+    );
+  }
+
   toSnapshot(): PaymentStepSnapshot {
     return cloneSnapshot(this.snapshot);
   }

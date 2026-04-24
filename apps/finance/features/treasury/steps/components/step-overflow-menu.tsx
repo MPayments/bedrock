@@ -24,13 +24,19 @@ function createIdempotencyKey() {
   return `idem-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-type MenuAction = "cancel" | "skip" | "retry" | "open-history";
+type MenuAction =
+  | "cancel"
+  | "skip"
+  | "retry"
+  | "open-history"
+  | "mark-returned";
 
 const MENU_ACTION_LABELS: Record<MenuAction, string> = {
   cancel: "Отменить шаг",
   skip: "Пропустить шаг",
   retry: "Повторить",
   "open-history": "История попыток",
+  "mark-returned": "Зафиксировать возврат",
 };
 
 const MENU_ACTION_PENDING_LABELS: Record<MenuAction, string> = {
@@ -38,6 +44,7 @@ const MENU_ACTION_PENDING_LABELS: Record<MenuAction, string> = {
   skip: "Пропускаем...",
   retry: "Открываем...",
   "open-history": "История попыток",
+  "mark-returned": "Зафиксировать возврат",
 };
 
 const MUTABLE_STATES: ReadonlySet<FinanceDealPaymentStep["state"]> = new Set([
@@ -49,6 +56,12 @@ const MUTABLE_STATES: ReadonlySet<FinanceDealPaymentStep["state"]> = new Set([
 export interface StepOverflowMenuProps {
   step: FinanceDealPaymentStep;
   onOpenHistory: () => void;
+  /**
+   * Opens the confirm dialog preseeded with `outcome = "returned"`. Parent
+   * owns dialog state so the same component is reused across every flow that
+   * can touch a completed step. Omit to hide the menu item.
+   */
+  onMarkReturned?: () => void;
   /** Called after any mutation that changes the step; default = router.refresh */
   onChanged?: () => void;
   /** Optional admin link for the bottom of the menu (instruction admin view) */
@@ -60,6 +73,7 @@ export function StepOverflowMenu({
   adminViewHref,
   disabled,
   onChanged,
+  onMarkReturned,
   onOpenHistory,
   step,
 }: StepOverflowMenuProps) {
@@ -69,6 +83,7 @@ export function StepOverflowMenu({
   const canCancel = MUTABLE_STATES.has(step.state);
   const canSkip = MUTABLE_STATES.has(step.state);
   const canRetrySubmit = step.state === "failed";
+  const canMarkReturned = step.state === "completed" && Boolean(onMarkReturned);
   const hasHistory = step.attempts.length > 0;
 
   async function postMutation(
@@ -142,6 +157,13 @@ export function StepOverflowMenu({
         // This menu item is a discoverable surface that forwards to the same.
         toast.info("Используйте основную кнопку «Отправить повторно»");
       },
+    });
+  }
+
+  if (canMarkReturned && onMarkReturned) {
+    menuItems.push({
+      action: "mark-returned",
+      onSelect: onMarkReturned,
     });
   }
 

@@ -76,10 +76,12 @@ export function stepBadgeVariant(state: StepState): StepBadgeVariant {
 export interface AmendFieldValues {
   fromAmountMinor: string | null;
   fromCurrencyId: string;
+  fromPartyId: string;
   fromRequisiteId: string | null;
   rate: { value: string; lockedSide: "in" | "out" } | null;
   toAmountMinor: string | null;
   toCurrencyId: string;
+  toPartyId: string;
   toRequisiteId: string | null;
 }
 
@@ -92,6 +94,11 @@ export interface AmendRouteInput {
  * Build the `POST /v1/treasury/steps/{id}/amend` body for the fields that
  * actually changed. Returns `null` when nothing has changed so the caller can
  * skip the network round-trip.
+ *
+ * Party updates always send the full `{ id, requisiteId }` payload because
+ * the backend schema requires both — changing only the entity leaves the
+ * old requisite attached to the new owner, so the UI also resets the
+ * requisite whenever the entity changes (enforced by the editor, not here).
  */
 export function buildAmendRouteBody(
   input: AmendRouteInput,
@@ -104,8 +111,14 @@ export function buildAmendRouteBody(
   if (input.before.fromCurrencyId !== input.after.fromCurrencyId) {
     body.fromCurrencyId = input.after.fromCurrencyId;
   }
-  if (input.before.fromRequisiteId !== input.after.fromRequisiteId) {
-    body.fromParty = { requisiteId: input.after.fromRequisiteId };
+  if (
+    input.before.fromPartyId !== input.after.fromPartyId ||
+    input.before.fromRequisiteId !== input.after.fromRequisiteId
+  ) {
+    body.fromParty = {
+      id: input.after.fromPartyId,
+      requisiteId: input.after.fromRequisiteId,
+    };
   }
   if (!rateEquals(input.before.rate, input.after.rate)) {
     body.rate = input.after.rate;
@@ -116,8 +129,14 @@ export function buildAmendRouteBody(
   if (input.before.toCurrencyId !== input.after.toCurrencyId) {
     body.toCurrencyId = input.after.toCurrencyId;
   }
-  if (input.before.toRequisiteId !== input.after.toRequisiteId) {
-    body.toParty = { requisiteId: input.after.toRequisiteId };
+  if (
+    input.before.toPartyId !== input.after.toPartyId ||
+    input.before.toRequisiteId !== input.after.toRequisiteId
+  ) {
+    body.toParty = {
+      id: input.after.toPartyId,
+      requisiteId: input.after.toRequisiteId,
+    };
   }
 
   return Object.keys(body).length === 0 ? null : body;

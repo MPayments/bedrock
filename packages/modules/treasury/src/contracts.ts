@@ -28,12 +28,14 @@ export {
 } from "./payment-steps/contracts/dto";
 export {
   AmendPaymentStepInputSchema,
+  AttachPaymentStepPostingInputSchema,
   CancelPaymentStepInputSchema,
   ConfirmPaymentStepInputSchema,
   CreatePaymentStepInputSchema,
   SkipPaymentStepInputSchema,
   SubmitPaymentStepInputSchema,
   type AmendPaymentStepInput,
+  type AttachPaymentStepPostingInput,
   type CancelPaymentStepInput,
   type ConfirmPaymentStepInput,
   type CreatePaymentStepInput,

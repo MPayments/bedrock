@@ -6,7 +6,11 @@ import { Button } from "@bedrock/sdk-ui/components/button";
 
 import type { FinanceDealPaymentStep } from "@/features/treasury/deals/lib/queries";
 
-import { deriveStepPrimaryAction } from "../lib/step-helpers";
+import type { PartyKind } from "../lib/party-options";
+import {
+  deriveStepPrimaryAction,
+  type StepConfirmOutcome,
+} from "../lib/step-helpers";
 import { StepAttemptsDrawer } from "./step-attempts-drawer";
 import { StepConfirmDialog } from "./step-confirm-dialog";
 import { StepOverflowMenu } from "./step-overflow-menu";
@@ -24,33 +28,53 @@ export interface StepCardProps {
   uploadAssetPath?: string;
   /** Admin href (e.g. `/treasury/operations/{operationId}`) for overflow. */
   adminViewHref?: string;
-  /** Called after any successful mutation to refresh the parent. */
-  onChanged?: () => void;
+  /**
+   * Called after any successful mutation. Receives the step at the moment of
+   * change so the parent can run post-hooks (e.g. auto-linking newly
+   * appeared posting documents) before its own refresh.
+   */
+  onChanged?: (step: FinanceDealPaymentStep) => void;
   /**
    * Short headline shown in the card header (e.g. "Шаг 2 · Конверсия").
    * Parent supplies it because only the parent knows the deal/leg context
    * (role labels, step position in the route).
    */
   title?: string;
+  /**
+   * Optional party kinds per side — when provided the route editor turns
+   * party and requisite pickers into live Selects. Parent derives this from
+   * the deal's route-attachment participants (for `deal_leg` steps).
+   */
+  fromPartyKind?: PartyKind | null;
+  toPartyKind?: PartyKind | null;
   disabled?: boolean;
 }
 
 export function StepCard({
   adminViewHref,
   disabled,
+  fromPartyKind = null,
   onChanged,
   step,
   title,
+  toPartyKind = null,
   uploadAssetPath,
 }: StepCardProps) {
   const [submitOpen, setSubmitOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmInitialOutcome, setConfirmInitialOutcome] =
+    useState<StepConfirmOutcome>("settled");
   const [historyOpen, setHistoryOpen] = useState(false);
 
   const primaryAction = deriveStepPrimaryAction(step.state);
 
   function handleSuccess() {
-    if (onChanged) onChanged();
+    if (onChanged) onChanged(step);
+  }
+
+  function openConfirmDialog(outcome: StepConfirmOutcome) {
+    setConfirmInitialOutcome(outcome);
+    setConfirmOpen(true);
   }
 
   return (
@@ -79,6 +103,8 @@ export function StepCard({
         <StepRouteEditor
           step={step}
           disabled={disabled}
+          fromPartyKind={fromPartyKind}
+          toPartyKind={toPartyKind}
           onAmended={handleSuccess}
         />
 
@@ -105,7 +131,7 @@ export function StepCard({
 
           {primaryAction === "confirm" ? (
             <Button
-              onClick={() => setConfirmOpen(true)}
+              onClick={() => openConfirmDialog("settled")}
               disabled={disabled}
               data-testid={`finance-step-primary-confirm-${step.id}`}
             >
@@ -118,6 +144,7 @@ export function StepCard({
             adminViewHref={adminViewHref}
             disabled={disabled}
             onChanged={handleSuccess}
+            onMarkReturned={() => openConfirmDialog("returned")}
             onOpenHistory={() => setHistoryOpen(true)}
           />
         </div>
@@ -136,6 +163,7 @@ export function StepCard({
         onOpenChange={setConfirmOpen}
         onSuccess={handleSuccess}
         uploadAssetPath={uploadAssetPath}
+        initialOutcome={confirmInitialOutcome}
       />
 
       <StepAttemptsDrawer

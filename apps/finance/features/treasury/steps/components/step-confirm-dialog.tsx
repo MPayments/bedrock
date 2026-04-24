@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Button } from "@bedrock/sdk-ui/components/button";
 import {
@@ -71,9 +71,16 @@ export interface StepConfirmDialogProps {
    * file-upload control (e.g. for standalone steps without a deal).
    */
   uploadAssetPath?: string;
+  /**
+   * Outcome to preselect when the dialog opens. Used by the "mark returned"
+   * flow from completed steps to skip straight to the returned branch.
+   * Defaults to `"settled"`.
+   */
+  initialOutcome?: StepConfirmOutcome;
 }
 
 export function StepConfirmDialog({
+  initialOutcome = "settled",
   onOpenChange,
   onSuccess,
   open,
@@ -81,7 +88,7 @@ export function StepConfirmDialog({
   uploadAssetPath,
 }: StepConfirmDialogProps) {
   const router = useRouter();
-  const [outcome, setOutcome] = useState<StepConfirmOutcome>("settled");
+  const [outcome, setOutcome] = useState<StepConfirmOutcome>(initialOutcome);
   const [purpose, setPurpose] = useState<string>(
     EVIDENCE_PURPOSE_OPTIONS[0]!.value,
   );
@@ -93,7 +100,7 @@ export function StepConfirmDialog({
   const needsFailureReason = outcome === "failed";
 
   function resetState() {
-    setOutcome("settled");
+    setOutcome(initialOutcome);
     setPurpose(EVIDENCE_PURPOSE_OPTIONS[0]!.value);
     setFile(null);
     setFailureReason("");
@@ -103,6 +110,14 @@ export function StepConfirmDialog({
     if (!next) resetState();
     onOpenChange(next);
   }
+
+  // Re-seed the outcome each time the dialog opens so callers can change
+  // `initialOutcome` between opens (e.g. from "settled" to "returned").
+  useEffect(() => {
+    if (open) {
+      setOutcome(initialOutcome);
+    }
+  }, [initialOutcome, open]);
 
   async function uploadEvidence(): Promise<string | null> {
     if (!file || !uploadAssetPath) return null;

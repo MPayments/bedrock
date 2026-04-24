@@ -73,7 +73,16 @@ export const SkipPaymentStepInputSchema = z.object({
   stepId: z.uuid(),
 });
 
+export const AttachPaymentStepPostingInputSchema = z.object({
+  documentId: z.uuid(),
+  kind: z.string().trim().min(1).max(64),
+  stepId: z.uuid(),
+});
+
 export type AmendPaymentStepInput = z.infer<typeof AmendPaymentStepInputSchema>;
+export type AttachPaymentStepPostingInput = z.infer<
+  typeof AttachPaymentStepPostingInputSchema
+>;
 export type CancelPaymentStepInput = z.infer<typeof CancelPaymentStepInputSchema>;
 export type ConfirmPaymentStepInput = z.infer<typeof ConfirmPaymentStepInputSchema>;
 export type CreatePaymentStepInput = z.infer<typeof CreatePaymentStepInputSchema>;
