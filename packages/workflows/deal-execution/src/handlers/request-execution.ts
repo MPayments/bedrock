@@ -23,6 +23,7 @@ export async function requestExecution(
     idempotencyKey: string;
   },
 ): Promise<DealWorkflowProjection> {
+  const paymentStepsEnabled = deps.paymentStepsEnabled ?? false;
   return runIdempotent(deps, {
     actorUserId: input.actorUserId,
     handler: async ({ dealStore, dealsModule, treasuryModule }) => {
@@ -32,6 +33,19 @@ export async function requestExecution(
         workflow.executionPlan.some((leg) => leg.operationRefs.length > 0)
       ) {
         return workflow;
+      }
+
+      if (paymentStepsEnabled) {
+        const existingSteps =
+          await treasuryModule.paymentSteps.queries.list({
+            dealId: input.dealId,
+            limit: 1,
+            offset: 0,
+            purpose: "deal_leg",
+          });
+        if (existingSteps.total > 0) {
+          return workflow;
+        }
       }
 
       assertExecutionRequestAllowed(workflow);
@@ -50,6 +64,7 @@ export async function requestExecution(
       for (const operation of recipeContext.recipe) {
         await materializeCompiledOperation({
           acceptedQuote: recipeContext.acceptedQuote,
+          agreementOrganizationId: recipeContext.agreementOrganizationId,
           compiled: operation,
           currencies: deps.currencies,
           currencyCodeById,
@@ -57,6 +72,7 @@ export async function requestExecution(
           dealStore,
           internalEntityOrganizationId:
             recipeContext.internalEntityOrganizationId,
+          paymentStepsEnabled: deps.paymentStepsEnabled ?? false,
           treasuryModule,
           workflow,
         });

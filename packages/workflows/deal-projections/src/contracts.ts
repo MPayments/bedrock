@@ -36,6 +36,7 @@ import {
   MAX_QUERY_LIST_LIMIT,
 } from "@bedrock/shared/core/pagination";
 import {
+  PaymentStepSchema,
   QuoteListItemSchema,
   QuoteSchema,
   TreasuryInstructionActionsSchema,
@@ -899,6 +900,7 @@ export const FinanceDealWorkspaceProjectionSchema = z.object({
     formalDocuments: z.array(DealRelatedFormalDocumentSchema),
     instructionArtifacts: z.array(FinanceDealInstructionArtifactSchema),
     operations: z.array(FinanceDealOperationSchema),
+    paymentSteps: z.array(PaymentStepSchema).default([]),
     quotes: z.array(DealRelatedQuoteSchema),
     reconciliationExceptions: z.array(
       FinanceDealReconciliationExceptionSchema,

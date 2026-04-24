@@ -24,7 +24,10 @@ export interface DealProjectionsWorkflowDeps {
     "counterparties" | "customers" | "organizations" | "requisites"
   >;
   reconciliation: Pick<ReconciliationService, "links">;
-  treasury: Pick<TreasuryModule, "instructions" | "operations" | "quotes">;
+  treasury: Pick<
+    TreasuryModule,
+    "instructions" | "operations" | "paymentSteps" | "quotes"
+  >;
 }
 
 export type CalculationDetailsLike = NonNullable<

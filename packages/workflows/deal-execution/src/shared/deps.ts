@@ -51,14 +51,16 @@ export interface OperationMutationResult {
   operationId: string;
 }
 
+export type DealExecutionTreasuryModule = Pick<
+  TreasuryModule,
+  "instructions" | "operations" | "paymentSteps" | "quotes"
+>;
+
 export interface DealExecutionTxDeps {
   dealStore: DealExecutionStore;
   dealsModule: Pick<DealsModule, "deals">;
   reconciliation: Pick<ReconciliationService, "links" | "records">;
-  treasuryModule: Pick<
-    TreasuryModule,
-    "instructions" | "operations" | "quotes"
-  >;
+  treasuryModule: DealExecutionTreasuryModule;
 }
 
 export interface DealExecutionWorkflowDeps {
@@ -66,12 +68,11 @@ export interface DealExecutionWorkflowDeps {
   currencies: Pick<CurrenciesService, "findById">;
   db: Database;
   idempotency: IdempotencyPort;
+  paymentStepsEnabled?: boolean;
   createDealStore(tx: Transaction): DealExecutionStore;
   createDealsModule(tx: Transaction): Pick<DealsModule, "deals">;
   createReconciliationService(
     tx: Transaction,
   ): Pick<ReconciliationService, "links" | "records">;
-  createTreasuryModule(
-    tx: Transaction,
-  ): Pick<TreasuryModule, "instructions" | "operations" | "quotes">;
+  createTreasuryModule(tx: Transaction): DealExecutionTreasuryModule;
 }

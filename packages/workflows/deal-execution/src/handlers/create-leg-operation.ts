@@ -26,6 +26,7 @@ export async function createLegOperation(
     legId: string;
   },
 ): Promise<DealWorkflowProjection> {
+  const paymentStepsEnabled = deps.paymentStepsEnabled ?? false;
   return runIdempotent(deps, {
     actorUserId: input.actorUserId,
     handler: async ({ dealStore, dealsModule, treasuryModule }) => {
@@ -48,6 +49,21 @@ export async function createLegOperation(
         return workflow;
       }
 
+      if (paymentStepsEnabled) {
+        const existingSteps =
+          await treasuryModule.paymentSteps.queries.list({
+            dealId: input.dealId,
+            limit: 100,
+            offset: 0,
+            purpose: "deal_leg",
+          });
+        if (
+          existingSteps.data.some((step) => step.dealLegIdx === leg.idx)
+        ) {
+          return workflow;
+        }
+      }
+
       assertExecutionRequestAllowed(workflow);
 
       const recipeContext = await resolveRecipeContext(
@@ -67,6 +83,7 @@ export async function createLegOperation(
 
       const operation = await materializeCompiledOperation({
         acceptedQuote: recipeContext.acceptedQuote,
+        agreementOrganizationId: recipeContext.agreementOrganizationId,
         compiled,
         currencies: deps.currencies,
         currencyCodeById: new Map<string, string>(),
@@ -74,6 +91,7 @@ export async function createLegOperation(
         dealStore,
         internalEntityOrganizationId:
           recipeContext.internalEntityOrganizationId,
+        paymentStepsEnabled: deps.paymentStepsEnabled ?? false,
         treasuryModule,
         workflow,
       });

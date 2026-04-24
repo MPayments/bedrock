@@ -356,6 +356,7 @@ export function createApplicationServices(
     currencies: currenciesService,
     db,
     idempotency,
+    paymentStepsEnabled: process.env.PAYMENT_STEPS_ENABLED === "true",
     createDealStore: (tx) => new DrizzleDealStore(tx),
     createDealsModule: createDealsModuleForTransaction,
     createReconciliationService: createReconciliationServiceForTransaction,

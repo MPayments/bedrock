@@ -61,6 +61,7 @@ export async function getFinanceDealWorkspaceProjection(
     attachments,
     currentCalculation,
     operationsResult,
+    paymentStepsResult,
     quotesResult,
     dealTraceDocuments,
     pricingContext,
@@ -77,6 +78,12 @@ export async function getFinanceDealWorkspaceProjection(
       offset: 0,
       sortBy: "createdAt",
       sortOrder: "desc",
+    }),
+    deps.treasury.paymentSteps.queries.list({
+      dealId,
+      limit: 100,
+      offset: 0,
+      purpose: "deal_leg",
     }),
     deps.treasury.quotes.queries.listQuotes({
       dealId,
@@ -381,6 +388,7 @@ export async function getFinanceDealWorkspaceProjection(
           queueBlocked,
         }),
       ),
+      paymentSteps: paymentStepsResult.data,
       quotes: workflow.relatedResources.quotes,
       reconciliationExceptions,
     },

@@ -1,10 +1,15 @@
 import { randomUUID } from "node:crypto";
 
-import type { DealWorkflowProjection } from "@bedrock/deals/contracts";
+import type {
+  DealParticipantRole,
+  DealWorkflowProjection,
+} from "@bedrock/deals/contracts";
 import { ValidationError } from "@bedrock/shared/core/errors";
 import { toMinorAmountString } from "@bedrock/shared/money";
-import type { TreasuryModule } from "@bedrock/treasury";
-import type { QuoteDetailsRecord } from "@bedrock/treasury/contracts";
+import type {
+  PaymentStepPartyRef,
+  QuoteDetailsRecord,
+} from "@bedrock/treasury/contracts";
 
 import {
   compileDealExecutionRecipe,
@@ -13,6 +18,7 @@ import {
 } from "../recipe";
 import type {
   DealExecutionStore,
+  DealExecutionTreasuryModule,
   DealExecutionWorkflowDeps,
 } from "./deps";
 import { getInternalEntityOrganizationId } from "./workflow-helpers";
@@ -114,18 +120,87 @@ export async function resolveAmountRef(input: {
   };
 }
 
+export function resolveLegPartyRefs(input: {
+  agreementOrganizationId: string | null;
+  compiled: CompiledDealExecutionOperation;
+  internalEntityOrganizationId: string | null;
+  workflow: DealWorkflowProjection;
+}): { fromParty: PaymentStepPartyRef; toParty: PaymentStepPartyRef } | null {
+  const pickEntityId = (role: DealParticipantRole): string | null => {
+    const participant = input.workflow.participants.find(
+      (candidate) => candidate.role === role,
+    );
+    if (!participant) {
+      return null;
+    }
+    return (
+      participant.counterpartyId ??
+      participant.customerId ??
+      participant.organizationId
+    );
+  };
+
+  const internal =
+    input.internalEntityOrganizationId ?? pickEntityId("internal_entity");
+  const customer = pickEntityId("customer") ?? pickEntityId("external_payer");
+  const beneficiary =
+    pickEntityId("external_beneficiary") ?? pickEntityId("applicant");
+
+  let fromPartyId: string | null;
+  let toPartyId: string | null;
+
+  switch (input.compiled.legKind) {
+    case "collect":
+      fromPartyId = customer;
+      toPartyId = internal;
+      break;
+    case "convert":
+      fromPartyId = internal;
+      toPartyId = internal;
+      break;
+    case "payout":
+      fromPartyId = internal;
+      toPartyId = beneficiary;
+      break;
+    case "transit_hold":
+      fromPartyId = internal;
+      toPartyId =
+        input.compiled.operationKind === "intercompany_funding"
+          ? (input.agreementOrganizationId ?? internal)
+          : internal;
+      break;
+    case "settle_exporter":
+      fromPartyId = internal;
+      toPartyId =
+        input.compiled.operationKind === "intercompany_funding"
+          ? (input.agreementOrganizationId ?? internal)
+          : (beneficiary ?? internal);
+      break;
+    default:
+      return null;
+  }
+
+  if (!fromPartyId || !toPartyId) {
+    return null;
+  }
+
+  return {
+    fromParty: { id: fromPartyId, requisiteId: null },
+    toParty: { id: toPartyId, requisiteId: null },
+  };
+}
+
 export async function materializeCompiledOperation(input: {
   acceptedQuote: QuoteDetailsRecord | null;
+  agreementOrganizationId: string | null;
   compiled: CompiledDealExecutionOperation;
   currencies: DealExecutionWorkflowDeps["currencies"];
   currencyCodeById: Map<string, string>;
   customerId: string | null;
   dealStore: DealExecutionStore;
   internalEntityOrganizationId: string | null;
-  treasuryModule: Pick<
-    TreasuryModule,
-    "instructions" | "operations" | "quotes"
-  >;
+  paymentStepsEnabled: boolean;
+  treasuryModule: DealExecutionTreasuryModule;
   workflow: DealWorkflowProjection;
 }) {
   const amount = await resolveAmountRef({
@@ -169,15 +244,43 @@ export async function materializeCompiledOperation(input: {
     },
   ]);
 
+  if (input.paymentStepsEnabled) {
+    const partyRefs = resolveLegPartyRefs({
+      agreementOrganizationId: input.agreementOrganizationId,
+      compiled: input.compiled,
+      internalEntityOrganizationId: input.internalEntityOrganizationId,
+      workflow: input.workflow,
+    });
+    const fromCurrencyId = amount.currencyId;
+    const toCurrencyId = counterAmount.currencyId ?? amount.currencyId;
+
+    if (partyRefs && fromCurrencyId && toCurrencyId) {
+      await input.treasuryModule.paymentSteps.commands.create({
+        dealId: input.workflow.summary.id,
+        dealLegIdx: input.compiled.legIdx,
+        dealLegRole: input.compiled.legKind,
+        fromAmountMinor: amount.amountMinor,
+        fromCurrencyId,
+        fromParty: partyRefs.fromParty,
+        id: created.id,
+        initialState: "pending",
+        kind: input.compiled.operationKind,
+        purpose: "deal_leg",
+        rate: null,
+        toAmountMinor: counterAmount.amountMinor ?? amount.amountMinor,
+        toCurrencyId,
+        toParty: partyRefs.toParty,
+        treasuryBatchId: null,
+      });
+    }
+  }
+
   return created;
 }
 
 export async function resolveRecipeContext(
   deps: DealExecutionWorkflowDeps,
-  treasuryModule: Pick<
-    TreasuryModule,
-    "instructions" | "operations" | "quotes"
-  >,
+  treasuryModule: DealExecutionTreasuryModule,
   workflow: DealWorkflowProjection,
 ) {
   const agreement = await deps.agreements.agreements.queries.findById(
