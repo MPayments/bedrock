@@ -265,15 +265,6 @@ const HIDDEN_OPERATIONAL_POSITION_KINDS = new Set([
   "spread_revenue",
 ]);
 
-const FINANCE_LEG_STATE_TRANSITIONS: Record<string, string[]> = {
-  blocked: ["ready", "skipped"],
-  done: [],
-  in_progress: ["done", "blocked"],
-  pending: ["ready", "blocked", "skipped"],
-  ready: ["in_progress", "blocked", "skipped"],
-  skipped: [],
-};
-
 function formatFallbackLabel(value: string) {
   return value
     .split("_")
@@ -549,14 +540,6 @@ export function isPrimaryOperationalPositionVisible(
   }
 
   return !HIDDEN_OPERATIONAL_POSITION_KINDS.has(kind);
-}
-
-export function getFinanceLegStateTransitions(value: string | null | undefined) {
-  if (!value) {
-    return [];
-  }
-
-  return FINANCE_LEG_STATE_TRANSITIONS[value] ?? [];
 }
 
 export function getFinanceDealQueueOptions(): Option[] {

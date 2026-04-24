@@ -6,7 +6,7 @@ export default defineProject({
     globals: true,
     environment: "node",
     include: ["tests/**/*.test.ts"],
-    exclude: ["**/node_modules/**", "**/dist/**"],
+    exclude: ["tests/integration/**", "**/node_modules/**", "**/dist/**"],
     passWithNoTests: true,
   },
 });

@@ -29,12 +29,12 @@ import {
   PreviewDealPricingInputSchema,
   ReplaceDealIntakeInputSchema,
   ResolveDealExecutionBlockerInputSchema,
+  SetDealLegManualOverrideInputSchema,
   SwapDealRouteTemplateInputSchema,
   TransitionDealStatusInputSchema,
   UpdateDealAgreementInputSchema,
   UpdateDealCommentInputSchema,
   UpdateDealPricingContextInputSchema,
-  UpdateDealLegStateInputSchema,
 } from "@bedrock/deals/contracts";
 import {
   FileAttachmentPurposeSchema,
@@ -1162,18 +1162,18 @@ export function dealsRoutes(ctx: AppContext) {
     },
   });
 
-  const updateLegStateRoute = createRoute({
+  const setLegManualOverrideRoute = createRoute({
     middleware: [requirePermission({ deals: ["update"] })],
     method: "post",
-    path: "/{id}/legs/{idx}/state",
+    path: "/{id}/legs/{idx}/override",
     tags: ["Deals"],
-    summary: "Update execution leg state",
+    summary: "Set manual leg override (block / skip / clear)",
     request: {
       params: DealLegParamsSchema,
       body: {
         content: {
           "application/json": {
-            schema: UpdateDealLegStateInputSchema,
+            schema: SetDealLegManualOverrideInputSchema,
           },
         },
         required: true,
@@ -1184,15 +1184,7 @@ export function dealsRoutes(ctx: AppContext) {
         content: {
           "application/json": { schema: DealWorkflowProjectionSchema },
         },
-        description: "Execution leg state updated",
-      },
-      409: {
-        content: {
-          "application/json": {
-            schema: ErrorSchema,
-          },
-        },
-        description: "Leg state transition blocked",
+        description: "Leg manual override updated",
       },
     },
   });
@@ -2286,16 +2278,17 @@ export function dealsRoutes(ctx: AppContext) {
         return handleRouteError(c, error);
       }
     })
-    .openapi(updateLegStateRoute, async (c) => {
+    .openapi(setLegManualOverrideRoute, async (c) => {
       try {
         const { id, idx } = c.req.valid("param");
         const body = c.req.valid("json");
-        const result = await ctx.dealsModule.deals.commands.updateLegState({
-          ...body,
-          actorUserId: c.get("user")!.id,
-          dealId: id,
-          idx,
-        });
+        const result =
+          await ctx.dealsModule.deals.commands.setLegManualOverride({
+            ...body,
+            actorUserId: c.get("user")!.id,
+            dealId: id,
+            idx,
+          });
 
         return jsonOk(c, result);
       } catch (error) {

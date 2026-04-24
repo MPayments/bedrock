@@ -524,6 +524,7 @@ function createWorkflow(overrides?: {
       },
       quotes: {
         queries: {
+          getQuoteDetails: vi.fn(async () => null),
           listQuotes: vi.fn(async () => ({
             data: overrides?.treasuryQuotes ?? [],
             limit: MAX_QUERY_LIST_LIMIT,
@@ -1183,7 +1184,7 @@ describe("createDealProjectionsWorkflow", () => {
       pricing: {
         quoteAmount: "1000",
         quoteAmountSide: "target",
-        quoteEligibility: false,
+        quoteEligibility: true,
         sourceCurrencyId: "currency-rub",
         targetCurrencyId: "currency-usd",
       },

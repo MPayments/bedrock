@@ -99,6 +99,8 @@ export const DEAL_TIMELINE_EVENT_TYPE_VALUES = [
   "participant_changed",
   "status_changed",
   "leg_state_changed",
+  "leg_manual_override_set",
+  "leg_manual_override_cleared",
   "execution_requested",
   "leg_operation_created",
   "instruction_prepared",

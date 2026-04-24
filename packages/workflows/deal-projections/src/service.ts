@@ -1,13 +1,16 @@
 import type { AgreementsModule } from "@bedrock/agreements";
 import type { CalculationsModule } from "@bedrock/calculations";
 import type { CurrenciesService } from "@bedrock/currencies";
-import { canDealWriteTreasuryOrFormalDocuments } from "@bedrock/deals";
 import type { DealsModule as DealsModuleRoot } from "@bedrock/deals";
+import { canDealWriteTreasuryOrFormalDocuments } from "@bedrock/deals";
+import { computeDealLegState } from "@bedrock/deals";
 import {
   CLOSING_DOCUMENT_TYPE_BY_DEAL_TYPE,
+  LEG_KIND_REQUIRED_DOC_TYPE,
   OPENING_DOCUMENT_TYPE_BY_DEAL_TYPE,
 } from "@bedrock/deals/contracts";
 import type {
+  DealLegKind,
   DealOperationalPosition,
   DealPricingContext,
   DealTimelineEvent,
@@ -2470,6 +2473,7 @@ export function createDealProjectionsWorkflow(
     const postedDocuments = dealTraceDocuments
       .filter((row) => row.postingStatus === "posted")
       .map((row) => ({ docType: row.docType }));
+    const postedDocTypes = new Set(postedDocuments.map((d) => d.docType));
 
     const actions = buildCrmWorkbenchActions(workflow);
     const attachmentRequirements = buildCrmEvidenceRequirements({
@@ -2636,34 +2640,65 @@ export function createDealProjectionsWorkflow(
       attachmentRequirements,
       cashflowSummary,
       closeReadiness,
-      executionPlan: workflow.executionPlan.map((leg) => ({
-        ...leg,
-        actions: {
-          canCreateLegOperation:
-            hasAnyMaterializedOperations &&
-            leg.operationRefs.length === 0 &&
-            leg.state !== "blocked" &&
-            leg.state !== "skipped" &&
-            !isDealInTerminalStatus(workflow),
-          exchangeDocument:
-            leg.kind === "convert" &&
-            workflow.fundingResolution.state === "resolved" &&
-            workflow.fundingResolution.strategy === "external_fx" &&
-            openingInvoiceRequirement
-              ? {
-                  activeDocumentId: activeExchangeDocument?.id ?? null,
-                  createAllowed:
-                    openingInvoiceRequirement.state === "ready" &&
-                    Boolean(openingInvoiceRequirement.activeDocumentId) &&
-                    Boolean(workflow.summary.calculationId) &&
-                    !activeExchangeDocument &&
-                    !isDealInTerminalStatus(workflow),
-                  docType: "exchange",
-                  openAllowed: Boolean(activeExchangeDocument),
-                }
-              : null,
-        },
-      })),
+      executionPlan: workflow.executionPlan.map((leg) => {
+        const manualOverride =
+          leg.state === "blocked" || leg.state === "skipped" ? leg.state : null;
+        const latestInstructionStateByOperationId = new Map(
+          leg.operationRefs
+            .map((ref) => {
+              const instruction = latestInstructionByOperationId.get(
+                ref.operationId,
+              );
+              return instruction
+                ? ([ref.operationId, instruction.state] as const)
+                : null;
+            })
+            .filter(
+              (
+                entry,
+              ): entry is readonly [
+                string,
+                typeof entry extends readonly [string, infer S] ? S : never,
+              ] => entry !== null,
+            ),
+        );
+        const computedState = computeDealLegState({
+          manualOverride,
+          operationRefs: leg.operationRefs,
+          latestInstructionStateByOperationId,
+          requiredDocType: LEG_KIND_REQUIRED_DOC_TYPE[leg.kind as DealLegKind],
+          postedDocTypes,
+        });
+        return {
+          ...leg,
+          state: computedState,
+          actions: {
+            canCreateLegOperation:
+              hasAnyMaterializedOperations &&
+              leg.operationRefs.length === 0 &&
+              computedState !== "blocked" &&
+              computedState !== "skipped" &&
+              !isDealInTerminalStatus(workflow),
+            exchangeDocument:
+              leg.kind === "convert" &&
+              workflow.fundingResolution.state === "resolved" &&
+              workflow.fundingResolution.strategy === "external_fx" &&
+              openingInvoiceRequirement
+                ? {
+                    activeDocumentId: activeExchangeDocument?.id ?? null,
+                    createAllowed:
+                      openingInvoiceRequirement.state === "ready" &&
+                      Boolean(openingInvoiceRequirement.activeDocumentId) &&
+                      Boolean(workflow.summary.calculationId) &&
+                      !activeExchangeDocument &&
+                      !isDealInTerminalStatus(workflow),
+                    docType: "exchange",
+                    openAllowed: Boolean(activeExchangeDocument),
+                  }
+                : null,
+          },
+        };
+      }),
       formalDocumentRequirements,
       instructionSummary,
       nextAction: workflow.nextAction,

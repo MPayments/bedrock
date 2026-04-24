@@ -118,7 +118,7 @@ function createDealsModuleStub() {
         transitionStatus: vi.fn(),
         updateAgreement: vi.fn(),
         updateComment: vi.fn(),
-        updateLegState: vi.fn(),
+        setLegManualOverride: vi.fn(),
       },
     },
   };
@@ -2307,29 +2307,63 @@ describe("deals routes", () => {
     });
   });
 
-  it("updates a deal execution leg state", async () => {
+  it("sets a deal execution leg manual override", async () => {
     const { app, dealsModule } = createTestApp();
     const projection = createWorkflowProjection();
-    dealsModule.deals.commands.updateLegState.mockResolvedValue(projection);
+    dealsModule.deals.commands.setLegManualOverride.mockResolvedValue(
+      projection,
+    );
 
     const response = await app.request(
-      "http://localhost/deals/00000000-0000-4000-8000-000000000010/legs/1/state",
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/legs/1/override",
       {
         method: "POST",
         headers: {
           "content-type": "application/json",
         },
-        body: JSON.stringify({ state: "in_progress" }),
+        body: JSON.stringify({ override: "blocked" }),
       },
     );
 
     expect(response.status).toBe(200);
-    expect(dealsModule.deals.commands.updateLegState).toHaveBeenCalledWith({
+    expect(
+      dealsModule.deals.commands.setLegManualOverride,
+    ).toHaveBeenCalledWith({
       actorUserId: "user-1",
       comment: null,
       dealId: "00000000-0000-4000-8000-000000000010",
       idx: 1,
-      state: "in_progress",
+      override: "blocked",
+    });
+  });
+
+  it("clears a deal execution leg manual override", async () => {
+    const { app, dealsModule } = createTestApp();
+    const projection = createWorkflowProjection();
+    dealsModule.deals.commands.setLegManualOverride.mockResolvedValue(
+      projection,
+    );
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/legs/1/override",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ override: null }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(
+      dealsModule.deals.commands.setLegManualOverride,
+    ).toHaveBeenCalledWith({
+      actorUserId: "user-1",
+      comment: null,
+      dealId: "00000000-0000-4000-8000-000000000010",
+      idx: 1,
+      override: null,
     });
   });
 });

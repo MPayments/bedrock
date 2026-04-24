@@ -77,14 +77,6 @@ export interface CompiledDealExecutionOperation {
   legKind: DealWorkflowProjection["executionPlan"][number]["kind"];
   operationKind: TreasuryOperationKind;
   quoteId: string | null;
-  /**
-   * 1-based index into the accepted quote's legs array. Populated for deal
-   * legs that were materialized from a route snapshot hop (convert /
-   * transit_hold with a routeSnapshotLegId). Used by amountRef resolution
-   * to pick the per-hop amounts from the quote instead of the aggregate
-   * quote amounts — required for multi-hop routes where each convert leg
-   * has distinct from/to amounts.
-   */
   quoteLegIdx: number | null;
   sourceRef: string;
 }
@@ -182,10 +174,6 @@ export function compileDealExecutionRecipe(input: {
     );
   }
 
-  // Route-derived legs (transit_hold / convert with a routeSnapshotLegId) map
-  // 1:1 onto the accepted quote's legs array, in order. Each such leg gets
-  // its own quote leg idx so the recipe references per-hop amounts instead
-  // of the aggregate quote amounts.
   const routeDerivedLegIds = new Set(
     input.workflow.executionPlan
       .filter(
@@ -239,8 +227,6 @@ export function compileDealExecutionRecipe(input: {
           amountRef = "quote_leg_from";
           counterAmountRef = "quote_leg_to";
         } else {
-          // Canonical single-convert plan (no route attached) — use the
-          // aggregate quote amounts.
           amountRef = "accepted_quote_from";
           counterAmountRef = "accepted_quote_to";
         }
@@ -255,8 +241,6 @@ export function compileDealExecutionRecipe(input: {
           internalEntityOrganizationId: input.internalEntityOrganizationId,
         });
         if (isRouteDerived) {
-          // Internal same-currency transfer within a multi-hop route: amount
-          // is the quote-leg to-amount (== from-amount for same-currency).
           amountRef = "quote_leg_to";
         } else {
           amountRef = hasConvert ? "accepted_quote_to" : "money_request_source";
@@ -898,12 +882,12 @@ export function createDealExecutionWorkflow(deps: DealExecutionWorkflowDeps) {
             return workflow;
           }
 
-          return dealsModule.deals.commands.updateLegState({
+          return dealsModule.deals.commands.setLegManualOverride({
             actorUserId: input.actorUserId,
             comment: input.comment ?? null,
             dealId: input.dealId,
             idx: leg.idx,
-            state: "ready",
+            override: null,
           });
         },
         idempotencyKey: input.idempotencyKey,

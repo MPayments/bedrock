@@ -134,6 +134,13 @@
       "when": 1776881543736,
       "tag": "0018_small_christian_walker",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1777032000000,
+      "tag": "0019_leg_state_projection",
+      "breakpoints": true
     }
   ]
 }

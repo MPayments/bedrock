@@ -6,10 +6,6 @@ import { useState } from "react";
 import { Button } from "@bedrock/sdk-ui/components/button";
 import { toast } from "@bedrock/sdk-ui/components/sonner";
 
-import {
-  getDealLegStateLabel,
-  getFinanceLegStateTransitions,
-} from "@/features/treasury/deals/labels";
 import type { FinanceDealWorkbench } from "@/features/treasury/deals/lib/queries";
 import { executeMutation } from "@/lib/resources/http";
 
@@ -21,61 +17,67 @@ export interface LegStateActionsProps {
   disabled?: boolean;
 }
 
-const FORWARD_STATE_LABELS: Record<string, string> = {
-  ready: "К готовности",
-  in_progress: "В работу",
-  done: "Завершить",
-};
+type ManualOverride = "blocked" | "skipped" | null;
 
-const SECONDARY_STATE_LABELS: Record<string, string> = {
+const OVERRIDE_LABELS: Record<"blocked" | "skipped", string> = {
   blocked: "Заблокировать",
   skipped: "Пропустить",
 };
 
-type StateCategory = "forward" | "secondary";
-
-function categorize(state: string): StateCategory {
-  return state in FORWARD_STATE_LABELS ? "forward" : "secondary";
+// Leg state is a projection of instruction + document state; the only
+// user-driven writes are the safety-valve overrides. `Заблокировать` marks a
+// leg as operator-halted; `Пропустить` excludes the leg from further
+// automation. Both hit the same /override endpoint and are reversible via
+// «Устранить блокер» (which clears the override elsewhere in the editor).
+function availableOverrides(currentState: string): ("blocked" | "skipped")[] {
+  if (currentState === "done" || currentState === "skipped") {
+    // Terminal: no safety-valve remains. (A `done` leg is derived from
+    // settled instructions + posted docs; to reopen it, the underlying
+    // instruction would need to move.)
+    return [];
+  }
+  if (currentState === "blocked") {
+    // Already blocked — only "skip" remains as a hard-out; unblock lives
+    // on the "Устранить блокер" button in the leg editor.
+    return ["skipped"];
+  }
+  return ["blocked", "skipped"];
 }
 
-function getStateLabel(state: string): string {
-  return (
-    FORWARD_STATE_LABELS[state] ??
-    SECONDARY_STATE_LABELS[state] ??
-    getDealLegStateLabel(state)
-  );
-}
-
-export function LegStateActions({ dealId, leg, disabled }: LegStateActionsProps) {
+export function LegStateActions({
+  dealId,
+  leg,
+  disabled,
+}: LegStateActionsProps) {
   const router = useRouter();
-  const [activeState, setActiveState] = useState<string | null>(null);
-  const transitions = getFinanceLegStateTransitions(leg.state);
+  const [activeOverride, setActiveOverride] = useState<ManualOverride>(null);
+  const overrides = availableOverrides(leg.state);
 
-  if (transitions.length === 0 || !leg.id) return null;
+  if (overrides.length === 0 || !leg.id) return null;
 
-  async function runTransition(nextState: string) {
-    setActiveState(nextState);
+  async function runOverride(override: "blocked" | "skipped") {
+    setActiveOverride(override);
     const result = await executeMutation({
       fallbackMessage: "Не удалось изменить статус шага",
       request: () =>
         fetch(
-          `/v1/deals/${encodeURIComponent(dealId)}/legs/${leg.idx}/state`,
+          `/v1/deals/${encodeURIComponent(dealId)}/legs/${leg.idx}/override`,
           {
             method: "POST",
             credentials: "include",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ state: nextState }),
+            body: JSON.stringify({ override }),
           },
         ),
     });
-    setActiveState(null);
+    setActiveOverride(null);
 
     if (!result.ok) {
       toast.error(result.message);
       return;
     }
 
-    toast.success(`Шаг ${leg.idx}: ${getStateLabel(nextState)}`);
+    toast.success(`Шаг ${leg.idx}: ${OVERRIDE_LABELS[override]}`);
     router.refresh();
   }
 
@@ -84,19 +86,18 @@ export function LegStateActions({ dealId, leg, disabled }: LegStateActionsProps)
       className="flex flex-wrap items-center gap-2"
       data-testid={`finance-deal-leg-state-actions-${leg.idx}`}
     >
-      {transitions.map((nextState) => {
-        const category = categorize(nextState);
-        const isActive = activeState === nextState;
+      {overrides.map((override) => {
+        const isActive = activeOverride === override;
         return (
           <Button
-            key={nextState}
-            data-testid={`finance-deal-leg-transition-${leg.idx}-${nextState}`}
+            key={override}
+            data-testid={`finance-deal-leg-override-${leg.idx}-${override}`}
             size="sm"
-            variant={category === "forward" ? "default" : "outline"}
+            variant="outline"
             disabled={disabled || isActive}
-            onClick={() => runTransition(nextState)}
+            onClick={() => runOverride(override)}
           >
-            {isActive ? "Применяем..." : getStateLabel(nextState)}
+            {isActive ? "Применяем..." : OVERRIDE_LABELS[override]}
           </Button>
         );
       })}

@@ -983,7 +983,7 @@ describe("deal execution workflow", () => {
     expect(harness.createDealTimelineEvents).toHaveBeenCalledTimes(1);
   });
 
-  it("resolves blocked legs through updateLegState without emitting a separate blocker event", async () => {
+  it("resolves blocked legs by clearing the manual override without emitting a separate blocker event", async () => {
     const blockedWorkflow = createWorkflowProjection({
       status: "awaiting_payment",
       type: "payment",
@@ -993,14 +993,17 @@ describe("deal execution workflow", () => {
       (leg: (typeof blockedWorkflow.executionPlan)[number]) =>
         leg.kind === "payout" ? { ...leg, state: "blocked" } : leg,
     );
+    // After the override is cleared the leg re-derives its state from
+    // instruction + doc data; for this payment scenario that's `pending`
+    // because no instructions have been settled yet.
     const resolvedWorkflow = {
       ...blockedWorkflow,
       executionPlan: blockedWorkflow.executionPlan.map(
         (leg: (typeof blockedWorkflow.executionPlan)[number]) =>
-          leg.kind === "payout" ? { ...leg, state: "ready" } : leg,
+          leg.kind === "payout" ? { ...leg, state: "pending" } : leg,
       ),
     };
-    const updateLegState = vi.fn(async () => resolvedWorkflow);
+    const setLegManualOverride = vi.fn(async () => resolvedWorkflow);
     const createDealTimelineEvents = vi.fn(async () => undefined);
     const workflow = createDealExecutionWorkflow({
       agreements: {
@@ -1028,7 +1031,7 @@ describe("deal execution workflow", () => {
       createDealsModule: () => ({
         deals: {
           commands: {
-            updateLegState,
+            setLegManualOverride,
           },
           queries: {
             findWorkflowById: vi.fn(async () => blockedWorkflow),
@@ -1067,15 +1070,15 @@ describe("deal execution workflow", () => {
       legId: "leg-2",
     });
 
-    expect(updateLegState).toHaveBeenCalledWith({
+    expect(setLegManualOverride).toHaveBeenCalledWith({
       actorUserId: "user-1",
       comment: "Retry payout",
       dealId: "deal-1",
       idx: 2,
-      state: "ready",
+      override: null,
     });
     expect(createDealTimelineEvents).not.toHaveBeenCalled();
-    expect(result.executionPlan.at(-1)?.state).toBe("ready");
+    expect(result.executionPlan.at(-1)?.state).toBe("pending");
   });
 
   it("ingests a treasury settlement reconciliation record when an instruction reaches a terminal outcome", async () => {

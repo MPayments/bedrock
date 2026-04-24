@@ -201,6 +201,8 @@ export const DEAL_TIMELINE_EVENT_LABELS: Record<
   instruction_settled: "Инструкция исполнена",
   instruction_submitted: "Инструкция отправлена",
   instruction_voided: "Инструкция отменена",
+  leg_manual_override_cleared: "Оператор снял ручную блокировку шага",
+  leg_manual_override_set: "Оператор заблокировал или пропустил шаг",
   leg_operation_created: "Создана казначейская операция",
   leg_state_changed: "Состояние шага изменено",
   participant_changed: "Участники изменены",

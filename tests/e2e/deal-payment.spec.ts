@@ -11,19 +11,6 @@ import {
 } from "./deal-payment.fixture";
 
 const DEAL_LEG_DONE_LABEL = "Завершен";
-const DEAL_LEG_STATE_LABELS = {
-  blocked: "Заблокирован",
-  done: DEAL_LEG_DONE_LABEL,
-  in_progress: "В работе",
-  pending: "Ожидает",
-  ready: "Готов",
-  skipped: "Пропущен",
-} as const;
-const DEAL_LEG_READYISH_LABELS = new Set([
-  "Готов",
-  "В работе",
-  DEAL_LEG_DONE_LABEL,
-]);
 const FINANCE_INSTRUCTION_SETTLED_LABEL = "Исполнена";
 
 function buildFinanceDealUrl(
@@ -108,24 +95,11 @@ async function openCrmExecutionTab(page: Page, idx = 1) {
   });
 }
 
-async function transitionDealLeg(
-  page: Page,
-  idx: number,
-  targetState: keyof typeof DEAL_LEG_STATE_LABELS,
-) {
-  const expectedLabel = DEAL_LEG_STATE_LABELS[targetState];
-  const button = page.getByTestId(`deal-leg-state-button-${idx}`);
-
-  await expect(button).toBeEnabled({
-    timeout: 20_000,
-  });
-  await button.click();
-  await expect(
-    page.getByTestId(`deal-leg-state-option-${idx}-${targetState}`),
-  ).toBeVisible({
-    timeout: 20_000,
-  });
-  await page.getByTestId(`deal-leg-state-option-${idx}-${targetState}`).click();
+async function waitForLegReadyOrBeyond(page: Page, idx: number) {
+  // Leg state is now a projection over instruction state + doc posting. We
+  // can't *drive* the leg forward manually — it advances when the upstream
+  // instructions settle and the required doc lands. Just poll until we see
+  // something other than a not-yet-started state.
   await expect
     .poll(
       async () => {
@@ -133,65 +107,22 @@ async function transitionDealLeg(
         await openCrmExecutionTab(page, idx);
         return readDealLegState(page, idx);
       },
-      {
-        timeout: 20_000,
-      },
+      { timeout: 60_000 },
     )
-    .toBe(expectedLabel);
+    .toMatch(/Готов|В работе|Завершен/);
 }
 
-async function ensureDealLegReady(page: Page, idx: number) {
-  for (let attempt = 0; attempt < 4; attempt += 1) {
-    await page.reload();
-    await openCrmExecutionTab(page, idx);
-    const currentState = await readDealLegState(page, idx);
-
-    if (DEAL_LEG_READYISH_LABELS.has(currentState)) {
-      return;
-    }
-
-    if (currentState === "Ожидает" || currentState === "Заблокирован") {
-      await transitionDealLeg(page, idx, "ready");
-      continue;
-    }
-
-    throw new Error(
-      `Leg ${idx} cannot be advanced to ready from "${currentState}"`,
-    );
-  }
-
-  throw new Error(`Leg ${idx} did not reach a ready state`);
-}
-
-async function completeDealLeg(page: Page, idx: number) {
-  for (let attempt = 0; attempt < 6; attempt += 1) {
-    await page.reload();
-    await openCrmExecutionTab(page, idx);
-    const currentState = await readDealLegState(page, idx);
-
-    if (currentState === DEAL_LEG_DONE_LABEL) {
-      return;
-    }
-
-    if (currentState === "Ожидает" || currentState === "Заблокирован") {
-      await transitionDealLeg(page, idx, "ready");
-      continue;
-    }
-
-    if (currentState === "Готов") {
-      await transitionDealLeg(page, idx, "in_progress");
-      continue;
-    }
-
-    if (currentState === "В работе") {
-      await transitionDealLeg(page, idx, "done");
-      continue;
-    }
-
-    throw new Error(`Leg ${idx} cannot be completed from "${currentState}"`);
-  }
-
-  throw new Error(`Leg ${idx} did not reach "${DEAL_LEG_DONE_LABEL}"`);
+async function waitForLegDone(page: Page, idx: number) {
+  await expect
+    .poll(
+      async () => {
+        await page.reload();
+        await openCrmExecutionTab(page, idx);
+        return readDealLegState(page, idx);
+      },
+      { timeout: 60_000 },
+    )
+    .toBe(DEAL_LEG_DONE_LABEL);
 }
 
 async function createAndPostFinanceDocument(
@@ -771,18 +702,23 @@ test("runs the payment deal end-to-end through CRM and finance", async ({
       });
     });
 
-    await test.step("complete CRM execution legs and advance lifecycle statuses", async () => {
+    await test.step("wait for CRM execution legs to auto-advance from settled instructions + posted docs", async () => {
       await page.reload();
       await openCrmExecutionTab(page);
 
-      await completeDealLeg(page, 1);
+      // Legs 1 (collect) + 2 (convert) should auto-advance to done once the
+      // invoice is posted + convert instruction settles + exchange doc lands.
+      await waitForLegDone(page, 1);
       await waitForDealLegState(page, 2, DEAL_LEG_DONE_LABEL);
 
-      await ensureDealLegReady(page, 3);
+      // Leg 3 (payout) should be at least ready after the convert settles;
+      // we then move the deal to awaiting_payment which lets the payout
+      // instruction progress and eventually settle.
+      await waitForLegReadyOrBeyond(page, 3);
       await moveDealStatus(page, "awaiting_payment", "Ожидание оплаты");
 
       await openCrmExecutionTab(page, 3);
-      await completeDealLeg(page, 3);
+      await waitForLegDone(page, 3);
       await moveDealStatus(page, "closing_documents", "Закрывающие документы");
     });
 
