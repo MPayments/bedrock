@@ -19,16 +19,35 @@ interface CurrenciesResponse {
   total?: number;
 }
 
+// Module-scoped cache: the currency catalog is small, static, and queried
+// by many components (route editor on every step, create-step dialog,
+// operations list). One in-flight Promise serves every concurrent caller
+// and subsequent calls hit the resolved array without network roundtrips.
+let cachedOptions: CurrencyOption[] | null = null;
+let inFlight: Promise<CurrencyOption[]> | null = null;
+
 export async function listCurrencyOptions(): Promise<CurrencyOption[]> {
-  try {
-    const response = await fetch(
-      "/v1/currencies?limit=100&offset=0&sortBy=code&sortOrder=asc",
-      { credentials: "include" },
-    );
-    if (!response.ok) return [];
-    const payload = (await response.json()) as CurrenciesResponse;
-    return payload.data.map((row) => ({ id: row.id, code: row.code }));
-  } catch {
-    return [];
-  }
+  if (cachedOptions) return cachedOptions;
+  if (inFlight) return inFlight;
+  inFlight = (async () => {
+    try {
+      const response = await fetch(
+        "/v1/currencies?limit=100&offset=0&sortBy=code&sortOrder=asc",
+        { credentials: "include" },
+      );
+      if (!response.ok) return [];
+      const payload = (await response.json()) as CurrenciesResponse;
+      const options = payload.data.map((row) => ({
+        id: row.id,
+        code: row.code,
+      }));
+      cachedOptions = options;
+      return options;
+    } catch {
+      return [];
+    } finally {
+      inFlight = null;
+    }
+  })();
+  return inFlight;
 }

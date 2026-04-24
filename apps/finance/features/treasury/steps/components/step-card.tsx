@@ -47,16 +47,29 @@ export interface StepCardProps {
    */
   fromPartyKind?: PartyKind | null;
   toPartyKind?: PartyKind | null;
+  /**
+   * Display names / currency codes for the route editor so the user sees
+   * `ARABIAN FUEL ALLIANCE DMCC` / `USD 125,00` instead of raw UUIDs and
+   * minor-unit integers. Parent resolves these from its rich deal context.
+   */
+  fromPartyDisplayName?: string | null;
+  toPartyDisplayName?: string | null;
+  fromCurrencyCode?: string | null;
+  toCurrencyCode?: string | null;
   disabled?: boolean;
 }
 
 export function StepCard({
   adminViewHref,
   disabled,
+  fromCurrencyCode = null,
+  fromPartyDisplayName = null,
   fromPartyKind = null,
   onChanged,
   step,
   title,
+  toCurrencyCode = null,
+  toPartyDisplayName = null,
   toPartyKind = null,
   uploadAssetPath,
 }: StepCardProps) {
@@ -103,7 +116,11 @@ export function StepCard({
         <StepRouteEditor
           step={step}
           disabled={disabled}
+          fromCurrencyCode={fromCurrencyCode}
+          fromPartyDisplayName={fromPartyDisplayName}
           fromPartyKind={fromPartyKind}
+          toCurrencyCode={toCurrencyCode}
+          toPartyDisplayName={toPartyDisplayName}
           toPartyKind={toPartyKind}
           onAmended={handleSuccess}
         />

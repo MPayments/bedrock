@@ -200,6 +200,14 @@ export async function materializeCompiledOperation(input: {
   dealStore: DealExecutionStore;
   internalEntityOrganizationId: string | null;
   paymentStepsEnabled: boolean;
+  /**
+   * When true, skip `createDealLegOperationLinks` — used by the step-backfill
+   * path on deals whose legacy ops+links already exist. `createOrGetPlanned`
+   * stays in the flow because it's idempotent by `sourceRef` (a no-op for
+   * existing operations) and we still need the returned operation id to
+   * seed `PaymentStep.id`.
+   */
+  skipLegacyLinks?: boolean;
   treasuryModule: DealExecutionTreasuryModule;
   workflow: DealWorkflowProjection;
 }) {
@@ -234,15 +242,17 @@ export async function materializeCompiledOperation(input: {
       sourceRef: input.compiled.sourceRef,
     });
 
-  await input.dealStore.createDealLegOperationLinks([
-    {
-      dealLegId: input.compiled.legId,
-      id: randomUUID(),
-      operationKind: input.compiled.operationKind,
-      sourceRef: input.compiled.sourceRef,
-      treasuryOperationId: created.id,
-    },
-  ]);
+  if (!input.skipLegacyLinks) {
+    await input.dealStore.createDealLegOperationLinks([
+      {
+        dealLegId: input.compiled.legId,
+        id: randomUUID(),
+        operationKind: input.compiled.operationKind,
+        sourceRef: input.compiled.sourceRef,
+        treasuryOperationId: created.id,
+      },
+    ]);
+  }
 
   if (input.paymentStepsEnabled) {
     const partyRefs = resolveLegPartyRefs({

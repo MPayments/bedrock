@@ -29,12 +29,20 @@ export async function requestExecution(
     handler: async ({ dealStore, dealsModule, treasuryModule }) => {
       const workflow = await requireWorkflow(dealsModule, input.dealId);
 
-      if (
-        workflow.executionPlan.some((leg) => leg.operationRefs.length > 0)
-      ) {
-        return workflow;
-      }
+      const hasLegacyOps = workflow.executionPlan.some(
+        (leg) => leg.operationRefs.length > 0,
+      );
 
+      // When the dual-write flag is on we treat this handler as a
+      // PaymentStep-first idempotent primitive:
+      //   - fully materialized (steps present) → no-op
+      //   - legs planned but no steps yet → backfill steps, skip legacy
+      //     link rewrites if legacy is already there
+      //   - fresh deal → full dual-write
+      //
+      // With the flag off we keep the original semantics (legacy-only,
+      // exit on existing ops).
+      let skipLegacyLinks = false;
       if (paymentStepsEnabled) {
         const existingSteps =
           await treasuryModule.paymentSteps.queries.list({
@@ -46,6 +54,9 @@ export async function requestExecution(
         if (existingSteps.total > 0) {
           return workflow;
         }
+        skipLegacyLinks = hasLegacyOps;
+      } else if (hasLegacyOps) {
+        return workflow;
       }
 
       assertExecutionRequestAllowed(workflow);
@@ -73,6 +84,7 @@ export async function requestExecution(
           internalEntityOrganizationId:
             recipeContext.internalEntityOrganizationId,
           paymentStepsEnabled: deps.paymentStepsEnabled ?? false,
+          skipLegacyLinks,
           treasuryModule,
           workflow,
         });

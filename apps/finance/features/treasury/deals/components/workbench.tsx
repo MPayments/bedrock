@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 import { Info } from "lucide-react";
 
 import { Button } from "@bedrock/sdk-ui/components/button";
+import { toast } from "@bedrock/sdk-ui/components/sonner";
 
 import {
   getDealLegKindLabel,
@@ -122,13 +123,28 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
   // attached route's participants list (positional: source at idx-1,
   // destination at idx). Returns null when no kind info is available (e.g.
   // dangling route, standalone step) — the editor then stays read-only.
-  const { fromPartyKind, toPartyKind } = useMemo(() => {
+  const {
+    fromCurrencyCode,
+    fromPartyDisplayName,
+    fromPartyKind,
+    toCurrencyCode,
+    toPartyDisplayName,
+    toPartyKind,
+  } = useMemo(() => {
     const attachment = deal.pricing.routeAttachment;
     if (!attachment || !selectedLeg) {
-      return { fromPartyKind: null, toPartyKind: null };
+      return {
+        fromCurrencyCode: null,
+        fromPartyDisplayName: null,
+        fromPartyKind: null,
+        toCurrencyCode: null,
+        toPartyDisplayName: null,
+        toPartyKind: null,
+      };
     }
     const source = attachment.participants[selectedLeg.idx - 1] ?? null;
     const destination = attachment.participants[selectedLeg.idx] ?? null;
+    const legSnapshot = attachment.legs[selectedLeg.idx - 1] ?? null;
     const pickKind = (entityKind: string | null): PartyKind | null =>
       entityKind === "organization" ||
       entityKind === "counterparty" ||
@@ -136,7 +152,11 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
         ? entityKind
         : null;
     return {
+      fromCurrencyCode: legSnapshot?.fromCurrencyCode ?? null,
+      fromPartyDisplayName: source?.displayName ?? null,
       fromPartyKind: pickKind(source?.entityKind ?? null),
+      toCurrencyCode: legSnapshot?.toCurrencyCode ?? null,
+      toPartyDisplayName: destination?.displayName ?? null,
       toPartyKind: pickKind(destination?.entityKind ?? null),
     };
   }, [deal.pricing.routeAttachment, selectedLeg]);
@@ -188,6 +208,39 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
     router.refresh();
   }
 
+  const [isMaterializing, setIsMaterializing] = useState(false);
+  async function materializeSteps() {
+    setIsMaterializing(true);
+    const result = await executeMutation({
+      fallbackMessage: "Не удалось материализовать шаги",
+      request: () =>
+        fetch(
+          `/v1/deals/${encodeURIComponent(deal.summary.id)}/execution/request`,
+          {
+            method: "POST",
+            credentials: "include",
+            headers: {
+              "Content-Type": "application/json",
+              "Idempotency-Key": createIdempotencyKey(),
+            },
+            body: JSON.stringify({}),
+          },
+        ),
+    });
+    setIsMaterializing(false);
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
+    }
+    toast.success("Шаги материализованы");
+    router.refresh();
+  }
+
+  const canMaterializeSteps =
+    !selectedStep &&
+    deal.executionPlan.length > 0 &&
+    canWrite;
+
   return (
     <>
       <FinanceDealWorkspaceLayout title={title}>
@@ -219,11 +272,39 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
                   uploadAssetPath={`/v1/deals/${encodeURIComponent(
                     deal.summary.id,
                   )}/attachments`}
+                  fromCurrencyCode={fromCurrencyCode}
+                  fromPartyDisplayName={fromPartyDisplayName}
                   fromPartyKind={fromPartyKind}
+                  toCurrencyCode={toCurrencyCode}
+                  toPartyDisplayName={toPartyDisplayName}
                   toPartyKind={toPartyKind}
                   disabled={!canWrite}
                   onChanged={handleStepChanged}
                 />
+              ) : canMaterializeSteps ? (
+                <div
+                  className="bg-card space-y-3 rounded-lg border p-6 text-sm"
+                  data-testid="finance-deal-materialize-steps"
+                >
+                  <div className="font-medium">
+                    Маршрут собран, но платёжные шаги ещё не созданы
+                  </div>
+                  <div className="text-muted-foreground">
+                    Эта сделка была заведена до перехода на новую модель
+                    исполнения. Нажмите кнопку, чтобы создать карточки шагов
+                    на основе существующего маршрута — после этого можно будет
+                    отправлять платежи и прикреплять подтверждения.
+                  </div>
+                  <Button
+                    size="sm"
+                    disabled={isMaterializing}
+                    onClick={materializeSteps}
+                  >
+                    {isMaterializing
+                      ? "Материализуем..."
+                      : "Материализовать шаги"}
+                  </Button>
+                </div>
               ) : (
                 <div className="bg-card text-muted-foreground rounded-lg border p-6 text-sm">
                   Шагов исполнения ещё нет. Сначала зафиксируйте коммерческие

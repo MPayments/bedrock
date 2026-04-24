@@ -45,10 +45,13 @@ export async function createLegOperation(
         );
       }
 
-      if (leg.operationRefs.length > 0) {
-        return workflow;
-      }
+      const hasLegacyOp = leg.operationRefs.length > 0;
 
+      // Mirror the backfill semantics from request-execution: under the
+      // flag, create the missing payment step even when the legacy op
+      // already exists. The legacy link is skipped in that case — we only
+      // seed the step so the workbench has a row to render.
+      let skipLegacyLinks = false;
       if (paymentStepsEnabled) {
         const existingSteps =
           await treasuryModule.paymentSteps.queries.list({
@@ -62,6 +65,9 @@ export async function createLegOperation(
         ) {
           return workflow;
         }
+        skipLegacyLinks = hasLegacyOp;
+      } else if (hasLegacyOp) {
+        return workflow;
       }
 
       assertExecutionRequestAllowed(workflow);
@@ -92,6 +98,7 @@ export async function createLegOperation(
         internalEntityOrganizationId:
           recipeContext.internalEntityOrganizationId,
         paymentStepsEnabled: deps.paymentStepsEnabled ?? false,
+        skipLegacyLinks,
         treasuryModule,
         workflow,
       });
