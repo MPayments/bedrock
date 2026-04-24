@@ -1,4 +1,10 @@
 import type {
+  PaymentRouteCalculation,
+  PaymentRouteDraft,
+  PaymentRouteTemplateRecord,
+  PaymentRouteTemplateWriteModel,
+} from "../../domain/model";
+import type {
   PaymentRouteTemplate,
   PaymentRouteTemplateListItem,
 } from "../contracts/dto";
@@ -8,12 +14,6 @@ import {
   PaymentRouteDraftSchema,
   normalizePaymentRouteDraft,
 } from "../contracts/zod";
-import type {
-  PaymentRouteCalculation,
-  PaymentRouteDraft,
-  PaymentRouteTemplateRecord,
-  PaymentRouteTemplateWriteModel,
-} from "../../domain/model";
 
 export type {
   PaymentRouteTemplateRecord,

@@ -5,7 +5,6 @@ import { createModuleRuntime } from "@bedrock/shared/core";
 import { createMockCurrenciesService, currencyIdForCode } from "./helpers";
 import { createPaymentRoutesService } from "../src/payment-routes/application";
 import {
-  PaymentRouteCalculationSchema,
   PaymentRouteCalculationFeeSchema,
   type PaymentRouteCalculation,
 } from "../src/payment-routes/application/contracts/dto";

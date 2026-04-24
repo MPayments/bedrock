@@ -4,8 +4,6 @@ import {
   parseDecimalToFraction,
 } from "@bedrock/shared/money/math";
 
-import { ValidationError } from "../../errors";
-import type { CrossRate } from "../../rates/domain/model";
 import type {
   PaymentRouteAmountTotal,
   PaymentRouteCalculation,
@@ -14,6 +12,8 @@ import type {
   PaymentRouteDraft,
   PaymentRouteFee,
 } from "./model";
+import { ValidationError } from "../../errors";
+import type { CrossRate } from "../../rates/domain/model";
 
 type CrossRateLookup = (
   base: string,

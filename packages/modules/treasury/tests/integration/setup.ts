@@ -11,6 +11,7 @@ const pool = createTestPgPool();
 const db = createTestDrizzleDb(pool, schema);
 
 async function cleanupTreasuryTables() {
+  await pool.query("DELETE FROM payment_step_artifacts");
   await pool.query("DELETE FROM payment_step_attempts");
   await pool.query("DELETE FROM payment_steps");
   await pool.query("DELETE FROM fx_rates");

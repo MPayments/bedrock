@@ -5,6 +5,7 @@ import {
   integer,
   jsonb,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -76,6 +77,35 @@ export const paymentSteps = pgTable(
     index("payment_steps_deal_idx").on(table.dealId),
     index("payment_steps_batch_idx").on(table.treasuryBatchId),
     index("payment_steps_scheduled_idx").on(table.scheduledAt),
+  ],
+);
+
+export const paymentStepArtifacts = pgTable(
+  "payment_step_artifacts",
+  {
+    paymentStepId: uuid("payment_step_id")
+      .notNull()
+      .references(() => paymentSteps.id, { onDelete: "cascade" }),
+    fileAssetId: uuid("file_asset_id").notNull(),
+    purpose: text("purpose").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`)
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    primaryKey({
+      columns: [table.paymentStepId, table.fileAssetId, table.purpose],
+      name: "payment_step_artifacts_pk",
+    }),
+    index("payment_step_artifacts_step_idx").on(table.paymentStepId),
+    index("payment_step_artifacts_step_purpose_idx").on(
+      table.paymentStepId,
+      table.purpose,
+    ),
   ],
 );
 

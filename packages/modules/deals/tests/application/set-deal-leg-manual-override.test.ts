@@ -165,11 +165,10 @@ describe("SetDealLegManualOverrideCommand", () => {
       reasonCode: "customer_request",
     });
     expect(dealStore.createDealTimelineEvents).toHaveBeenCalledTimes(1);
-    const events = dealStore.createDealTimelineEvents.mock
-      .calls[0][0] as Array<{
+    const events = dealStore.createDealTimelineEvents.mock.calls[0][0] as {
       payload: Record<string, unknown>;
       type: string;
-    }>;
+    }[];
     expect(events).toHaveLength(1);
     expect(events[0]?.type).toBe("leg_manual_override_set");
     expect(events[0]?.payload).toMatchObject({
@@ -201,8 +200,9 @@ describe("SetDealLegManualOverrideCommand", () => {
       manualOverrideState: "skipped",
       reasonCode: null,
     });
-    const events = dealStore.createDealTimelineEvents.mock
-      .calls[0][0] as Array<{ type: string }>;
+    const events = dealStore.createDealTimelineEvents.mock.calls[0][0] as {
+      type: string;
+    }[];
     expect(events[0]?.type).toBe("leg_manual_override_set");
   });
 
@@ -227,8 +227,10 @@ describe("SetDealLegManualOverrideCommand", () => {
       manualOverrideState: null,
       reasonCode: null,
     });
-    const events = dealStore.createDealTimelineEvents.mock
-      .calls[0][0] as Array<{ payload: Record<string, unknown>; type: string }>;
+    const events = dealStore.createDealTimelineEvents.mock.calls[0][0] as {
+      payload: Record<string, unknown>;
+      type: string;
+    }[];
     expect(events[0]?.type).toBe("leg_manual_override_cleared");
     expect(events[0]?.payload).toMatchObject({
       fromState: "blocked",

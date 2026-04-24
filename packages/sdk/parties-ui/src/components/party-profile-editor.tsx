@@ -407,11 +407,11 @@ export function PartyProfileEditor({
 
   useEffect(() => {
     emitDirtyChange(isDirty);
-  }, [isDirty]);
+  }, [emitDirtyChange, isDirty]);
 
   useEffect(() => {
     emitChange(draft, isDirty);
-  }, [draft, isDirty]);
+  }, [draft, emitChange, isDirty]);
 
   async function handleSubmit() {
     if (!onSubmit) {

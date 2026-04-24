@@ -85,6 +85,7 @@ export {
   fxRateSources,
   fxRates,
   paymentRouteTemplates,
+  paymentStepArtifacts,
   paymentStepAttempts,
   paymentSteps,
   treasuryInstructionArtifacts,

@@ -16,18 +16,8 @@ import {
   PAYMENT_ROUTE_PARTICIPANT_ROLE_VALUES,
   PAYMENT_ROUTE_TEMPLATE_STATUS_VALUES,
   type PaymentRouteDraft,
-  type PaymentRouteFee,
-  type PaymentRouteFeeKind,
-  type PaymentRouteLeg,
   type PaymentRouteLegSemanticTag,
   type PaymentRouteLegTreasuryOperationHint,
-  type PaymentRouteLockedSide,
-  type PaymentRouteParticipantBinding,
-  type PaymentRouteParticipantKind,
-  type PaymentRouteParticipantRef,
-  type PaymentRouteParticipantRole,
-  type PaymentRouteTemplateStatus,
-  type PaymentRouteVisualMetadata,
 } from "../../domain/model";
 
 export {

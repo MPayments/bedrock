@@ -3,19 +3,26 @@ import { and, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
 import type { Queryable, Transaction } from "@bedrock/platform/persistence";
 import type { PersistenceSession } from "@bedrock/shared/core/persistence";
 
-import { paymentStepAttempts, paymentSteps } from "./schema";
+import {
+  paymentStepArtifacts,
+  paymentStepAttempts,
+  paymentSteps,
+} from "./schema";
 import type {
   PaymentStepsListQuery,
   PaymentStepsRepository,
 } from "../../application/ports/payment-steps.repository";
 import type {
+  ArtifactRef,
   PaymentStepAttemptRecord,
   PaymentStepRecord,
 } from "../../domain/types";
 
 type PaymentStepRow = typeof paymentSteps.$inferSelect;
+type PaymentStepArtifactRow = typeof paymentStepArtifacts.$inferSelect;
 type PaymentStepAttemptRow = typeof paymentStepAttempts.$inferSelect;
 type PaymentStepInsertRow = typeof paymentSteps.$inferInsert;
+type PaymentStepArtifactInsertRow = typeof paymentStepArtifacts.$inferInsert;
 type PaymentStepAttemptInsertRow = typeof paymentStepAttempts.$inferInsert;
 
 type TransactionalQueryable = Queryable & {
@@ -31,9 +38,10 @@ function hasTransaction(db: Queryable): db is TransactionalQueryable {
 function toStepRecord(
   row: PaymentStepRow,
   attempts: PaymentStepAttemptRecord[] = [],
+  artifacts: ArtifactRef[] = [],
 ): PaymentStepRecord {
   return {
-    artifacts: [],
+    artifacts,
     attempts,
     completedAt: row.completedAt,
     createdAt: row.createdAt,
@@ -71,6 +79,13 @@ function toStepRecord(
   };
 }
 
+function toArtifactRef(row: PaymentStepArtifactRow): ArtifactRef {
+  return {
+    fileAssetId: row.fileAssetId,
+    purpose: row.purpose,
+  };
+}
+
 function toAttemptRecord(row: PaymentStepAttemptRow): PaymentStepAttemptRecord {
   return {
     attemptNo: row.attemptNo,
@@ -83,6 +98,17 @@ function toAttemptRecord(row: PaymentStepAttemptRow): PaymentStepAttemptRecord {
     providerSnapshot: row.providerSnapshot,
     submittedAt: row.submittedAt,
     updatedAt: row.updatedAt,
+  };
+}
+
+function toArtifactInsertRow(
+  paymentStepId: string,
+  artifact: ArtifactRef,
+): PaymentStepArtifactInsertRow {
+  return {
+    fileAssetId: artifact.fileAssetId,
+    paymentStepId,
+    purpose: artifact.purpose,
   };
 }
 
@@ -151,9 +177,12 @@ export class DrizzlePaymentStepsRepository implements PaymentStepsRepository {
       return undefined;
     }
 
-    const attempts = await this.loadAttemptRecords(database, [id]);
+    const [attempts, artifacts] = await Promise.all([
+      this.loadAttemptRecords(database, [id]),
+      this.loadArtifactRecords(database, [id]),
+    ]);
 
-    return toStepRecord(row, attempts.get(id) ?? []);
+    return toStepRecord(row, attempts.get(id) ?? [], artifacts.get(id) ?? []);
   }
 
   async insertStep(
@@ -171,7 +200,10 @@ export class DrizzlePaymentStepsRepository implements PaymentStepsRepository {
         return null;
       }
 
-      await this.upsertAttempts(database, input.attempts);
+      await Promise.all([
+        this.upsertAttempts(database, input.attempts),
+        this.upsertArtifacts(database, input.id, input.artifacts),
+      ]);
 
       return (await this.findStepById(input.id, database)) ?? null;
     });
@@ -212,10 +244,19 @@ export class DrizzlePaymentStepsRepository implements PaymentStepsRepository {
         .where(where),
     ]);
     const stepIds = rows.map((row) => row.id);
-    const attempts = await this.loadAttemptRecords(database, stepIds);
+    const [attempts, artifacts] = await Promise.all([
+      this.loadAttemptRecords(database, stepIds),
+      this.loadArtifactRecords(database, stepIds),
+    ]);
 
     return {
-      rows: rows.map((row) => toStepRecord(row, attempts.get(row.id) ?? [])),
+      rows: rows.map((row) =>
+        toStepRecord(
+          row,
+          attempts.get(row.id) ?? [],
+          artifacts.get(row.id) ?? [],
+        ),
+      ),
       total: countRows[0]?.total ?? 0,
     };
   }
@@ -235,10 +276,40 @@ export class DrizzlePaymentStepsRepository implements PaymentStepsRepository {
         return undefined;
       }
 
-      await this.upsertAttempts(database, input.attempts);
+      await Promise.all([
+        this.upsertAttempts(database, input.attempts),
+        this.upsertArtifacts(database, input.id, input.artifacts),
+      ]);
 
       return this.findStepById(input.id, database);
     });
+  }
+
+  private async loadArtifactRecords(
+    database: Queryable,
+    stepIds: string[],
+  ): Promise<Map<string, ArtifactRef[]>> {
+    if (stepIds.length === 0) {
+      return new Map();
+    }
+
+    const rows = await database
+      .select()
+      .from(paymentStepArtifacts)
+      .where(inArray(paymentStepArtifacts.paymentStepId, stepIds))
+      .orderBy(
+        paymentStepArtifacts.paymentStepId,
+        paymentStepArtifacts.createdAt,
+      );
+    const byStepId = new Map<string, ArtifactRef[]>();
+
+    for (const row of rows) {
+      const artifacts = byStepId.get(row.paymentStepId) ?? [];
+      artifacts.push(toArtifactRef(row));
+      byStepId.set(row.paymentStepId, artifacts);
+    }
+
+    return byStepId;
   }
 
   private async loadAttemptRecords(
@@ -299,6 +370,34 @@ export class DrizzlePaymentStepsRepository implements PaymentStepsRepository {
           providerRef: sql`excluded.provider_ref`,
           providerSnapshot: sql`excluded.provider_snapshot`,
           submittedAt: sql`excluded.submitted_at`,
+          updatedAt: sql`excluded.updated_at`,
+        },
+      });
+  }
+
+  private async upsertArtifacts(
+    database: Queryable,
+    paymentStepId: string,
+    artifacts: ArtifactRef[],
+  ): Promise<void> {
+    if (artifacts.length === 0) {
+      return;
+    }
+
+    await database
+      .insert(paymentStepArtifacts)
+      .values(
+        artifacts.map((artifact) =>
+          toArtifactInsertRow(paymentStepId, artifact),
+        ),
+      )
+      .onConflictDoUpdate({
+        target: [
+          paymentStepArtifacts.paymentStepId,
+          paymentStepArtifacts.fileAssetId,
+          paymentStepArtifacts.purpose,
+        ],
+        set: {
           updatedAt: sql`excluded.updated_at`,
         },
       });

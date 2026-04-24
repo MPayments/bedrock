@@ -1,5 +1,5 @@
-import type { RateObservation } from "./rate-book";
 import type { CrossRate } from "./model";
+import type { RateObservation } from "./rate-book";
 import { RateNotFoundError } from "../../errors";
 
 export class CrossRateResolver {

@@ -38,6 +38,14 @@ const DecimalStringSchema = z
   .transform((value) => value.replace(",", "."))
   .refine(isDecimalString);
 
+function isSignedDecimalString(value: string): boolean {
+  if (value.startsWith("-")) {
+    return isDecimalString(value.slice(1));
+  }
+
+  return isDecimalString(value);
+}
+
 const nullableDecimalStringSchema = DecimalStringSchema.nullable();
 const signedMinorAmountStringSchema = z
   .string()
@@ -46,7 +54,7 @@ const signedMinorAmountStringSchema = z
 const signedDecimalStringSchema = z
   .string()
   .trim()
-  .regex(/^-?(0|[1-9]\d*)(\.\d+)?$/u, "Must be a decimal string");
+  .refine(isSignedDecimalString, "Must be a decimal string");
 
 export const DealCounterpartySnapshotSchema = z.object({
   country: z.string().nullable(),
