@@ -246,7 +246,7 @@ export function RequisiteProviderMasterDataEditor({
   );
   const [localError, setLocalError] = useState<string | null>(null);
   const [localizedTextVariant, setLocalizedTextVariant] =
-    useState<LocalizedTextVariant>("base");
+    useState<LocalizedTextVariant>("ru");
 
   useEffect(() => {
     setDraft(cloneRequisiteProviderMasterDataInput(initialDraft));

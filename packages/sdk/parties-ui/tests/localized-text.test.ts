@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  LOCALIZED_TEXT_VARIANTS,
+  readLocalizedTextLocale,
   readLocalizedTextVariant,
+  updateLocalizedTextLocale,
   updateLocalizedTextVariant,
 } from "../src/lib/localized-text";
 
@@ -83,5 +86,69 @@ describe("localized text helpers", () => {
       ru: "Русский текст",
       en: "English text",
     });
+  });
+
+  it("returns base value when reading 'all' variant (side-by-side mode)", () => {
+    expect(
+      readLocalizedTextVariant({
+        baseValue: "Base",
+        localeMap: { ru: "Русский", en: "English" },
+        variant: "all",
+      }),
+    ).toBe("Base");
+  });
+
+  it("does not modify locale map when updating with 'all' variant", () => {
+    const next = updateLocalizedTextVariant({
+      baseValue: "Base",
+      localeMap: { ru: "Русский", en: "English" },
+      nextValue: "ignored",
+      variant: "all",
+    });
+
+    expect(next.baseValue).toBe("Base");
+    expect(next.localeMap).toEqual({ ru: "Русский", en: "English" });
+  });
+
+  it("reads a specific locale via readLocalizedTextLocale", () => {
+    expect(
+      readLocalizedTextLocale({
+        localeMap: { ru: "Русский", en: "English" },
+        locale: "ru",
+      }),
+    ).toBe("Русский");
+    expect(
+      readLocalizedTextLocale({
+        localeMap: null,
+        locale: "en",
+      }),
+    ).toBe("");
+  });
+
+  it("updateLocalizedTextLocale updates only the target locale", () => {
+    const next = updateLocalizedTextLocale({
+      baseValue: "Base",
+      localeMap: { ru: "Старый", en: "Keep" },
+      nextValue: "Новый",
+      locale: "ru",
+    });
+
+    expect(next.baseValue).toBe("Base");
+    expect(next.localeMap).toEqual({ ru: "Новый", en: "Keep" });
+  });
+
+  it("updateLocalizedTextLocale clears to null when empty and other locales empty", () => {
+    const next = updateLocalizedTextLocale({
+      baseValue: "Base",
+      localeMap: { ru: "Был" },
+      nextValue: "",
+      locale: "ru",
+    });
+
+    expect(next.localeMap).toBeNull();
+  });
+
+  it("exposes only RU and EN as user-selectable UI variants", () => {
+    expect(LOCALIZED_TEXT_VARIANTS.map((v) => v.value)).toEqual(["ru", "en"]);
   });
 });
