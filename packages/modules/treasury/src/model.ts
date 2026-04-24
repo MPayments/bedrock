@@ -9,6 +9,7 @@ export type {
   PaymentStepRate,
   PaymentStepRateLockedSide,
   PaymentStepRecord,
+  PaymentStepSettlementEvidencePurpose,
   PaymentStepState,
   PostingDocumentRef,
 } from "./payment-steps/domain/types";

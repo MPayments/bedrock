@@ -43,6 +43,12 @@ export const PAYMENT_STEP_ATTEMPT_OUTCOME_VALUES = [
   "returned",
 ] as const;
 
+export const PAYMENT_STEP_SETTLEMENT_EVIDENCE_PURPOSE_VALUES = [
+  "bank_confirmation",
+  "settlement_confirmation",
+  "counterparty_receipt",
+] as const;
+
 export type PaymentStepKind = (typeof PAYMENT_STEP_KIND_VALUES)[number];
 export type PaymentStepPurpose = (typeof PAYMENT_STEP_PURPOSE_VALUES)[number];
 export type PaymentStepState = (typeof PAYMENT_STEP_STATE_VALUES)[number];
@@ -52,6 +58,8 @@ export type PaymentStepRateLockedSide =
   (typeof PAYMENT_STEP_RATE_LOCKED_SIDE_VALUES)[number];
 export type PaymentStepAttemptOutcome =
   (typeof PAYMENT_STEP_ATTEMPT_OUTCOME_VALUES)[number];
+export type PaymentStepSettlementEvidencePurpose =
+  (typeof PAYMENT_STEP_SETTLEMENT_EVIDENCE_PURPOSE_VALUES)[number];
 
 export interface PaymentStepPartyRef {
   id: string;
@@ -88,6 +96,7 @@ export interface PaymentStepAttemptRecord {
 
 export interface PaymentStepRecord {
   artifacts: ArtifactRef[];
+  attempts: PaymentStepAttemptRecord[];
   completedAt: Date | null;
   createdAt: Date;
   dealId: string | null;

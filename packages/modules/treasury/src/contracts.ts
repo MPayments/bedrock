@@ -9,6 +9,7 @@ export {
   PaymentStepRateLockedSideSchema,
   PaymentStepRateSchema,
   PaymentStepSchema,
+  PaymentStepSettlementEvidencePurposeSchema,
   PaymentStepStateSchema,
   PostingDocumentRefSchema,
   type ArtifactRef,
@@ -21,6 +22,7 @@ export {
   type PaymentStepPurpose,
   type PaymentStepRate,
   type PaymentStepRateLockedSide,
+  type PaymentStepSettlementEvidencePurpose,
   type PaymentStepState,
   type PostingDocumentRef,
 } from "./payment-steps/contracts/dto";

@@ -6,6 +6,7 @@ import {
   PAYMENT_STEP_KIND_VALUES,
   PAYMENT_STEP_PURPOSE_VALUES,
   PAYMENT_STEP_RATE_LOCKED_SIDE_VALUES,
+  PAYMENT_STEP_SETTLEMENT_EVIDENCE_PURPOSE_VALUES,
   PAYMENT_STEP_STATE_VALUES,
 } from "../domain/types";
 
@@ -20,6 +21,9 @@ export const PaymentStepRateLockedSideSchema = z.enum(
 );
 export const PaymentStepAttemptOutcomeSchema = z.enum(
   PAYMENT_STEP_ATTEMPT_OUTCOME_VALUES,
+);
+export const PaymentStepSettlementEvidencePurposeSchema = z.enum(
+  PAYMENT_STEP_SETTLEMENT_EVIDENCE_PURPOSE_VALUES,
 );
 
 export const PaymentStepPartyRefSchema = z.object({
@@ -57,6 +61,7 @@ export const PaymentStepAttemptSchema = z.object({
 
 export const PaymentStepSchema = z.object({
   artifacts: z.array(ArtifactRefSchema),
+  attempts: z.array(PaymentStepAttemptSchema),
   completedAt: z.date().nullable(),
   createdAt: z.date(),
   dealId: z.uuid().nullable(),
@@ -98,4 +103,7 @@ export type PaymentStepRateLockedSide = z.infer<
   typeof PaymentStepRateLockedSideSchema
 >;
 export type PaymentStepState = z.infer<typeof PaymentStepStateSchema>;
+export type PaymentStepSettlementEvidencePurpose = z.infer<
+  typeof PaymentStepSettlementEvidencePurposeSchema
+>;
 export type PostingDocumentRef = z.infer<typeof PostingDocumentRefSchema>;
