@@ -27,6 +27,26 @@ export {
   type PostingDocumentRef,
 } from "./payment-steps/contracts/dto";
 export {
+  AmendPaymentStepInputSchema,
+  CancelPaymentStepInputSchema,
+  ConfirmPaymentStepInputSchema,
+  CreatePaymentStepInputSchema,
+  SkipPaymentStepInputSchema,
+  SubmitPaymentStepInputSchema,
+  type AmendPaymentStepInput,
+  type CancelPaymentStepInput,
+  type ConfirmPaymentStepInput,
+  type CreatePaymentStepInput,
+  type SkipPaymentStepInput,
+  type SubmitPaymentStepInput,
+} from "./payment-steps/application/contracts/commands";
+export {
+  GetPaymentStepByIdInputSchema,
+  ListPaymentStepsQuerySchema,
+  type GetPaymentStepByIdInput,
+  type ListPaymentStepsQuery,
+} from "./payment-steps/application/contracts/queries";
+export {
   SetManualRateInputSchema,
   SetManualRateResponseSchema,
   SyncRatesFromSourceInputSchema,

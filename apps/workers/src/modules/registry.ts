@@ -39,6 +39,7 @@ import { createReconciliationWorkerDefinition } from "@bedrock/reconciliation/wo
 import { createTreasuryModule } from "@bedrock/treasury";
 import {
   DrizzlePaymentRouteTemplatesRepository,
+  DrizzlePaymentStepsRepository,
   DrizzleTreasuryFeeRulesRepository,
   DrizzleTreasuryInstructionArtifactsRepository,
   DrizzleTreasuryInstructionsRepository,
@@ -265,6 +266,7 @@ export function createWorkerImplementations(
     feeRulesRepository: new DrizzleTreasuryFeeRulesRepository(deps.db),
     paymentRouteTemplatesRepository:
       new DrizzlePaymentRouteTemplatesRepository(deps.db),
+    paymentStepsRepository: new DrizzlePaymentStepsRepository(deps.db),
     unitOfWork: new DrizzleTreasuryUnitOfWork({
       persistence: createPersistenceContext(deps.db),
     }),

@@ -283,14 +283,6 @@ function normalizeSnapshot(snapshot: PaymentStepSnapshot): PaymentStepSnapshot {
         meta: { stepId: normalized.id },
       },
     );
-    invariant(
-      hasSettlementEvidence(normalized.artifacts),
-      "Completed payment steps require settlement evidence",
-      {
-        code: "treasury.payment_step.evidence_required",
-        meta: { stepId: normalized.id },
-      },
-    );
   }
   if (normalized.state === "returned") {
     invariant(

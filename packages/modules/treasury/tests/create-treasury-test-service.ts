@@ -7,6 +7,8 @@ import { createModuleRuntime } from "@bedrock/shared/core";
 
 import { DrizzleTreasuryOperationsRepository } from "../src/operations/adapters/drizzle/operations.repository";
 import { createTreasuryOperationsService } from "../src/operations/application";
+import { createPaymentStepsService } from "../src/payment-steps/application";
+import { DrizzlePaymentStepsRepository } from "../src/payment-steps/infra/drizzle/payment-steps.repository";
 import { DrizzleTreasuryQuoteFeeComponentsRepository } from "../src/quotes/adapters/drizzle/quote-fee-components.repository";
 import { DrizzleTreasuryQuoteFinancialLinesRepository } from "../src/quotes/adapters/drizzle/quote-financial-lines.repository";
 import { DrizzleTreasuryQuotesRepository } from "../src/quotes/adapters/drizzle/quotes.repository";
@@ -46,8 +48,14 @@ export function createTreasuryTestHarness(deps: TreasuryTestServiceDeps) {
     now: () => new Date(),
     service: "treasury.operations",
   });
+  const paymentStepsRuntime = createModuleRuntime({
+    logger: deps.logger,
+    now: () => new Date(),
+    service: "treasury.payment_steps",
+  });
   const ratesRepository = new DrizzleTreasuryRatesRepository(db);
   const operationsRepository = new DrizzleTreasuryOperationsRepository(db);
+  const paymentStepsRepository = new DrizzlePaymentStepsRepository(db);
   const quotesRepository = new DrizzleTreasuryQuotesRepository(db);
   const quoteFeeComponentsRepository =
     new DrizzleTreasuryQuoteFeeComponentsRepository(db);
@@ -76,9 +84,14 @@ export function createTreasuryTestHarness(deps: TreasuryTestServiceDeps) {
     operationsRepository,
     runtime: operationsRuntime,
   });
+  const paymentSteps = createPaymentStepsService({
+    repository: paymentStepsRepository,
+    runtime: paymentStepsRuntime,
+  });
 
   const treasuryModule = {
     operations,
+    paymentSteps,
     rates,
     quotes,
   };
@@ -109,6 +122,16 @@ export function createTreasuryTestHarness(deps: TreasuryTestServiceDeps) {
           treasuryModule.operations.commands.createOrGetPlanned,
         findById: treasuryModule.operations.queries.findById,
         list: treasuryModule.operations.queries.list,
+      },
+      paymentSteps: {
+        amend: treasuryModule.paymentSteps.commands.amend,
+        cancel: treasuryModule.paymentSteps.commands.cancel,
+        confirm: treasuryModule.paymentSteps.commands.confirm,
+        create: treasuryModule.paymentSteps.commands.create,
+        findById: treasuryModule.paymentSteps.queries.findById,
+        list: treasuryModule.paymentSteps.queries.list,
+        skip: treasuryModule.paymentSteps.commands.skip,
+        submit: treasuryModule.paymentSteps.commands.submit,
       },
     },
   };

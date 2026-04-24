@@ -14,7 +14,8 @@ import { createTreasuryOperationsService } from "./operations/application";
 import type { TreasuryOperationsRepository } from "./operations/application/ports/operations.repository";
 import { createPaymentRoutesService } from "./payment-routes/application";
 import type { PaymentRouteTemplatesRepository } from "./payment-routes/application/ports/payment-routes.repository";
-import { createPaymentStepsService } from "./payment-steps/service";
+import { createPaymentStepsService } from "./payment-steps/application";
+import type { PaymentStepsRepository } from "./payment-steps/application/ports/payment-steps.repository";
 import { createQuotesService } from "./quotes/application";
 import type {
   QuoteFeeComponentsRepository,
@@ -46,6 +47,7 @@ export interface TreasuryModuleDeps {
   quoteFinancialLinesRepository: QuoteFinancialLinesRepository;
   feeRulesRepository: FeeRuleRepository;
   paymentRouteTemplatesRepository: PaymentRouteTemplatesRepository;
+  paymentStepsRepository: PaymentStepsRepository;
   unitOfWork: TreasuryModuleUnitOfWork;
   rateSourceProviders?: Partial<Record<RateSource, RateSourceProvider>>;
 }
@@ -91,7 +93,10 @@ export function createTreasuryModule(deps: TreasuryModuleDeps) {
       operationsRepository: deps.operationsRepository,
       runtime: createRuntime("treasury.operations"),
     }),
-    paymentSteps: createPaymentStepsService(),
+    paymentSteps: createPaymentStepsService({
+      repository: deps.paymentStepsRepository,
+      runtime: createRuntime("treasury.payment_steps"),
+    }),
     rates,
     quotes: createQuotesService({
       runtime: createRuntime("treasury.quotes"),

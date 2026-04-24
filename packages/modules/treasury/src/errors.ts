@@ -44,6 +44,14 @@ export class TreasuryOperationNotFoundError extends TreasuryError {
   }
 }
 
+export class PaymentStepNotFoundError extends TreasuryError {
+  name = "PaymentStepNotFoundError";
+
+  constructor(stepId: string) {
+    super(`Payment step not found: ${stepId}`);
+  }
+}
+
 export class TreasuryInstructionNotFoundError extends TreasuryError {
   name = "TreasuryInstructionNotFoundError";
 

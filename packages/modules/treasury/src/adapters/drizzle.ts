@@ -3,6 +3,7 @@ export { DrizzleTreasuryInstructionArtifactsRepository } from "../instructions/a
 export { DrizzleTreasuryInstructionsRepository } from "../instructions/adapters/drizzle/instructions.repository";
 export { DrizzleTreasuryOperationsRepository } from "../operations/adapters/drizzle/operations.repository";
 export { DrizzlePaymentRouteTemplatesRepository } from "../payment-routes/adapters/drizzle/payment-routes.repository";
+export { DrizzlePaymentStepsRepository } from "../payment-steps/infra/drizzle/payment-steps.repository";
 export { DrizzleTreasuryQuoteFinancialLinesRepository } from "../quotes/adapters/drizzle/quote-financial-lines.repository";
 export { DrizzleTreasuryQuoteFeeComponentsRepository } from "../quotes/adapters/drizzle/quote-fee-components.repository";
 export { DrizzleTreasuryQuotesRepository } from "../quotes/adapters/drizzle/quotes.repository";
