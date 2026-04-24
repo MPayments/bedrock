@@ -41,7 +41,6 @@ function toFormValues(
     kind: counterparty.kind,
     country: counterparty.country ?? "",
     description: counterparty.description ?? "",
-    descriptionEn: "",
     customerId: counterparty.customerId ?? "",
     groupIds: counterparty.groupIds,
   };

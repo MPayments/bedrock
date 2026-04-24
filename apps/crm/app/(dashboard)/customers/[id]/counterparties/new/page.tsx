@@ -108,10 +108,6 @@ export default function CustomerCounterpartyCreatePage() {
             ru: generalValues?.fullName ?? "",
             en: generalValues?.fullNameEn ?? "",
           },
-          {
-            ru: generalValues?.description ?? "",
-            en: generalValues?.descriptionEn ?? "",
-          },
         ],
       }).ratio,
     [partyProfileDraft, generalValues],
@@ -139,8 +135,6 @@ export default function CustomerCounterpartyCreatePage() {
               shortNameEn: generalValues.shortNameEn,
               fullName: generalValues.fullName,
               fullNameEn: generalValues.fullNameEn,
-              description: generalValues.description,
-              descriptionEn: generalValues.descriptionEn,
             }
           : null,
       });

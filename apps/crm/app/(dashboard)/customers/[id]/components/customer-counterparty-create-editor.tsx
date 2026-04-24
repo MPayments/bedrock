@@ -57,7 +57,6 @@ const INITIAL_VALUES: CounterpartyGeneralFormValues = {
   kind: "legal_entity",
   country: "",
   description: "",
-  descriptionEn: "",
   customerId: "",
   groupIds: [],
 };
@@ -275,7 +274,6 @@ export function CustomerCounterpartyCreateEditor({
             nextValue: values.shortNameEn.trim(),
             locale: "en",
           }).localeMap;
-          // TODO(description-i18n): persist values.descriptionEn when counterparty.descriptionI18n migration lands.
 
           const result = await executeApiMutation<z.infer<typeof CreatedCounterpartySchema>>({
             request: () =>

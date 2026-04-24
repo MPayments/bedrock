@@ -114,7 +114,6 @@ function toGeneralFormValues(
     kind: counterparty.kind,
     country: counterparty.country ?? "",
     description: counterparty.description ?? "",
-    descriptionEn: "",
     customerId: counterparty.customerId ?? "",
     groupIds: counterparty.groupIds,
   };
@@ -340,7 +339,6 @@ export function CustomerCounterpartyEditor({
                 nextValue: values.shortNameEn.trim(),
                 locale: "en",
               }).localeMap;
-              // TODO(description-i18n): persist values.descriptionEn when counterparty.descriptionI18n migration lands.
 
               const baseBundle =
                 existingProfile ??

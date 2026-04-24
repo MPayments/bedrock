@@ -167,8 +167,6 @@ export type CounterpartyGeneralTranslatable = {
   shortNameEn: string;
   fullName: string;
   fullNameEn: string;
-  description: string;
-  descriptionEn: string;
 };
 
 export type TranslateCounterpartyResult = {
@@ -180,7 +178,7 @@ const GENERAL_SLOT_PREFIX = "general.";
 
 type GeneralSlot = {
   key: string;
-  target: keyof CounterpartyGeneralFormValues & ("shortNameEn" | "fullNameEn" | "descriptionEn");
+  target: keyof CounterpartyGeneralFormValues & ("shortNameEn" | "fullNameEn");
   ru: string;
   en: string;
 };
@@ -200,12 +198,6 @@ function collectGeneralSlots(
       target: "fullNameEn",
       ru: general.fullName.trim(),
       en: general.fullNameEn.trim(),
-    },
-    {
-      key: `${GENERAL_SLOT_PREFIX}description`,
-      target: "descriptionEn",
-      ru: general.description.trim(),
-      en: general.descriptionEn.trim(),
     },
   ];
 }

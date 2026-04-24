@@ -58,7 +58,6 @@ export type CounterpartyGeneralFormValues = {
   kind: "legal_entity" | "individual";
   country: string;
   description: string;
-  descriptionEn: string;
   customerId: string;
   groupIds: string[];
 };
@@ -113,7 +112,6 @@ const DEFAULT_VALUES: CounterpartyGeneralFormValues = {
   kind: "legal_entity",
   country: "",
   description: "",
-  descriptionEn: "",
   customerId: "",
   groupIds: [],
 };
@@ -141,7 +139,6 @@ const CounterpartyGeneralFormSchema = z.object({
       "Введите двухбуквенный код страны",
     ),
   description: z.string(),
-  descriptionEn: z.string(),
   customerId: z
     .string()
     .refine(
@@ -1089,18 +1086,34 @@ export function CounterpartyGeneralEditor({
                   />
                 ) : null}
 
-                <BilingualTextField
-                  bilingualMode={bilingualMode}
+                <Controller
+                  name="description"
                   control={control}
-                  ruName="description"
-                  enName="descriptionEn"
-                  idBase="counterparty-description"
-                  label="Описание"
-                  placeholderRu="Дополнительная информация о контрагенте"
-                  placeholderEn="Additional details about the counterparty"
-                  multiline
-                  rows={3}
-                  disabled={submitting}
+                  render={({ field, fieldState }) => (
+                    <Field
+                      data-invalid={fieldState.invalid}
+                      className="md:col-span-2"
+                    >
+                      <FieldLabel htmlFor="counterparty-description">
+                        Описание
+                      </FieldLabel>
+                      <Textarea
+                        id="counterparty-description"
+                        name={field.name}
+                        ref={field.ref}
+                        value={typeof field.value === "string" ? field.value : ""}
+                        onBlur={field.onBlur}
+                        onChange={field.onChange}
+                        rows={3}
+                        aria-invalid={fieldState.invalid}
+                        placeholder="Дополнительная информация о контрагенте"
+                        disabled={submitting}
+                      />
+                      {fieldState.invalid ? (
+                        <FieldError errors={[fieldState.error]} />
+                      ) : null}
+                    </Field>
+                  )}
                 />
               </div>
             </FieldSet>
