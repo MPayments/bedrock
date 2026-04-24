@@ -2,15 +2,13 @@ import { DEAL_OPERATIONAL_POSITION_KIND_VALUES } from "./constants";
 import type {
   DealIntakeDraft,
   DealOperationalPosition,
-  DealOperationalState,
-  DealSectionCompleteness,
-  DealWorkflowLeg,
-} from "../application/contracts/dto";
-import type {
   DealOperationalPositionKind,
   DealOperationalPositionState,
+  DealOperationalState,
+  DealSectionCompleteness,
   DealStatus,
-} from "../application/contracts/zod";
+  DealWorkflowLeg,
+} from "./model";
 
 interface CalculationOperationalLine {
   amountMinor: string;

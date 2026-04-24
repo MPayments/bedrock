@@ -6,6 +6,11 @@
       "sourceType": "github",
       "computedHash": "d981ed6b5ac3148d6d35c3f9dfe0cee816d0f52b0110bff5ecb45f0745b7e3ed"
     },
+    "jscpd": {
+      "source": "kucherenko/jscpd",
+      "sourceType": "github",
+      "computedHash": "80b4c74864717ca5cfaf64a75a0cfd47736c9ebdcab388ee058395365f34f387"
+    },
     "vercel-composition-patterns": {
       "source": "vercel-labs/agent-skills",
       "sourceType": "github",

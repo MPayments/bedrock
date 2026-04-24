@@ -30,16 +30,16 @@ function createHarness() {
     createCalculationLines: vi.fn(),
     setCurrentSnapshot: vi.fn(),
   };
+  const idempotency = {
+    withIdempotency: vi.fn(async ({ handler }) => handler()),
+  };
   const tx = {
-    transaction: { id: "tx-1" } as any,
     calculationReads,
     calculationStore,
+    idempotency,
   };
   const commandUow = {
     run: vi.fn(async (work: (value: typeof tx) => Promise<unknown>) => work(tx)),
-  };
-  const idempotency = {
-    withIdempotencyTx: vi.fn(async ({ handler }) => handler()),
   };
   const references = {
     assertCurrencyExists: vi.fn(async () => undefined),
@@ -72,7 +72,6 @@ function createHarness() {
   const command = new CreateCalculationCommand(
     runtime,
     commandUow as any,
-    idempotency as any,
     references,
   );
 
@@ -150,7 +149,7 @@ describe("create calculation command", () => {
 
     expect(result).toBe(expected);
     expect(harness.commandUow.run).toHaveBeenCalledTimes(1);
-    expect(harness.idempotency.withIdempotencyTx).toHaveBeenCalledTimes(1);
+    expect(harness.idempotency.withIdempotency).toHaveBeenCalledTimes(1);
     expect(harness.calculationStore.createCalculationRoot).toHaveBeenCalledWith({
       id: "00000000-0000-4000-8000-000000000010",
     });

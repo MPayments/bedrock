@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-import type { IdempotencyPort } from "@bedrock/platform/idempotency";
 import type { ModuleRuntime } from "@bedrock/shared/core";
 import { ValidationError } from "@bedrock/shared/core/errors";
 
@@ -85,7 +84,6 @@ export class UpdateAgreementCommand {
   constructor(
     private readonly runtime: ModuleRuntime,
     private readonly commandUow: AgreementsCommandUnitOfWork,
-    private readonly idempotency: IdempotencyPort,
     private readonly references: AgreementReferencesPort,
   ) {}
 
@@ -93,8 +91,7 @@ export class UpdateAgreementCommand {
     const validated = UpdateAgreementCommandInputSchema.parse(raw);
 
     return this.commandUow.run((tx) =>
-      this.idempotency.withIdempotencyTx({
-        tx: tx.transaction,
+      tx.idempotency.withIdempotency({
         scope: AGREEMENTS_UPDATE_IDEMPOTENCY_SCOPE,
         idempotencyKey: validated.idempotencyKey,
         request: {

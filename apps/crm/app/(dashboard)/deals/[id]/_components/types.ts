@@ -30,6 +30,8 @@ export type DealLegState =
   | "blocked"
   | "skipped";
 
+export type DealLegManualOverride = "blocked" | "skipped";
+
 export type DealOperationalPositionKind =
   | "customer_receivable"
   | "provider_payable"
@@ -112,6 +114,8 @@ export type ApiDealTimelineEvent = {
     | "participant_changed"
     | "status_changed"
     | "leg_state_changed"
+    | "leg_manual_override_set"
+    | "leg_manual_override_cleared"
     | "execution_requested"
     | "leg_operation_created"
     | "instruction_prepared"
@@ -159,6 +163,7 @@ export type ApiDealAcceptedQuote = {
   quoteId: string;
   quoteStatus: string;
   replacedByQuoteId: string | null;
+  revocationReason: string | null;
   revokedAt: string | null;
   usedAt: string | null;
   usedDocumentId: string | null;

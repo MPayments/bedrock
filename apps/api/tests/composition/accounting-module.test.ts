@@ -1,8 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const captures = vi.hoisted(() => ({
-  closePackageInput: null as any,
-  reportsReadsInput: null as any,
+  accountingModuleInput: null as any,
 }));
 
 vi.mock("@bedrock/accounting", () => ({
@@ -10,21 +9,10 @@ vi.mock("@bedrock/accounting", () => ({
 }));
 
 vi.mock("@bedrock/accounting/adapters/drizzle", () => ({
-  createAccountingClosePackageSnapshotPort: vi.fn((input) => {
-    captures.closePackageInput = input;
-    return { kind: "close-package-port" };
+  createDrizzleAccountingModule: vi.fn((input) => {
+    captures.accountingModuleInput = input;
+    return input;
   }),
-  createInMemoryCompiledPackCache: vi.fn(() => ({})),
-  DrizzleAccountingUnitOfWork: class DrizzleAccountingUnitOfWork {},
-  DrizzleChartReads: class DrizzleChartReads {},
-  DrizzlePackReads: class DrizzlePackReads {},
-  DrizzlePeriodReads: class DrizzlePeriodReads {},
-  DrizzlePeriodRepository: class DrizzlePeriodRepository {},
-  DrizzleReportsReads: class DrizzleReportsReads {
-    constructor(input: unknown) {
-      captures.reportsReadsInput = input;
-    }
-  },
 }));
 
 vi.mock("@bedrock/currencies/queries", () => ({
@@ -101,7 +89,9 @@ vi.mock("../../src/composition/parties-module", () => ({
     customersQueries: {},
     organizationsQueries: {
       assertInternalLedgerOrganization: vi.fn(),
-      listShortNamesById: vi.fn(async (ids: string[]) => new Map(ids.map((id) => [id, id]))),
+      listShortNamesById: vi.fn(
+        async (ids: string[]) => new Map(ids.map((id) => [id, id])),
+      ),
     },
     requisitesQueries: {},
   })),
@@ -109,15 +99,13 @@ vi.mock("../../src/composition/parties-module", () => ({
 
 describe("accounting module composition", () => {
   beforeEach(() => {
-    captures.closePackageInput = null;
-    captures.reportsReadsInput = null;
+    captures.accountingModuleInput = null;
     vi.clearAllMocks();
   });
 
-  it("binds ledger read callbacks before passing them into downstream ports", async () => {
-    const { createApiAccountingModule } = await import(
-      "../../src/composition/accounting-module"
-    );
+  it("passes read runtimes and labeled book lookup into the shared accounting adapter", async () => {
+    const { createApiAccountingModule } =
+      await import("../../src/composition/accounting-module");
 
     createApiAccountingModule({
       db: {} as never,
@@ -125,22 +113,17 @@ describe("accounting module composition", () => {
       logger: {} as never,
     });
 
+    expect(captures.accountingModuleInput.ledgerReadRuntime).toBeDefined();
+    expect(captures.accountingModuleInput.partiesReadRuntime).toBeDefined();
+    expect(captures.accountingModuleInput.documentsReadModel).toBeDefined();
     await expect(
-      captures.reportsReadsInput.ledgerReadPort.listOperations({ limit: 5 }),
-    ).resolves.toEqual({
-      query: { limit: 5 },
-    });
-    await expect(
-      captures.reportsReadsInput.ledgerReadPort.listOperationDetails(["operation-1"]),
-    ).resolves.toEqual(new Map([["operation-1", ["operation-1"]]]));
-    await expect(
-      captures.reportsReadsInput.ledgerReadPort.getOperationDetails("operation-1"),
-    ).resolves.toEqual({ id: "operation-1" });
-    await expect(
-      captures.reportsReadsInput.listBookNamesById(["book-1"]),
-    ).resolves.toEqual(new Map([["book-1", "Book book-1"]]));
-    await expect(
-      captures.closePackageInput.listBooksByOwnerId("org-1"),
-    ).resolves.toEqual([{ id: "book-org-1" }]);
+      captures.accountingModuleInput.listBooksById(["book-1"]),
+    ).resolves.toEqual([
+      {
+        id: "book-1",
+        name: "Book book-1",
+        ownerId: "org-1",
+      },
+    ]);
   });
 });

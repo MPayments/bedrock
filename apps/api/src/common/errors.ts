@@ -26,6 +26,42 @@ import {
   RateSourceSyncError,
 } from "@bedrock/treasury";
 
+type ErrorConstructorLike = abstract new (...args: any[]) => Error;
+type RouteErrorStatus = 400 | 403 | 404 | 409 | 503;
+
+const ROUTE_ERROR_STATUS_GROUPS = [
+  {
+    status: 404,
+    errors: [RateNotFoundError, DocumentNotFoundError, NotFoundError],
+  },
+  {
+    status: 403,
+    errors: [PermissionError, DocumentPolicyDeniedError],
+  },
+  {
+    status: 400,
+    errors: [DocumentValidationError, DocumentGraphError, ValidationError],
+  },
+  {
+    status: 409,
+    errors: [
+      DocumentSystemOnlyTypeError,
+      InvalidStateError,
+      ConflictError,
+      DocumentPostingNotRequiredError,
+      ActionReceiptConflictError,
+      ActionReceiptStoredError,
+    ],
+  },
+  {
+    status: 503,
+    errors: [RateSourceStaleError, RateSourceSyncError],
+  },
+] as const satisfies {
+  errors: readonly ErrorConstructorLike[];
+  status: RouteErrorStatus;
+}[];
+
 function resolveErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
@@ -78,6 +114,16 @@ function buildErrorBody(error: unknown) {
   return payload;
 }
 
+function resolveKnownErrorStatus(error: unknown): RouteErrorStatus | null {
+  for (const group of ROUTE_ERROR_STATUS_GROUPS) {
+    if (group.errors.some((ErrorType) => error instanceof ErrorType)) {
+      return group.status;
+    }
+  }
+
+  return null;
+}
+
 /**
  * Shared route-level error handler.
  *
@@ -96,45 +142,9 @@ export function handleRouteError(c: Context, error: unknown): any {
     );
   }
 
-  if (
-    error instanceof RateNotFoundError ||
-    error instanceof DocumentNotFoundError ||
-    error instanceof NotFoundError
-  ) {
-    return c.json(buildErrorBody(error), 404);
-  }
-
-  if (
-    error instanceof PermissionError ||
-    error instanceof DocumentPolicyDeniedError
-  ) {
-    return c.json(buildErrorBody(error), 403);
-  }
-
-  if (
-    error instanceof DocumentValidationError ||
-    error instanceof DocumentGraphError ||
-    error instanceof ValidationError
-  ) {
-    return c.json(buildErrorBody(error), 400);
-  }
-
-  if (
-    error instanceof DocumentSystemOnlyTypeError ||
-    error instanceof InvalidStateError ||
-    error instanceof ConflictError ||
-    error instanceof DocumentPostingNotRequiredError ||
-    error instanceof ActionReceiptConflictError ||
-    error instanceof ActionReceiptStoredError
-  ) {
-    return c.json(buildErrorBody(error), 409);
-  }
-
-  if (
-    error instanceof RateSourceStaleError ||
-    error instanceof RateSourceSyncError
-  ) {
-    return c.json(buildErrorBody(error), 503);
+  const status = resolveKnownErrorStatus(error);
+  if (status) {
+    return c.json(buildErrorBody(error), status);
   }
 
   // Unknown error -- rethrow to let global handler return 500

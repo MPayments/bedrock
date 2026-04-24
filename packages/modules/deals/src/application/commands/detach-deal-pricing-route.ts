@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import type { ModuleRuntime } from "@bedrock/shared/core";
+
 import {
   DealNotFoundError,
   DealPricingContextRevisionConflictError,
@@ -7,6 +9,7 @@ import {
 import type { DealPricingContext } from "../contracts/dto";
 import type { DealsCommandUnitOfWork } from "../ports/deals.uow";
 import { detachDealPricingRouteSnapshot } from "../shared/pricing-context";
+import { buildDealLegRows } from "../shared/workflow-state";
 
 const DetachDealPricingRouteCommandInputSchema = z.object({
   dealId: z.uuid(),
@@ -17,7 +20,10 @@ type DetachDealPricingRouteCommandInput = z.infer<
 >;
 
 export class DetachDealPricingRouteCommand {
-  constructor(private readonly commandUow: DealsCommandUnitOfWork) {}
+  constructor(
+    private readonly runtime: ModuleRuntime,
+    private readonly commandUow: DealsCommandUnitOfWork,
+  ) {}
 
   async execute(
     raw: DetachDealPricingRouteCommandInput,
@@ -47,6 +53,20 @@ export class DetachDealPricingRouteCommand {
           validated.dealId,
           existing.revision,
         );
+      }
+
+      const workflow = await tx.dealReads.findWorkflowById(validated.dealId);
+      if (workflow) {
+        await tx.dealStore.replaceDealLegs({
+          dealId: validated.dealId,
+          legs: buildDealLegRows({
+            dealId: validated.dealId,
+            existingLegs: workflow.executionPlan,
+            generateUuid: () => this.runtime.generateUuid(),
+            intake: workflow.intake,
+            routeSnapshot: null,
+          }),
+        });
       }
 
       return tx.dealReads.findPricingContextByDealId(validated.dealId);

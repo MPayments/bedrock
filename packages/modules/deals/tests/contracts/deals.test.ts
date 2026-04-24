@@ -154,6 +154,7 @@ describe("deals contracts", () => {
           },
         ],
       },
+      pricingFingerprint: "fingerprint-1",
       pricingMode: "explicit_route",
       profitability: {
         commercialRevenueMinor: "250",
@@ -173,6 +174,7 @@ describe("deals contracts", () => {
         feeComponents: [],
         financialLines: [
           {
+            id: "financial-line-1",
             amountMinor: "250",
             bucket: "provider_fee_expense",
             currency: "RUB",

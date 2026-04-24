@@ -19,6 +19,7 @@ export { profileRoutes } from "./profile";
 export { requisiteProvidersRoutes } from "./requisite-providers";
 export { requisitesRoutes } from "./requisites";
 export { subAgentProfilesRoutes } from "./sub-agent-profiles";
+export { treasuryQueueRoutes } from "./treasury-queue";
 export { treasuryQuotesRoutes } from "./treasury-quotes";
 export { treasuryRatesRoutes } from "./treasury-rates";
 export {

@@ -1,18 +1,24 @@
 import type { ModuleRuntime } from "@bedrock/shared/core";
 
+import { AttachTreasuryInstructionArtifactCommand } from "./commands/attach-artifact";
 import { PrepareTreasuryInstructionCommand } from "./commands/prepare-instruction";
 import { RecordTreasuryInstructionOutcomeCommand } from "./commands/record-outcome";
 import { RequestTreasuryReturnCommand } from "./commands/request-return";
 import { RetryTreasuryInstructionCommand } from "./commands/retry-instruction";
 import { SubmitTreasuryInstructionCommand } from "./commands/submit-instruction";
 import { VoidTreasuryInstructionCommand } from "./commands/void-instruction";
+import type { TreasuryInstructionArtifactsRepository } from "./ports/artifacts.repository";
 import type { TreasuryInstructionsRepository } from "./ports/instructions.repository";
 import { GetTreasuryInstructionByIdQuery } from "./queries/get-instruction-by-id";
 import { GetLatestTreasuryInstructionByOperationIdQuery } from "./queries/get-latest-instruction-by-operation-id";
+import { ListTreasuryInstructionArtifactsQuery } from "./queries/list-artifacts";
+import { ListTreasuryInstructionArtifactsByInstructionIdsQuery } from "./queries/list-artifacts-by-instruction-ids";
+import { ListTreasuryInstructionsByOperationIdsQuery } from "./queries/list-instructions-by-operation-ids";
 import { ListLatestTreasuryInstructionsByOperationIdsQuery } from "./queries/list-latest-instructions-by-operation-ids";
 import type { TreasuryOperationsRepository } from "../../operations/application/ports/operations.repository";
 
 export interface TreasuryInstructionsServiceDeps {
+  artifactsRepository: TreasuryInstructionArtifactsRepository;
   instructionsRepository: TreasuryInstructionsRepository;
   operationsRepository: TreasuryOperationsRepository;
   runtime: ModuleRuntime;
@@ -44,6 +50,12 @@ export function createTreasuryInstructionsService(
   const recordOutcome = new RecordTreasuryInstructionOutcomeCommand(
     deps.instructionsRepository,
     deps.runtime,
+    deps.artifactsRepository,
+  );
+  const attachArtifact = new AttachTreasuryInstructionArtifactCommand(
+    deps.instructionsRepository,
+    deps.artifactsRepository,
+    deps.runtime,
   );
   const getInstructionById = new GetTreasuryInstructionByIdQuery(
     deps.instructionsRepository,
@@ -55,9 +67,20 @@ export function createTreasuryInstructionsService(
     new ListLatestTreasuryInstructionsByOperationIdsQuery(
       deps.instructionsRepository,
     );
+  const listByOperationIds = new ListTreasuryInstructionsByOperationIdsQuery(
+    deps.instructionsRepository,
+  );
+  const listArtifacts = new ListTreasuryInstructionArtifactsQuery(
+    deps.artifactsRepository,
+  );
+  const listArtifactsByInstructionIds =
+    new ListTreasuryInstructionArtifactsByInstructionIdsQuery(
+      deps.artifactsRepository,
+    );
 
   return {
     commands: {
+      attachArtifact: attachArtifact.execute.bind(attachArtifact),
       prepare: prepareInstruction.execute.bind(prepareInstruction),
       recordOutcome: recordOutcome.execute.bind(recordOutcome),
       requestReturn: requestReturn.execute.bind(requestReturn),
@@ -69,6 +92,11 @@ export function createTreasuryInstructionsService(
       findById: getInstructionById.execute.bind(getInstructionById),
       findLatestByOperationId:
         getLatestByOperationId.execute.bind(getLatestByOperationId),
+      listArtifacts: listArtifacts.execute.bind(listArtifacts),
+      listArtifactsByInstructionIds: listArtifactsByInstructionIds.execute.bind(
+        listArtifactsByInstructionIds,
+      ),
+      listByOperationIds: listByOperationIds.execute.bind(listByOperationIds),
       listLatestByOperationIds:
         listLatestByOperationIds.execute.bind(listLatestByOperationIds),
     },

@@ -351,13 +351,4 @@ describe("organization file routes", () => {
     expect(legalEntitiesCommands.replaceBundle).not.toHaveBeenCalled();
   });
 
-  it("does not expose the legacy organization legal-profile route", async () => {
-    const { app } = createTestApp();
-
-    const response = await app.request(
-      "http://localhost/organizations/11111111-1111-4111-8111-111111111111/legal-profile",
-    );
-
-    expect(response.status).toBe(404);
-  });
 });

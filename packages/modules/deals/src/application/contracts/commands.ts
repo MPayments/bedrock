@@ -1,8 +1,16 @@
 import { z } from "zod";
 
 import { trimToNull } from "@bedrock/shared/core";
-import { PaymentRouteDraftSchema } from "@bedrock/treasury/contracts";
+import {
+  PaymentRouteDraftSchema,
+  PaymentRouteFeeSchema,
+} from "@bedrock/treasury/contracts";
 
+import {
+  DealAmendmentKindSchema,
+  EXECUTION_AMENDMENT_REASONS,
+  COMMERCIAL_AMENDMENT_REASONS,
+} from "./amendment-reasons";
 import {
   DealAttachmentIngestionNormalizedPayloadSchema,
   DealFundingAdjustmentSchema,
@@ -12,8 +20,8 @@ import {
 } from "./dto";
 import {
   DealAttachmentIngestionStatusSchema,
-  DealLegStateSchema,
   DealStatusSchema,
+  DealTimelineEventTypeSchema,
   DealTypeSchema,
 } from "./zod";
 
@@ -283,29 +291,7 @@ export type CloseDealInput = z.infer<typeof CloseDealInputSchema>;
 export const AppendDealTimelineEventInputSchema = z.object({
   payload: z.record(z.string(), z.unknown()).optional().default({}),
   sourceRef: nullableShortText,
-  type: z.enum([
-    "deal_closed",
-    "quote_created",
-    "quote_accepted",
-    "quote_expired",
-    "quote_used",
-    "execution_requested",
-    "leg_operation_created",
-    "instruction_prepared",
-    "instruction_submitted",
-    "instruction_settled",
-    "instruction_failed",
-    "instruction_retried",
-    "instruction_voided",
-    "return_requested",
-    "instruction_returned",
-    "attachment_uploaded",
-    "attachment_deleted",
-    "attachment_ingested",
-    "attachment_ingestion_failed",
-    "document_created",
-    "document_status_changed",
-  ]),
+  type: DealTimelineEventTypeSchema,
   visibility: z.enum(["customer_safe", "internal"]).optional().default("internal"),
 });
 
@@ -322,13 +308,82 @@ export type TransitionDealStatusInput = z.infer<
   typeof TransitionDealStatusInputSchema
 >;
 
-export const UpdateDealLegStateInputSchema = z.object({
+export const DealLegManualOverrideSchema = z.enum(["blocked", "skipped"]);
+
+export const SetDealLegManualOverrideInputSchema = z.object({
   comment: nullableText.optional(),
-  state: DealLegStateSchema,
+  override: DealLegManualOverrideSchema.nullable(),
+  reasonCode: z.string().trim().min(1).optional(),
 });
 
-export type UpdateDealLegStateInput = z.infer<
-  typeof UpdateDealLegStateInputSchema
+export type SetDealLegManualOverrideInput = z.infer<
+  typeof SetDealLegManualOverrideInputSchema
+>;
+
+const ALL_AMENDMENT_REASONS = [
+  ...EXECUTION_AMENDMENT_REASONS,
+  ...COMMERCIAL_AMENDMENT_REASONS,
+] as const;
+
+export const AmendDealLegBodyInputSchema = z
+  .object({
+    amendmentKind: DealAmendmentKindSchema,
+    changes: z
+      .object({
+        executionCounterpartyId: z.uuid().nullable().optional(),
+        fees: z.array(PaymentRouteFeeSchema).optional(),
+        requisiteId: z.uuid().nullable().optional(),
+      })
+      .refine(
+        (value) =>
+          value.executionCounterpartyId !== undefined ||
+          value.fees !== undefined ||
+          value.requisiteId !== undefined,
+        {
+          message:
+            "At least one of executionCounterpartyId, requisiteId, or fees must be provided",
+        },
+      ),
+    memo: nullableText.optional(),
+    reasonCode: z.enum(ALL_AMENDMENT_REASONS),
+  })
+  .superRefine((value, ctx) => {
+    const validForKind =
+      value.amendmentKind === "execution"
+        ? (EXECUTION_AMENDMENT_REASONS as readonly string[]).includes(
+            value.reasonCode,
+          )
+        : (COMMERCIAL_AMENDMENT_REASONS as readonly string[]).includes(
+            value.reasonCode,
+          );
+
+    if (!validForKind) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Reason code "${value.reasonCode}" is not valid for amendment kind "${value.amendmentKind}"`,
+        path: ["reasonCode"],
+      });
+    }
+  });
+
+export type AmendDealLegBodyInput = z.infer<typeof AmendDealLegBodyInputSchema>;
+
+export const AmendDealLegInputSchema = AmendDealLegBodyInputSchema.and(
+  z.object({
+    legIdx: z.number().int().positive(),
+  }),
+);
+
+export type AmendDealLegInput = z.infer<typeof AmendDealLegInputSchema>;
+
+export const SwapDealRouteTemplateInputSchema = z.object({
+  memo: nullableText.optional(),
+  newRouteTemplateId: z.uuid(),
+  reasonCode: z.enum(COMMERCIAL_AMENDMENT_REASONS),
+});
+
+export type SwapDealRouteTemplateInput = z.infer<
+  typeof SwapDealRouteTemplateInputSchema
 >;
 
 export const EnqueueDealAttachmentIngestionInputSchema = z.object({

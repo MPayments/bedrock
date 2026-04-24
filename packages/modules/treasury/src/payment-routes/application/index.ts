@@ -8,7 +8,7 @@ import type { PaymentRouteTemplatesRepository } from "./ports/payment-routes.rep
 import { GetPaymentRouteTemplateByIdQuery } from "./queries/get-template-by-id";
 import { ListPaymentRouteTemplatesQueryHandler } from "./queries/list-templates";
 import { PreviewPaymentRouteQuery } from "./queries/preview-template";
-import type { CrossRate } from "../../rates/application/ports/rates.repository";
+import type { CrossRate } from "../../rates/domain/model";
 import type { CurrenciesPort } from "../../shared/application/external-ports";
 
 export interface PaymentRoutesServiceDeps {

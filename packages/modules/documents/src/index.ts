@@ -23,6 +23,8 @@ export type {
   PreparedDocumentPosting,
   ResolveDocumentPostingIdempotencyKeyInput,
 } from "./application/posting/commands";
+export { createDocumentsAccountingPeriodsPort } from "./application/posting/accounting-periods.port";
+export type { CreateDocumentsAccountingPeriodsPortInput } from "./application/posting/accounting-periods.port";
 export type {
   DocumentsIdempotencyPort,
   DocumentsTransactionsPort,

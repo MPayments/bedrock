@@ -119,7 +119,7 @@ export const DEAL_LEG_STATE_LABELS: Record<string, string> = {
   done: "Завершен",
   in_progress: "В работе",
   pending: "Ожидает",
-  ready: "Готов",
+  ready: "Подготовлен",
   skipped: "Пропущен",
 };
 
@@ -188,7 +188,7 @@ export const DEAL_TIMELINE_EVENT_LABELS: Record<string, string> = {
   instruction_submitted: "Инструкция отправлена",
   instruction_voided: "Инструкция отменена",
   leg_operation_created: "Создана казначейская операция",
-  leg_state_changed: "Состояние этапа изменено",
+  leg_state_changed: "Состояние шага изменено",
   participant_changed: "Участники изменены",
   quote_accepted: "Котировка принята",
   quote_created: "Котировка создана",
@@ -226,7 +226,7 @@ const DEAL_NEXT_ACTION_LABELS: Record<string, string> = {
   "Resolve approvals": "Завершить согласование",
   "Resolve operational state": "Разобрать операционное состояние",
   "Submit deal": "Отправить сделку",
-  "Update execution leg state": "Обновить этап исполнения",
+  "Update execution leg state": "Обновить шаг исполнения",
 };
 
 const DEAL_MESSAGE_LABELS: Record<string, string> = {
@@ -264,15 +264,6 @@ const HIDDEN_OPERATIONAL_POSITION_KINDS = new Set([
   "fee_revenue",
   "spread_revenue",
 ]);
-
-const FINANCE_LEG_STATE_TRANSITIONS: Record<string, string[]> = {
-  blocked: ["ready", "skipped"],
-  done: [],
-  in_progress: ["done", "blocked"],
-  pending: ["ready", "blocked", "skipped"],
-  ready: ["in_progress", "blocked", "skipped"],
-  skipped: [],
-};
 
 function formatFallbackLabel(value: string) {
   return value
@@ -549,14 +540,6 @@ export function isPrimaryOperationalPositionVisible(
   }
 
   return !HIDDEN_OPERATIONAL_POSITION_KINDS.has(kind);
-}
-
-export function getFinanceLegStateTransitions(value: string | null | undefined) {
-  if (!value) {
-    return [];
-  }
-
-  return FINANCE_LEG_STATE_TRANSITIONS[value] ?? [];
 }
 
 export function getFinanceDealQueueOptions(): Option[] {

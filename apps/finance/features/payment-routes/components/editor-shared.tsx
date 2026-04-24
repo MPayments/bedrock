@@ -4,18 +4,11 @@ import * as React from "react";
 import Link from "next/link";
 import { ExternalLink, Plus, RefreshCw, Trash2 } from "lucide-react";
 
-import {
-  Alert,
-  AlertDescription,
-} from "@bedrock/sdk-ui/components/alert";
+import { Alert, AlertDescription } from "@bedrock/sdk-ui/components/alert";
 import { Button } from "@bedrock/sdk-ui/components/button";
 import { Checkbox } from "@bedrock/sdk-ui/components/checkbox";
 import { ButtonGroup } from "@bedrock/sdk-ui/components/button-group";
-import {
-  Field,
-  FieldDescription,
-  FieldTitle,
-} from "@bedrock/sdk-ui/components/field";
+import { Field, FieldTitle } from "@bedrock/sdk-ui/components/field";
 import { Input } from "@bedrock/sdk-ui/components/input";
 import {
   InputGroup,
@@ -85,7 +78,9 @@ const INPUT_GROUP_CONTROL_CLASS =
 type ParticipantSelectorProps = {
   onBindingChange: (binding: "abstract" | "bound") => void;
   onEntityChange: (entityId: string) => void;
-  onKindChange: (entityKind: PaymentRouteSelectableParticipantOption["kind"]) => void;
+  onKindChange: (
+    entityKind: PaymentRouteSelectableParticipantOption["kind"],
+  ) => void;
   options: PaymentRouteConstructorOptions;
   participant: PaymentRouteEditorState["draft"]["participants"][number];
 };
@@ -199,7 +194,10 @@ export function BufferedMinorAmountInput({
       aria-label={ariaLabel}
       data-slot={variant === "group" ? "input-group-control" : "input"}
       inputMode="decimal"
-      className={cn(variant === "group" ? INPUT_GROUP_CONTROL_CLASS : null, className)}
+      className={cn(
+        variant === "group" ? INPUT_GROUP_CONTROL_CLASS : null,
+        className,
+      )}
       value={value}
       onChange={(event) => setValue(event.target.value)}
       onBlur={(event) => commit(event.target.value)}
@@ -308,7 +306,9 @@ export function ParticipantSelector({
   );
   const selectedOption =
     participant.binding === "bound"
-      ? selectableOptions.find((option) => option.id === participant.entityId) ?? null
+      ? (selectableOptions.find(
+          (option) => option.id === participant.entityId,
+        ) ?? null)
       : null;
   const selectedOptionLabel =
     getSelectableOptionLabel(selectedOption) ?? participant.displayName;
@@ -352,7 +352,9 @@ export function ParticipantSelector({
         value={boundKind}
         onValueChange={(value) => {
           if (value) {
-            onKindChange(value as PaymentRouteSelectableParticipantOption["kind"]);
+            onKindChange(
+              value as PaymentRouteSelectableParticipantOption["kind"],
+            );
           }
         }}
       >
@@ -421,10 +423,7 @@ export function ParticipantSelector({
               kindSelector ? null : "max-w-[36rem]",
             )}
           >
-            <SelectValue
-              placeholder="Выберите участника"
-              className="min-w-0"
-            >
+            <SelectValue placeholder="Выберите участника" className="min-w-0">
               <span className="block min-w-0 truncate">
                 {selectedOptionLabel}
               </span>
@@ -479,11 +478,6 @@ export function ParticipantRequisiteField({
   return (
     <Field>
       <FieldTitle>Реквизит</FieldTitle>
-      <FieldDescription>
-        {context.operationalCurrency
-          ? `Операционная валюта: ${context.operationalCurrency.code}`
-          : "Операционная валюта шага еще не определена."}
-      </FieldDescription>
 
       <Select
         value={selectedValue}
@@ -616,12 +610,7 @@ export function FeeListEditor({
           ) : (
             <div />
           )}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={onAdd}
-          >
+          <Button type="button" variant="outline" size="sm" onClick={onAdd}>
             <Plus className="size-4" />
             {addLabel}
           </Button>

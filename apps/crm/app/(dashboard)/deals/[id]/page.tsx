@@ -78,7 +78,7 @@ import type {
   ApiRequisiteProvider,
   CalculationHistoryView,
   CalculationView,
-  DealLegState,
+  DealLegManualOverride,
   DealStatus,
 } from "./_components/types";
 
@@ -1482,15 +1482,15 @@ export default function DealDetailPage() {
     [data?.workflow.transitionReadiness, showError],
   );
 
-  const handleLegStateUpdate = useCallback(
-    async (idx: number, state: DealLegState) => {
+  const handleLegOverride = useCallback(
+    async (idx: number, override: DealLegManualOverride) => {
       try {
         setIsUpdatingLegKey(String(idx));
 
         const response = await fetch(
-          `${API_BASE_URL}/deals/${dealId}/legs/${idx}/state`,
+          `${API_BASE_URL}/deals/${dealId}/legs/${idx}/override`,
           {
-            body: JSON.stringify({ state }),
+            body: JSON.stringify({ override }),
             credentials: "include",
             headers: { "Content-Type": "application/json" },
             method: "POST",
@@ -1508,7 +1508,7 @@ export default function DealDetailPage() {
 
         await loadDeal();
       } catch (nextError) {
-        console.error("Deal leg state update error:", nextError);
+        console.error("Deal leg override error:", nextError);
         showError(
           "Ошибка обновления этапа исполнения",
           nextError instanceof Error
@@ -2016,7 +2016,7 @@ export default function DealDetailPage() {
                 executionPlan={data.workflow.executionPlan}
                 isUpdatingLegKey={isUpdatingLegKey}
                 onBlockedTransitionClick={handleBlockedTransitionClick}
-                onUpdateLegState={handleLegStateUpdate}
+                onOverrideLeg={handleLegOverride}
                 operationalState={data.workflow.operationalState}
                 sectionCompleteness={data.workflow.sectionCompleteness}
                 transitionReadiness={data.workflow.transitionReadiness}

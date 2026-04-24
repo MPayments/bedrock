@@ -180,11 +180,14 @@ export const DealLegOperationRefSchema = z.object({
 export type DealLegOperationRef = z.infer<typeof DealLegOperationRefSchema>;
 
 export const DealWorkflowLegSchema = z.object({
+  fromCurrencyId: z.uuid().nullable().default(null),
   id: z.uuid().nullable().default(null),
   idx: z.number().int().positive(),
   kind: DealLegKindSchema,
   operationRefs: z.array(DealLegOperationRefSchema).default([]),
+  routeSnapshotLegId: z.string().nullable().default(null),
   state: DealLegStateSchema,
+  toCurrencyId: z.uuid().nullable().default(null),
 });
 
 export type DealWorkflowLeg = z.infer<typeof DealWorkflowLegSchema>;
@@ -603,6 +606,7 @@ export const DealQuoteAcceptanceSchema = z.object({
   quoteId: z.uuid(),
   quoteStatus: z.string(),
   replacedByQuoteId: z.uuid().nullable(),
+  revocationReason: z.string().nullable(),
   revokedAt: z.date().nullable(),
   usedAt: z.date().nullable(),
   usedDocumentId: z.uuid().nullable(),
@@ -624,6 +628,7 @@ export const DealQuoteAcceptanceHistoryItemSchema = z.object({
   rateDen: z.string(),
   rateNum: z.string(),
   replacedByQuoteId: z.uuid().nullable(),
+  revocationReason: z.string().nullable(),
   revokedAt: z.iso.datetime().nullable(),
   toAmountMinor: z.string(),
   toCurrency: z.string(),

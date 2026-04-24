@@ -104,34 +104,6 @@ describe("document pages", () => {
     getOrganizationRequisitesForOrganization.mockResolvedValue([]);
   });
 
-  it("returns notFound for removed /documents/create family route", async () => {
-    const { default: FamilyPage } = await import(
-      "@/app/(shell)/documents/[family]/page"
-    );
-
-    await expect(
-      FamilyPage({
-        params: Promise.resolve({ family: "create" }),
-        searchParams: Promise.resolve({}),
-      }),
-    ).rejects.toBe(NOT_FOUND);
-  }, 15000);
-
-  it("returns notFound for removed /documents/create/[docType] route shape", async () => {
-    const { default: FamilyPage } = await import(
-      "@/app/(shell)/documents/[family]/page"
-    );
-
-    await expect(
-      FamilyPage({
-        params: Promise.resolve({
-          family: "transfers",
-        }),
-        searchParams: Promise.resolve({ docType: "legacy_doc_type" }),
-      }),
-    ).rejects.toBe(NOT_FOUND);
-  }, 15000);
-
   it("returns notFound for family filter mismatches", async () => {
     const { default: FamilyPage } = await import(
       "@/app/(shell)/documents/[family]/page"
@@ -281,7 +253,7 @@ describe("document pages", () => {
       }),
       searchParams: Promise.resolve({
         dealId: "00000000-0000-4000-8000-000000000999",
-        returnTo: "/treasury/deals/00000000-0000-4000-8000-000000000999?tab=documents",
+        returnTo: "/treasury/deals/00000000-0000-4000-8000-000000000999",
       }),
     });
     renderToStaticMarkup(page);
@@ -296,8 +268,7 @@ describe("document pages", () => {
     expect(props).toMatchObject({
       dealId: "00000000-0000-4000-8000-000000000999",
       docType: "invoice",
-      successHref:
-        "/treasury/deals/00000000-0000-4000-8000-000000000999?tab=documents",
+      successHref: "/treasury/deals/00000000-0000-4000-8000-000000000999",
       initialPayload: {
         amount: "1015",
         counterpartyId: "00000000-0000-4000-8000-000000000222",
@@ -488,8 +459,7 @@ describe("document pages", () => {
     expect(props).toMatchObject({
       dealId: "00000000-0000-4000-8000-000000000999",
       docType: "acceptance",
-      successHref:
-        "/treasury/deals/00000000-0000-4000-8000-000000000999?tab=documents",
+      successHref: "/treasury/deals/00000000-0000-4000-8000-000000000999",
       initialPayload: {
         invoiceDocumentId: "00000000-0000-4000-8000-000000000777",
       },

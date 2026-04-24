@@ -7,6 +7,7 @@
     ".": "./src/index.ts",
     "./adapters/drizzle": "./src/adapters/drizzle.ts",
     "./contracts": "./src/contracts.ts",
+    "./model": "./src/model.ts",
     "./schema": "./src/schema.ts",
     "./worker": "./src/worker.ts",
     "./providers": "./src/providers.ts"
@@ -37,7 +38,6 @@
     "@types/node": "^24",
     "@types/pg": "^8.16.0",
     "eslint": "^10.2.0",
-    "pg": "^8.18.0",
     "typescript": "^6.0.2",
     "vitest": "^4.1.4"
   },

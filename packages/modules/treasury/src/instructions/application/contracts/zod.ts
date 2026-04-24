@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import {
+  TREASURY_INSTRUCTION_ARTIFACT_PURPOSE_VALUES,
   TREASURY_INSTRUCTION_OUTCOME_VALUES,
   TREASURY_INSTRUCTION_STATE_VALUES,
 } from "../../domain/instruction-types";
@@ -17,4 +18,11 @@ export const TreasuryInstructionOutcomeSchema = z.enum(
 );
 export type TreasuryInstructionOutcome = z.infer<
   typeof TreasuryInstructionOutcomeSchema
+>;
+
+export const TreasuryInstructionArtifactPurposeSchema = z.enum(
+  TREASURY_INSTRUCTION_ARTIFACT_PURPOSE_VALUES,
+);
+export type TreasuryInstructionArtifactPurpose = z.infer<
+  typeof TreasuryInstructionArtifactPurposeSchema
 >;

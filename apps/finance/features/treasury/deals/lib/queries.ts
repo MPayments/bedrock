@@ -8,6 +8,7 @@ import {
   TreasuryInstructionSchema,
   TreasuryOperationInstructionStatusSchema,
   TreasuryOperationKindSchema,
+  TreasuryOperationProjectedStateSchema,
   TreasuryOperationStateSchema,
 } from "@bedrock/treasury/contracts";
 import {
@@ -167,6 +168,25 @@ const FinanceProfitabilityAmountSchema = z.object({
   currencyId: z.string().uuid(),
 });
 
+const FinanceDealNetProfitSchema = z
+  .object({
+    commercialRevenueMinor: z.string(),
+    costPriceMinor: z.string(),
+    currency: z.string(),
+    customerPrincipalMinor: z.string(),
+    customerTotalMinor: z.string(),
+    passThroughMinor: z.string(),
+    profitMinor: z.string(),
+    profitPercentOnCost: z.string(),
+  })
+  .nullable();
+
+const FinanceDealCashflowSummarySchema = z.object({
+  receivedIn: z.array(FinanceProfitabilityAmountSchema),
+  scheduledOut: z.array(FinanceProfitabilityAmountSchema),
+  settledOut: z.array(FinanceProfitabilityAmountSchema),
+});
+
 const FinanceDealListItemSchema = z.object({
   applicantName: z.string().nullable(),
   blockingReasons: z.array(z.string()),
@@ -187,6 +207,7 @@ const FinanceDealListItemSchema = z.object({
     .object({
       calculationId: z.string().uuid(),
       feeRevenue: z.array(FinanceProfitabilityAmountSchema),
+      netProfit: FinanceDealNetProfitSchema,
       providerFeeExpense: z.array(FinanceProfitabilityAmountSchema),
       spreadRevenue: z.array(FinanceProfitabilityAmountSchema),
       totalRevenue: z.array(FinanceProfitabilityAmountSchema),
@@ -251,6 +272,44 @@ const FinanceDealFormalDocumentRequirementSchema = z.object({
   state: z.enum(["in_progress", "missing", "not_required", "ready"]),
 });
 
+const FinanceDealRouteAttachmentLegSchema = z.object({
+  fees: z.array(
+    z.object({
+      chargeToCustomer: z.boolean(),
+      kind: z.string(),
+      label: z.string(),
+      percentage: z.string().nullable(),
+    }),
+  ),
+  fromAmountMinor: z.string().nullable().default(null),
+  fromCurrencyCode: z.string().nullable(),
+  fromCurrencyId: z.string().uuid(),
+  id: z.string(),
+  rateDen: z.string().nullable().default(null),
+  rateNum: z.string().nullable().default(null),
+  toAmountMinor: z.string().nullable().default(null),
+  toCurrencyCode: z.string().nullable(),
+  toCurrencyId: z.string().uuid(),
+});
+
+const FinanceDealRouteAttachmentParticipantSchema = z.object({
+  binding: z.enum(["abstract", "bound"]),
+  displayName: z.string(),
+  entityId: z.string().uuid().nullable(),
+  entityKind: z.enum(["customer", "organization", "counterparty"]).nullable(),
+  nodeId: z.string(),
+  requisiteId: z.string().uuid().nullable().default(null),
+  role: z.enum(["source", "hop", "destination"]),
+});
+
+const FinanceDealRouteAttachmentSchema = z.object({
+  attachedAt: z.iso.datetime(),
+  legs: z.array(FinanceDealRouteAttachmentLegSchema),
+  participants: z.array(FinanceDealRouteAttachmentParticipantSchema).default([]),
+  templateId: z.string().uuid(),
+  templateName: z.string(),
+});
+
 const FinanceDealPricingContextSchema = z.object({
   fundingMessage: z.string().nullable(),
   fundingResolution: z.object({
@@ -267,6 +326,7 @@ const FinanceDealPricingContextSchema = z.object({
   quoteAmount: z.string().nullable(),
   quoteAmountSide: z.enum(["source", "target"]),
   quoteEligibility: z.boolean(),
+  routeAttachment: FinanceDealRouteAttachmentSchema.nullable(),
   sourceCurrencyId: z.string().uuid().nullable(),
   targetCurrencyId: z.string().uuid().nullable(),
 });
@@ -338,6 +398,7 @@ const FinanceDealQuoteItemSchema = z.object({
 const FinanceDealWorkflowParticipantSchema = z.object({
   counterpartyId: z.string().uuid().nullable(),
   customerId: z.string().uuid().nullable(),
+  displayName: z.string().nullable().default(null),
   organizationId: z.string().uuid().nullable(),
   role: z.enum([
     "applicant",
@@ -404,8 +465,25 @@ const FinanceDealOperationSchema = z.object({
   kind: TreasuryOperationKindSchema,
   latestInstruction: TreasuryInstructionSchema.nullable(),
   operationHref: z.string(),
+  projectedState: TreasuryOperationProjectedStateSchema.nullable(),
   sourceRef: z.string(),
   state: TreasuryOperationStateSchema,
+});
+
+const FinanceDealInstructionArtifactSchema = z.object({
+  fileAssetId: z.string().uuid(),
+  fileName: z.string(),
+  fileSize: z.number().int().nonnegative(),
+  id: z.string().uuid(),
+  instructionId: z.string().uuid(),
+  legIdx: z.number().int().positive().nullable(),
+  legKind: z.string().nullable(),
+  memo: z.string().nullable(),
+  mimeType: z.string(),
+  operationId: z.string().uuid(),
+  purpose: z.string(),
+  uploadedAt: z.iso.datetime(),
+  uploadedByUserId: z.string(),
 });
 
 const FinanceDealInstructionSummarySchema = z.object({
@@ -473,6 +551,11 @@ const FinanceDealWorkspaceSchema = z.object({
   acceptedQuoteDetails: FinanceDealQuoteItemSchema.nullable(),
   actions: FinanceDealWorkspaceActionsSchema,
   attachmentRequirements: z.array(FinanceDealAttachmentRequirementSchema),
+  cashflowSummary: FinanceDealCashflowSummarySchema.default({
+    receivedIn: [],
+    scheduledOut: [],
+    settledOut: [],
+  }),
   closeReadiness: FinanceDealCloseReadinessSchema,
   executionPlan: z.array(
     z.object({
@@ -480,11 +563,14 @@ const FinanceDealWorkspaceSchema = z.object({
         canCreateLegOperation: z.boolean(),
         exchangeDocument: FinanceDealExecutionLegDocumentActionSchema.nullable(),
       }),
+      fromCurrencyId: z.string().uuid().nullable().default(null),
       id: z.string().uuid().nullable(),
       idx: z.number().int().positive(),
       kind: z.string(),
       operationRefs: z.array(FinanceDealLegOperationRefSchema),
+      routeSnapshotLegId: z.string().nullable().default(null),
       state: z.string(),
+      toCurrencyId: z.string().uuid().nullable().default(null),
     }),
   ),
   formalDocumentRequirements: z.array(
@@ -507,6 +593,7 @@ const FinanceDealWorkspaceSchema = z.object({
     .object({
       calculationId: z.string().uuid(),
       feeRevenue: z.array(FinanceProfitabilityAmountSchema),
+      netProfit: FinanceDealNetProfitSchema,
       providerFeeExpense: z.array(FinanceProfitabilityAmountSchema),
       spreadRevenue: z.array(FinanceProfitabilityAmountSchema),
       totalRevenue: z.array(FinanceProfitabilityAmountSchema),
@@ -521,6 +608,9 @@ const FinanceDealWorkspaceSchema = z.object({
   relatedResources: z.object({
     attachments: z.array(FinanceDealAttachmentSchema),
     formalDocuments: z.array(FinanceDealFormalDocumentSchema),
+    instructionArtifacts: z
+      .array(FinanceDealInstructionArtifactSchema)
+      .default([]),
     operations: z.array(FinanceDealOperationSchema),
     quotes: z.array(FinanceDealWorkspaceQuoteSchema),
     reconciliationExceptions: z.array(FinanceDealReconciliationExceptionSchema),
@@ -659,6 +749,18 @@ const FINANCE_DEAL_SORT_MAP: Record<
 export type FinanceDealAttachmentRequirement = z.infer<
   typeof FinanceDealAttachmentRequirementSchema
 >;
+export type FinanceDealRouteAttachment = z.infer<
+  typeof FinanceDealRouteAttachmentSchema
+>;
+export type FinanceDealRouteAttachmentLeg = z.infer<
+  typeof FinanceDealRouteAttachmentLegSchema
+>;
+export type FinanceDealRouteAttachmentParticipant = z.infer<
+  typeof FinanceDealRouteAttachmentParticipantSchema
+>;
+export type FinanceDealInstructionArtifact = z.infer<
+  typeof FinanceDealInstructionArtifactSchema
+>;
 export type FinanceDealCalculationHistoryItem = z.infer<
   typeof FinanceDealCalculationHistoryItemSchema
 >;
@@ -667,6 +769,9 @@ export type FinanceDealFormalDocumentRequirement = z.infer<
 >;
 export type FinanceProfitabilityAmount = z.infer<
   typeof FinanceProfitabilityAmountSchema
+>;
+export type FinanceDealCashflowSummary = z.infer<
+  typeof FinanceDealCashflowSummarySchema
 >;
 export type FinanceDealListItem = z.infer<typeof FinanceDealListItemSchema> & {
   blockerState: FinanceDealBlockerState;

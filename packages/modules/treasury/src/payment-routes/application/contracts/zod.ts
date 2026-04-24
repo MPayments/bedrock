@@ -6,6 +6,56 @@ import {
 } from "@bedrock/shared/core/pagination";
 import { parseDecimalToFraction } from "@bedrock/shared/money/math";
 
+import {
+  PAYMENT_ROUTE_FEE_KIND_VALUES,
+  PAYMENT_ROUTE_LEG_SEMANTIC_TAG_VALUES,
+  PAYMENT_ROUTE_LEG_TREASURY_OPERATION_HINT_VALUES,
+  PAYMENT_ROUTE_LOCKED_SIDE_VALUES,
+  PAYMENT_ROUTE_PARTICIPANT_BINDING_VALUES,
+  PAYMENT_ROUTE_PARTICIPANT_KIND_VALUES,
+  PAYMENT_ROUTE_PARTICIPANT_ROLE_VALUES,
+  PAYMENT_ROUTE_TEMPLATE_STATUS_VALUES,
+  type PaymentRouteDraft,
+  type PaymentRouteFee,
+  type PaymentRouteFeeKind,
+  type PaymentRouteLeg,
+  type PaymentRouteLegSemanticTag,
+  type PaymentRouteLegTreasuryOperationHint,
+  type PaymentRouteLockedSide,
+  type PaymentRouteParticipantBinding,
+  type PaymentRouteParticipantKind,
+  type PaymentRouteParticipantRef,
+  type PaymentRouteParticipantRole,
+  type PaymentRouteTemplateStatus,
+  type PaymentRouteVisualMetadata,
+} from "../../domain/model";
+
+export {
+  PAYMENT_ROUTE_FEE_KIND_VALUES,
+  PAYMENT_ROUTE_LEG_SEMANTIC_TAG_VALUES,
+  PAYMENT_ROUTE_LEG_TREASURY_OPERATION_HINT_VALUES,
+  PAYMENT_ROUTE_LOCKED_SIDE_VALUES,
+  PAYMENT_ROUTE_PARTICIPANT_BINDING_VALUES,
+  PAYMENT_ROUTE_PARTICIPANT_KIND_VALUES,
+  PAYMENT_ROUTE_PARTICIPANT_ROLE_VALUES,
+  PAYMENT_ROUTE_TEMPLATE_STATUS_VALUES,
+} from "../../domain/model";
+export type {
+  PaymentRouteDraft,
+  PaymentRouteFee,
+  PaymentRouteFeeKind,
+  PaymentRouteLeg,
+  PaymentRouteLegSemanticTag,
+  PaymentRouteLegTreasuryOperationHint,
+  PaymentRouteLockedSide,
+  PaymentRouteParticipantBinding,
+  PaymentRouteParticipantKind,
+  PaymentRouteParticipantRef,
+  PaymentRouteParticipantRole,
+  PaymentRouteTemplateStatus,
+  PaymentRouteVisualMetadata,
+} from "../../domain/model";
+
 const positiveMinorStringSchema = z
   .string()
   .regex(/^\d+$/, "Minor amount must be a positive integer string")
@@ -32,47 +82,6 @@ export const ABSTRACT_PAYMENT_ROUTE_SOURCE_DISPLAY_NAME = "Клиент";
 export const ABSTRACT_PAYMENT_ROUTE_DESTINATION_DISPLAY_NAME =
   "Бенефициар";
 
-export const PAYMENT_ROUTE_TEMPLATE_STATUS_VALUES = [
-  "active",
-  "archived",
-] as const;
-export const PAYMENT_ROUTE_PARTICIPANT_KIND_VALUES = [
-  "customer",
-  "counterparty",
-  "organization",
-] as const;
-export const PAYMENT_ROUTE_PARTICIPANT_ROLE_VALUES = [
-  "source",
-  "hop",
-  "destination",
-] as const;
-export const PAYMENT_ROUTE_PARTICIPANT_BINDING_VALUES = [
-  "abstract",
-  "bound",
-] as const;
-export const PAYMENT_ROUTE_LEG_SEMANTIC_TAG_VALUES = [
-  "collection",
-  "payout",
-  "intracompany_transfer",
-  "intercompany_transfer",
-  "counterparty_transfer",
-  "transfer",
-  "fx_conversion",
-] as const;
-export const PAYMENT_ROUTE_LEG_TREASURY_OPERATION_HINT_VALUES = [
-  "payin",
-  "payout",
-  "intracompany_transfer",
-  "intercompany_funding",
-  "fx_conversion",
-] as const;
-export const PAYMENT_ROUTE_FEE_KIND_VALUES = [
-  "gross_percent",
-  "net_percent",
-  "fixed",
-  "fx_spread",
-] as const;
-
 export const PAYMENT_ROUTE_FEE_KIND_LABELS: Record<
   (typeof PAYMENT_ROUTE_FEE_KIND_VALUES)[number],
   string
@@ -84,10 +93,6 @@ export const PAYMENT_ROUTE_FEE_KIND_LABELS: Record<
 };
 
 const FX_SPREAD_MAX_PERCENT = 10n;
-export const PAYMENT_ROUTE_LOCKED_SIDE_VALUES = [
-  "currency_in",
-  "currency_out",
-] as const;
 
 export const PaymentRouteTemplateStatusSchema = z.enum(
   PAYMENT_ROUTE_TEMPLATE_STATUS_VALUES,
@@ -544,37 +549,6 @@ export const PAYMENT_ROUTE_TEMPLATES_LIST_CONTRACT: ListQueryContract<
 export const ListPaymentRouteTemplatesQuerySchema =
   createListQuerySchemaFromContract(PAYMENT_ROUTE_TEMPLATES_LIST_CONTRACT);
 
-export type PaymentRouteTemplateStatus = z.infer<
-  typeof PaymentRouteTemplateStatusSchema
->;
-export type PaymentRouteParticipantKind = z.infer<
-  typeof PaymentRouteParticipantKindSchema
->;
-export type PaymentRouteParticipantRole = z.infer<
-  typeof PaymentRouteParticipantRoleSchema
->;
-export type PaymentRouteParticipantBinding = z.infer<
-  typeof PaymentRouteParticipantBindingSchema
->;
-export type PaymentRouteLegSemanticTag = z.infer<
-  typeof PaymentRouteLegSemanticTagSchema
->;
-export type PaymentRouteLegTreasuryOperationHint = z.infer<
-  typeof PaymentRouteLegTreasuryOperationHintSchema
->;
-export type PaymentRouteFeeKind = z.infer<typeof PaymentRouteFeeKindSchema>;
-export type PaymentRouteLockedSide = z.infer<
-  typeof PaymentRouteLockedSideSchema
->;
-export type PaymentRouteParticipantRef = z.infer<
-  typeof PaymentRouteParticipantRefSchema
->;
-export type PaymentRouteFee = z.infer<typeof PaymentRouteFeeSchema>;
-export type PaymentRouteLeg = z.infer<typeof PaymentRouteLegSchema>;
-export type PaymentRouteVisualMetadata = z.infer<
-  typeof PaymentRouteVisualMetadataSchema
->;
-export type PaymentRouteDraft = z.infer<typeof PaymentRouteDraftSchema>;
 export type ListPaymentRouteTemplatesQuery = z.infer<
   typeof ListPaymentRouteTemplatesQuerySchema
 >;

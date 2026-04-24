@@ -25,6 +25,7 @@ describe("treasury deal timeline card", () => {
               canCreateLegOperation: false,
               exchangeDocument: null,
             },
+            fromCurrencyId: null,
             id: "714fb6eb-a1bd-429e-9628-e97d0f2efa0b",
             idx: 1,
             kind: "collect",
@@ -35,7 +36,9 @@ describe("treasury deal timeline card", () => {
                 sourceRef: "deal:1:collect",
               },
             ],
+            routeSnapshotLegId: null,
             state: "ready",
+            toCurrencyId: null,
           },
         ],
         timeline: [

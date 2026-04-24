@@ -3,10 +3,7 @@ import { z } from "zod";
 import type { ModuleRuntime } from "@bedrock/shared/core";
 import { NotFoundError } from "@bedrock/shared/core/errors";
 
-import {
-  DealNotFoundError,
-  DealRevisionConflictError,
-} from "../../errors";
+import { DealNotFoundError, DealRevisionConflictError } from "../../errors";
 import {
   ReplaceDealIntakeInputSchema,
   type ReplaceDealIntakeInput,
@@ -16,17 +13,18 @@ import type { DealsCommandUnitOfWork } from "../ports/deals.uow";
 import type { DealReferencesPort } from "../ports/references.port";
 import {
   buildDealLegRows,
-  buildDealOperationalPositionRows,
   buildDealParticipantRows,
   createTimelinePayloadEvent,
   deriveDealRootState,
 } from "../shared/workflow-state";
 
-const ReplaceDealIntakeCommandInputSchema = ReplaceDealIntakeInputSchema.extend({
-  actorLabel: z.string().trim().max(255).nullable().optional(),
-  actorUserId: z.string().trim().min(1).nullable().optional(),
-  dealId: z.uuid(),
-}).superRefine((value, ctx) => {
+const ReplaceDealIntakeCommandInputSchema = ReplaceDealIntakeInputSchema.extend(
+  {
+    actorLabel: z.string().trim().max(255).nullable().optional(),
+    actorUserId: z.string().trim().min(1).nullable().optional(),
+    dealId: z.uuid(),
+  },
+).superRefine((value, ctx) => {
   if (!value.actorUserId && !value.actorLabel) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
@@ -149,6 +147,9 @@ export class ReplaceDealIntakeCommand {
         sourceCurrencyId: rootState.sourceCurrencyId,
         targetCurrencyId: rootState.targetCurrencyId,
       });
+      const pricingContext = await tx.dealReads.findPricingContextByDealId(
+        validated.dealId,
+      );
       await tx.dealStore.replaceDealLegs({
         dealId: validated.dealId,
         legs: buildDealLegRows({
@@ -156,6 +157,7 @@ export class ReplaceDealIntakeCommand {
           existingLegs: existing.executionPlan,
           generateUuid: () => this.runtime.generateUuid(),
           intake: validated.intake,
+          routeSnapshot: pricingContext.routeAttachment?.snapshot ?? null,
         }),
       });
       await tx.dealStore.replaceDealParticipants({
@@ -212,14 +214,6 @@ export class ReplaceDealIntakeCommand {
       await tx.dealStore.setDealRoot({
         dealId: validated.dealId,
         nextAction: updated.nextAction,
-      });
-      await tx.dealStore.replaceDealOperationalPositions({
-        dealId: validated.dealId,
-        positions: buildDealOperationalPositionRows({
-          dealId: validated.dealId,
-          generateUuid: () => this.runtime.generateUuid(),
-          operationalState: updated.operationalState,
-        }),
       });
 
       return updated;

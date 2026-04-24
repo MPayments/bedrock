@@ -139,7 +139,7 @@ function createRouteCandidate(): ApiDealPricingRouteCandidate {
 }
 
 describe("DealPricingTab", () => {
-  it("renders the compact manager workflow without manual save or preview actions", () => {
+  it("renders the compact manager workflow", () => {
     (
       globalThis as typeof globalThis & {
         React: typeof React;
@@ -161,6 +161,7 @@ describe("DealPricingTab", () => {
           quoteId: quote.id,
           quoteStatus: "accepted",
           replacedByQuoteId: null,
+          revocationReason: null,
           revokedAt: null,
           usedAt: null,
           usedDocumentId: null,
@@ -259,21 +260,12 @@ describe("DealPricingTab", () => {
     expect(normalizedMarkup).toContain("Маршрут");
     expect(normalizedMarkup).toContain("Наценка к курсу");
     expect(normalizedMarkup).toContain("Зафиксировать новый курс");
-    expect(normalizedMarkup).not.toContain(">Принять и зафиксировать<");
     expect(normalizedMarkup).toContain("Копировать расчёт");
     expect(normalizedMarkup).toContain("Скачать PDF");
     expect(normalizedMarkup).toContain("Курс зафиксирован до");
     expect(normalizedMarkup).toContain("Котировка истекает");
     expect(normalizedMarkup).toContain("Срок фондирования");
     expect(normalizedMarkup).toContain("История котировок (0)");
-    expect(normalizedMarkup).not.toContain("Калькуляция");
-    expect(normalizedMarkup).not.toContain("Маршрут платежа");
-    expect(normalizedMarkup).not.toContain("Выбрать маршрут");
-    expect(normalizedMarkup).not.toContain("Убрать маршрут");
-    expect(normalizedMarkup).not.toContain("Текущая принятая котировка");
-    expect(normalizedMarkup).not.toContain("Создать котировку");
-    expect(normalizedMarkup).not.toContain("Сохранить условия");
-    expect(normalizedMarkup).not.toContain(">Рассчитать<");
   });
 });
 

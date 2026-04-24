@@ -1,6 +1,5 @@
 "use client";
 
-import { normalizeToAlpha2 } from "@bedrock/shared/reference-data/countries";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { defineStepper, Get } from "@stepperize/react";
 import { StepStatus, useStepItemContext } from "@stepperize/react/primitives";
@@ -9,7 +8,6 @@ import {
   CheckCircle2,
   FileText,
   Loader2,
-  Search,
   Sparkles,
   Upload,
 } from "lucide-react";
@@ -18,35 +16,25 @@ import { useRouter } from "next/navigation";
 import {
   Controller,
   type FieldErrors,
+  type Path,
+  type PathValue,
   useForm,
   useWatch,
 } from "react-hook-form";
 import { z } from "zod";
 
-import { API_BASE_URL } from "@/lib/constants";
 import {
-  composePersonFullName,
-  type CustomerOnboardInput,
-  customerOnboardSchema,
-} from "@/lib/validation";
+  CustomerBankingFields,
+  createCustomerBankProviderSnapshot,
+  type CustomerBankingFieldErrors,
+  type CustomerBankingFieldName,
+  type CustomerBankingFieldValue,
+  type CustomerBankingFieldsValue,
+  type CustomerBankProviderSearchResult,
+} from "@bedrock/sdk-parties-ui/components/customer-banking-fields";
 import { Button } from "@bedrock/sdk-ui/components/button";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-  CommandSeparator,
-} from "@bedrock/sdk-ui/components/command";
-import { CountrySelect } from "@bedrock/sdk-ui/components/country-select";
 import { Input } from "@bedrock/sdk-ui/components/input";
 import { Label } from "@bedrock/sdk-ui/components/label";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@bedrock/sdk-ui/components/popover";
 import {
   Select,
   SelectContent,
@@ -54,7 +42,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@bedrock/sdk-ui/components/select";
-import { Textarea } from "@bedrock/sdk-ui/components/textarea";
+import { normalizeToAlpha2 } from "@bedrock/shared/reference-data/countries";
+
+import { API_BASE_URL } from "@/lib/constants";
+import {
+  composePersonFullName,
+  type CustomerOnboardInput,
+  customerOnboardSchema,
+} from "@/lib/validation";
 
 const EXTRA_FIELDS: Array<{
   name: keyof CustomerOnboardInput;
@@ -82,23 +77,10 @@ const COUNTERPARTY_KIND_OPTIONS = [
   { label: "Физлицо", value: "individual" },
 ] as const;
 
-type BankProviderSearchResult = {
-  address: string | null;
-  bic: string | null;
-  country: string | null;
-  displayLabel: string;
-  id: string;
-  name: string;
-  swift: string | null;
-};
-
 type CustomerOnboardingFormValues = z.input<typeof customerOnboardSchema>;
 type CustomerOnboardingRequest = Omit<
   CustomerOnboardingFormValues,
-  | "counterpartyKind"
-  | "personFirstName"
-  | "personLastName"
-  | "personMiddleName"
+  "counterpartyKind" | "personFirstName" | "personLastName" | "personMiddleName"
 > & {
   kind: "individual" | "legal_entity";
   personFullName: string;
@@ -217,6 +199,25 @@ function getErrorMessage(error: unknown) {
   }
 
   return typeof error.message === "string" ? error.message : null;
+}
+
+function getBankingErrors(
+  errors: FieldErrors<CustomerOnboardingFormValues>,
+): CustomerBankingFieldErrors {
+  return {
+    "bankProvider.address": getErrorMessage(errors.bankProvider?.address),
+    "bankProvider.country": getErrorMessage(errors.bankProvider?.country),
+    "bankProvider.name": getErrorMessage(errors.bankProvider?.name),
+    "bankProvider.routingCode": getErrorMessage(
+      errors.bankProvider?.routingCode,
+    ),
+    bankProviderId: getErrorMessage(errors.bankProviderId),
+    "bankRequisite.accountNo": getErrorMessage(errors.bankRequisite?.accountNo),
+    "bankRequisite.beneficiaryName": getErrorMessage(
+      errors.bankRequisite?.beneficiaryName,
+    ),
+    "bankRequisite.iban": getErrorMessage(errors.bankRequisite?.iban),
+  };
 }
 
 const StepperTriggerWrapper = ({ hasError }: { hasError: boolean }) => {
@@ -378,167 +379,31 @@ function normalizeRoutingCode(input: {
       };
 }
 
-function hasProviderSelection(
-  bankMode: CustomerOnboardingFormValues["bankMode"],
-  bankProviderId: string | null,
-) {
-  return bankMode === "existing" && Boolean(bankProviderId);
-}
-
-function createManualBankProvider(provider: BankProviderSearchResult) {
-  const routing = normalizeRoutingCode({
-    bic: provider.bic,
-    country: provider.country,
-    swift: provider.swift,
-  });
-
-  return {
-    address: provider.address ?? "",
-    country: provider.country ?? "",
-    name: provider.name,
-    routingCode: routing.routingCode,
-  };
-}
-
-function BankCombobox(props: {
-  onManualEntry: () => void;
-  onSelect: (provider: BankProviderSearchResult) => void;
+async function searchBankProviders(input: {
+  query: string;
+  signal?: AbortSignal;
 }) {
-  const { onManualEntry, onSelect } = props;
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [matches, setMatches] = useState<BankProviderSearchResult[]>([]);
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    const trimmed = query.trim();
-    if (trimmed.length < 2) {
-      setIsLoading(false);
-      setMatches([]);
-      return;
-    }
-
-    const controller = new AbortController();
-    const timeoutId = window.setTimeout(async () => {
-      setIsLoading(true);
-
-      try {
-        const search = new URLSearchParams({
-          limit: "8",
-          query: trimmed,
-        });
-        const response = await fetch(
-          `${API_BASE_URL}/customer/counterparties/bank-providers?${search.toString()}`,
-          {
-            credentials: "include",
-            signal: controller.signal,
-          },
-        );
-
-        if (!response.ok) {
-          throw new Error(`Ошибка поиска банка: ${response.status}`);
-        }
-
-        const payload = (await response.json()) as {
-          data?: BankProviderSearchResult[];
-        };
-        setMatches(payload.data ?? []);
-      } catch (searchError) {
-        if ((searchError as Error).name !== "AbortError") {
-          console.error("Bank provider search error:", searchError);
-        }
-      } finally {
-        setIsLoading(false);
-      }
-    }, 250);
-
-    return () => {
-      controller.abort();
-      window.clearTimeout(timeoutId);
-    };
-  }, [open, query]);
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger
-        render={
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full justify-between font-normal"
-          />
-        }
-      >
-        <span className="truncate text-muted-foreground">
-          Найти банк по названию или SWIFT / BIC
-        </span>
-        <Search className="size-4" />
-      </PopoverTrigger>
-      <PopoverContent align="start" className="w-[var(--anchor-width)] p-0">
-        <Command shouldFilter={false}>
-          <CommandInput
-            value={query}
-            onValueChange={setQuery}
-            placeholder="Начните вводить название банка или SWIFT / BIC"
-          />
-          <CommandList className="max-h-72">
-            {query.trim().length < 2 ? (
-              <CommandEmpty>Введите минимум 2 символа для поиска</CommandEmpty>
-            ) : null}
-            {query.trim().length >= 2 && matches.length === 0 && !isLoading ? (
-              <CommandEmpty>Банк не найден</CommandEmpty>
-            ) : null}
-            {isLoading ? (
-              <div className="px-3 py-2 text-sm text-muted-foreground">
-                Ищем подходящие банки...
-              </div>
-            ) : null}
-            {matches.length > 0 ? (
-              <CommandGroup heading="Результаты">
-                {matches.map((provider) => (
-                  <CommandItem
-                    key={provider.id}
-                    value={provider.displayLabel}
-                    onSelect={() => {
-                      onSelect(provider);
-                      setOpen(false);
-                      setQuery("");
-                    }}
-                  >
-                    <div className="min-w-0">
-                      <div className="truncate font-medium">
-                        {provider.name}
-                      </div>
-                      <div className="truncate text-xs text-muted-foreground">
-                        {provider.displayLabel}
-                      </div>
-                    </div>
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            ) : null}
-            <CommandSeparator />
-            <CommandGroup>
-              <CommandItem
-                value="manual-entry"
-                onSelect={() => {
-                  onManualEntry();
-                  setOpen(false);
-                  setQuery("");
-                }}
-              >
-                Ввести банк вручную
-              </CommandItem>
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
+  const search = new URLSearchParams({
+    limit: "8",
+    query: input.query,
+  });
+  const response = await fetch(
+    `${API_BASE_URL}/customer/counterparties/bank-providers?${search.toString()}`,
+    {
+      credentials: "include",
+      signal: input.signal,
+    },
   );
+
+  if (!response.ok) {
+    throw new Error(`Ошибка поиска банка: ${response.status}`);
+  }
+
+  const payload = (await response.json()) as {
+    data?: CustomerBankProviderSearchResult[];
+  };
+
+  return payload.data ?? [];
 }
 
 export function CustomerOnboardingForm() {
@@ -553,8 +418,6 @@ export function CustomerOnboardingForm() {
   const [innSearchSuccess, setInnSearchSuccess] = useState(false);
   const [parsingFile, setParsingFile] = useState(false);
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
-  const [showAdvancedRequisiteFields, setShowAdvancedRequisiteFields] =
-    useState(false);
   const [syncBeneficiaryName, setSyncBeneficiaryName] = useState(true);
 
   const {
@@ -631,6 +494,7 @@ export function CustomerOnboardingForm() {
     control,
     name: "bankRequisite.beneficiaryName",
   });
+  const ibanValue = useWatch({ control, name: "bankRequisite.iban" });
   const personFullName = composePersonFullName({
     personFirstName,
     personLastName,
@@ -638,6 +502,22 @@ export function CustomerOnboardingForm() {
   });
   const counterpartyDisplayName =
     counterpartyKind === "individual" ? personFullName : orgName;
+  const bankingValue: CustomerBankingFieldsValue = {
+    bankMode: bankMode ?? "existing",
+    bankProvider: {
+      address: bankProviderAddress ?? "",
+      country: bankProviderCountry ?? "",
+      name: bankProviderName ?? "",
+      routingCode: bankProviderRoutingCode ?? "",
+    },
+    bankProviderId: (bankProviderId as string | null | undefined) ?? null,
+    bankRequisite: {
+      accountNo: accountNoValue ?? "",
+      beneficiaryName: beneficiaryNameValue ?? "",
+      iban: ibanValue ?? "",
+    },
+  };
+  const bankingErrors = getBankingErrors(errors);
 
   useEffect(() => {
     if (syncBeneficiaryName) {
@@ -724,55 +604,25 @@ export function CustomerOnboardingForm() {
     }
   }
 
-  function applyBankProvider(provider: BankProviderSearchResult) {
-    const nextProvider = createManualBankProvider(provider);
+  function handleBankingFieldChange(
+    name: CustomerBankingFieldName,
+    value: CustomerBankingFieldValue,
+  ) {
+    if (name === "bankRequisite.beneficiaryName") {
+      setSyncBeneficiaryName(false);
+    }
 
-    setValue("bankMode", "existing", {
-      shouldDirty: true,
-      shouldValidate: true,
-    });
-    setValue("bankProviderId", provider.id, {
-      shouldDirty: true,
-      shouldValidate: true,
-    });
-    setValue("bankProvider.name", nextProvider.name, {
-      shouldDirty: true,
-      shouldValidate: true,
-    });
-    setValue("bankProvider.address", nextProvider.address, {
-      shouldDirty: true,
-      shouldValidate: true,
-    });
-    setValue("bankProvider.country", nextProvider.country, {
-      shouldDirty: true,
-      shouldValidate: true,
-    });
-    setValue("bankProvider.routingCode", nextProvider.routingCode, {
-      shouldDirty: true,
-      shouldValidate: true,
-    });
-  }
-
-  function enableManualBankEntry() {
-    setValue("bankMode", "manual", {
-      shouldDirty: true,
-      shouldValidate: true,
-    });
-    setValue("bankProviderId", null, {
-      shouldDirty: true,
-      shouldValidate: true,
-    });
-  }
-
-  function enableBankDirectorySearch() {
-    setValue("bankMode", "existing", {
-      shouldDirty: true,
-      shouldValidate: true,
-    });
-    setValue("bankProviderId", null, {
-      shouldDirty: true,
-      shouldValidate: true,
-    });
+    setValue(
+      name as Path<CustomerOnboardingFormValues>,
+      value as PathValue<
+        CustomerOnboardingFormValues,
+        Path<CustomerOnboardingFormValues>
+      >,
+      {
+        shouldDirty: true,
+        shouldValidate: true,
+      },
+    );
   }
 
   async function handleInnSearch() {
@@ -872,7 +722,13 @@ export function CustomerOnboardingForm() {
   async function onSubmit(data: CustomerOnboardingFormValues) {
     try {
       const parsed = customerOnboardSchema.parse(data);
-      const { counterpartyKind, personFirstName, personLastName, personMiddleName, ...rest } = parsed;
+      const {
+        counterpartyKind,
+        personFirstName,
+        personLastName,
+        personMiddleName,
+        ...rest
+      } = parsed;
       const composedPersonFullName = composePersonFullName({
         personFirstName,
         personLastName,
@@ -973,11 +829,6 @@ export function CustomerOnboardingForm() {
     return true;
   }
 
-  const providerSelected = hasProviderSelection(
-    bankMode,
-    (bankProviderId as string | null | undefined) ?? null,
-  );
-
   function renderStepContent(stepId: OnboardingStepId) {
     if (stepId === "source") {
       return (
@@ -1065,7 +916,9 @@ export function CustomerOnboardingForm() {
                     </Button>
                   </div>
                   {errors.inn ? (
-                    <p className="text-xs text-destructive">{errors.inn.message}</p>
+                    <p className="text-xs text-destructive">
+                      {errors.inn.message}
+                    </p>
                   ) : null}
                   {innSearchSuccess ? (
                     <div className="flex items-center gap-2 text-sm text-green-600">
@@ -1084,7 +937,8 @@ export function CustomerOnboardingForm() {
                   </span>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  Мы попытаемся извлечь реквизиты и заполнить форму автоматически.
+                  Мы попытаемся извлечь реквизиты и заполнить форму
+                  автоматически.
                 </p>
                 <input
                   ref={fileInputRef}
@@ -1210,7 +1064,8 @@ export function CustomerOnboardingForm() {
             <>
               <div className="space-y-1.5">
                 <Label htmlFor="orgName">
-                  Название организации <span className="text-destructive">*</span>
+                  Название организации{" "}
+                  <span className="text-destructive">*</span>
                 </Label>
                 <Input
                   id="orgName"
@@ -1346,181 +1201,22 @@ export function CustomerOnboardingForm() {
 
     if (stepId === "bank") {
       return (
-        <div className="space-y-4">
-          <div className="space-y-1">
-            <p className="text-sm font-medium">Банк</p>
-            <p className="text-sm text-muted-foreground">
-              Выберите банк из справочника или введите данные вручную.
-            </p>
-          </div>
-
-          {!providerSelected ? (
-            <div className="space-y-3">
-              <BankCombobox
-                onManualEntry={enableManualBankEntry}
-                onSelect={applyBankProvider}
-              />
-              {errors.bankProviderId ? (
-                <p className="text-xs text-destructive">
-                  {errors.bankProviderId.message}
-                </p>
-              ) : null}
-              {bankMode === "manual" ? (
-                <div className="rounded-md border border-dashed p-4">
-                  <div className="mb-3 flex items-center justify-between gap-2">
-                    <p className="text-sm font-medium">Ручной ввод банка</p>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={enableBankDirectorySearch}
-                    >
-                      Выбрать из справочника
-                    </Button>
-                  </div>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-1.5 md:col-span-2">
-                      <Label htmlFor="bankProvider.name">Название банка</Label>
-                      <Input
-                        id="bankProvider.name"
-                        {...register("bankProvider.name")}
-                        placeholder="АО Банк"
-                      />
-                      {errors.bankProvider?.name ? (
-                        <p className="text-xs text-destructive">
-                          {errors.bankProvider.name.message}
-                        </p>
-                      ) : null}
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="bankProvider.country">Страна банка</Label>
-                      <Controller
-                        control={control}
-                        name="bankProvider.country"
-                        render={({ field, fieldState }) => (
-                          <>
-                            <CountrySelect
-                              id="bankProvider.country"
-                              value={field.value ?? ""}
-                              onValueChange={field.onChange}
-                              invalid={fieldState.invalid}
-                              placeholder="Выберите страну"
-                              searchPlaceholder="Поиск страны..."
-                              emptyLabel="Страна не найдена"
-                              clearable
-                              clearLabel="Очистить"
-                            />
-                            {fieldState.error ? (
-                              <p className="text-xs text-destructive">
-                                {fieldState.error.message}
-                              </p>
-                            ) : null}
-                          </>
-                        )}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="bankProvider.routingCode">
-                        SWIFT / BIC
-                      </Label>
-                      <Input
-                        id="bankProvider.routingCode"
-                        {...register("bankProvider.routingCode")}
-                        placeholder="DEUTDEFF / 044525225"
-                      />
-                      {errors.bankProvider?.routingCode ? (
-                        <p className="text-xs text-destructive">
-                          {errors.bankProvider.routingCode.message}
-                        </p>
-                      ) : null}
-                    </div>
-                    <div className="space-y-1.5 md:col-span-2">
-                      <Label htmlFor="bankProvider.address">Адрес банка</Label>
-                      <Textarea
-                        id="bankProvider.address"
-                        {...register("bankProvider.address")}
-                        rows={3}
-                        placeholder="г. Москва"
-                      />
-                      {errors.bankProvider?.address ? (
-                        <p className="text-xs text-destructive">
-                          {errors.bankProvider.address.message}
-                        </p>
-                      ) : null}
-                    </div>
-                  </div>
-                </div>
-              ) : null}
-            </div>
-          ) : (
-            <div className="rounded-md border bg-muted/20 p-4">
-              <div className="mb-3 flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-sm font-medium">Банк из справочника</p>
-                  <p className="text-xs text-muted-foreground">
-                    Данные банка доступны только для чтения. Для изменения
-                    переключитесь на ручной ввод.
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={enableBankDirectorySearch}
-                  >
-                    Изменить банк
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={enableManualBankEntry}
-                  >
-                    Ввести вручную
-                  </Button>
-                </div>
-              </div>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-1.5 md:col-span-2">
-                  <Label htmlFor="selected-bank-name">Название банка</Label>
-                  <Input
-                    id="selected-bank-name"
-                    value={bankProviderName ?? ""}
-                    readOnly
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="selected-bank-country">Страна банка</Label>
-                  <CountrySelect
-                    id="selected-bank-country"
-                    value={bankProviderCountry ?? ""}
-                    onValueChange={() => undefined}
-                    disabled
-                    placeholder="Страна не указана"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="selected-bank-routing">SWIFT / BIC</Label>
-                  <Input
-                    id="selected-bank-routing"
-                    value={bankProviderRoutingCode ?? ""}
-                    readOnly
-                  />
-                </div>
-                <div className="space-y-1.5 md:col-span-2">
-                  <Label htmlFor="selected-bank-address">Адрес банка</Label>
-                  <Textarea
-                    id="selected-bank-address"
-                    value={bankProviderAddress ?? ""}
-                    rows={3}
-                    readOnly
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
+        <CustomerBankingFields
+          copy={{
+            bankDescription:
+              "Выберите банк из справочника или введите данные вручную.",
+            bankTitle: "Банк",
+            existingBankDescription:
+              "Данные банка доступны только для чтения. Для изменения переключитесь на ручной ввод.",
+          }}
+          errors={bankingErrors}
+          layout="plain"
+          onChange={handleBankingFieldChange}
+          searchBankProviders={searchBankProviders}
+          sections={["bank"]}
+          toBankProviderSnapshot={createCustomerBankProviderSnapshot}
+          value={bankingValue}
+        />
       );
     }
 
@@ -1529,7 +1225,8 @@ export function CustomerOnboardingForm() {
         { label: "ИНН", value: innValue },
         { label: "Контакт", value: applicantName },
         {
-          label: counterpartyKind === "legal_entity" ? "Организация" : "Контрагент",
+          label:
+            counterpartyKind === "legal_entity" ? "Организация" : "Контрагент",
           value: counterpartyDisplayName,
         },
         {
@@ -1573,74 +1270,20 @@ export function CustomerOnboardingForm() {
     }
 
     return (
-      <div className="space-y-4">
-        <div className="space-y-1">
-          <p className="text-sm font-medium">Реквизиты счета</p>
-          <p className="text-sm text-muted-foreground">
-            Реквизиты сохраняются как снимок данных для выбранного контрагента.
-          </p>
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label htmlFor="bankRequisite.beneficiaryName">Получатель</Label>
-            <Input
-              id="bankRequisite.beneficiaryName"
-              {...register("bankRequisite.beneficiaryName", {
-                onChange: () => setSyncBeneficiaryName(false),
-              })}
-              placeholder="ООО «Компания»"
-            />
-            {errors.bankRequisite?.beneficiaryName ? (
-              <p className="text-xs text-destructive">
-                {errors.bankRequisite.beneficiaryName.message}
-              </p>
-            ) : null}
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="bankRequisite.accountNo">Номер счета</Label>
-            <Input
-              id="bankRequisite.accountNo"
-              {...register("bankRequisite.accountNo")}
-              placeholder="40702810..."
-            />
-            {errors.bankRequisite?.accountNo ? (
-              <p className="text-xs text-destructive">
-                {errors.bankRequisite.accountNo.message}
-              </p>
-            ) : null}
-          </div>
-        </div>
-
-        <Button
-          type="button"
-          variant="ghost"
-          onClick={() => setShowAdvancedRequisiteFields((current) => !current)}
-          className="justify-start px-0 text-sm text-muted-foreground"
-        >
-          {showAdvancedRequisiteFields
-            ? "Скрыть дополнительные реквизиты"
-            : "Показать дополнительные реквизиты"}
-        </Button>
-
-        {showAdvancedRequisiteFields ? (
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="bankRequisite.iban">IBAN</Label>
-              <Input
-                id="bankRequisite.iban"
-                {...register("bankRequisite.iban")}
-                placeholder="DE89370400440532013000"
-              />
-              {errors.bankRequisite?.iban ? (
-                <p className="text-xs text-destructive">
-                  {errors.bankRequisite.iban.message}
-                </p>
-              ) : null}
-            </div>
-          </div>
-        ) : null}
-      </div>
+      <CustomerBankingFields
+        copy={{
+          requisiteDescription:
+            "Реквизиты сохраняются как снимок данных для выбранного контрагента.",
+          requisiteTitle: "Реквизиты счета",
+        }}
+        errors={bankingErrors}
+        layout="plain"
+        onChange={handleBankingFieldChange}
+        searchBankProviders={searchBankProviders}
+        sections={["requisites"]}
+        toBankProviderSnapshot={createCustomerBankProviderSnapshot}
+        value={bankingValue}
+      />
     );
   }
 
