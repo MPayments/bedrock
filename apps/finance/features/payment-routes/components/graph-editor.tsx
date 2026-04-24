@@ -57,9 +57,7 @@ import type {
 import {
   buildPaymentRouteGraphEdges,
   buildPaymentRouteGraphNodes,
-  getPaymentRouteLegCalculation,
 } from "../lib/graph-view-model";
-import { formatCurrencyMinorAmount } from "../lib/format";
 import type { PaymentRouteConstructorOptions } from "../lib/queries";
 import type { PaymentRouteEditorState } from "../lib/state";
 import {
@@ -76,7 +74,6 @@ import {
   setVisualNodePosition,
 } from "../lib/state";
 import {
-  CalculationHint,
   CurrencySelector,
   FeeListEditor,
   ParticipantRequisiteField,
@@ -179,8 +176,7 @@ const RouteGraphNode = React.memo(function RouteGraphNode({
           </Badge>
         </BaseNodeHeader>
         <BaseNodeContent className="pt-0">
-
-          <Separator orientation="horizontal" className="h-px mx-[-12px]"/>
+          <Separator orientation="horizontal" className="h-px mx-[-12px]" />
           <div className="space-y-2 pt-1">
             {nodeData.rows.map((row) => (
               <div
@@ -560,9 +556,6 @@ function PaymentRouteGraphInspector({
       (leg) => leg.id === selection.legId,
     );
     const leg = state.draft.legs[legIndex];
-    const calculation = leg
-      ? getPaymentRouteLegCalculation(state, leg.id)
-      : null;
 
     if (!leg) {
       return null;
@@ -611,27 +604,14 @@ function PaymentRouteGraphInspector({
               }
             />
           </div>
-          <CalculationHint
-            text={
-              calculation
-                ? `${formatCurrencyMinorAmount(
-                    calculation.inputAmountMinor,
-                    options.currencies.find(
-                      (currency) => currency.id === leg.fromCurrencyId,
-                    ) ?? null,
-                  )} → ${formatCurrencyMinorAmount(
-                    calculation.netOutputMinor,
-                    options.currencies.find(
-                      (currency) => currency.id === leg.toCurrencyId,
-                    ) ?? null,
-                  )}`
-                : null
-            }
-          />
+          <Separator orientation="horizontal" className="h-px" />
+
           <FeeListEditor
+            allowFxSpread={leg.fromCurrencyId !== leg.toCurrencyId}
             fallbackCurrencyId={leg.fromCurrencyId}
             fees={leg.fees}
             options={options}
+            title="Комиссии"
             onAdd={() => {
               const currentLeg = state.draft.legs.find(
                 (item) => item.id === leg.id,
@@ -646,6 +626,7 @@ function PaymentRouteGraphInspector({
                     ...currentLeg.fees,
                     {
                       amountMinor: "100",
+                      chargeToCustomer: false,
                       currencyId: leg.fromCurrencyId,
                       id: `route-fee-${crypto.randomUUID()}`,
                       kind: "fixed",

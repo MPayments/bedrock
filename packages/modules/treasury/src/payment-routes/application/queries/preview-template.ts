@@ -1,4 +1,4 @@
-import type { CrossRate } from "../../../rates/application/ports/rates.repository";
+import type { CrossRate } from "../../../rates/domain/model";
 import type { CurrenciesPort } from "../../../shared/application/external-ports";
 import { previewPaymentRoute } from "../../domain/preview-payment-route";
 import {
@@ -21,6 +21,7 @@ export class PreviewPaymentRouteQuery {
     const validated = PreviewPaymentRouteInputSchema.parse(input);
 
     return previewPaymentRoute({
+      asOf: validated.asOf,
       currencies: this.currencies,
       draft: validated.draft,
       getCrossRate: this.getCrossRate,

@@ -1,22 +1,26 @@
 import type { ModuleRuntime } from "@bedrock/shared/core";
+import { ValidationError } from "@bedrock/shared/core/errors";
 
 import {
   TreasuryInstructionNotActionableError,
   TreasuryInstructionNotFoundError,
   TreasuryInstructionStateError,
 } from "../../../errors";
+import { TREASURY_INSTRUCTION_SETTLEMENT_EVIDENCE_PURPOSES } from "../../domain/instruction-types";
 import {
   RecordTreasuryInstructionOutcomeInputSchema,
   type RecordTreasuryInstructionOutcomeInput,
 } from "../contracts/commands";
 import type { TreasuryInstruction } from "../contracts/dto";
 import { mapTreasuryInstruction } from "../map-instruction";
+import type { TreasuryInstructionArtifactsRepository } from "../ports/artifacts.repository";
 import type { TreasuryInstructionsRepository } from "../ports/instructions.repository";
 
 export class RecordTreasuryInstructionOutcomeCommand {
   constructor(
     private readonly instructionsRepository: TreasuryInstructionsRepository,
     private readonly runtime: ModuleRuntime,
+    private readonly artifactsRepository?: TreasuryInstructionArtifactsRepository,
   ) {}
 
   async execute(
@@ -60,6 +64,28 @@ export class RecordTreasuryInstructionOutcomeCommand {
         instruction.state,
         "record returned",
       );
+    }
+
+    if (validated.outcome === "settled" && this.artifactsRepository) {
+      const evidence =
+        await this.artifactsRepository.listArtifactsByInstructionIdsAndPurposes(
+          {
+            instructionIds: [instruction.id],
+            purposes: [...TREASURY_INSTRUCTION_SETTLEMENT_EVIDENCE_PURPOSES],
+          },
+        );
+
+      if (evidence.length === 0) {
+        // Build a concrete list of accepted purposes so the caller knows
+        // which artifact types to look for. `submission_confirmation` and
+        // `exception_note` intentionally do not count as settlement evidence.
+        const acceptedPurposes = [
+          ...TREASURY_INSTRUCTION_SETTLEMENT_EVIDENCE_PURPOSES,
+        ].join(", ");
+        throw new ValidationError(
+          `settlement requires evidence artifact (attach an artifact with purpose one of: ${acceptedPurposes})`,
+        );
+      }
     }
 
     const now = this.runtime.now();

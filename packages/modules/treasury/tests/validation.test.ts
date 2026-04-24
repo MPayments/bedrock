@@ -104,6 +104,45 @@ describe("Treasury validation", () => {
         expect("toAmountMinor" in parsed).toBe(true);
     });
 
+    it("accepts explicit-route quote input with same-currency legs and bigint manual lines", () => {
+        const parsed = PreviewQuoteInputSchema.parse({
+            mode: "explicit_route",
+            fromCurrency: "rub",
+            toCurrency: "usd",
+            fromAmountMinor: 10_000n,
+            asOf: new Date("2026-02-19T00:00:00.000Z"),
+            pricingTrace: { version: "v1", mode: "explicit_route" },
+            manualFinancialLines: [{
+                id: "line-1",
+                bucket: "pass_through",
+                currency: "RUB",
+                amountMinor: 150n,
+                source: "manual",
+            }],
+            legs: [
+                {
+                    fromCurrency: "RUB",
+                    toCurrency: "RUB",
+                    rateNum: 95n,
+                    rateDen: 100n,
+                    sourceKind: "derived",
+                },
+                {
+                    fromCurrency: "RUB",
+                    toCurrency: "USD",
+                    rateNum: 1n,
+                    rateDen: 10n,
+                    sourceKind: "manual",
+                },
+            ],
+        });
+
+        expect(parsed.mode).toBe("explicit_route");
+        expect(parsed.manualFinancialLines?.[0]?.amountMinor).toBe(150n);
+        expect(parsed.legs[0]?.fromCurrency).toBe("RUB");
+        expect(parsed.legs[0]?.toCurrency).toBe("RUB");
+    });
+
     it("formats contextual validation error with field path", () => {
         const schema = z.object({
             nested: z.object({

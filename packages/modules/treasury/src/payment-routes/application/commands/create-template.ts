@@ -1,6 +1,6 @@
 import type { ModuleRuntime } from "@bedrock/shared/core";
 
-import type { CrossRate } from "../../../rates/application/ports/rates.repository";
+import type { CrossRate } from "../../../rates/domain/model";
 import type { CurrenciesPort } from "../../../shared/application/external-ports";
 import { PaymentRouteTemplateAggregate } from "../../domain/payment-route-template";
 import { previewPaymentRoute } from "../../domain/preview-payment-route";
@@ -40,6 +40,8 @@ export class CreatePaymentRouteTemplateCommand {
       draft: validated.draft,
       id: this.runtime.generateUuid(),
       lastCalculation: calculation,
+      maxMarginBps: validated.maxMarginBps,
+      minMarginBps: validated.minMarginBps,
       name: validated.name,
       updatedAt: now,
       visual: validated.visual,

@@ -40,6 +40,7 @@ import { createTreasuryModule } from "@bedrock/treasury";
 import {
   DrizzlePaymentRouteTemplatesRepository,
   DrizzleTreasuryFeeRulesRepository,
+  DrizzleTreasuryInstructionArtifactsRepository,
   DrizzleTreasuryInstructionsRepository,
   DrizzleTreasuryOperationsRepository,
   DrizzleTreasuryQuoteFeeComponentsRepository,
@@ -158,12 +159,12 @@ export function createWorkerImplementations(
   const dealsModule = createDealsModule({
     commandUow: new DrizzleDealsUnitOfWork({
       bindDocumentsReadModel: (db) => createDrizzleDocumentsReadModel({ db }),
+      idempotency: {
+        withIdempotencyTx: async ({ handler }) => handler(),
+      },
       persistence: createPersistenceContext(deps.db),
     }),
     generateUuid: randomUUID,
-    idempotency: {
-      withIdempotencyTx: async ({ handler }) => handler(),
-    },
     logger: deps.logger,
     now: () => new Date(),
     reads: new DrizzleDealReads(
@@ -251,6 +252,8 @@ export function createWorkerImplementations(
     now: () => new Date(),
     generateUuid: randomUUID,
     currencies: currenciesService,
+    instructionArtifactsRepository:
+      new DrizzleTreasuryInstructionArtifactsRepository(deps.db),
     instructionsRepository: new DrizzleTreasuryInstructionsRepository(deps.db),
     operationsRepository: new DrizzleTreasuryOperationsRepository(deps.db),
     ratesRepository: new DrizzleTreasuryRatesRepository(deps.db),

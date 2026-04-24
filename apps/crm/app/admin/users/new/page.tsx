@@ -1,9 +1,6 @@
 "use client";
-
-import { ChevronLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-import { Button } from "@bedrock/sdk-ui/components/button";
 import { toast } from "@bedrock/sdk-ui/components/sonner";
 
 import { CreateUserForm } from "@bedrock/sdk-users-ui/components/create-user-form";
@@ -53,16 +50,7 @@ export default function NewUserPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button
-          variant="outline"
-          size="sm"
-          type="button"
-          onClick={() => router.push("/admin/users")}
-        >
-          <ChevronLeft className="mr-2 h-4 w-4" />
-          Назад
-        </Button>
+      <div>
         <h1 className="text-2xl font-bold">Новый пользователь</h1>
       </div>
 

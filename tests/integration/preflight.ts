@@ -9,8 +9,6 @@ const REQUIRED_TABLES = [
   { schemaName: "public", tableName: "requisites" },
   { schemaName: "public", tableName: "organization_requisite_bindings" },
   { schemaName: "public", tableName: "deal_intake_snapshots" },
-  { schemaName: "public", tableName: "deal_capability_states" },
-  { schemaName: "public", tableName: "deal_operational_positions" },
   { schemaName: "public", tableName: "deal_timeline_events" },
   { schemaName: "public", tableName: "deal_quote_acceptances" },
   { schemaName: "public", tableName: "accounting_report_line_mappings" },
@@ -40,7 +38,7 @@ const REQUIRED_COLUMNS = [
   },
   {
     tableName: "deal_legs",
-    columnName: "state",
+    columnName: "manual_override_state",
   },
   {
     tableName: "deal_calculation_links",
@@ -56,7 +54,12 @@ const REQUIRED_INDEXES = ["books_default_owner_uq"] as const;
 const REQUIRED_ENUM_VALUES = [
   {
     enumName: "deal_timeline_event_type",
-    values: ["quote_accepted", "leg_state_changed"],
+    values: [
+      "quote_accepted",
+      "leg_state_changed",
+      "leg_manual_override_set",
+      "leg_manual_override_cleared",
+    ],
   },
 ] as const;
 

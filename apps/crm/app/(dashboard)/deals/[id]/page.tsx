@@ -13,11 +13,11 @@ import {
   useRouter,
   useSearchParams,
 } from "next/navigation";
-import { ChevronLeft } from "lucide-react";
 
 import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
-import { Button } from "@bedrock/sdk-ui/components/button";
 
+import { formatDealBreadcrumbLabel } from "@/components/app/breadcrumbs";
+import { useCrmBreadcrumbs } from "@/components/app/breadcrumbs-provider";
 import { API_BASE_URL } from "@/lib/constants";
 import { loadApplicantRequisites as loadApplicantRequisiteOptions } from "@/lib/applicant-requisites";
 import { AgreementCard } from "./_components/agreement-card";
@@ -40,6 +40,7 @@ import { DealPricingTab } from "./_components/deal-pricing-tab";
 import { ErrorDialog } from "./_components/error-dialog";
 import { UploadAttachmentDialog } from "./_components/upload-attachment-dialog";
 import {
+  DEAL_TYPE_LABELS,
   formatDealWorkflowMessage,
   getDealWorkflowMessageTone,
   STATUS_LABELS,
@@ -77,7 +78,7 @@ import type {
   ApiRequisiteProvider,
   CalculationHistoryView,
   CalculationView,
-  DealLegState,
+  DealLegManualOverride,
   DealStatus,
 } from "./_components/types";
 
@@ -479,10 +480,18 @@ type DealQuoteRequestBody = {
   fromCurrency: string;
   fromAmountMinor?: string;
   mode: "auto_cross";
-  quoteMarkupPercent: string | null;
+  quoteMarkupBps: number | null;
   toAmountMinor?: string;
   toCurrency: string;
 };
+
+function percentStringToBps(value: string): number | null {
+  const trimmed = value.trim().replace(",", ".");
+  if (!trimmed) return null;
+  const parsed = Number.parseFloat(trimmed);
+  if (!Number.isFinite(parsed) || parsed < 0) return null;
+  return Math.round(parsed * 100);
+}
 
 function prepareDealQuoteRequest(input: {
   calculationAmount: string;
@@ -601,7 +610,7 @@ function prepareDealQuoteRequest(input: {
       fixedFeeCurrency: normalizedFixedFeeAmount
         ? input.fixedFeeCurrencyCode
         : null,
-      quoteMarkupPercent: input.quoteMarkupPercent.trim() || null,
+      quoteMarkupBps: percentStringToBps(input.quoteMarkupPercent),
     },
     validationError: null,
   };
@@ -825,9 +834,6 @@ export default function DealDetailPage() {
   });
   const [isQuoteDialogOpen, setIsQuoteDialogOpen] = useState(false);
   const [isCreatingQuote, setIsCreatingQuote] = useState(false);
-  const [isAcceptingQuoteId, setIsAcceptingQuoteId] = useState<string | null>(
-    null,
-  );
   const [isCreatingCalculation, setIsCreatingCalculation] = useState(false);
   const [isCreateCalculationDialogOpen, setIsCreateCalculationDialogOpen] =
     useState(false);
@@ -838,6 +844,21 @@ export default function DealDetailPage() {
   >(null);
   const [quotePreview, setQuotePreview] = useState<ApiQuotePreview | null>(
     null,
+  );
+
+  useCrmBreadcrumbs(
+    data
+      ? [
+          {
+            href: `/deals/${dealId}`,
+            label: formatDealBreadcrumbLabel({
+              applicantDisplayName:
+                data.workbench.summary.applicantDisplayName,
+              dealTypeLabel: DEAL_TYPE_LABELS[data.deal.type],
+            }),
+          },
+        ]
+      : [],
   );
   const [quotePreviewError, setQuotePreviewError] = useState<string | null>(
     null,
@@ -1151,46 +1172,6 @@ export default function DealDetailPage() {
     );
   }, [calculationToCurrency, data]);
 
-  const handleOpenQuoteDialog = useCallback(() => {
-    if (!data) {
-      return;
-    }
-
-    setOverrideCalculationAmount(false);
-    const quoteRequest = buildQuoteRequestContext(data.workbench);
-    setCalculationAmount(quoteRequest.amount ?? "");
-    setCalculationToCurrency(
-      quoteRequest.amountSide === "target"
-        ? (data.currency?.code ?? "")
-        : resolveDefaultToCurrency(
-            data.currencyOptions,
-            data.sourceCurrency?.code ?? null,
-          ),
-    );
-    setCalculationAsOf(formatDateTimeInput(new Date()));
-    setQuoteMarkupPercent(
-      acceptedQuoteDetails?.commercialTerms?.quoteMarkupBps
-        ? feeBpsToPercentString(acceptedQuoteDetails.commercialTerms.quoteMarkupBps)
-        : "",
-    );
-    setFixedFeeAmount(
-      acceptedQuoteCommercialSummary.fixedFeeAmount ||
-        agreementCommercialDefaults.fixedFeeAmount,
-    );
-    setFixedFeeCurrencyCode(
-      acceptedQuoteCommercialSummary.fixedFeeCurrencyCode ??
-        agreementCommercialDefaults.fixedFeeCurrencyCode,
-    );
-    setIsQuoteDialogOpen(true);
-  }, [
-    acceptedQuoteCommercialSummary.fixedFeeAmount,
-    acceptedQuoteCommercialSummary.fixedFeeCurrencyCode,
-    acceptedQuoteDetails,
-    agreementCommercialDefaults.fixedFeeAmount,
-    agreementCommercialDefaults.fixedFeeCurrencyCode,
-    data,
-  ]);
-
   const handleCreateQuote = useCallback(async () => {
     if (!data) {
       return;
@@ -1312,16 +1293,6 @@ export default function DealDetailPage() {
       quoteRequest,
     ],
   );
-  const calculationDisabledReason = !data
-    ? "Данные сделки еще загружаются."
-    : quoteCreationDisabledReason
-      ? quoteCreationDisabledReason
-      : !data.workbench.acceptedQuote
-        ? "Сначала примите котировку."
-        : data.workbench.acceptedQuote.quoteStatus !== "active"
-          ? "Создать расчет можно только по действующей принятой котировке."
-          : null;
-
   useEffect(() => {
     if (!isQuoteDialogOpen) {
       setQuotePreview(null);
@@ -1403,51 +1374,6 @@ export default function DealDetailPage() {
     quoteCreationDisabledReason,
     quotePreviewRequest,
   ]);
-
-  const handleAcceptQuote = useCallback(
-    async (quoteId: string) => {
-      try {
-        setIsAcceptingQuoteId(quoteId);
-
-        await fetchJson(
-          `${API_BASE_URL}/deals/${dealId}/quotes/${quoteId}/accept`,
-          {
-            method: "POST",
-          },
-        );
-
-        await loadDeal();
-      } catch (nextError) {
-        console.error("Quote accept error:", nextError);
-        showError(
-          "Ошибка принятия котировки",
-          nextError instanceof Error
-            ? nextError.message
-            : "Не удалось принять котировку",
-        );
-      } finally {
-        setIsAcceptingQuoteId(null);
-      }
-    },
-    [dealId, loadDeal, showError],
-  );
-
-  const handleOpenCreateCalculationDialog = useCallback(() => {
-    if (!data?.workbench.acceptedQuote) {
-      showError("Нет принятой котировки", "Сначала примите котировку.");
-      return;
-    }
-
-    if (data.workbench.acceptedQuote.quoteStatus !== "active") {
-      showError(
-        "Котировка недоступна",
-        "Создать расчет можно только по действующей принятой котировке.",
-      );
-      return;
-    }
-
-    setIsCreateCalculationDialogOpen(true);
-  }, [data, showError]);
 
   const handleCreateCalculationFromAcceptedQuote = useCallback(async () => {
     if (!data?.workbench.acceptedQuote) {
@@ -1556,15 +1482,15 @@ export default function DealDetailPage() {
     [data?.workflow.transitionReadiness, showError],
   );
 
-  const handleLegStateUpdate = useCallback(
-    async (idx: number, state: DealLegState) => {
+  const handleLegOverride = useCallback(
+    async (idx: number, override: DealLegManualOverride) => {
       try {
         setIsUpdatingLegKey(String(idx));
 
         const response = await fetch(
-          `${API_BASE_URL}/deals/${dealId}/legs/${idx}/state`,
+          `${API_BASE_URL}/deals/${dealId}/legs/${idx}/override`,
           {
-            body: JSON.stringify({ state }),
+            body: JSON.stringify({ override }),
             credentials: "include",
             headers: { "Content-Type": "application/json" },
             method: "POST",
@@ -1582,7 +1508,7 @@ export default function DealDetailPage() {
 
         await loadDeal();
       } catch (nextError) {
-        console.error("Deal leg state update error:", nextError);
+        console.error("Deal leg override error:", nextError);
         showError(
           "Ошибка обновления этапа исполнения",
           nextError instanceof Error
@@ -1984,10 +1910,6 @@ export default function DealDetailPage() {
   if (error || !data) {
     return (
       <div className="space-y-4">
-        <Button variant="outline" size="sm" onClick={() => router.back()}>
-          <ChevronLeft className="mr-2 h-4 w-4" />
-          Назад
-        </Button>
         <div className="rounded-md bg-red-50 p-4 text-sm text-red-800">
           {error ?? "Не удалось загрузить сделку"}
         </div>
@@ -2000,7 +1922,6 @@ export default function DealDetailPage() {
       <DealHeader
         applicantDisplayName={data.workbench.summary.applicantDisplayName}
         isUpdatingStatus={isUpdatingStatus}
-        onBack={() => router.back()}
         onBlockedStatusClick={handleBlockedTransitionClick}
         onStatusChange={handleStatusUpdate}
         status={data.deal.status}
@@ -2054,18 +1975,23 @@ export default function DealDetailPage() {
             pricing={
               <DealPricingTab
                 acceptedQuote={data.workbench.acceptedQuote}
-                activeCalculationId={data.deal.calculationId}
-                calculation={data.calculation}
-                calculationDisabledReason={calculationDisabledReason}
-                calculationHistory={data.calculationHistory}
-                isAcceptingQuoteId={isAcceptingQuoteId}
-                isCreatingCalculation={isCreatingCalculation}
-                isCreatingQuote={isCreatingQuote}
-                onAcceptQuote={handleAcceptQuote}
-                onCreateCalculation={handleOpenCreateCalculationDialog}
-                onCreateQuote={handleOpenQuoteDialog}
+                amountCurrencyPrecision={
+                  quoteRequest?.amountSide === "source"
+                    ? data.sourceCurrency?.precision ?? 2
+                    : data.currency?.precision ?? 2
+                }
+                currencyOptions={data.currencyOptions}
+                dealId={dealId}
+                fundingDeadline={
+                  data.workbench.intake.incomingReceipt.expectedAt
+                }
+                initialRequestedAmount={quoteRequest?.amount ?? ""}
+                onError={showError}
+                onReload={loadDeal}
+                pricingContext={data.workbench.pricing.context}
                 quoteAmountSide={quoteRequest?.amountSide ?? "source"}
                 quoteCreationDisabledReason={quoteCreationDisabledReason}
+                targetCurrencyPrecision={data.currency?.precision ?? 2}
                 quotes={data.workbench.pricing.quotes}
               />
             }
@@ -2090,7 +2016,7 @@ export default function DealDetailPage() {
                 executionPlan={data.workflow.executionPlan}
                 isUpdatingLegKey={isUpdatingLegKey}
                 onBlockedTransitionClick={handleBlockedTransitionClick}
-                onUpdateLegState={handleLegStateUpdate}
+                onOverrideLeg={handleLegOverride}
                 operationalState={data.workflow.operationalState}
                 sectionCompleteness={data.workflow.sectionCompleteness}
                 transitionReadiness={data.workflow.transitionReadiness}

@@ -34,6 +34,8 @@ export const DEAL_LEG_STATE_VALUES = [
   "skipped",
 ] as const;
 
+export const DEAL_LEG_MANUAL_OVERRIDE_VALUES = ["blocked", "skipped"] as const;
+
 export const DEAL_LEG_OPERATION_KIND_VALUES = [
   "payin",
   "payout",
@@ -97,6 +99,8 @@ export const DEAL_TIMELINE_EVENT_TYPE_VALUES = [
   "participant_changed",
   "status_changed",
   "leg_state_changed",
+  "leg_manual_override_set",
+  "leg_manual_override_cleared",
   "execution_requested",
   "leg_operation_created",
   "instruction_prepared",
@@ -105,9 +109,14 @@ export const DEAL_TIMELINE_EVENT_TYPE_VALUES = [
   "instruction_failed",
   "instruction_retried",
   "instruction_voided",
+  "instruction_outcome_recorded",
+  "instruction_artifact_attached",
   "return_requested",
   "instruction_returned",
   "deal_closed",
+  "deal_leg_amended",
+  "deal_route_template_swapped",
+  "acceptance_revoked_by_operator",
   "quote_created",
   "quote_accepted",
   "quote_expired",
@@ -119,6 +128,7 @@ export const DEAL_TIMELINE_EVENT_TYPE_VALUES = [
   "attachment_ingestion_failed",
   "document_created",
   "document_status_changed",
+  "reconciliation_exception_resolved",
 ] as const;
 
 export const DEAL_TIMELINE_VISIBILITY_VALUES = [
@@ -175,18 +185,6 @@ export const DEAL_STATUS_TRANSITIONS: Record<
   cancelled: [],
 };
 
-export const DEAL_LEG_STATE_TRANSITIONS: Record<
-  (typeof DEAL_LEG_STATE_VALUES)[number],
-  readonly (typeof DEAL_LEG_STATE_VALUES)[number][]
-> = {
-  pending: ["ready", "blocked", "skipped"],
-  ready: ["in_progress", "blocked", "skipped"],
-  in_progress: ["done", "blocked"],
-  done: [],
-  blocked: ["ready", "skipped"],
-  skipped: [],
-};
-
 export const DEAL_REQUIRED_SECTION_IDS_BY_TYPE = {
   payment: ["common", "moneyRequest", "externalBeneficiary"],
   currency_exchange: ["common", "moneyRequest", "settlementDestination"],
@@ -209,13 +207,6 @@ export function canTransitionDealStatus(
   to: (typeof DEAL_STATUS_VALUES)[number],
 ): boolean {
   return from === to || DEAL_STATUS_TRANSITIONS[from].includes(to);
-}
-
-export function canTransitionDealLegState(
-  from: (typeof DEAL_LEG_STATE_VALUES)[number],
-  to: (typeof DEAL_LEG_STATE_VALUES)[number],
-): boolean {
-  return from === to || DEAL_LEG_STATE_TRANSITIONS[from].includes(to);
 }
 
 export function canDealWriteTreasuryOrFormalDocuments(input: {

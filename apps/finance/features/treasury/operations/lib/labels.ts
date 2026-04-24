@@ -29,6 +29,13 @@ export const TREASURY_OPERATION_STATE_LABELS = {
   planned: "План",
 } as const;
 
+export const TREASURY_OPERATION_PROJECTED_STATE_LABELS = {
+  planned: "Запланирована",
+  in_progress: "В исполнении",
+  settled: "Исполнена",
+  voided: "Отменена",
+} as const;
+
 export const TREASURY_OPERATION_VIEW_LABELS = {
   all: "Все",
   exceptions: "Исключения",
@@ -135,6 +142,37 @@ export function getTreasuryOperationInstructionStatusVariant(
     case "submitted":
     case "voided":
     case "returned":
+      return "outline";
+    default:
+      return "outline";
+  }
+}
+
+export function getTreasuryOperationProjectedStateLabel(
+  value: string | null | undefined,
+) {
+  if (!value) {
+    return "Проекция не рассчитана";
+  }
+
+  return (
+    TREASURY_OPERATION_PROJECTED_STATE_LABELS[
+      value as keyof typeof TREASURY_OPERATION_PROJECTED_STATE_LABELS
+    ] ?? value
+  );
+}
+
+export function getTreasuryOperationProjectedStateVariant(
+  value: string | null | undefined,
+): OperationBadgeVariant {
+  switch (value) {
+    case "settled":
+      return "default";
+    case "in_progress":
+      return "secondary";
+    case "voided":
+      return "destructive";
+    case "planned":
       return "outline";
     default:
       return "outline";

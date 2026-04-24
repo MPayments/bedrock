@@ -36,6 +36,7 @@ export interface QuoteRecord {
   usedAt: Date | null;
   expiresAt: Date;
   idempotencyKey: string;
+  pricingFingerprint: string | null;
   createdAt: Date;
   fromCurrency?: string;
   toCurrency?: string;
@@ -103,6 +104,7 @@ export interface QuoteWriteModel {
   status: QuoteStatus;
   dealId: string | null;
   idempotencyKey: string;
+  pricingFingerprint: string | null;
   createdAt: Date;
 }
 

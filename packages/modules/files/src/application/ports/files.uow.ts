@@ -1,4 +1,4 @@
-import type { Transaction } from "@bedrock/platform/persistence";
+import type { UnitOfWork } from "@bedrock/shared/core/unit-of-work";
 
 import type { FileReads } from "./file.reads";
 import type { FileStore } from "./file.store";
@@ -6,9 +6,6 @@ import type { FileStore } from "./file.store";
 export interface FilesCommandTx {
   fileReads: FileReads;
   fileStore: FileStore;
-  transaction: Transaction;
 }
 
-export interface FilesCommandUnitOfWork {
-  run<T>(work: (tx: FilesCommandTx) => Promise<T>): Promise<T>;
-}
+export type FilesCommandUnitOfWork = UnitOfWork<FilesCommandTx>;

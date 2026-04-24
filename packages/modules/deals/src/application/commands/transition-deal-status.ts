@@ -14,10 +14,7 @@ import {
 } from "../contracts/commands";
 import type { DealWorkflowProjection } from "../contracts/dto";
 import type { DealsCommandUnitOfWork } from "../ports/deals.uow";
-import {
-  buildDealOperationalPositionRows,
-  createTimelinePayloadEvent,
-} from "../shared/workflow-state";
+import { createTimelinePayloadEvent } from "../shared/workflow-state";
 
 const TransitionDealStatusCommandInputSchema =
   TransitionDealStatusInputSchema.extend({
@@ -37,9 +34,9 @@ export class TransitionDealStatusCommand {
   ) {}
 
   async execute(
-    raw: TransitionDealStatusCommandInput,
+    input: TransitionDealStatusCommandInput,
   ): Promise<DealWorkflowProjection> {
-    const validated = TransitionDealStatusCommandInputSchema.parse(raw);
+    const validated = TransitionDealStatusCommandInputSchema.parse(input);
 
     return this.commandUow.run(async (tx) => {
       const existing = await tx.dealReads.findWorkflowById(validated.dealId);
@@ -92,14 +89,6 @@ export class TransitionDealStatusCommand {
       await tx.dealStore.setDealRoot({
         dealId: validated.dealId,
         nextAction: updated.nextAction,
-      });
-      await tx.dealStore.replaceDealOperationalPositions({
-        dealId: validated.dealId,
-        positions: buildDealOperationalPositionRows({
-          dealId: validated.dealId,
-          generateUuid: () => this.runtime.generateUuid(),
-          operationalState: updated.operationalState,
-        }),
       });
 
       return updated;

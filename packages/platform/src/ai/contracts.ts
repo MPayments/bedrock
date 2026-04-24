@@ -4,6 +4,10 @@ export interface ExtractedDocumentData {
   kpp: string | null;
   ogrn: string | null;
   address: string | null;
+  postalCode: string | null;
+  city: string | null;
+  streetAddress: string | null;
+  addressDetails: string | null;
   directorName: string | null;
   directorPosition: string | null;
   bankName: string | null;

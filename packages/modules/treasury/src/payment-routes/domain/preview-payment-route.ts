@@ -5,15 +5,15 @@ import {
 } from "@bedrock/shared/money/math";
 
 import { ValidationError } from "../../errors";
-import type { CrossRate } from "../../rates/application/ports/rates.repository";
-import type { CurrenciesPort } from "../../shared/application/external-ports";
+import type { CrossRate } from "../../rates/domain/model";
 import type {
   PaymentRouteAmountTotal,
   PaymentRouteCalculation,
   PaymentRouteCalculationFee,
   PaymentRouteCalculationLeg,
-} from "../application/contracts/dto";
-import type { PaymentRouteDraft, PaymentRouteFee } from "../application/contracts/zod";
+  PaymentRouteDraft,
+  PaymentRouteFee,
+} from "./model";
 
 type CrossRateLookup = (
   base: string,
@@ -22,7 +22,34 @@ type CrossRateLookup = (
   anchor?: string,
 ) => Promise<CrossRate>;
 
+interface CurrencyLookup {
+  findById(currencyId: string): Promise<{ code: string }>;
+}
+
 type CurrencyCodeCache = Map<string, string>;
+
+interface CalculatedFee {
+  amountMinor: bigint;
+  currencyId: string;
+  inputImpactCurrencyId: string;
+  inputImpactMinor: bigint;
+  outputImpactCurrencyId: string;
+  outputImpactMinor: bigint;
+  routeInputImpactMinor: bigint;
+}
+
+interface ForwardPreviewResult {
+  additionalFees: PaymentRouteCalculationFee[];
+  chargedFeeTotals: Map<string, bigint>;
+  cleanAmountOutMinor: bigint;
+  clientTotalInMinor: bigint;
+  costPriceInMinor: bigint;
+  feeTotals: Map<string, bigint>;
+  grossAmountOutMinor: bigint;
+  internalFeeTotals: Map<string, bigint>;
+  legs: PaymentRouteCalculationLeg[];
+  netAmountOutMinor: bigint;
+}
 
 function mergeTotals(
   totals: Map<string, bigint>,
@@ -35,14 +62,17 @@ function mergeTotals(
 function createCalculationFee(input: {
   amountMinor: bigint;
   calculatedCurrencyId: string;
+  chargeToCustomer?: boolean;
   fee: PaymentRouteDraft["legs"][number]["fees"][number];
   inputImpactCurrencyId: string;
   inputImpactMinor: bigint;
   outputImpactCurrencyId: string;
   outputImpactMinor: bigint;
+  routeInputImpactMinor: bigint;
 }): PaymentRouteCalculationFee {
   const base = {
     amountMinor: input.amountMinor.toString(),
+    chargeToCustomer: input.chargeToCustomer ?? input.fee.chargeToCustomer,
     currencyId: input.calculatedCurrencyId,
     id: input.fee.id,
     inputImpactCurrencyId: input.inputImpactCurrencyId,
@@ -50,28 +80,29 @@ function createCalculationFee(input: {
     label: input.fee.label,
     outputImpactCurrencyId: input.outputImpactCurrencyId,
     outputImpactMinor: input.outputImpactMinor.toString(),
+    routeInputImpactMinor: input.routeInputImpactMinor.toString(),
   };
 
-  if (input.fee.kind === "percent") {
-    if (!input.fee.percentage) {
-      throw new ValidationError("Percent fee requires percentage");
-    }
-
+  if (input.fee.kind === "fixed") {
     return {
       ...base,
-      kind: "percent",
-      percentage: input.fee.percentage,
+      kind: "fixed",
     };
+  }
+
+  if (!input.fee.percentage) {
+    throw new ValidationError(`${input.fee.kind} fee requires percentage`);
   }
 
   return {
     ...base,
-    kind: "fixed",
+    kind: input.fee.kind,
+    percentage: input.fee.percentage,
   };
 }
 
 async function resolveCurrencyCode(
-  currencies: CurrenciesPort,
+  currencies: CurrencyLookup,
   cache: CurrencyCodeCache,
   currencyId: string,
 ) {
@@ -88,7 +119,7 @@ async function resolveCurrencyCode(
 async function resolveRate(input: {
   asOf: Date;
   cache: CurrencyCodeCache;
-  currencies: CurrenciesPort;
+  currencies: CurrencyLookup;
   fromCurrencyId: string;
   getCrossRate: CrossRateLookup;
   toCurrencyId: string;
@@ -127,7 +158,7 @@ async function convertAmount(input: {
   amountMinor: bigint;
   asOf: Date;
   cache: CurrencyCodeCache;
-  currencies: CurrenciesPort;
+  currencies: CurrencyLookup;
   fromCurrencyId: string;
   getCrossRate: CrossRateLookup;
   toCurrencyId: string;
@@ -151,28 +182,32 @@ async function convertAmount(input: {
 async function calculateFee(input: {
   asOf: Date;
   cache: CurrencyCodeCache;
-  currencies: CurrenciesPort;
+  currencies: CurrencyLookup;
   fee: PaymentRouteFee;
   getCrossRate: CrossRateLookup;
-  inputAmountMinor: bigint;
+  grossBaseMinor: bigint;
   inputCurrencyId: string;
+  netBaseMinor: bigint;
   outputCurrencyId: string;
   outputRateDen: bigint;
   outputRateNum: bigint;
-}): Promise<{
-  amountMinor: bigint;
-  currencyId: string;
-  inputImpactCurrencyId: string;
-  inputImpactMinor: bigint;
-  outputImpactCurrencyId: string;
-  outputImpactMinor: bigint;
-}> {
-  if (input.fee.kind === "percent") {
+  routeInputCurrencyId: string;
+}): Promise<CalculatedFee> {
+  if (
+    input.fee.kind === "gross_percent" ||
+    input.fee.kind === "net_percent"
+  ) {
     const percentageFraction = parseDecimalToFraction(input.fee.percentage!, {
       allowScientific: false,
     });
+    const base =
+      input.fee.kind === "net_percent"
+        ? input.netBaseMinor > 0n
+          ? input.netBaseMinor
+          : 0n
+        : input.grossBaseMinor;
     const amountMinor = mulDivRoundHalfUp(
-      input.inputAmountMinor,
+      base,
       percentageFraction.num,
       percentageFraction.den * 100n,
     );
@@ -181,6 +216,15 @@ async function calculateFee(input: {
       input.outputRateNum,
       input.outputRateDen,
     );
+    const routeInputImpactMinor = await convertAmount({
+      amountMinor,
+      asOf: input.asOf,
+      cache: input.cache,
+      currencies: input.currencies,
+      fromCurrencyId: input.inputCurrencyId,
+      getCrossRate: input.getCrossRate,
+      toCurrencyId: input.routeInputCurrencyId,
+    });
 
     return {
       amountMinor,
@@ -189,51 +233,133 @@ async function calculateFee(input: {
       inputImpactMinor: amountMinor,
       outputImpactCurrencyId: input.outputCurrencyId,
       outputImpactMinor,
+      routeInputImpactMinor,
     };
   }
 
-  const amountMinor = BigInt(input.fee.amountMinor!);
-  const currencyId = input.fee.currencyId!;
-  const inputImpactMinor = await convertAmount({
-    amountMinor,
-    asOf: input.asOf,
-    cache: input.cache,
-    currencies: input.currencies,
-    fromCurrencyId: currencyId,
-    getCrossRate: input.getCrossRate,
-    toCurrencyId: input.inputCurrencyId,
+  if (input.fee.kind === "fixed") {
+    const amountMinor = BigInt(input.fee.amountMinor!);
+    const currencyId = input.fee.currencyId!;
+    const inputImpactMinor = await convertAmount({
+      amountMinor,
+      asOf: input.asOf,
+      cache: input.cache,
+      currencies: input.currencies,
+      fromCurrencyId: currencyId,
+      getCrossRate: input.getCrossRate,
+      toCurrencyId: input.inputCurrencyId,
+    });
+    const outputImpactMinor = await convertAmount({
+      amountMinor,
+      asOf: input.asOf,
+      cache: input.cache,
+      currencies: input.currencies,
+      fromCurrencyId: currencyId,
+      getCrossRate: input.getCrossRate,
+      toCurrencyId: input.outputCurrencyId,
+    });
+    const routeInputImpactMinor = await convertAmount({
+      amountMinor,
+      asOf: input.asOf,
+      cache: input.cache,
+      currencies: input.currencies,
+      fromCurrencyId: currencyId,
+      getCrossRate: input.getCrossRate,
+      toCurrencyId: input.routeInputCurrencyId,
+    });
+
+    return {
+      amountMinor,
+      currencyId,
+      inputImpactCurrencyId: input.inputCurrencyId,
+      inputImpactMinor,
+      outputImpactCurrencyId: input.outputCurrencyId,
+      outputImpactMinor,
+      routeInputImpactMinor,
+    };
+  }
+
+  throw new ValidationError(
+    `Unsupported fee kind in calculateFee: ${input.fee.kind}`,
+  );
+}
+
+interface FxSpreadCalculation extends CalculatedFee {
+  newGrossOutputMinor: bigint;
+}
+
+async function calculateFxSpread(input: {
+  asOf: Date;
+  baseGrossOutputMinor: bigint;
+  cache: CurrencyCodeCache;
+  currencies: CurrencyLookup;
+  fee: PaymentRouteFee;
+  fromCurrencyId: string;
+  getCrossRate: CrossRateLookup;
+  routeInputCurrencyId: string;
+  toCurrencyId: string;
+}): Promise<FxSpreadCalculation> {
+  if (!input.fee.percentage) {
+    throw new ValidationError("fx_spread fee requires percentage");
+  }
+
+  const fraction = parseDecimalToFraction(input.fee.percentage, {
+    allowScientific: false,
   });
-  const outputImpactMinor = await convertAmount({
-    amountMinor,
+  const spreadAmount = mulDivRoundHalfUp(
+    input.baseGrossOutputMinor,
+    fraction.num,
+    fraction.den * 100n,
+  );
+  const newGrossOutputMinor = input.baseGrossOutputMinor - spreadAmount;
+
+  const inputImpactMinor = await convertAmount({
+    amountMinor: spreadAmount,
     asOf: input.asOf,
     cache: input.cache,
     currencies: input.currencies,
-    fromCurrencyId: currencyId,
+    fromCurrencyId: input.toCurrencyId,
     getCrossRate: input.getCrossRate,
-    toCurrencyId: input.outputCurrencyId,
+    toCurrencyId: input.fromCurrencyId,
+  });
+  const routeInputImpactMinor = await convertAmount({
+    amountMinor: spreadAmount,
+    asOf: input.asOf,
+    cache: input.cache,
+    currencies: input.currencies,
+    fromCurrencyId: input.toCurrencyId,
+    getCrossRate: input.getCrossRate,
+    toCurrencyId: input.routeInputCurrencyId,
   });
 
   return {
-    amountMinor,
-    currencyId,
-    inputImpactCurrencyId: input.inputCurrencyId,
+    amountMinor: spreadAmount,
+    currencyId: input.toCurrencyId,
+    inputImpactCurrencyId: input.fromCurrencyId,
     inputImpactMinor,
-    outputImpactCurrencyId: input.outputCurrencyId,
-    outputImpactMinor,
+    newGrossOutputMinor,
+    outputImpactCurrencyId: input.toCurrencyId,
+    outputImpactMinor: spreadAmount,
+    routeInputImpactMinor,
   };
 }
 
 async function runForwardPreview(input: {
   amountInMinor: bigint;
   asOf: Date;
-  currencies: CurrenciesPort;
+  currencies: CurrencyLookup;
   draft: PaymentRouteDraft;
   getCrossRate: CrossRateLookup;
-}) {
+}): Promise<ForwardPreviewResult> {
   const currencyCache = new Map<string, string>();
   const feeTotals = new Map<string, bigint>();
+  const chargedFeeTotals = new Map<string, bigint>();
+  const internalFeeTotals = new Map<string, bigint>();
   const legs: PaymentRouteCalculationLeg[] = [];
+  let cleanRollingAmount = input.amountInMinor;
   let rollingAmount = input.amountInMinor;
+  let clientTotalInMinor = input.amountInMinor;
+  let costPriceInMinor = input.amountInMinor;
 
   for (let index = 0; index < input.draft.legs.length; index += 1) {
     const leg = input.draft.legs[index]!;
@@ -245,27 +371,82 @@ async function runForwardPreview(input: {
       getCrossRate: input.getCrossRate,
       toCurrencyId: leg.toCurrencyId,
     });
-    const grossOutputMinor = mulDivFloor(rollingAmount, rateNum, rateDen);
+    const cleanOutputMinor = mulDivFloor(cleanRollingAmount, rateNum, rateDen);
+    let grossOutputMinor = mulDivFloor(rollingAmount, rateNum, rateDen);
 
-    let totalOutputImpactMinor = 0n;
+    let chargedOutputImpactMinor = 0n;
+    let netBaseMinor = rollingAmount;
     const feeBreakdown: PaymentRouteCalculationFee[] = [];
 
     for (const fee of leg.fees) {
+      if (fee.kind === "fx_spread") {
+        const spread = await calculateFxSpread({
+          asOf: input.asOf,
+          baseGrossOutputMinor: grossOutputMinor,
+          cache: currencyCache,
+          currencies: input.currencies,
+          fee,
+          fromCurrencyId: leg.fromCurrencyId,
+          getCrossRate: input.getCrossRate,
+          routeInputCurrencyId: input.draft.currencyInId,
+          toCurrencyId: leg.toCurrencyId,
+        });
+
+        grossOutputMinor = spread.newGrossOutputMinor;
+        costPriceInMinor += spread.routeInputImpactMinor;
+        mergeTotals(feeTotals, spread.currencyId, spread.amountMinor);
+        mergeTotals(internalFeeTotals, spread.currencyId, spread.amountMinor);
+
+        feeBreakdown.push(
+          createCalculationFee({
+            amountMinor: spread.amountMinor,
+            calculatedCurrencyId: spread.currencyId,
+            chargeToCustomer: false,
+            fee,
+            inputImpactCurrencyId: spread.inputImpactCurrencyId,
+            inputImpactMinor: spread.inputImpactMinor,
+            outputImpactCurrencyId: spread.outputImpactCurrencyId,
+            outputImpactMinor: spread.outputImpactMinor,
+            routeInputImpactMinor: spread.routeInputImpactMinor,
+          }),
+        );
+        continue;
+      }
+
       const calculated = await calculateFee({
         asOf: input.asOf,
         cache: currencyCache,
         currencies: input.currencies,
         fee,
         getCrossRate: input.getCrossRate,
-        inputAmountMinor: rollingAmount,
+        grossBaseMinor: rollingAmount,
         inputCurrencyId: leg.fromCurrencyId,
+        netBaseMinor,
         outputCurrencyId: leg.toCurrencyId,
         outputRateDen: rateDen,
         outputRateNum: rateNum,
+        routeInputCurrencyId: input.draft.currencyInId,
       });
 
-      totalOutputImpactMinor += calculated.outputImpactMinor;
+      netBaseMinor -= calculated.inputImpactMinor;
+      costPriceInMinor += calculated.routeInputImpactMinor;
       mergeTotals(feeTotals, calculated.currencyId, calculated.amountMinor);
+
+      if (fee.chargeToCustomer) {
+        chargedOutputImpactMinor += calculated.outputImpactMinor;
+        mergeTotals(
+          chargedFeeTotals,
+          calculated.currencyId,
+          calculated.amountMinor,
+        );
+      } else {
+        mergeTotals(
+          internalFeeTotals,
+          calculated.currencyId,
+          calculated.amountMinor,
+        );
+      }
+
       feeBreakdown.push(
         createCalculationFee({
           amountMinor: calculated.amountMinor,
@@ -275,17 +456,18 @@ async function runForwardPreview(input: {
           inputImpactMinor: calculated.inputImpactMinor,
           outputImpactCurrencyId: calculated.outputImpactCurrencyId,
           outputImpactMinor: calculated.outputImpactMinor,
+          routeInputImpactMinor: calculated.routeInputImpactMinor,
         }),
       );
     }
 
-    if (totalOutputImpactMinor > grossOutputMinor) {
+    if (chargedOutputImpactMinor > grossOutputMinor) {
       throw new ValidationError(
         `Leg ${index + 1} fees exceed the converted amount`,
       );
     }
 
-    const netOutputMinor = grossOutputMinor - totalOutputImpactMinor;
+    const netOutputMinor = grossOutputMinor - chargedOutputImpactMinor;
 
     legs.push({
       asOf: input.asOf.toISOString(),
@@ -302,12 +484,15 @@ async function runForwardPreview(input: {
       toCurrencyId: leg.toCurrencyId,
     });
 
+    cleanRollingAmount = cleanOutputMinor;
     rollingAmount = netOutputMinor;
   }
 
+  const cleanAmountOutMinor = cleanRollingAmount;
   const grossAmountOutMinor = rollingAmount;
   const netAmountOutMinor = grossAmountOutMinor;
   const additionalFees: PaymentRouteCalculationFee[] = [];
+  let additionalNetBaseMinor = input.amountInMinor;
 
   for (const fee of input.draft.additionalFees) {
     const calculated = await calculateFee({
@@ -316,13 +501,35 @@ async function runForwardPreview(input: {
       currencies: input.currencies,
       fee,
       getCrossRate: input.getCrossRate,
-      inputAmountMinor: input.amountInMinor,
+      grossBaseMinor: input.amountInMinor,
       inputCurrencyId: input.draft.currencyInId,
+      netBaseMinor: additionalNetBaseMinor,
       outputCurrencyId: input.draft.currencyOutId,
       outputRateDen: input.amountInMinor,
       outputRateNum: grossAmountOutMinor,
+      routeInputCurrencyId: input.draft.currencyInId,
     });
+
+    additionalNetBaseMinor -= calculated.inputImpactMinor;
+
+    costPriceInMinor += calculated.routeInputImpactMinor;
     mergeTotals(feeTotals, calculated.currencyId, calculated.amountMinor);
+
+    if (fee.chargeToCustomer) {
+      clientTotalInMinor += calculated.inputImpactMinor;
+      mergeTotals(
+        chargedFeeTotals,
+        calculated.currencyId,
+        calculated.amountMinor,
+      );
+    } else {
+      mergeTotals(
+        internalFeeTotals,
+        calculated.currencyId,
+        calculated.amountMinor,
+      );
+    }
+
     additionalFees.push(
       createCalculationFee({
         amountMinor: calculated.amountMinor,
@@ -332,14 +539,20 @@ async function runForwardPreview(input: {
         inputImpactMinor: calculated.inputImpactMinor,
         outputImpactCurrencyId: calculated.outputImpactCurrencyId,
         outputImpactMinor: calculated.outputImpactMinor,
+        routeInputImpactMinor: calculated.routeInputImpactMinor,
       }),
     );
   }
 
   return {
     additionalFees,
+    chargedFeeTotals,
+    cleanAmountOutMinor,
+    clientTotalInMinor,
+    costPriceInMinor,
     feeTotals,
     grossAmountOutMinor,
+    internalFeeTotals,
     legs,
     netAmountOutMinor,
   };
@@ -364,7 +577,7 @@ function isInsufficientInputPreviewError(error: unknown) {
 async function tryRunForwardPreviewForTargetSearch(input: {
   amountInMinor: bigint;
   asOf: Date;
-  currencies: CurrenciesPort;
+  currencies: CurrencyLookup;
   draft: PaymentRouteDraft;
   getCrossRate: CrossRateLookup;
 }) {
@@ -381,7 +594,7 @@ async function tryRunForwardPreviewForTargetSearch(input: {
 
 async function resolveMinimalInputForTargetOutput(input: {
   asOf: Date;
-  currencies: CurrenciesPort;
+  currencies: CurrencyLookup;
   desiredAmountOutMinor: bigint;
   draft: PaymentRouteDraft;
   getCrossRate: CrossRateLookup;
@@ -457,7 +670,7 @@ async function resolveMinimalInputForTargetOutput(input: {
 
 export async function previewPaymentRoute(input: {
   asOf?: Date;
-  currencies: CurrenciesPort;
+  currencies: CurrencyLookup;
   draft: PaymentRouteDraft;
   getCrossRate: CrossRateLookup;
 }): Promise<PaymentRouteCalculation> {
@@ -477,11 +690,16 @@ export async function previewPaymentRoute(input: {
       additionalFees: result.additionalFees,
       amountInMinor: amountInMinor.toString(),
       amountOutMinor: result.netAmountOutMinor.toString(),
+      chargedFeeTotals: serializeTotals(result.chargedFeeTotals),
+      cleanAmountOutMinor: result.cleanAmountOutMinor.toString(),
+      clientTotalInMinor: result.clientTotalInMinor.toString(),
       computedAt: asOf.toISOString(),
+      costPriceInMinor: result.costPriceInMinor.toString(),
       currencyInId: input.draft.currencyInId,
       currencyOutId: input.draft.currencyOutId,
       feeTotals: serializeTotals(result.feeTotals),
       grossAmountOutMinor: result.grossAmountOutMinor.toString(),
+      internalFeeTotals: serializeTotals(result.internalFeeTotals),
       legs: result.legs,
       lockedSide: input.draft.lockedSide,
       netAmountOutMinor: result.netAmountOutMinor.toString(),
@@ -501,11 +719,16 @@ export async function previewPaymentRoute(input: {
     additionalFees: resolved.result.additionalFees,
     amountInMinor: resolved.amountInMinor.toString(),
     amountOutMinor: resolved.result.netAmountOutMinor.toString(),
+    chargedFeeTotals: serializeTotals(resolved.result.chargedFeeTotals),
+    cleanAmountOutMinor: resolved.result.cleanAmountOutMinor.toString(),
+    clientTotalInMinor: resolved.result.clientTotalInMinor.toString(),
     computedAt: asOf.toISOString(),
+    costPriceInMinor: resolved.result.costPriceInMinor.toString(),
     currencyInId: input.draft.currencyInId,
     currencyOutId: input.draft.currencyOutId,
     feeTotals: serializeTotals(resolved.result.feeTotals),
     grossAmountOutMinor: resolved.result.grossAmountOutMinor.toString(),
+    internalFeeTotals: serializeTotals(resolved.result.internalFeeTotals),
     legs: resolved.result.legs,
     lockedSide: input.draft.lockedSide,
     netAmountOutMinor: resolved.result.netAmountOutMinor.toString(),

@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import {
   TreasuryOperationKindSchema,
+  TreasuryOperationProjectedStateSchema,
   TreasuryOperationStateSchema,
 } from "./zod";
 import {
@@ -42,6 +43,7 @@ export const TreasuryOperationSchema = z.object({
   id: z.uuid(),
   internalEntityOrganizationId: z.uuid().nullable(),
   kind: TreasuryOperationKindSchema,
+  projectedState: TreasuryOperationProjectedStateSchema.nullable(),
   quoteId: z.uuid().nullable(),
   sourceRef: z.string(),
   state: TreasuryOperationStateSchema,
@@ -120,6 +122,7 @@ export const TreasuryOperationWorkspaceItemSchema = z.object({
   legRef: TreasuryOperationLegRefSchema,
   latestInstruction: TreasuryInstructionSchema.nullable(),
   nextAction: z.string(),
+  projectedState: TreasuryOperationProjectedStateSchema.nullable(),
   providerRoute: z.string(),
   sourceAccount: TreasuryOperationAccountSummarySchema,
   sourceRef: z.string(),

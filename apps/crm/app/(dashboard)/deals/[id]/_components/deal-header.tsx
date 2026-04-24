@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronLeft } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 
 import { Badge } from "@bedrock/sdk-ui/components/badge";
 import { Button } from "@bedrock/sdk-ui/components/button";
@@ -23,7 +23,6 @@ import type { ApiDealTransitionReadiness, DealStatus, DealType } from "./types";
 type DealHeaderProps = {
   applicantDisplayName: string | null;
   isUpdatingStatus: boolean;
-  onBack: () => void;
   onBlockedStatusClick: (status: DealStatus) => void;
   onStatusChange: (status: DealStatus) => void;
   status: DealStatus;
@@ -34,7 +33,6 @@ type DealHeaderProps = {
 export function DealHeader({
   applicantDisplayName,
   isUpdatingStatus,
-  onBack,
   onBlockedStatusClick,
   onStatusChange,
   status,
@@ -45,27 +43,21 @@ export function DealHeader({
 
   return (
     <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-      <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center">
-        <Button variant="outline" size="sm" onClick={onBack}>
-          <ChevronLeft className="mr-2 h-4 w-4" />
-          Назад
-        </Button>
-        <div className="min-w-0">
-          <div className="flex min-w-0 items-center gap-3">
-            <h1 className="truncate text-2xl font-bold">
-              {DEAL_TYPE_LABELS[type]}
-            </h1>
-            <Badge
-              className={STATUS_COLORS[status]}
-              data-testid="deal-status-badge"
-            >
-              {STATUS_LABELS[status]}
-            </Badge>
-          </div>
-          <p className="mt-1 truncate text-sm text-muted-foreground">
-            {applicantDisplayName || "Сделка клиента"}
-          </p>
+      <div className="min-w-0">
+        <div className="flex min-w-0 items-center gap-3">
+          <h1 className="truncate text-2xl font-bold">
+            {DEAL_TYPE_LABELS[type]}
+          </h1>
+          <Badge
+            className={STATUS_COLORS[status]}
+            data-testid="deal-status-badge"
+          >
+            {STATUS_LABELS[status]}
+          </Badge>
         </div>
+        <p className="mt-1 truncate text-sm text-muted-foreground">
+          {applicantDisplayName || "Сделка клиента"}
+        </p>
       </div>
 
       {hasTransitions && (

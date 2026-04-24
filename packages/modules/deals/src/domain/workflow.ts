@@ -1,3 +1,5 @@
+import type { PaymentRouteDraft } from "@bedrock/treasury/model";
+
 import {
   DEAL_REQUIRED_SECTION_IDS_BY_TYPE,
   type DEAL_LEG_KIND_VALUES,
@@ -7,17 +9,15 @@ import type {
   DealIntakeDraft,
   DealQuoteAcceptance,
   DealRelatedFormalDocument,
+  DealSectionId,
   DealSectionCompleteness,
+  DealStatus,
   DealTransitionReadiness,
+  DealType,
   DealTimelineEvent,
   DealWorkflowLeg,
   DealWorkflowParticipant,
-} from "../application/contracts/dto";
-import type {
-  DealSectionId,
-  DealStatus,
-  DealType,
-} from "../application/contracts/zod";
+} from "./model";
 
 const NEXT_PROGRESS_STATUS_BY_STATUS: Partial<Record<DealStatus, DealStatus>> = {
   awaiting_funds: "awaiting_payment",
@@ -215,20 +215,47 @@ export function isRequiredDealSectionComplete(
   return requiredSections.every((sectionId) => byId.get(sectionId)?.complete);
 }
 
+interface LegOverrides {
+  fromCurrencyId?: string | null;
+  routeSnapshotLegId?: string | null;
+  toCurrencyId?: string | null;
+}
+
 function createLeg(
   idx: number,
   kind: (typeof DEAL_LEG_KIND_VALUES)[number],
+  overrides: LegOverrides = {},
 ): DealWorkflowLeg {
   return {
+    fromCurrencyId: overrides.fromCurrencyId ?? null,
     id: null,
     idx,
     kind,
     operationRefs: [],
+    routeSnapshotLegId: overrides.routeSnapshotLegId ?? null,
     state: "pending",
+    toCurrencyId: overrides.toCurrencyId ?? null,
   };
 }
 
-export function buildDealExecutionPlan(intake: DealIntakeDraft): DealWorkflowLeg[] {
+function mapRouteLegToDealLeg(
+  idx: number,
+  routeLeg: PaymentRouteDraft["legs"][number],
+): DealWorkflowLeg {
+  const kind =
+    routeLeg.fromCurrencyId === routeLeg.toCurrencyId
+      ? "transit_hold"
+      : "convert";
+  return createLeg(idx, kind, {
+    fromCurrencyId: routeLeg.fromCurrencyId,
+    routeSnapshotLegId: routeLeg.id,
+    toCurrencyId: routeLeg.toCurrencyId,
+  });
+}
+
+function buildCanonicalDealExecutionPlan(
+  intake: DealIntakeDraft,
+): DealWorkflowLeg[] {
   const hasConvert = dealIntakeHasConvertLeg(intake);
 
   switch (intake.type) {
@@ -239,7 +266,11 @@ export function buildDealExecutionPlan(intake: DealIntakeDraft): DealWorkflowLeg
         createLeg(hasConvert ? 3 : 2, "payout"),
       ];
     case "currency_exchange":
-      return [createLeg(1, "collect"), createLeg(2, "convert"), createLeg(3, "payout")];
+      return [
+        createLeg(1, "collect"),
+        createLeg(2, "convert"),
+        createLeg(3, "payout"),
+      ];
     case "currency_transit":
       return [
         createLeg(1, "collect"),
@@ -255,6 +286,69 @@ export function buildDealExecutionPlan(intake: DealIntakeDraft): DealWorkflowLeg
         createLeg(hasConvert ? 4 : 3, "settle_exporter"),
       ];
   }
+}
+
+function buildRouteDerivedDealExecutionPlan(
+  intake: DealIntakeDraft,
+  routeSnapshot: PaymentRouteDraft,
+): DealWorkflowLeg[] {
+  const sourceCurrencyId = intake.moneyRequest.sourceCurrencyId ?? null;
+  const targetCurrencyId = intake.moneyRequest.targetCurrencyId ?? null;
+
+  // For each deal type, the route's legs form the body; head and tail come from the deal type.
+  // The route's currencyIn/currencyOut should match the deal's source/target but we don't enforce
+  // that here — the route snapshot is the source of truth for execution steps.
+  const hopLegs = (startIdx: number): DealWorkflowLeg[] =>
+    routeSnapshot.legs.map((routeLeg, offset) =>
+      mapRouteLegToDealLeg(startIdx + offset, routeLeg),
+    );
+
+  switch (intake.type) {
+    case "payment":
+    case "currency_exchange":
+    case "currency_transit": {
+      const hops = hopLegs(2);
+      return [
+        createLeg(1, "collect", {
+          fromCurrencyId: sourceCurrencyId,
+          toCurrencyId: sourceCurrencyId,
+        }),
+        ...hops,
+        createLeg(2 + hops.length, "payout", {
+          fromCurrencyId: targetCurrencyId,
+          toCurrencyId: targetCurrencyId,
+        }),
+      ];
+    }
+    case "exporter_settlement": {
+      const hops = hopLegs(3);
+      return [
+        createLeg(1, "payout", {
+          fromCurrencyId: targetCurrencyId,
+          toCurrencyId: targetCurrencyId,
+        }),
+        createLeg(2, "collect", {
+          fromCurrencyId: sourceCurrencyId,
+          toCurrencyId: sourceCurrencyId,
+        }),
+        ...hops,
+        createLeg(3 + hops.length, "settle_exporter", {
+          fromCurrencyId: targetCurrencyId,
+          toCurrencyId: targetCurrencyId,
+        }),
+      ];
+    }
+  }
+}
+
+export function buildDealExecutionPlan(
+  intake: DealIntakeDraft,
+  routeSnapshot: PaymentRouteDraft | null = null,
+): DealWorkflowLeg[] {
+  if (routeSnapshot && routeSnapshot.legs.length > 0) {
+    return buildRouteDerivedDealExecutionPlan(intake, routeSnapshot);
+  }
+  return buildCanonicalDealExecutionPlan(intake);
 }
 
 function hasPostedConvertDocument(
@@ -281,26 +375,41 @@ function hasPostedTransferDocument(
   );
 }
 
+function findStoredLegMatch(
+  baseLeg: DealWorkflowLeg,
+  storedLegs: DealWorkflowLeg[],
+): DealWorkflowLeg | undefined {
+  if (baseLeg.routeSnapshotLegId) {
+    const bySnapshot = storedLegs.find(
+      (leg) => leg.routeSnapshotLegId === baseLeg.routeSnapshotLegId,
+    );
+    if (bySnapshot) return bySnapshot;
+  }
+  return storedLegs.find(
+    (leg) => leg.idx === baseLeg.idx && leg.kind === baseLeg.kind,
+  );
+}
+
 export function buildEffectiveDealExecutionPlan(input: {
   acceptance: DealQuoteAcceptance | null;
   documents: DealRelatedFormalDocument[];
   fundingResolution: DealFundingResolution;
   intake: DealIntakeDraft;
   now: Date;
+  routeSnapshot: PaymentRouteDraft | null;
   storedLegs: DealWorkflowLeg[];
 }): DealWorkflowLeg[] {
-  const basePlan = buildDealExecutionPlan(input.intake);
-  const storedByKey = new Map(
-    input.storedLegs.map((leg) => [`${leg.idx}:${leg.kind}`, leg] as const),
-  );
-  const merged = basePlan.map((leg) => ({
-    ...leg,
-    id: storedByKey.get(`${leg.idx}:${leg.kind}`)?.id ?? leg.id,
-    operationRefs:
-      storedByKey.get(`${leg.idx}:${leg.kind}`)?.operationRefs ??
-      leg.operationRefs,
-    state: storedByKey.get(`${leg.idx}:${leg.kind}`)?.state ?? leg.state,
-  }));
+  const basePlan = buildDealExecutionPlan(input.intake, input.routeSnapshot);
+  const merged = basePlan.map((leg) => {
+    const match = findStoredLegMatch(leg, input.storedLegs);
+    if (!match) return leg;
+    return {
+      ...leg,
+      id: match.id ?? leg.id,
+      operationRefs: match.operationRefs,
+      state: match.state,
+    };
+  });
   const hasExecutableAcceptedQuote = isAcceptedQuoteCurrentAndExecutable({
     acceptance: input.acceptance,
     now: input.now,
@@ -313,12 +422,14 @@ export function buildEffectiveDealExecutionPlan(input: {
   );
   const canAutoCompleteSingleDownstreamLeg =
     downstreamLegs.length === 1 && hasPostedTransferDocument(input.documents);
+  const inventoryFundedRun =
+    input.fundingResolution.state === "resolved" &&
+    input.fundingResolution.strategy === "existing_inventory";
 
   return merged.map((leg) => {
     if (
       leg.kind === "convert" &&
-      input.fundingResolution.state === "resolved" &&
-      input.fundingResolution.strategy === "existing_inventory" &&
+      inventoryFundedRun &&
       leg.state !== "done" &&
       leg.state !== "skipped" &&
       leg.operationRefs.length === 0

@@ -1,59 +1,264 @@
 "use client";
 
-import Link from "next/link";
+import * as React from "react";
 
-import { AlertTriangle, ExternalLink } from "lucide-react";
+import { LoaderCircle } from "lucide-react";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/components/card";
 import { Button } from "@bedrock/sdk-ui/components/button";
+import { ButtonGroup } from "@bedrock/sdk-ui/components/button-group";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@bedrock/sdk-ui/components/card";
+import { Field, FieldLabel } from "@bedrock/sdk-ui/components/field";
+import { Input } from "@bedrock/sdk-ui/components/input";
+import {
+  InputGroup,
+  InputGroupAddon,
+} from "@bedrock/sdk-ui/components/input-group";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@bedrock/sdk-ui/components/select";
 import { Separator } from "@bedrock/sdk-ui/components/separator";
 import { cn } from "@bedrock/sdk-ui/lib/utils";
-import {
-  derivePaymentRouteLegSemantics,
-  formatPaymentRouteLegSemantics,
-  type PaymentRouteCalculation,
-  type PaymentRouteDraft,
+import type {
+  PaymentRouteCalculation,
+  PaymentRouteCalculationFee,
+  PaymentRouteDraft,
 } from "@bedrock/treasury/contracts";
 
 import {
-  getPaymentRouteAdditionalFeeTotals,
-  getPaymentRouteLegFeeTotals,
-} from "../lib/cost-summary";
-import { formatCurrencyMinorAmount } from "../lib/format";
+  formatCurrencyMinorAmount,
+  parseMajorToMinorAmount,
+  type PaymentRouteCurrencyOption,
+} from "../lib/format";
 import type { PaymentRouteConstructorOptions } from "../lib/queries";
-import type { PaymentRouteRequisiteWarning } from "../lib/requisites";
 
 type PaymentRouteSummaryRailProps = {
   calculation: PaymentRouteCalculation | null;
   className?: string;
   draft: PaymentRouteDraft;
+  onAmountCommit: (amountMinor: string) => void;
+  onCurrencyInChange: (currencyId: string) => void;
+  onCurrencyOutChange: (currencyId: string) => void;
+  onLockedSideChange: (side: PaymentRouteDraft["lockedSide"]) => void;
   options: PaymentRouteConstructorOptions;
+  previewError?: string | null;
+  previewPending?: boolean;
   sticky?: boolean;
-  warnings?: PaymentRouteRequisiteWarning[];
 };
 
 function getCurrency(options: PaymentRouteConstructorOptions, currencyId: string) {
   return options.currencies.find((currency) => currency.id === currencyId) ?? null;
 }
 
+function formatAmountWithoutCurrency(
+  amountMinor: string,
+  currency: PaymentRouteCurrencyOption | null,
+) {
+  if (!currency) {
+    return amountMinor;
+  }
+
+  return formatCurrencyMinorAmount(amountMinor, currency).replace(
+    ` ${currency.code}`,
+    "",
+  );
+}
+
+function sumRouteInputImpact(fees: PaymentRouteCalculationFee[]) {
+  return fees.reduce(
+    (acc, fee) => acc + BigInt(fee.routeInputImpactMinor),
+    0n,
+  );
+}
+
+function formatMarginPercent(marginMinor: bigint, grossMinor: bigint) {
+  if (grossMinor <= 0n) {
+    return "—";
+  }
+
+  const negative = marginMinor < 0n;
+  const absoluteMargin = negative ? -marginMinor : marginMinor;
+  const scaled = (absoluteMargin * 10000n + grossMinor / 2n) / grossMinor;
+  const whole = scaled / 100n;
+  const fraction = scaled % 100n;
+  const sign = negative ? "−" : "";
+  const fractionStr = fraction.toString().padStart(2, "0");
+
+  return `${sign}${whole.toString()},${fractionStr}%`;
+}
+
+type BufferedAmountInputProps = {
+  ariaLabel: string;
+  currency: PaymentRouteCurrencyOption | null;
+  onCommit: (amountMinor: string) => void;
+  valueMinor: string;
+};
+
+function BufferedAmountInput({
+  ariaLabel,
+  currency,
+  onCommit,
+  valueMinor,
+}: BufferedAmountInputProps) {
+  const initialValue = formatAmountWithoutCurrency(valueMinor, currency);
+  const [value, setValue] = React.useState(initialValue);
+
+  React.useEffect(() => {
+    setValue(formatAmountWithoutCurrency(valueMinor, currency));
+  }, [currency, valueMinor]);
+
+  function commit(nextValue: string) {
+    const parsed = parseMajorToMinorAmount({ currency, value: nextValue });
+
+    if (!parsed) {
+      setValue(formatAmountWithoutCurrency(valueMinor, currency));
+      return;
+    }
+
+    onCommit(parsed);
+    setValue(nextValue);
+  }
+
+  return (
+    <Input
+      aria-label={ariaLabel}
+      data-slot="input-group-control"
+      inputMode="decimal"
+      className="rounded-none border-0 bg-transparent shadow-none ring-0 focus-visible:ring-0 disabled:bg-transparent aria-invalid:ring-0 dark:bg-transparent dark:disabled:bg-transparent flex-1"
+      value={value}
+      onChange={(event) => setValue(event.target.value)}
+      onBlur={(event) => commit(event.target.value)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          commit(event.currentTarget.value);
+        }
+      }}
+    />
+  );
+}
+
+type AmountLineProps = {
+  amountMinor: string;
+  currency: PaymentRouteCurrencyOption | null;
+  tone?: "default" | "negative";
+  prefix?: string;
+};
+
+function AmountLine({ amountMinor, currency, tone = "default", prefix }: AmountLineProps) {
+  const formatted = formatCurrencyMinorAmount(amountMinor, currency);
+  const isNegative = BigInt(amountMinor) < 0n || tone === "negative";
+
+  return (
+    <span
+      className={cn(
+        "font-medium tabular-nums",
+        isNegative ? "text-destructive" : null,
+      )}
+    >
+      {prefix && !isNegative ? `${prefix} ` : null}
+      {formatted}
+    </span>
+  );
+}
+
 export function PaymentRouteSummaryRail({
   calculation,
   className,
   draft,
+  onAmountCommit,
+  onCurrencyInChange,
+  onCurrencyOutChange,
+  onLockedSideChange,
   options,
+  previewError = null,
+  previewPending = false,
   sticky = true,
-  warnings = [],
 }: PaymentRouteSummaryRailProps) {
-  const routeFeeTotals = getPaymentRouteLegFeeTotals(calculation);
-  const additionalFeeTotals = getPaymentRouteAdditionalFeeTotals(calculation);
+  const currencyIn = getCurrency(options, draft.currencyInId);
+  const currencyOut = getCurrency(options, draft.currencyOutId);
+  const lockedSide = draft.lockedSide;
+  const lockedCurrency = lockedSide === "currency_in" ? currencyIn : currencyOut;
+  const lockedValueMinor =
+    lockedSide === "currency_in" ? draft.amountInMinor : draft.amountOutMinor;
+  const lockedCurrencyId =
+    lockedSide === "currency_in" ? draft.currencyInId : draft.currencyOutId;
+  const onLockedCurrencyChange =
+    lockedSide === "currency_in" ? onCurrencyInChange : onCurrencyOutChange;
+
+  const otherSideMinor =
+    calculation !== null
+      ? lockedSide === "currency_in"
+        ? calculation.amountOutMinor
+        : calculation.amountInMinor
+      : null;
+  const otherCurrency = lockedSide === "currency_in" ? currencyOut : currencyIn;
+  const otherDisplay =
+    otherSideMinor && otherCurrency
+      ? formatCurrencyMinorAmount(otherSideMinor, otherCurrency)
+      : null;
+
+  const economics = React.useMemo(() => {
+    if (!calculation) {
+      return null;
+    }
+
+    const legFees = calculation.legs.flatMap((leg) => leg.fees);
+    const chargedLegFees = legFees.filter((fee) => fee.chargeToCustomer);
+    const internalLegFees = legFees.filter((fee) => !fee.chargeToCustomer);
+    const chargedAdditionalFees = calculation.additionalFees.filter(
+      (fee) => fee.chargeToCustomer,
+    );
+    const internalAdditionalFees = calculation.additionalFees.filter(
+      (fee) => !fee.chargeToCustomer,
+    );
+
+    const internalLegImpact = sumRouteInputImpact(internalLegFees);
+    const chargedImpact = sumRouteInputImpact([
+      ...chargedLegFees,
+      ...chargedAdditionalFees,
+    ]);
+    const internalAdditionalImpact = sumRouteInputImpact(
+      internalAdditionalFees,
+    );
+
+    const marginInMinor = chargedImpact - internalAdditionalImpact;
+    const grossInMinor = BigInt(calculation.amountInMinor);
+
+    return {
+      chargedFeeRows: [...chargedLegFees, ...chargedAdditionalFees],
+      internalAdditionalFees,
+      internalLegImpact,
+      legCount: calculation.legs.length,
+      marginInMinor,
+      marginPercent: formatMarginPercent(marginInMinor, grossInMinor),
+    };
+  }, [calculation]);
 
   return (
     <Card className={cn(sticky ? "xl:sticky xl:top-6" : null, className)}>
-      <CardHeader className="gap-3">
-        <div className="flex items-center justify-between gap-3">
-          <CardTitle>Сводка маршрута</CardTitle>
-          {calculation ? (
-            <div className="text-xs text-muted-foreground">
+      <CardHeader className="gap-1">
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-1">
+            <CardTitle>Экономика маршрута</CardTitle>
+            <CardDescription>Пересчитывается при каждом изменении</CardDescription>
+          </div>
+          {previewPending ? (
+            <div className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
+              <LoaderCircle className="size-3 animate-spin" />
+              Пересчёт
+            </div>
+          ) : calculation ? (
+            <div className="shrink-0 text-xs text-muted-foreground">
               {new Intl.DateTimeFormat("ru-RU", {
                 dateStyle: "short",
                 timeStyle: "short",
@@ -62,201 +267,232 @@ export function PaymentRouteSummaryRail({
           ) : null}
         </div>
       </CardHeader>
-      <CardContent className="space-y-5">
-        {warnings.length > 0 ? (
-          <>
-            <div className="space-y-3 rounded-2xl border border-amber-200 bg-amber-50/80 p-4">
-              <div className="flex items-center gap-2 text-sm font-medium text-amber-900">
-                <AlertTriangle className="size-4" />
-                Шаблон требует реквизитов
-              </div>
-              <div className="space-y-3">
-                {warnings.map((warning) => (
-                  <div
-                    key={`${warning.participantNodeId}:${warning.message}`}
-                    className="rounded-xl border border-amber-200/80 bg-background/70 p-3"
+      <CardContent className="space-y-3">
+        <div className="space-y-3">
+          <Field>
+            <FieldLabel>Фиксировать</FieldLabel>
+            <ButtonGroup className="w-full">
+              <Button
+                type="button"
+                variant={lockedSide === "currency_in" ? "default" : "outline"}
+                className="flex-1"
+                onClick={() => onLockedSideChange("currency_in")}
+              >
+                Списание
+              </Button>
+              <Button
+                type="button"
+                variant={lockedSide === "currency_out" ? "default" : "outline"}
+                className="flex-1"
+                onClick={() => onLockedSideChange("currency_out")}
+              >
+                Получение
+              </Button>
+            </ButtonGroup>
+          </Field>
+          <Field>
+            <FieldLabel>Сумма для расчёта</FieldLabel>
+            <InputGroup>
+              <BufferedAmountInput
+                ariaLabel="Сумма для расчёта"
+                currency={lockedCurrency}
+                onCommit={onAmountCommit}
+                valueMinor={lockedValueMinor}
+              />
+              <InputGroupAddon align="inline-end" className="p-0">
+                <Select
+                  value={lockedCurrencyId}
+                  onValueChange={(nextValue) => {
+                    if (nextValue) {
+                      onLockedCurrencyChange(nextValue);
+                    }
+                  }}
+                >
+                  <SelectTrigger
+                    aria-label="Валюта суммы"
+                    className="h-full border-0 bg-transparent px-2 font-medium shadow-none focus-visible:ring-0"
                   >
-                    <div className="text-sm font-medium">{warning.title}</div>
-                    <div className="mt-1 text-sm text-muted-foreground">
-                      {warning.message}
-                    </div>
-                    {warning.createHref ? (
-                      <div className="mt-3">
-                        <Button
-                          nativeButton={false}
-                          size="sm"
-                          variant="outline"
-                          render={
-                            <Link
-                              href={warning.createHref}
-                              rel="noopener noreferrer"
-                              target="_blank"
-                            />
-                          }
-                        >
-                          <ExternalLink className="size-4" />
-                          Создать реквизит
-                        </Button>
-                      </div>
-                    ) : null}
-                  </div>
-                ))}
+                    <SelectValue>
+                      {lockedCurrency?.code ?? "—"}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent align="end">
+                    {options.currencies.map((currency) => (
+                      <SelectItem key={currency.id} value={currency.id}>
+                        {currency.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </InputGroupAddon>
+            </InputGroup>
+            {otherDisplay ? (
+              <div className="text-xs text-muted-foreground">
+                ≈ {otherDisplay}
               </div>
-            </div>
-            <Separator />
-          </>
-        ) : null}
-        {calculation ? (
-          <>
-            <div className="space-y-3">
-              {calculation.legs.map((leg) => {
-                const fromCurrency = getCurrency(options, leg.fromCurrencyId);
-                const toCurrency = getCurrency(options, leg.toCurrencyId);
-                const semanticsLabel = formatPaymentRouteLegSemantics(
-                  derivePaymentRouteLegSemantics({
-                    draft,
-                    legIndex: leg.idx - 1,
-                  }),
-                );
+            ) : null}
+            {previewError ? (
+              <div className="text-xs text-destructive">{previewError}</div>
+            ) : null}
+          </Field>
+        </div>
 
-                return (
-                  <div key={leg.id} className="rounded-xl border bg-muted/20 p-3">
-                    <div className="mb-2 flex items-center justify-between gap-3">
-                      <div className="text-sm font-medium">
-                        Шаг {leg.idx}. {semanticsLabel}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {fromCurrency?.code} → {toCurrency?.code}
-                      </div>
-                    </div>
-                    <div className="space-y-1 text-sm">
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="text-muted-foreground">На входе</span>
-                        <span>
-                          {formatCurrencyMinorAmount(leg.inputAmountMinor, fromCurrency)}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="text-muted-foreground">До комиссий шага</span>
-                        <span>
-                          {formatCurrencyMinorAmount(leg.grossOutputMinor, toCurrency)}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="text-muted-foreground">После комиссий шага</span>
-                        <span className="font-medium">
-                          {formatCurrencyMinorAmount(leg.netOutputMinor, toCurrency)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            <Separator />
+        {calculation && economics ? (
+          <>
             <div className="space-y-2">
-              <div className="space-y-1">
-                <div className="text-sm font-medium">Комиссии маршрута</div>
-                <div className="text-sm text-muted-foreground">
-                  Удерживаются внутри шагов и влияют на сумму к получению.
-                </div>
-              </div>
-              {routeFeeTotals.length === 0 ? (
-                <div className="text-sm text-muted-foreground">Комиссий по шагам нет.</div>
-              ) : (
-                routeFeeTotals.map((feeTotal) => (
-                  <div
-                    key={feeTotal.currencyId}
-                    className="flex items-center justify-between gap-3 text-sm"
-                  >
-                    <span className="text-muted-foreground">
-                      {getCurrency(options, feeTotal.currencyId)?.code ?? feeTotal.currencyId}
-                    </span>
-                    <span>
-                      {formatCurrencyMinorAmount(
-                        feeTotal.amountMinor,
-                        getCurrency(options, feeTotal.currencyId),
-                      )}
-                    </span>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold">Клиент оплатит</div>
+                  <div className="text-xs text-muted-foreground">
+                    Брутто + учтённые комиссии
                   </div>
-                ))
-              )}
-            </div>
-            <Separator />
-            <div className="space-y-3">
-              <div className="space-y-1">
-                <div className="text-sm font-medium">Доплаты сверх маршрута</div>
-              </div>
-              {calculation.additionalFees.length === 0 ? (
-                <div className="text-sm text-muted-foreground">
-                  Отдельные доплаты не добавлены.
                 </div>
-              ) : (
-                calculation.additionalFees.map((fee) => (
-                  <div key={fee.id} className="rounded-xl border bg-muted/20 p-3">
-                    <div className="flex items-center justify-between gap-3 text-sm">
-                      <span className="text-muted-foreground">
-                        {fee.label ?? "Доп. расход"}
+                <div className="shrink-0 whitespace-nowrap text-sm font-semibold tabular-nums">
+                  {formatCurrencyMinorAmount(
+                    calculation.clientTotalInMinor,
+                    currencyIn,
+                  )}
+                </div>
+              </div>
+              {economics.chargedFeeRows.length > 0 ? (
+                <div className="space-y-1 pl-3">
+                  {economics.chargedFeeRows.map((fee) => (
+                    <div
+                      key={fee.id}
+                      className="flex items-start justify-between gap-3 text-sm text-muted-foreground"
+                    >
+                      <span className="min-w-0 truncate">
+                        + {fee.label ?? "Комиссия"}
                       </span>
-                      <span>
+                      <span className="shrink-0 whitespace-nowrap tabular-nums text-foreground">
                         {formatCurrencyMinorAmount(
                           fee.amountMinor,
                           getCurrency(options, fee.currencyId),
                         )}
                       </span>
                     </div>
-                    {fee.currencyId !== fee.outputImpactCurrencyId ? (
-                      <div className="mt-1 text-xs text-muted-foreground">
-                        Справочно в валюте получения:{" "}
-                        {formatCurrencyMinorAmount(
-                          fee.outputImpactMinor,
-                          getCurrency(options, fee.outputImpactCurrencyId),
-                        )}
-                      </div>
-                    ) : null}
-                  </div>
-                ))
-              )}
-            </div>
-            <Separator />
-            <div className="space-y-2 rounded-2xl border border-emerald-200 bg-emerald-50/80 p-4">
-              <div className="flex items-center justify-between gap-3 text-sm">
-                <span className="text-muted-foreground">Бенефициар получит</span>
-                <span className="font-semibold text-emerald-900">
-                  {formatCurrencyMinorAmount(
-                    calculation.amountOutMinor,
-                    getCurrency(options, calculation.currencyOutId),
-                  )}
-                </span>
-              </div>
-            </div>
-            {additionalFeeTotals.length > 0 ? (
-              <div className="space-y-2 rounded-2xl border border-amber-200 bg-amber-50/80 p-4">
-                <div className="text-sm font-medium text-amber-950">
-                  Отдельно оплатить сверх маршрута
+                  ))}
                 </div>
-                {additionalFeeTotals.map((feeTotal) => (
+              ) : null}
+            </div>
+
+            <Separator orientation="horizontal" className="h-px" />
+
+            <div className="space-y-2">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold">Себестоимость</div>
+                  <div className="text-xs text-muted-foreground">
+                    Комиссии провайдеров и внутренние расходы
+                  </div>
+                </div>
+                <div className="shrink-0 whitespace-nowrap text-sm font-semibold tabular-nums text-destructive">
+                  −{"\u00A0"}
+                  {formatCurrencyMinorAmount(
+                    calculation.costPriceInMinor,
+                    currencyIn,
+                  )}
+                </div>
+              </div>
+              <div className="space-y-1 pl-3">
+                <div className="flex items-start justify-between gap-3 text-sm text-muted-foreground">
+                  <span className="min-w-0">
+                    − Комиссии провайдеров по шагам ({economics.legCount})
+                  </span>
+                  <span className="shrink-0 whitespace-nowrap tabular-nums text-foreground">
+                    {formatCurrencyMinorAmount(
+                      economics.internalLegImpact.toString(),
+                      currencyIn,
+                    )}
+                  </span>
+                </div>
+                {economics.internalAdditionalFees.map((fee) => (
                   <div
-                    key={feeTotal.currencyId}
-                    className="flex items-center justify-between gap-3 text-sm"
+                    key={fee.id}
+                    className="flex items-start justify-between gap-3 text-sm text-muted-foreground"
                   >
-                    <span className="text-muted-foreground">
-                      {getCurrency(options, feeTotal.currencyId)?.code ?? feeTotal.currencyId}
+                    <span className="min-w-0 truncate">
+                      − {fee.label ?? "Расход"}
                     </span>
-                    <span className="font-medium text-amber-950">
+                    <span className="shrink-0 whitespace-nowrap tabular-nums text-foreground">
                       {formatCurrencyMinorAmount(
-                        feeTotal.amountMinor,
-                        getCurrency(options, feeTotal.currencyId),
+                        fee.amountMinor,
+                        getCurrency(options, fee.currencyId),
                       )}
                     </span>
                   </div>
                 ))}
               </div>
-            ) : null}
+            </div>
+
+            <Separator orientation="horizontal" className="h-px" />
+
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-sm font-semibold">Бенефициар получит</div>
+                <div className="text-xs text-muted-foreground">
+                  Чистая сумма к получению
+                </div>
+              </div>
+              <div className="shrink-0 whitespace-nowrap">
+                <AmountLine
+                  amountMinor={calculation.amountOutMinor}
+                  currency={currencyOut}
+                />
+              </div>
+            </div>
+
+            <div
+              className={cn(
+                "space-y-1 rounded-2xl border p-4",
+                economics.marginInMinor < 0n
+                  ? "border-destructive/30 bg-destructive/10"
+                  : "border-emerald-200 bg-emerald-50/80",
+              )}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div
+                    className={cn(
+                      "text-sm font-semibold",
+                      economics.marginInMinor < 0n
+                        ? "text-destructive"
+                        : "text-emerald-900",
+                    )}
+                  >
+                    Чистая маржа
+                  </div>
+                  <div
+                    className={cn(
+                      "text-xs tabular-nums",
+                      economics.marginInMinor < 0n
+                        ? "text-destructive/80"
+                        : "text-emerald-700/80",
+                    )}
+                  >
+                    {economics.marginPercent} от брутто
+                  </div>
+                </div>
+                <div
+                  className={cn(
+                    "shrink-0 whitespace-nowrap text-base font-semibold tabular-nums",
+                    economics.marginInMinor < 0n
+                      ? "text-destructive"
+                      : "text-emerald-900",
+                  )}
+                >
+                  {formatCurrencyMinorAmount(
+                    economics.marginInMinor.toString(),
+                    currencyIn,
+                  )}
+                </div>
+              </div>
+            </div>
           </>
         ) : (
           <div className="rounded-xl border border-dashed px-4 py-6 text-sm text-muted-foreground">
-            После первого расчета здесь появится разбивка по шагам, комиссии и итоговые суммы.
+            После первого расчёта здесь появятся итоги: что заплатит клиент,
+            себестоимость маршрута и чистая маржа.
           </div>
         )}
       </CardContent>

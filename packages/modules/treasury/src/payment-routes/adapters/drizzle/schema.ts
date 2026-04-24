@@ -40,6 +40,8 @@ export const paymentRouteTemplates = pgTable(
       .default(sql`'{}'::jsonb`),
     lastCalculation:
       jsonb("last_calculation").$type<PaymentRouteCalculation | null>(),
+    minMarginBps: integer("min_margin_bps"),
+    maxMarginBps: integer("max_margin_bps"),
     snapshotPolicy: text("snapshot_policy")
       .$type<"clone_on_attach">()
       .notNull()

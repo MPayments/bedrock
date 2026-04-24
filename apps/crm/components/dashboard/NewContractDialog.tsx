@@ -13,6 +13,7 @@ import { Button } from "@bedrock/sdk-ui/components/button";
 import { Input } from "@bedrock/sdk-ui/components/input";
 import { Label } from "@bedrock/sdk-ui/components/label";
 import { API_BASE_URL } from "@/lib/constants";
+import { formatCompactUuid } from "@bedrock/shared/core/uuid";
 import { Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import {
   AlertDialog,
@@ -89,8 +90,17 @@ interface Bank {
 interface ContractFormData {
   organizationId?: string;
   organizationRequisiteId?: string;
+  contractNumber: string;
   agentFee: string;
   fixedFee: string;
+}
+
+export interface ContractDialogInitialValues {
+  agentFee?: string | null;
+  fixedFee?: string | null;
+  contractNumber?: string | null;
+  organizationId?: string;
+  organizationRequisiteId?: string;
 }
 
 interface NewContractDialogProps {
@@ -98,20 +108,30 @@ interface NewContractDialogProps {
   onOpenChange: (open: boolean) => void;
   counterpartyId: string;
   customerId: string;
+  initialValues?: ContractDialogInitialValues | null;
   onSuccess?: () => void;
 }
 
 type Step = "organization" | "bank" | "fees";
+
+// Совпадает с форматом серверного дефолта в buildDefaultCustomerAgreementContractNumber
+// (apps/api/src/routes/customer-agreements.ts) — чтобы пользовательское превью
+// соответствовало тому, что сервер подставит при пустом вводе.
+function buildDefaultContractNumberPreview(customerId: string): string {
+  return `contract#${formatCompactUuid(customerId)}-${formatCompactUuid(crypto.randomUUID())}`;
+}
 
 export function NewContractDialog({
   open,
   onOpenChange,
   counterpartyId,
   customerId,
+  initialValues,
   onSuccess,
 }: NewContractDialogProps) {
   const [step, setStep] = useState<Step>("organization");
   const [formData, setFormData] = useState<ContractFormData>({
+    contractNumber: "",
     agentFee: "",
     fixedFee: "",
   });
@@ -122,6 +142,8 @@ export function NewContractDialog({
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+  const [defaultContractNumberPreview, setDefaultContractNumberPreview] =
+    useState("");
 
   // Загрузка организаций
   const fetchOrganizations = useCallback(async () => {
@@ -149,20 +171,6 @@ export function NewContractDialog({
       setLoadingOrganizations(false);
     }
   }, []);
-
-  // Сброс состояния при открытии
-  useEffect(() => {
-    if (open) {
-      setStep("organization");
-      setFormData({
-        agentFee: "",
-        fixedFee: "",
-      });
-      setBanks([]);
-      setError(null);
-      void fetchOrganizations();
-    }
-  }, [fetchOrganizations, open]);
 
   // Загрузка банков для выбранной организации
   const fetchBanks = useCallback(async (orgId: string) => {
@@ -194,11 +202,44 @@ export function NewContractDialog({
     }
   }, []);
 
+  // Сброс состояния при открытии
+  useEffect(() => {
+    if (open) {
+      const nextFormData: ContractFormData = {
+        organizationId: initialValues?.organizationId,
+        organizationRequisiteId: initialValues?.organizationRequisiteId,
+        contractNumber: initialValues?.contractNumber ?? "",
+        agentFee: initialValues?.agentFee ?? "",
+        fixedFee: initialValues?.fixedFee ?? "",
+      };
+
+      setFormData(nextFormData);
+      setBanks([]);
+      setError(null);
+      setDefaultContractNumberPreview(
+        buildDefaultContractNumberPreview(customerId),
+      );
+
+      void (async () => {
+        await fetchOrganizations();
+
+        if (nextFormData.organizationId) {
+          await fetchBanks(nextFormData.organizationId);
+          setStep(nextFormData.organizationRequisiteId ? "fees" : "bank");
+          return;
+        }
+
+        setStep("organization");
+      })();
+    }
+  }, [customerId, fetchBanks, fetchOrganizations, initialValues, open]);
+
   // Проверка, заполнена ли форма
   const isFormDirty = () => {
     return (
       formData.organizationId !== undefined ||
       formData.organizationRequisiteId !== undefined ||
+      formData.contractNumber !== "" ||
       formData.agentFee !== "" ||
       formData.fixedFee !== ""
     );
@@ -214,11 +255,12 @@ export function NewContractDialog({
   };
 
   const confirmClose = () => {
-    setShowCloseConfirm(false);
-    onOpenChange(false);
-    setFormData({
-      agentFee: "",
-      fixedFee: "",
+      setShowCloseConfirm(false);
+      onOpenChange(false);
+      setFormData({
+        contractNumber: "",
+        agentFee: "",
+        fixedFee: "",
     });
     setError(null);
   };
@@ -267,6 +309,7 @@ export function NewContractDialog({
           body: JSON.stringify({
             organizationId: formData.organizationId,
             organizationRequisiteId: formData.organizationRequisiteId,
+            contractNumber: formData.contractNumber.trim() || undefined,
             agentFee: formData.agentFee || undefined,
             fixedFee: formData.fixedFee || undefined,
           }),
@@ -286,6 +329,7 @@ export function NewContractDialog({
 
       // Сброс формы
       setFormData({
+        contractNumber: "",
         agentFee: "",
         fixedFee: "",
       });
@@ -305,6 +349,7 @@ export function NewContractDialog({
   const selectedBank = banks.find(
     (bank) => bank.id === formData.organizationRequisiteId
   );
+  const isEditMode = Boolean(initialValues);
 
   const getStepTitle = () => {
     switch (step) {
@@ -313,7 +358,7 @@ export function NewContractDialog({
       case "bank":
         return "Выберите реквизит";
       case "fees":
-        return "Условия договора";
+        return isEditMode ? "Измените условия договора" : "Условия договора";
     }
   };
 
@@ -324,7 +369,9 @@ export function NewContractDialog({
       case "bank":
         return `Выберите банковские реквизиты для ${selectedOrganization?.shortName || "организации"}`;
       case "fees":
-        return "Укажите комиссии для агентского договора";
+        return isEditMode
+          ? "Обновите текущие условия агентского договора"
+          : "Укажите комиссии для агентского договора";
     }
   };
 
@@ -508,6 +555,45 @@ export function NewContractDialog({
 
                 <div className="space-y-4 min-w-0">
                   <div className="space-y-2 min-w-0">
+                    <Label htmlFor="contractNumber">Номер договора</Label>
+                    <Input
+                      id="contractNumber"
+                      maxLength={255}
+                      placeholder="например, №1233123"
+                      value={formData.contractNumber}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          contractNumber: e.target.value,
+                        }))
+                      }
+                      className="w-full"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Необязательно. Если оставить пустым, номер сгенерируется автоматически.
+                    </p>
+                    {formData.contractNumber.trim() === "" &&
+                      defaultContractNumberPreview && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setFormData((prev) => ({
+                              ...prev,
+                              contractNumber: defaultContractNumberPreview,
+                            }))
+                          }
+                          className="text-left text-xs text-primary hover:underline focus-visible:underline focus-visible:outline-none"
+                          title="Подставить в поле"
+                        >
+                          Применить дефолтный номер:{" "}
+                          <span className="font-mono">
+                            {defaultContractNumberPreview}
+                          </span>
+                        </button>
+                      )}
+                  </div>
+
+                  <div className="space-y-2 min-w-0">
                     <Label htmlFor="agentFee">Агентская комиссия (%)</Label>
                     <Input
                       id="agentFee"
@@ -595,7 +681,7 @@ export function NewContractDialog({
             ) : (
               <Button type="button" onClick={handleCreate} disabled={creating}>
                 {creating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Создать договор
+                {isEditMode ? "Сохранить договор" : "Создать договор"}
               </Button>
             )}
           </DialogFooter>

@@ -12,15 +12,16 @@ import type { DealDetails } from "../contracts/dto";
 import type { DealsCommandUnitOfWork } from "../ports/deals.uow";
 import type { DealReferencesPort } from "../ports/references.port";
 import {
-  buildDealOperationalPositionRows,
   createTimelinePayloadEvent,
   deriveDealRootState,
 } from "../shared/workflow-state";
 
-const LinkCalculationCommandInputSchema = LinkDealCalculationInputSchema.extend({
-  actorUserId: z.string().trim().min(1),
-  dealId: z.uuid(),
-});
+const LinkCalculationCommandInputSchema = LinkDealCalculationInputSchema.extend(
+  {
+    actorUserId: z.string().trim().min(1),
+    dealId: z.uuid(),
+  },
+);
 
 type LinkCalculationCommandInput = LinkDealCalculationInput & {
   actorUserId: string;
@@ -34,8 +35,8 @@ export class LinkCalculationCommand {
     private readonly references: DealReferencesPort,
   ) {}
 
-  async execute(raw: LinkCalculationCommandInput): Promise<DealDetails> {
-    const validated = LinkCalculationCommandInputSchema.parse(raw);
+  async execute(input: LinkCalculationCommandInput): Promise<DealDetails> {
+    const validated = LinkCalculationCommandInputSchema.parse(input);
     const calculation = await this.references.findCalculationById(
       validated.calculationId,
     );
@@ -95,7 +96,9 @@ export class LinkCalculationCommand {
         }),
       ]);
 
-      const updatedWorkflow = await tx.dealReads.findWorkflowById(validated.dealId);
+      const updatedWorkflow = await tx.dealReads.findWorkflowById(
+        validated.dealId,
+      );
       if (!updatedWorkflow) {
         throw new DealNotFoundError(validated.dealId);
       }
@@ -103,14 +106,6 @@ export class LinkCalculationCommand {
       await tx.dealStore.setDealRoot({
         dealId: validated.dealId,
         nextAction: updatedWorkflow.nextAction,
-      });
-      await tx.dealStore.replaceDealOperationalPositions({
-        dealId: validated.dealId,
-        positions: buildDealOperationalPositionRows({
-          dealId: validated.dealId,
-          generateUuid: () => this.runtime.generateUuid(),
-          operationalState: updatedWorkflow.operationalState,
-        }),
       });
 
       const updated = await tx.dealReads.findById(validated.dealId);

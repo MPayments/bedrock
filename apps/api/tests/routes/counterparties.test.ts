@@ -232,16 +232,6 @@ describe("counterparties routes", () => {
     expect(partyProfiles.commands.replaceBundle).not.toHaveBeenCalled();
   });
 
-  it("does not expose the legacy counterparty legal-profile route", async () => {
-    const { app } = createTestApp();
-
-    const response = await app.request(
-      "http://localhost/counterparties/11111111-1111-4111-8111-111111111111/legal-profile",
-    );
-
-    expect(response.status).toBe(404);
-  });
-
   it("returns 400 when assigning a counterparty without a sub-agent profile", async () => {
     const {
       app,

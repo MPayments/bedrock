@@ -330,7 +330,7 @@ describe("calculations routes", () => {
     });
   });
 
-  it("exports calculation using canonical document data without compatibility serializer", async () => {
+  it("exports calculation using canonical document data", async () => {
     const { app, calculationsModule, currenciesService, documentGenerationWorkflow } =
       createTestApp();
     const detail = createCalculationDetail();

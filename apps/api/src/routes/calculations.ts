@@ -7,7 +7,6 @@ import {
   PaginatedCalculationsSchema,
   type CalculationDetails,
 } from "@bedrock/calculations/contracts";
-import { formatFractionDecimal } from "@bedrock/shared/money";
 import type { CalculationDocumentData } from "@bedrock/workflow-document-generation";
 
 import { DeletedSchema, ErrorSchema, IdParamSchema } from "../common";
@@ -17,48 +16,13 @@ import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";
 import { withRequiredIdempotency } from "../middleware/idempotency";
 import { requirePermission } from "../middleware/permission";
-
-interface CalculationCurrencyMetadata {
-  code: string;
-  id: string;
-  precision: number;
-}
-
-function minorToDecimalString(amountMinor: bigint | string, precision: number) {
-  const value = typeof amountMinor === "string" ? BigInt(amountMinor) : amountMinor;
-  const negative = value < 0n;
-  const absolute = negative ? -value : value;
-  const digits = absolute.toString();
-
-  if (precision === 0) {
-    return `${negative ? "-" : ""}${digits}`;
-  }
-
-  const padded = digits.padStart(precision + 1, "0");
-  const integerPart = padded.slice(0, padded.length - precision);
-  const fractionPart = padded.slice(padded.length - precision);
-
-  return `${negative ? "-" : ""}${integerPart}.${fractionPart}`;
-}
-
-function feeBpsToPercentString(feeBps: bigint | string) {
-  return minorToDecimalString(feeBps, 2);
-}
-
-function rationalToDecimalString(
-  numerator: bigint | string,
-  denominator: bigint | string,
-  scale = 6,
-) {
-  return formatFractionDecimal(numerator, denominator, {
-    scale,
-    trimTrailingZeros: true,
-  });
-}
-
-function serializeRateSource(rateSource: string) {
-  return rateSource === "cbr" ? "cbru" : rateSource;
-}
+import {
+  feeBpsToPercentString,
+  minorToDecimalString,
+  rationalToDecimalString,
+  serializeRateSource,
+  type CalculationCurrencyMetadata,
+} from "./internal/calculation-document-formatters";
 
 function serializeCalculationForDocumentGeneration(input: {
   calculation: CalculationDetails;

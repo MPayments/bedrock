@@ -1,5 +1,6 @@
 import { createCurrenciesQueries } from "@bedrock/currencies/queries";
 import { createPartiesQueries } from "@bedrock/parties/queries";
+import type { IdempotencyPort } from "@bedrock/platform/idempotency";
 import {
   createTransactionalPort,
   type Queryable,
@@ -21,11 +22,11 @@ import type {
 
 function bindDealsTx(
   transaction: Transaction,
+  idempotency: IdempotencyPort,
   bindDocumentsReadModel?: (db: Queryable) => DealDocumentsReadModel,
   fundingAssessment?: DealFundingAssessmentPort,
 ): DealsCommandTx {
   return {
-    transaction,
     dealReads: new DrizzleDealReads(
       transaction,
       createCurrenciesQueries({ db: transaction }),
@@ -34,6 +35,20 @@ function bindDealsTx(
       fundingAssessment,
     ),
     dealStore: new DrizzleDealStore(transaction),
+    idempotency: {
+      withIdempotency: (input) =>
+        idempotency.withIdempotencyTx({
+          actorId: input.actorId,
+          handler: input.handler,
+          idempotencyKey: input.idempotencyKey,
+          loadReplayResult: ({ receipt, storedResult }) =>
+            input.loadReplayResult({ receipt, storedResult }),
+          request: input.request,
+          scope: input.scope,
+          serializeResult: input.serializeResult,
+          tx: transaction,
+        }),
+    },
   };
 }
 
@@ -43,6 +58,7 @@ export class DrizzleDealsUnitOfWork implements DealsCommandUnitOfWork {
   constructor(input: {
     bindDocumentsReadModel?: (db: Queryable) => DealDocumentsReadModel;
     fundingAssessment?: DealFundingAssessmentPort;
+    idempotency: IdempotencyPort;
     persistence: PersistenceContext;
   }) {
     this.transactional = createTransactionalPort(
@@ -50,6 +66,7 @@ export class DrizzleDealsUnitOfWork implements DealsCommandUnitOfWork {
       (transaction) =>
         bindDealsTx(
           transaction,
+          input.idempotency,
           input.bindDocumentsReadModel,
           input.fundingAssessment,
         ),

@@ -1,4 +1,3 @@
-import type { IdempotencyPort } from "@bedrock/platform/idempotency";
 import type { Logger } from "@bedrock/platform/observability/logger";
 import {
   createModuleRuntime,
@@ -17,7 +16,6 @@ import type { CalculationReferencesPort } from "./application/ports/references.p
 export interface CalculationsModuleDeps {
   commandUow: CalculationsCommandUnitOfWork;
   generateUuid: UuidGenerator;
-  idempotency: IdempotencyPort;
   logger: Logger;
   now: Clock;
   reads: CalculationReads;
@@ -34,7 +32,6 @@ export function createCalculationsModule(
   return {
     calculations: createCalculationsService({
       commandUow: deps.commandUow,
-      idempotency: deps.idempotency,
       reads: deps.reads,
       references: deps.references,
       runtime: createModuleRuntime({

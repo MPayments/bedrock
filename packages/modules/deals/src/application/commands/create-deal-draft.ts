@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-import type { IdempotencyPort } from "@bedrock/platform/idempotency";
 import type { ModuleRuntime } from "@bedrock/shared/core";
 import { NotFoundError } from "@bedrock/shared/core/errors";
 
@@ -22,9 +21,9 @@ import type {
   DealAgreementReference,
   DealReferencesPort,
 } from "../ports/references.port";
+import { createDefaultDealPricingContextSnapshot } from "../shared/pricing-context";
 import {
   buildDealLegRows,
-  buildDealOperationalPositionRows,
   buildDealParticipantRows,
   createTimelinePayloadEvent,
   deriveDealRootState,
@@ -135,7 +134,6 @@ export class CreateDealDraftCommand {
   constructor(
     private readonly runtime: ModuleRuntime,
     private readonly commandUow: DealsCommandUnitOfWork,
-    private readonly idempotency: IdempotencyPort,
     private readonly references: DealReferencesPort,
   ) {}
 
@@ -149,8 +147,7 @@ export class CreateDealDraftCommand {
     );
 
     return this.commandUow.run((tx) =>
-      this.idempotency.withIdempotencyTx({
-        tx: tx.transaction,
+      tx.idempotency.withIdempotency({
         scope: DEALS_CREATE_IDEMPOTENCY_SCOPE,
         idempotencyKey: validated.idempotencyKey,
         request: {
@@ -199,6 +196,11 @@ export class CreateDealDraftCommand {
             revision: 1,
             snapshot: validated.intake,
           });
+          await tx.dealStore.createDealPricingContext({
+            dealId,
+            revision: 1,
+            snapshot: createDefaultDealPricingContextSnapshot(),
+          });
           await tx.dealStore.replaceDealLegs({
             dealId,
             legs: buildDealLegRows({
@@ -241,14 +243,6 @@ export class CreateDealDraftCommand {
           await tx.dealStore.setDealRoot({
             dealId,
             nextAction: created.nextAction,
-          });
-          await tx.dealStore.replaceDealOperationalPositions({
-            dealId,
-            positions: buildDealOperationalPositionRows({
-              dealId,
-              generateUuid: () => this.runtime.generateUuid(),
-              operationalState: created.operationalState,
-            }),
           });
 
           return created;

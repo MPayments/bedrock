@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, X } from "lucide-react";
 
 import {
@@ -72,6 +72,33 @@ export function CountrySelect({
   searchInputTestId,
 }: CountrySelectProps) {
   const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const popupRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    // cmdk auto-scrolls the first command-item into view when the list mounts,
+    // and the portal is at body-root so the browser scrolls the window with it.
+    // Snapshot the current scroll position and restore it once cmdk's effect has settled.
+    const savedScrollY = window.scrollY;
+    const savedScrollX = window.scrollX;
+    const raf = requestAnimationFrame(() => {
+      if (window.scrollY !== savedScrollY || window.scrollX !== savedScrollX) {
+        window.scrollTo({
+          top: savedScrollY,
+          left: savedScrollX,
+          behavior: "instant" as ScrollBehavior,
+        });
+      }
+      const input = popupRef.current?.querySelector<HTMLInputElement>(
+        "[data-slot='command-input']",
+      );
+      input?.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [open]);
 
   const trimmedValue = value.trim();
   const normalizedCode = useMemo(
@@ -92,6 +119,7 @@ export function CountrySelect({
       <PopoverTrigger
         render={
           <Button
+            ref={triggerRef}
             id={id}
             type="button"
             variant="outline"
@@ -112,7 +140,16 @@ export function CountrySelect({
         </span>
         <ChevronDown className="text-muted-foreground size-4" />
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-(--anchor-width) p-0">
+      <PopoverContent
+        ref={popupRef}
+        align="start"
+        className="w-(--anchor-width) p-0"
+        initialFocus={false}
+        finalFocus={() => {
+          triggerRef.current?.focus({ preventScroll: true });
+          return false;
+        }}
+      >
         <Command>
           <CommandInput
             data-testid={searchInputTestId}

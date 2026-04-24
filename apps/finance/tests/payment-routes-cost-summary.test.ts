@@ -2,9 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import {
   getPaymentRouteAdditionalFeeTotals,
+  getPaymentRouteChargedFeeTotals,
+  getPaymentRouteCleanAmountOutMinor,
+  getPaymentRouteClientTotalInMinor,
+  getPaymentRouteCostPriceInMinor,
+  getPaymentRouteInternalFeeTotals,
   getPaymentRouteLegFeeTotals,
-  getPaymentRoutePureAmountOutMinor,
-  getPaymentRouteTotalClientCostInMinor,
 } from "@/features/payment-routes/lib/cost-summary";
 import type { PaymentRouteCalculation } from "@bedrock/treasury/contracts";
 
@@ -15,6 +18,7 @@ const CALCULATION: PaymentRouteCalculation = {
   additionalFees: [
     {
       amountMinor: "100",
+      chargeToCustomer: true,
       currencyId: USD,
       id: "additional-1",
       inputImpactCurrencyId: USD,
@@ -23,9 +27,11 @@ const CALCULATION: PaymentRouteCalculation = {
       label: "Банк",
       outputImpactCurrencyId: EUR,
       outputImpactMinor: "50",
+      routeInputImpactMinor: "100",
     },
     {
       amountMinor: "25",
+      chargeToCustomer: false,
       currencyId: USD,
       id: "additional-2",
       inputImpactCurrencyId: USD,
@@ -34,11 +40,21 @@ const CALCULATION: PaymentRouteCalculation = {
       label: "Корреспондент",
       outputImpactCurrencyId: EUR,
       outputImpactMinor: "13",
+      routeInputImpactMinor: "25",
     },
   ],
   amountInMinor: "10000",
   amountOutMinor: "5000",
+  chargedFeeTotals: [
+    {
+      amountMinor: "300",
+      currencyId: USD,
+    },
+  ],
+  cleanAmountOutMinor: "5200",
+  clientTotalInMinor: "10100",
   computedAt: "2026-04-16T12:00:00.000Z",
+  costPriceInMinor: "10325",
   currencyInId: USD,
   currencyOutId: EUR,
   feeTotals: [
@@ -48,12 +64,19 @@ const CALCULATION: PaymentRouteCalculation = {
     },
   ],
   grossAmountOutMinor: "5000",
+  internalFeeTotals: [
+    {
+      amountMinor: "25",
+      currencyId: USD,
+    },
+  ],
   legs: [
     {
       asOf: "2026-04-16T12:00:00.000Z",
       fees: [
         {
           amountMinor: "200",
+          chargeToCustomer: true,
           currencyId: USD,
           id: "leg-fee-1",
           inputImpactCurrencyId: USD,
@@ -62,6 +85,7 @@ const CALCULATION: PaymentRouteCalculation = {
           label: "Шаг 1",
           outputImpactCurrencyId: USD,
           outputImpactMinor: "200",
+          routeInputImpactMinor: "200",
         },
       ],
       fromCurrencyId: USD,
@@ -97,11 +121,24 @@ describe("payment route cost summary", () => {
     ]);
   });
 
-  it("adds additional fees to route input to derive total client cost", () => {
-    expect(getPaymentRouteTotalClientCostInMinor(CALCULATION)).toBe("10125");
+  it("returns charged and internal totals from the calculation summary", () => {
+    expect(getPaymentRouteChargedFeeTotals(CALCULATION)).toEqual([
+      {
+        amountMinor: "300",
+        currencyId: USD,
+      },
+    ]);
+    expect(getPaymentRouteInternalFeeTotals(CALCULATION)).toEqual([
+      {
+        amountMinor: "25",
+        currencyId: USD,
+      },
+    ]);
   });
 
-  it("reconstructs pure route output before step commissions from route rates", () => {
-    expect(getPaymentRoutePureAmountOutMinor(CALCULATION)).toBe("10000");
+  it("reads client and cost totals directly from the calculation summary", () => {
+    expect(getPaymentRouteClientTotalInMinor(CALCULATION)).toBe("10100");
+    expect(getPaymentRouteCostPriceInMinor(CALCULATION)).toBe("10325");
+    expect(getPaymentRouteCleanAmountOutMinor(CALCULATION)).toBe("5200");
   });
 });

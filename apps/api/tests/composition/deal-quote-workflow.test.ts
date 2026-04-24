@@ -693,4 +693,70 @@ describe("deal quote workflow", () => {
       }),
     );
   });
+
+  it("ignores route-embedded pass-through lines when deriving calculation expenses", async () => {
+    const getQuoteDetails = vi.fn(async () => ({
+      feeComponents: [],
+      financialLines: [
+        {
+          amountMinor: 200n,
+          bucket: "pass_through",
+          currency: "USD",
+          metadata: {
+            embeddedInRoute: "true",
+          },
+          source: "manual",
+        },
+        {
+          amountMinor: 50n,
+          bucket: "pass_through",
+          currency: "USD",
+          source: "manual",
+        },
+      ],
+      legs: [],
+      pricingTrace: {},
+      quote: {
+        commercialTerms: null,
+        createdAt: new Date("2026-04-01T10:00:00.000Z"),
+        dealDirection: null,
+        dealForm: null,
+        dealId: "deal-1",
+        expiresAt: new Date("2099-04-01T11:00:00.000Z"),
+        fromAmountMinor: 10000n,
+        fromCurrency: "USD",
+        fromCurrencyId: "cur-usd",
+        id: "quote-1",
+        idempotencyKey: "quote-1",
+        pricingMode: "explicit_route",
+        pricingTrace: {},
+        rateDen: 10n,
+        rateNum: 9n,
+        status: "active",
+        toAmountMinor: 9000n,
+        toCurrency: "EUR",
+        toCurrencyId: "cur-eur",
+        usedAt: null,
+        usedByRef: null,
+        usedDocumentId: null,
+      },
+    }));
+    const { calculations, workflow } = createWorkflow({ getQuoteDetails });
+
+    await workflow.createCalculationFromAcceptedQuote({
+      actorUserId: "user-1",
+      dealId: "deal-1",
+      idempotencyKey: "idem-1",
+      quoteId: "quote-1",
+    });
+
+    expect(calculations.calculations.commands.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        additionalExpensesAmountMinor: "50",
+        additionalExpensesCurrencyId: "cur-usd",
+        additionalExpensesInBaseMinor: "45",
+        totalWithExpensesInBaseMinor: "9045",
+      }),
+    );
+  });
 });
