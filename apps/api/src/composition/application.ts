@@ -117,6 +117,7 @@ export interface ApiApplicationServices {
   partiesModule: PartiesModule;
   currenciesService: CurrenciesService;
   treasuryModule: TreasuryModule;
+  createTreasuryModule(tx: Transaction): TreasuryModule;
   dealAttachmentIngestionWorkflow: DealAttachmentIngestionWorkflow;
   dealExecutionWorkflow: DealExecutionWorkflow;
   dealPricingWorkflow: DealPricingWorkflow;
@@ -632,6 +633,7 @@ export function createApplicationServices(
     partiesModule,
     currenciesService,
     treasuryModule,
+    createTreasuryModule: createTreasuryModuleForTransaction,
     dealAttachmentIngestionWorkflow,
     dealExecutionWorkflow,
     dealPricingWorkflow,

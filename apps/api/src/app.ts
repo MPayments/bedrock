@@ -45,6 +45,7 @@ import {
   treasuryQueueRoutes,
   treasuryQuotesRoutes,
   treasuryRatesRoutes,
+  treasuryStepsRoutes,
   usersRoutes,
 } from "./routes";
 import { customerAuthRoutes } from "./routes/customer-auth";
@@ -231,6 +232,7 @@ function createV1Routes(ctx: AppContext) {
     .route("/treasury/queue", treasuryQueueRoutes(ctx))
     .route("/treasury/quotes", treasuryQuotesRoutes(ctx))
     .route("/treasury/rates", treasuryRatesRoutes(ctx))
+    .route("/treasury/steps", treasuryStepsRoutes(ctx))
     .route("/users", usersRoutes(ctx))
     .route("/me", profileRoutes(ctx));
 }

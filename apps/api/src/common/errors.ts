@@ -13,6 +13,7 @@ import {
   ActionReceiptConflictError,
   ActionReceiptStoredError,
 } from "@bedrock/platform/idempotency-postgres";
+import { InvariantViolationError } from "@bedrock/shared/core/domain";
 import {
   ConflictError,
   InvalidStateError,
@@ -21,6 +22,7 @@ import {
   ValidationError,
 } from "@bedrock/shared/core/errors";
 import {
+  PaymentStepNotFoundError,
   RateNotFoundError,
   RateSourceStaleError,
   RateSourceSyncError,
@@ -32,7 +34,12 @@ type RouteErrorStatus = 400 | 403 | 404 | 409 | 503;
 const ROUTE_ERROR_STATUS_GROUPS = [
   {
     status: 404,
-    errors: [RateNotFoundError, DocumentNotFoundError, NotFoundError],
+    errors: [
+      PaymentStepNotFoundError,
+      RateNotFoundError,
+      DocumentNotFoundError,
+      NotFoundError,
+    ],
   },
   {
     status: 403,
@@ -51,6 +58,7 @@ const ROUTE_ERROR_STATUS_GROUPS = [
       DocumentPostingNotRequiredError,
       ActionReceiptConflictError,
       ActionReceiptStoredError,
+      InvariantViolationError,
     ],
   },
   {

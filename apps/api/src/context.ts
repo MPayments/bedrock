@@ -16,7 +16,10 @@ import type { DocumentExtractionPort } from "@bedrock/platform/ai";
 import type { IdempotencyService } from "@bedrock/platform/idempotency-postgres";
 import type { S3ObjectStorageAdapter } from "@bedrock/platform/object-storage";
 import type { Logger } from "@bedrock/platform/observability/logger";
-import type { PersistenceContext } from "@bedrock/platform/persistence";
+import type {
+  PersistenceContext,
+  Transaction,
+} from "@bedrock/platform/persistence";
 import type { ReconciliationService } from "@bedrock/reconciliation";
 import type { TreasuryModule } from "@bedrock/treasury";
 import type { CustomerPortalWorkflow } from "@bedrock/workflow-customer-portal";
@@ -116,6 +119,7 @@ export interface AppContext {
   partiesModule: PartiesModule;
   currenciesService: CurrenciesService;
   treasuryModule: TreasuryModule;
+  createTreasuryModule(tx: Transaction): TreasuryModule;
   reconciliationService: ReconciliationService;
   dealAttachmentIngestionWorkflow: DealAttachmentIngestionWorkflow;
   dealExecutionWorkflow: DealExecutionWorkflow;
@@ -157,6 +161,7 @@ export function createAppContext(env: Env): AppContext {
     partiesModule: applicationServices.partiesModule,
     currenciesService: applicationServices.currenciesService,
     treasuryModule: applicationServices.treasuryModule,
+    createTreasuryModule: applicationServices.createTreasuryModule,
     reconciliationService: applicationServices.reconciliationService,
     dealAttachmentIngestionWorkflow:
       applicationServices.dealAttachmentIngestionWorkflow,

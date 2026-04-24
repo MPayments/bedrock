@@ -21,6 +21,7 @@ export { subAgentProfilesRoutes } from "./sub-agent-profiles";
 export { treasuryQueueRoutes } from "./treasury-queue";
 export { treasuryQuotesRoutes } from "./treasury-quotes";
 export { treasuryRatesRoutes } from "./treasury-rates";
+export { treasuryStepsRoutes } from "./treasury-steps";
 export {
   treasuryInstructionRoutes,
   treasuryOperationsRoutes,
