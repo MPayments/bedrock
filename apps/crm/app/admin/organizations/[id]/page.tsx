@@ -15,9 +15,12 @@ import type {
 } from "@bedrock/sdk-parties-ui/components/organization-general-editor";
 import { computePartyProfileCompleteness } from "@bedrock/sdk-parties-ui/lib/party-profile-completeness";
 import { Alert, AlertDescription } from "@bedrock/sdk-ui/components/alert";
-import { Badge } from "@bedrock/sdk-ui/components/badge";
 
 import { useCrmBreadcrumbs } from "@/components/app/breadcrumbs-provider";
+import {
+  EntityPageHeader,
+  getEntityInitials,
+} from "@/components/app/entity-page-header";
 import type { PartyProfileOverride } from "@/lib/party-profile-patch";
 import { translateOrganizationToEnglish } from "@/lib/translate-party-profile";
 
@@ -93,6 +96,33 @@ export default function OrganizationWorkspacePage() {
 
     return organization.shortName || organization.fullName || "Организация";
   }, [organization]);
+
+  const displayName = useMemo(() => {
+    const shortEn = generalValues?.shortNameEn?.trim();
+    const shortRu = generalValues?.shortName?.trim();
+    return shortEn || shortRu || organizationTitle;
+  }, [
+    generalValues?.shortName,
+    generalValues?.shortNameEn,
+    organizationTitle,
+  ]);
+
+  const displaySecondaryName = useMemo(() => {
+    const shortEn = generalValues?.shortNameEn?.trim();
+    const shortRu = generalValues?.shortName?.trim();
+    if (shortEn && shortRu && shortEn !== shortRu) {
+      return shortRu;
+    }
+    return null;
+  }, [generalValues?.shortName, generalValues?.shortNameEn]);
+
+  const headerInn = useMemo(() => {
+    return (
+      partyProfileDraft?.identifiers?.find(
+        (identifier) => identifier.scheme === "inn",
+      )?.value ?? null
+    );
+  }, [partyProfileDraft]);
 
   useCrmBreadcrumbs(
     organization
@@ -223,16 +253,33 @@ export default function OrganizationWorkspacePage() {
   const showBilingualToolbar =
     activeTab === "organization" && organization.kind === "legal_entity";
 
+  const kindLabel =
+    organization.kind === "legal_entity" ? "Юр. лицо" : "Физ. лицо";
+  const countryLabel = (generalValues?.country ?? organization.country) || "—";
+
   return (
     <div className="space-y-4">
-      <div className="space-y-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-2xl font-bold">{organizationTitle}</h1>
-          <Badge variant={organization.isActive ? "default" : "secondary"}>
-            {organization.isActive ? "Активна" : "Архивирована"}
-          </Badge>
-        </div>
-      </div>
+      <EntityPageHeader
+        avatar={{ initials: getEntityInitials(displayName) }}
+        title={displayName}
+        titleSecondary={displaySecondaryName ?? undefined}
+        badge={{
+          label: organization.isActive ? "Active" : "Archived",
+          variant: organization.isActive ? "success" : "secondary",
+        }}
+        infoItems={[
+          <span key="id" className="font-mono">
+            ID {shortenUuid(organizationId)}
+          </span>,
+          kindLabel,
+          countryLabel,
+          organization.kind === "legal_entity" ? (
+            <span key="inn" className="font-mono">
+              ИНН {headerInn ?? "—"}
+            </span>
+          ) : null,
+        ]}
+      />
 
       {hasUnsavedChanges ? (
         <Alert variant="warning">
@@ -310,4 +357,11 @@ export default function OrganizationWorkspacePage() {
       </div>
     </div>
   );
+}
+
+function shortenUuid(id: string) {
+  if (id.length <= 10) {
+    return id;
+  }
+  return `${id.slice(0, 8)}…`;
 }

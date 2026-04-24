@@ -1,5 +1,6 @@
 "use client";
 
+import { Plus } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -20,6 +21,10 @@ import { createSeededPartyProfileBundle } from "@bedrock/sdk-parties-ui/lib/part
 import { Alert, AlertDescription } from "@bedrock/sdk-ui/components/alert";
 import { toast } from "@bedrock/sdk-ui/components/sonner";
 
+import {
+  EntityPageHeader,
+  getEntityInitials,
+} from "@/components/entities/entity-page-header";
 import { apiClient } from "@/lib/api-client";
 import {
   applyPartyProfilePatch,
@@ -237,8 +242,28 @@ export function CreateOrganizationFormClient({
     router.push(`${detailsBasePath.replace(/\/+$/, "")}/${result.data.id}`);
   }
 
+  const createHeaderTitle =
+    draftValues.shortNameEn.trim() ||
+    draftValues.shortName.trim() ||
+    "Новая организация";
+  const hasTypedName =
+    draftValues.shortNameEn.trim() !== "" ||
+    draftValues.shortName.trim() !== "";
+  const createHeaderAvatar = hasTypedName
+    ? { initials: getEntityInitials(createHeaderTitle) }
+    : { icon: <Plus className="size-4" /> };
+  const kindLabel =
+    draftValues.kind === "legal_entity" ? "Юр. лицо" : "Физ. лицо";
+
   return (
     <div className="space-y-6">
+      <EntityPageHeader
+        avatar={createHeaderAvatar}
+        title={createHeaderTitle}
+        badge={{ label: "Draft", variant: "warning" }}
+        infoItems={["Новая организация", kindLabel]}
+      />
+
       <OrganizationInputMethodCard
         organizationKind={draftValues.kind}
         mode={inputMethod}

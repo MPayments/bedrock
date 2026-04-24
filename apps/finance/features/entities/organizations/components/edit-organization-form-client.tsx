@@ -26,6 +26,10 @@ import { Button } from "@bedrock/sdk-ui/components/button";
 import { toast } from "@bedrock/sdk-ui/components/sonner";
 
 import { EntityDeleteDialog } from "@/components/entities/entity-delete-dialog";
+import {
+  EntityPageHeader,
+  getEntityInitials,
+} from "@/components/entities/entity-page-header";
 import { apiClient } from "@/lib/api-client";
 import {
   applyPartyProfilePatch,
@@ -314,8 +318,45 @@ export function EditOrganizationFormClient({
 
   const showBilingualToolbar = current.kind === "legal_entity";
 
+  const displayName =
+    generalValues.shortNameEn.trim() ||
+    generalValues.shortName.trim() ||
+    current.shortName ||
+    current.fullName ||
+    "Организация";
+  const displaySecondaryName =
+    generalValues.shortNameEn.trim() &&
+    generalValues.shortName.trim() &&
+    generalValues.shortNameEn.trim() !== generalValues.shortName.trim()
+      ? generalValues.shortName.trim()
+      : null;
+  const headerInn =
+    partyProfileDraft?.identifiers?.find(
+      (identifier) => identifier.scheme === "inn",
+    )?.value ?? null;
+  const kindLabel = current.kind === "legal_entity" ? "Юр. лицо" : "Физ. лицо";
+  const countryLabel = generalValues.country || current.country || "—";
+
   return (
     <div className="space-y-6">
+      <EntityPageHeader
+        avatar={{ initials: getEntityInitials(displayName) }}
+        title={displayName}
+        titleSecondary={displaySecondaryName ?? undefined}
+        infoItems={[
+          <span key="id" className="font-mono">
+            ID {shortenUuid(current.id)}
+          </span>,
+          kindLabel,
+          countryLabel,
+          current.kind === "legal_entity" ? (
+            <span key="inn" className="font-mono">
+              ИНН {headerInn ?? "—"}
+            </span>
+          ) : null,
+        ]}
+      />
+
       {showBilingualToolbar ? (
         <BilingualToolbar
           value={bilingualMode}
@@ -386,4 +427,11 @@ export function EditOrganizationFormClient({
       ) : null}
     </div>
   );
+}
+
+function shortenUuid(id: string) {
+  if (id.length <= 10) {
+    return id;
+  }
+  return `${id.slice(0, 8)}…`;
 }

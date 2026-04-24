@@ -5,6 +5,7 @@ import type { ChangeEvent, ReactNode } from "react";
 import {
   FileSignature,
   Loader2,
+  Plus,
   Stamp,
   Upload,
 } from "lucide-react";
@@ -36,6 +37,10 @@ import {
   CardTitle,
 } from "@bedrock/sdk-ui/components/card";
 
+import {
+  EntityPageHeader,
+  getEntityInitials,
+} from "@/components/app/entity-page-header";
 import { ImageCropper, type ImageType } from "@/components/ui/image-cropper";
 import {
   applyPartyProfilePatch,
@@ -374,11 +379,27 @@ export default function NewOrganizationPage() {
     }
   }
 
+  const createHeaderTitle =
+    generalValues.shortNameEn.trim() ||
+    generalValues.shortName.trim() ||
+    "Новая организация";
+  const hasTypedName =
+    generalValues.shortNameEn.trim() !== "" ||
+    generalValues.shortName.trim() !== "";
+  const createHeaderAvatar = hasTypedName
+    ? { initials: getEntityInitials(createHeaderTitle) }
+    : { icon: <Plus className="size-4" /> };
+  const kindLabel =
+    generalValues.kind === "legal_entity" ? "Юр. лицо" : "Физ. лицо";
+
   return (
     <div className="space-y-6">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-bold">Новая организация</h1>
-      </div>
+      <EntityPageHeader
+        avatar={createHeaderAvatar}
+        title={createHeaderTitle}
+        badge={{ label: "Draft", variant: "warning" }}
+        infoItems={["Новая организация", kindLabel]}
+      />
 
       <OrganizationInputMethodCard
         organizationKind={organizationKind}
