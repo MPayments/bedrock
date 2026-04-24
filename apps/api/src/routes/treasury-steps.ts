@@ -86,6 +86,8 @@ const AttachPaymentStepPostingBodySchema = z.object({
 
 const ListPaymentStepsQuerySchema = z.object({
   batchId: z.uuid().optional(),
+  createdFrom: z.iso.datetime().optional(),
+  createdTo: z.iso.datetime().optional(),
   dealId: z.uuid().optional(),
   limit: z.coerce.number().int().positive().max(100).optional().default(50),
   offset: z.coerce.number().int().nonnegative().optional().default(0),
@@ -532,6 +534,43 @@ export function treasuryStepsRoutes(ctx: AppContext) {
     },
   });
 
+  const uploadAttachmentRoute = createRoute({
+    middleware: [requirePermission({ deals: ["update"] })],
+    method: "post",
+    path: "/{stepId}/attachments",
+    tags: ["Treasury"],
+    summary: "Upload an evidence attachment scoped to a payment step",
+    request: {
+      params: PaymentStepIdParamsSchema,
+    },
+    responses: {
+      201: {
+        description: "Evidence file uploaded — returns the file-asset id",
+        content: {
+          "application/json": {
+            schema: z.object({ id: z.uuid() }),
+          },
+        },
+      },
+      400: {
+        description: "Bad multipart payload or missing step",
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+      },
+      404: {
+        description: "Payment step not found",
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+      },
+    },
+  });
+
   const attachPostingRoute = createRoute({
     middleware: [requirePermission({ deals: ["update"] })],
     method: "post",
@@ -658,6 +697,10 @@ export function treasuryStepsRoutes(ctx: AppContext) {
         const query = c.req.valid("query");
         const result = await ctx.treasuryModule.paymentSteps.queries.list({
           batchId: query.batchId,
+          createdFrom: query.createdFrom
+            ? new Date(query.createdFrom)
+            : undefined,
+          createdTo: query.createdTo ? new Date(query.createdTo) : undefined,
           dealId: query.dealId,
           limit: query.limit,
           offset: query.offset,
@@ -771,6 +814,46 @@ export function treasuryStepsRoutes(ctx: AppContext) {
         });
 
         return result instanceof Response ? result : c.json(result, 200);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(uploadAttachmentRoute, async (c) => {
+      try {
+        const { stepId } = c.req.valid("param");
+        const body = await c.req.parseBody();
+        const file = body.file;
+        if (!file || typeof file === "string") {
+          return c.json({ error: "File is required" }, 400 as const);
+        }
+
+        // Guard against dangling uploads: the step must exist before we
+        // allocate a file asset scoped to its id.
+        const step = await ctx.treasuryModule.paymentSteps.queries.findById({
+          stepId,
+        });
+        if (!step) {
+          return c.json(
+            { error: `Payment step ${stepId} not found` },
+            404 as const,
+          );
+        }
+
+        const attachment =
+          await ctx.filesModule.files.commands.uploadPaymentStepAttachment({
+            attachmentPurpose: "other",
+            attachmentVisibility: "internal",
+            buffer: Buffer.from(await file.arrayBuffer()),
+            description:
+              typeof body.description === "string" ? body.description : null,
+            fileName: file.name,
+            fileSize: file.size,
+            mimeType: file.type,
+            ownerId: stepId,
+            uploadedBy: c.get("user")!.id,
+          });
+
+        return c.json({ id: attachment.id }, 201 as const);
       } catch (error) {
         return handleRouteError(c, error);
       }

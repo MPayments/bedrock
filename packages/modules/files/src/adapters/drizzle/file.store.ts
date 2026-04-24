@@ -31,6 +31,7 @@ export class DrizzleFileStore implements FileStore {
       fileAssetId: input.fileAssetId,
       dealId: input.dealId,
       counterpartyId: input.counterpartyId,
+      paymentStepId: input.paymentStepId,
       linkKind: input.linkKind,
       generatedFormat: input.generatedFormat,
       generatedLang: input.generatedLang,

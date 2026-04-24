@@ -65,17 +65,7 @@ export interface StepConfirmDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
-  /**
-   * Path to POST a multipart `file` to in order to materialize an evidence
-   * file asset. Expected response: `{ id: string }`. Omit to disable the
-   * file-upload control (e.g. for standalone steps without a deal).
-   */
   uploadAssetPath?: string;
-  /**
-   * Outcome to preselect when the dialog opens. Used by the "mark returned"
-   * flow from completed steps to skip straight to the returned branch.
-   * Defaults to `"settled"`.
-   */
   initialOutcome?: StepConfirmOutcome;
 }
 
@@ -85,8 +75,11 @@ export function StepConfirmDialog({
   onSuccess,
   open,
   step,
-  uploadAssetPath,
+  uploadAssetPath: uploadAssetPathOverride,
 }: StepConfirmDialogProps) {
+  const uploadAssetPath =
+    uploadAssetPathOverride ??
+    `/v1/treasury/steps/${encodeURIComponent(step.id)}/attachments`;
   const router = useRouter();
   const [outcome, setOutcome] = useState<StepConfirmOutcome>(initialOutcome);
   const [purpose, setPurpose] = useState<string>(
@@ -111,8 +104,6 @@ export function StepConfirmDialog({
     onOpenChange(next);
   }
 
-  // Re-seed the outcome each time the dialog opens so callers can change
-  // `initialOutcome` between opens (e.g. from "settled" to "returned").
   useEffect(() => {
     if (open) {
       setOutcome(initialOutcome);

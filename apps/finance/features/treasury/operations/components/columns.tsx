@@ -1,152 +1,164 @@
 "use client";
 
+import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
+import { ExternalLink } from "lucide-react";
 
 import { Badge } from "@bedrock/sdk-ui/components/badge";
-
 import { DataTableColumnHeader } from "@bedrock/sdk-tables-ui/components/data-table-column-header";
-import { formatDate } from "@/lib/format";
-import {
-  formatDealNextAction,
-  getFinanceDealStatusLabel,
-  getFinanceDealStatusVariant,
-  getFinanceDealTypeLabel,
-} from "@/features/treasury/deals/labels";
-import type { TreasuryOperationWorkspaceItem } from "@bedrock/treasury/contracts";
 import { formatCompactId } from "@bedrock/shared/core/uuid";
 
+import type { TreasuryOperationRow } from "../lib/queries";
+import { formatDate } from "@/lib/format";
 import {
-  getTreasuryOperationInstructionStatusLabel,
-  getTreasuryOperationInstructionStatusVariant,
-  getTreasuryOperationKindLabel,
-  getTreasuryOperationKindOptions,
-  getTreasuryOperationKindVariant,
-} from "../lib/labels";
+  STEP_STATE_LABELS,
+  stepBadgeVariant,
+} from "@/features/treasury/steps/lib/step-helpers";
 
-export const columns: ColumnDef<TreasuryOperationWorkspaceItem>[] = [
+const KIND_LABELS: Record<TreasuryOperationRow["kind"], string> = {
+  payin: "Входящий платёж",
+  fx_conversion: "Конверсия",
+  payout: "Выплата",
+  intracompany_transfer: "Внутренний перевод",
+  intercompany_funding: "Межкомпанейское фондирование",
+  internal_transfer: "Собственный перевод",
+};
+
+const PURPOSE_LABELS: Record<TreasuryOperationRow["purpose"], string> = {
+  deal_leg: "Шаг сделки",
+  pre_fund: "Пре-фондирование",
+  standalone_payment: "Отдельная операция",
+};
+
+const STATE_FILTER_OPTIONS: Array<{
+  label: string;
+  value: TreasuryOperationRow["state"];
+}> = (
+  [
+    "draft",
+    "scheduled",
+    "pending",
+    "processing",
+    "completed",
+    "failed",
+    "returned",
+    "cancelled",
+    "skipped",
+  ] as const
+).map((state) => ({ label: STEP_STATE_LABELS[state], value: state }));
+
+const PURPOSE_FILTER_OPTIONS: Array<{
+  label: string;
+  value: TreasuryOperationRow["purpose"];
+}> = (["deal_leg", "pre_fund", "standalone_payment"] as const).map(
+  (purpose) => ({ label: PURPOSE_LABELS[purpose], value: purpose }),
+);
+
+function formatAmount(
+  amount: string | null,
+  currencyId: string,
+): string {
+  if (!amount) return "—";
+  // Amount is in minor units as a decimal string — render as-is with a short
+  // currency tag (full currency catalog resolution happens on the detail
+  // page / step card).
+  return `${amount} · ${formatCompactId(currencyId)}`;
+}
+
+export const columns: ColumnDef<TreasuryOperationRow>[] = [
   {
     accessorKey: "kind",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} label="Операция" />
+      <DataTableColumnHeader column={column} label="Тип" />
     ),
     cell: ({ row }) => (
-      <Badge variant={getTreasuryOperationKindVariant(row.original.kind)}>
-        {getTreasuryOperationKindLabel(row.original.kind)}
+      <Badge variant="outline">{KIND_LABELS[row.original.kind]}</Badge>
+    ),
+    enableSorting: false,
+  },
+  {
+    accessorKey: "state",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} label="Статус" />
+    ),
+    cell: ({ row }) => (
+      <Badge variant={stepBadgeVariant(row.original.state)}>
+        {STEP_STATE_LABELS[row.original.state]}
       </Badge>
     ),
     meta: {
-      label: "Операция",
-      options: getTreasuryOperationKindOptions(),
+      label: "Статус",
+      options: STATE_FILTER_OPTIONS,
       variant: "multiSelect",
     },
     enableColumnFilter: true,
-    enableSorting: true,
+    enableSorting: false,
   },
   {
-    id: "amount",
+    accessorKey: "purpose",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} label="Контекст" />
+    ),
+    cell: ({ row }) => {
+      const step = row.original;
+      if (step.purpose === "deal_leg" && step.dealId) {
+        return (
+          <Link
+            href={`/treasury/deals/${step.dealId}`}
+            className="inline-flex items-center gap-1 text-sm underline-offset-2 hover:underline"
+          >
+            Сделка #{formatCompactId(step.dealId)}
+            <ExternalLink className="size-3" />
+          </Link>
+        );
+      }
+      return (
+        <span className="text-sm text-muted-foreground">
+          {PURPOSE_LABELS[step.purpose]}
+        </span>
+      );
+    },
+    meta: {
+      label: "Контекст",
+      options: PURPOSE_FILTER_OPTIONS,
+      variant: "select",
+    },
+    enableColumnFilter: true,
+    enableSorting: false,
+  },
+  {
+    id: "amounts",
     header: ({ column }) => (
       <DataTableColumnHeader column={column} label="Сумма" />
     ),
     cell: ({ row }) => (
       <div className="space-y-1 text-sm">
-        <div>{row.original.amount.formatted}</div>
-        {row.original.counterAmount ? (
-          <div className="text-xs text-muted-foreground">
-            Контрсумма: {row.original.counterAmount.formatted}
-          </div>
-        ) : null}
-      </div>
-    ),
-    enableSorting: false,
-  },
-  {
-    id: "internalEntity",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} label="Организация" />
-    ),
-    cell: ({ row }) => row.original.internalEntity.name ?? "—",
-    enableSorting: false,
-  },
-  {
-    id: "accounts",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} label="Источник / назначение" />
-    ),
-    cell: ({ row }) => (
-      <div className="space-y-1 text-sm">
-        <div>Из: {row.original.sourceAccount.label}</div>
-        <div className="text-muted-foreground">
-          В: {row.original.destinationAccount.label}
+        <div>
+          {formatAmount(
+            row.original.fromAmountMinor,
+            row.original.fromCurrencyId,
+          )}
+        </div>
+        <div className="text-xs text-muted-foreground">
+          →{" "}
+          {formatAmount(
+            row.original.toAmountMinor,
+            row.original.toCurrencyId,
+          )}
         </div>
       </div>
     ),
     enableSorting: false,
   },
   {
-    accessorKey: "providerRoute",
+    id: "attempts",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} label="Провайдер / маршрут" />
+      <DataTableColumnHeader column={column} label="Попыток" />
     ),
     cell: ({ row }) => (
-      <div className="max-w-60 text-sm text-foreground">
-        {row.original.providerRoute}
-      </div>
-    ),
-    enableSorting: false,
-  },
-  {
-    accessorKey: "instructionStatus",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} label="Статус инструкции" />
-    ),
-    cell: ({ row }) => (
-      <Badge
-        variant={getTreasuryOperationInstructionStatusVariant(
-          row.original.instructionStatus,
-        )}
-      >
-        {getTreasuryOperationInstructionStatusLabel(
-          row.original.instructionStatus,
-        )}
-      </Badge>
-    ),
-    enableSorting: false,
-  },
-  {
-    id: "dealRef",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} label="Сделка" />
-    ),
-    cell: ({ row }) => {
-      const dealRef = row.original.dealRef;
-
-      if (!dealRef) {
-        return "—";
-      }
-
-      return (
-        <div className="space-y-1 text-sm">
-          <div>{dealRef.applicantName ?? `#${formatCompactId(dealRef.dealId)}`}</div>
-          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <span>{getFinanceDealTypeLabel(dealRef.type)}</span>
-            <Badge variant={getFinanceDealStatusVariant(dealRef.status)}>
-              {getFinanceDealStatusLabel(dealRef.status)}
-            </Badge>
-          </div>
-        </div>
-      );
-    },
-    enableSorting: false,
-  },
-  {
-    accessorKey: "nextAction",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} label="Следующий шаг" />
-    ),
-    cell: ({ row }) => (
-      <div className="max-w-64 text-sm">
-        {formatDealNextAction(row.original.nextAction)}
-      </div>
+      <span className="text-sm tabular-nums">
+        {row.original.attempts.length}
+      </span>
     ),
     enableSorting: false,
   },
@@ -156,6 +168,11 @@ export const columns: ColumnDef<TreasuryOperationWorkspaceItem>[] = [
       <DataTableColumnHeader column={column} label="Создана" />
     ),
     cell: ({ row }) => formatDate(row.original.createdAt),
+    meta: {
+      label: "Создана",
+      variant: "dateRange",
+    },
+    enableColumnFilter: true,
     enableSorting: true,
   },
 ];

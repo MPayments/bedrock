@@ -155,6 +155,13 @@
       "when": 1777057685048,
       "tag": "0021_tranquil_glorian",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1777070538906,
+      "tag": "0022_aromatic_kulan_gath",
+      "breakpoints": true
     }
   ]
 }

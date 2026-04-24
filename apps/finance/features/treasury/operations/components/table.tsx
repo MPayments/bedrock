@@ -6,8 +6,10 @@ import * as React from "react";
 
 import { EntityTableShell } from "@bedrock/sdk-tables-ui/components/entity-table-shell";
 
-import type { TreasuryOperationsListResult } from "../lib/queries";
-import type { TreasuryOperationWorkspaceItem } from "@bedrock/treasury/contracts";
+import type {
+  TreasuryOperationRow,
+  TreasuryOperationsListResult,
+} from "../lib/queries";
 
 import { columns } from "./columns";
 
@@ -22,7 +24,7 @@ export function TreasuryOperationsTable({
   const result = React.use(promise);
 
   const handleRowDoubleClick = React.useCallback(
-    (row: TanstackRow<TreasuryOperationWorkspaceItem>) => {
+    (row: TanstackRow<TreasuryOperationRow>) => {
       router.push(`/treasury/operations/${row.original.id}`);
     },
     [router],

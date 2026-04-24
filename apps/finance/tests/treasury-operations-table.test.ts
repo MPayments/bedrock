@@ -35,15 +35,6 @@ describe("treasury operations table", () => {
       limit: 10,
       offset: 0,
       total: 0,
-      viewCounts: {
-        all: 7,
-        exceptions: 2,
-        fx: 1,
-        incoming: 1,
-        intercompany: 1,
-        intracompany: 1,
-        outgoing: 1,
-      },
     };
     const { TreasuryOperationsTable } = await import(
       "@/features/treasury/operations/components/table"
@@ -75,13 +66,10 @@ describe("treasury operations table", () => {
 
     expect(props.columns.map((column) => column.accessorKey ?? column.id)).toEqual([
       "kind",
-      "amount",
-      "internalEntity",
-      "accounts",
-      "providerRoute",
-      "instructionStatus",
-      "dealRef",
-      "nextAction",
+      "state",
+      "purpose",
+      "amounts",
+      "attempts",
       "createdAt",
     ]);
     expect(props.initialState).toEqual({

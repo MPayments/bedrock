@@ -8,6 +8,8 @@ import type {
 
 export interface PaymentStepsListQuery {
   batchId?: string;
+  createdFrom?: Date;
+  createdTo?: Date;
   dealId?: string;
   limit: number;
   offset: number;

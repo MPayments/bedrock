@@ -152,12 +152,7 @@ describe("treasury deals breadcrumb page", () => {
     ).React = React;
 
     getTreasuryOperationById.mockResolvedValue({
-      dealRef: {
-        applicantName: "ООО Ромашка",
-        dealId: "614fb6eb-a1bd-429e-9628-e97d0f2efa0b",
-        status: "awaiting_payment",
-        type: "payment",
-      },
+      dealId: "614fb6eb-a1bd-429e-9628-e97d0f2efa0b",
       id: "114fb6eb-a1bd-429e-9628-e97d0f2efa0b",
       kind: "payout",
     });
@@ -188,7 +183,7 @@ describe("treasury deals breadcrumb page", () => {
         icon: "workflow",
       },
       {
-        label: "Выплата • ООО Ромашка",
+        label: "Выплата • #614FB6EB",
         href: "/treasury/operations/114fb6eb-a1bd-429e-9628-e97d0f2efa0b",
       },
     ]);

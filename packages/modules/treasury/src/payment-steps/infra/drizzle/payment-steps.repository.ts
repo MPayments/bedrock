@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lte, sql, type SQL } from "drizzle-orm";
 
 import type { Queryable, Transaction } from "@bedrock/platform/persistence";
 import type { PersistenceSession } from "@bedrock/shared/core/persistence";
@@ -218,6 +218,12 @@ export class DrizzlePaymentStepsRepository implements PaymentStepsRepository {
 
     if (input.batchId) {
       conditions.push(eq(paymentSteps.treasuryBatchId, input.batchId));
+    }
+    if (input.createdFrom) {
+      conditions.push(gte(paymentSteps.createdAt, input.createdFrom));
+    }
+    if (input.createdTo) {
+      conditions.push(lte(paymentSteps.createdAt, input.createdTo));
     }
     if (input.dealId) {
       conditions.push(eq(paymentSteps.dealId, input.dealId));

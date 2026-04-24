@@ -8,7 +8,7 @@ import type {
   FileOrigin,
 } from "../contracts/zod";
 
-export type FileOwnerType = "counterparty" | "deal";
+export type FileOwnerType = "counterparty" | "deal" | "payment_step";
 
 export interface StoredFileRecord {
   id: string;
@@ -33,6 +33,7 @@ export interface StoredFileRecord {
   linkKind: FileLinkKind;
   dealId: string | null;
   counterpartyId: string | null;
+  paymentStepId: string | null;
   generatedFormat: FileGeneratedFormat | null;
   generatedLang: FileGeneratedLang | null;
 }

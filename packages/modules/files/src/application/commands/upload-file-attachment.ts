@@ -165,6 +165,10 @@ export class UploadFileAttachmentCommand {
           dealId: this.options.ownerType === "deal" ? validated.ownerId : null,
           counterpartyId:
             this.options.ownerType === "counterparty" ? validated.ownerId : null,
+          paymentStepId:
+            this.options.ownerType === "payment_step"
+              ? validated.ownerId
+              : null,
           generatedFormat: null,
           generatedLang: null,
         });

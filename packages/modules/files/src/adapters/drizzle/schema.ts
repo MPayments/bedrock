@@ -125,6 +125,7 @@ export const fileLinks = pgTable(
     counterpartyId: uuid("counterparty_id").references(() => counterparties.id, {
       onDelete: "cascade",
     }),
+    paymentStepId: uuid("payment_step_id"),
     linkKind: fileLinkKindEnum("link_kind").notNull(),
     attachmentPurpose: fileAttachmentPurposeEnum("attachment_purpose"),
     attachmentVisibility: fileAttachmentVisibilityEnum("attachment_visibility"),
@@ -142,17 +143,19 @@ export const fileLinks = pgTable(
     uniqueIndex("file_links_asset_uq").on(table.fileAssetId),
     index("file_links_deal_idx").on(table.dealId),
     index("file_links_counterparty_idx").on(table.counterpartyId),
+    index("file_links_payment_step_idx").on(table.paymentStepId),
     check(
       "file_links_exactly_one_owner_chk",
       sql`(
-        (${table.dealId} is not null and ${table.counterpartyId} is null)
-        or (${table.dealId} is null and ${table.counterpartyId} is not null)
+        (${table.dealId} is not null and ${table.counterpartyId} is null and ${table.paymentStepId} is null)
+        or (${table.dealId} is null and ${table.counterpartyId} is not null and ${table.paymentStepId} is null)
+        or (${table.dealId} is null and ${table.counterpartyId} is null and ${table.paymentStepId} is not null)
       )`,
     ),
     check(
       "file_links_generated_variant_shape_chk",
       sql`(
-        ${table.linkKind} in ('deal_attachment', 'legal_entity_attachment')
+        ${table.linkKind} in ('deal_attachment', 'legal_entity_attachment', 'payment_step_evidence')
         and ${table.attachmentPurpose} is not null
         and ${table.attachmentVisibility} is not null
         and ${table.generatedFormat} is null

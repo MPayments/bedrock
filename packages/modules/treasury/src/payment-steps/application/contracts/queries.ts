@@ -11,6 +11,8 @@ export const GetPaymentStepByIdInputSchema = z.object({
 
 export const ListPaymentStepsQuerySchema = z.object({
   batchId: z.uuid().optional(),
+  createdFrom: z.coerce.date().optional(),
+  createdTo: z.coerce.date().optional(),
   dealId: z.uuid().optional(),
   limit: z.number().int().positive().max(100).optional().default(50),
   offset: z.number().int().nonnegative().optional().default(0),

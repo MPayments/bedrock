@@ -102,8 +102,8 @@ const dynamicResolvers = {
     getById: getTreasuryOperationById,
     getLabel: (operation) =>
       getTreasuryOperationDisplayTitle({
-        applicantName: operation.dealRef?.applicantName,
-        dealId: operation.dealRef?.dealId,
+        applicantName: null,
+        dealId: operation.dealId,
         id: operation.id,
         kind: operation.kind,
       }),

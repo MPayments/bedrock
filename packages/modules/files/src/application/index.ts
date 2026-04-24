@@ -61,6 +61,15 @@ export function createFilesService(deps: FilesServiceDeps) {
       ownerType: "counterparty",
     },
   );
+  const uploadPaymentStepAttachment = new UploadFileAttachmentCommand(
+    deps.runtime,
+    deps.commandUow,
+    deps.objectStorage,
+    {
+      linkKind: "payment_step_evidence",
+      ownerType: "payment_step",
+    },
+  );
   const deleteDealAttachment = new DeleteFileAttachmentCommand(
     deps.commandUow,
     deps.objectStorage,
@@ -99,6 +108,9 @@ export function createFilesService(deps: FilesServiceDeps) {
         uploadDealAttachment.execute.bind(uploadDealAttachment),
       uploadCounterpartyAttachment:
         uploadCounterpartyAttachment.execute.bind(uploadCounterpartyAttachment),
+      uploadPaymentStepAttachment: uploadPaymentStepAttachment.execute.bind(
+        uploadPaymentStepAttachment,
+      ),
     },
     queries: {
       getCounterpartyAttachmentDownloadUrl:

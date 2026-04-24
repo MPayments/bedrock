@@ -36,6 +36,7 @@ export interface CreateFileLinkStoredInput {
   generatedLang: FileGeneratedLang | null;
   id: string;
   linkKind: FileLinkKind;
+  paymentStepId: string | null;
 }
 
 export interface FileStore {

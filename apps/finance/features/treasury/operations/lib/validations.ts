@@ -1,12 +1,28 @@
-import { TREASURY_OPERATIONS_LIST_CONTRACT } from "@bedrock/treasury/contracts";
-
+import { createSearchParamsCache } from "nuqs/server";
 import {
-  createResourceSearchParamsCache,
-  type ResourceSearchParams,
-} from "@/lib/resources/search-params";
+  parseAsArrayOf,
+  parseAsInteger,
+  parseAsString,
+} from "nuqs/server";
 
-export const searchParamsCache = createResourceSearchParamsCache(
-  TREASURY_OPERATIONS_LIST_CONTRACT,
-);
+const searchParsers = {
+  batchId: parseAsString.withDefault(""),
+  createdAt: parseAsArrayOf(parseAsString).withDefault([]),
+  dealId: parseAsString.withDefault(""),
+  page: parseAsInteger.withDefault(1),
+  perPage: parseAsInteger.withDefault(10),
+  purpose: parseAsString.withDefault(""),
+  state: parseAsArrayOf(parseAsString).withDefault([]),
+};
 
-export type TreasuryOperationsSearchParams = ResourceSearchParams;
+export const searchParamsCache = createSearchParamsCache(searchParsers);
+
+export type TreasuryOperationsSearchParams = {
+  batchId?: string;
+  createdAt?: string[];
+  dealId?: string;
+  page?: number;
+  perPage?: number;
+  purpose?: string;
+  state?: string[];
+};

@@ -124,6 +124,8 @@ export class PersistGeneratedFileCommand {
             dealId: this.ownerType === "deal" ? input.ownerId : null,
             counterpartyId:
               this.ownerType === "counterparty" ? input.ownerId : null,
+            paymentStepId:
+              this.ownerType === "payment_step" ? input.ownerId : null,
             generatedFormat: input.generatedFormat,
             generatedLang: input.generatedLang,
           });

@@ -1,8 +1,9 @@
-import React, { createElement } from "react";
+import React, { createElement, Fragment, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 import { TreasuryOperationDetailsView } from "@/features/treasury/operations/components/details";
+import type { TreasuryOperationDetails } from "@/features/treasury/operations/lib/queries";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -10,8 +11,111 @@ vi.mock("next/navigation", () => ({
   }),
 }));
 
+vi.mock("next/link", () => ({
+  default: ({
+    children,
+    href,
+  }: {
+    children?: ReactNode;
+    href?: string;
+  }) => createElement("a", { href }, children),
+}));
+
+vi.mock("lucide-react", () => ({
+  ArrowUpRight: () => null,
+  ArrowRight: () => null,
+  Check: () => null,
+  Loader2: () => null,
+  MoreHorizontal: () => null,
+  TriangleAlert: () => null,
+  Workflow: () => null,
+}));
+
+vi.mock("@/features/treasury/steps/components/step-card", () => ({
+  StepCard: ({ step, title }: { step: { id: string }; title?: string }) =>
+    createElement(
+      "div",
+      { "data-testid": `finance-step-card-${step.id}` },
+      title,
+    ),
+}));
+
+vi.mock("@/features/treasury/steps/components/step-attempts-drawer", () => ({
+  StepAttemptsDrawer: () => null,
+}));
+
+vi.mock("@bedrock/sdk-ui/components/button", () => ({
+  Button: ({
+    children,
+    render,
+  }: {
+    children?: ReactNode;
+    render?: ReactNode;
+  }) =>
+    React.isValidElement(render)
+      ? React.cloneElement(render, undefined, children)
+      : createElement(Fragment, null, children),
+}));
+
+vi.mock("@/components/entities/workspace-layout", () => ({
+  EntityWorkspaceLayout: ({
+    title,
+    subtitle,
+    controls,
+    children,
+  }: {
+    title?: ReactNode;
+    subtitle?: ReactNode;
+    controls?: ReactNode;
+    children?: ReactNode;
+  }) =>
+    createElement(
+      "div",
+      null,
+      createElement("h1", null, title),
+      createElement("p", null, subtitle),
+      controls,
+      children,
+    ),
+}));
+
+function createDealLegStep(): TreasuryOperationDetails {
+  return {
+    artifacts: [],
+    attempts: [],
+    completedAt: null,
+    createdAt: "2026-04-03T10:00:00.000Z",
+    dealId: "614fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+    dealLegIdx: 1,
+    dealLegRole: "payout",
+    failureReason: null,
+    fromAmountMinor: "12500000",
+    fromCurrencyId: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
+    fromParty: {
+      id: "00000000-0000-4000-8000-000000000001",
+      requisiteId: null,
+    },
+    id: "114fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+    kind: "payout",
+    postings: [],
+    purpose: "deal_leg",
+    rate: null,
+    scheduledAt: null,
+    state: "pending",
+    submittedAt: null,
+    toAmountMinor: "12500000",
+    toCurrencyId: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
+    toParty: {
+      id: "00000000-0000-4000-8000-000000000002",
+      requisiteId: null,
+    },
+    treasuryBatchId: null,
+    updatedAt: "2026-04-03T10:00:00.000Z",
+  };
+}
+
 describe("treasury operations details", () => {
-  it("renders an operation panel with localized blocker text and a deal back-link", () => {
+  it("renders StepCard with deal-context subtitle and a deal back-link", () => {
     (
       globalThis as typeof globalThis & {
         React: typeof React;
@@ -20,70 +124,43 @@ describe("treasury operations details", () => {
 
     const markup = renderToStaticMarkup(
       createElement(TreasuryOperationDetailsView, {
-        operation: {
-          actions: {
-            canPrepareInstruction: false,
-            canRequestReturn: false,
-            canRetryInstruction: false,
-            canSubmitInstruction: false,
-            canVoidInstruction: false,
-          },
-          amount: {
-            amountMinor: "12500000",
-            currency: "USD",
-            currencyId: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
-            formatted: "125 000 USD",
-          },
-          availableOutcomeTransitions: [],
-          counterAmount: null,
-          createdAt: "2026-04-03T10:00:00.000Z",
-          dealRef: {
-            applicantName: "ООО Тест",
-            dealId: "614fb6eb-a1bd-429e-9628-e97d0f2efa0b",
-            status: "awaiting_payment",
-            type: "payment",
-          },
-          dealWorkbenchHref: "/treasury/deals/614fb6eb-a1bd-429e-9628-e97d0f2efa0b",
-          destinationAccount: {
-            identity: "40702810900000000001",
-            label: "USD settlement",
-          },
-          id: "114fb6eb-a1bd-429e-9628-e97d0f2efa0b",
-          instructionStatus: "blocked",
-          internalEntity: {
-            name: "Multihansa",
-            organizationId: "fdcf4040-4a4e-4c90-b550-6898ab3789f1",
-          },
-          kind: "payout",
-          legRef: {
-            idx: 2,
-            kind: "payout",
-            legId: "214fb6eb-a1bd-429e-9628-e97d0f2efa0b",
-          },
-          latestInstruction: null,
-          nextAction: "Prepare documents",
-          projectedState: null,
-          providerRoute: "Route A -> B",
-          queueContext: {
-            blockers: ["Required intake sections are incomplete"],
-            queue: "funding",
-            queueReason: "Required intake sections are incomplete",
-          },
-          sourceAccount: {
-            identity: null,
-            label: "Multihansa",
-          },
-          sourceRef: "deal:614fb6eb-a1bd-429e-9628-e97d0f2efa0b:leg:2:payout:1",
-          state: "planned",
-        },
+        operation: createDealLegStep(),
       }),
     );
 
-    expect(markup).toContain("Сводка операции");
-    expect(markup).toContain("Маршрут и блокеры");
+    expect(markup).toContain(
+      'data-testid="finance-step-card-114fb6eb-a1bd-429e-9628-e97d0f2efa0b"',
+    );
+    expect(markup).toContain("Платёжный шаг");
     expect(markup).toContain("Перейти к сделке");
-    expect(markup).toContain("Выплата");
-    expect(markup).toContain("Анкета заполнена не полностью.");
-    expect(markup).not.toContain("Required intake sections are incomplete");
+    expect(markup).toContain(
+      'href="/treasury/deals/614fb6eb-a1bd-429e-9628-e97d0f2efa0b"',
+    );
+  });
+
+  it("hides the deal back-link for standalone payment steps", () => {
+    (
+      globalThis as typeof globalThis & {
+        React: typeof React;
+      }
+    ).React = React;
+
+    const step: TreasuryOperationDetails = {
+      ...createDealLegStep(),
+      dealId: null,
+      dealLegIdx: null,
+      dealLegRole: null,
+      purpose: "standalone_payment",
+      kind: "internal_transfer",
+    };
+
+    const markup = renderToStaticMarkup(
+      createElement(TreasuryOperationDetailsView, {
+        operation: step,
+      }),
+    );
+
+    expect(markup).toContain("Отдельная казначейская операция");
+    expect(markup).not.toContain("Перейти к сделке");
   });
 });

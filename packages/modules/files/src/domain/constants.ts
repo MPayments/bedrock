@@ -6,6 +6,7 @@ export const FILE_LINK_KIND_VALUES = [
   "deal_invoice",
   "deal_acceptance",
   "legal_entity_contract",
+  "payment_step_evidence",
 ] as const;
 export const FILE_GENERATED_FORMAT_VALUES = ["docx", "pdf"] as const;
 export const FILE_GENERATED_LANG_VALUES = ["ru", "en"] as const;
@@ -30,4 +31,8 @@ export const GENERATED_FILE_LINK_KINDS = new Set<
 
 export const ATTACHMENT_FILE_LINK_KINDS = new Set<
   (typeof FILE_LINK_KIND_VALUES)[number]
->(["deal_attachment", "legal_entity_attachment"]);
+>([
+  "deal_attachment",
+  "legal_entity_attachment",
+  "payment_step_evidence",
+]);
