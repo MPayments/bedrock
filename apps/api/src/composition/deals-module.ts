@@ -257,7 +257,6 @@ export function createApiDealsModule(input: {
     logger: input.logger,
     now: input.now ?? (() => new Date()),
     generateUuid: input.generateUuid ?? randomUUID,
-    idempotency: input.idempotency,
     reads: new DrizzleDealReads(
       input.db,
       currenciesQueries,
@@ -365,6 +364,7 @@ export function createApiDealsModule(input: {
     commandUow: new DrizzleDealsUnitOfWork({
       bindDocumentsReadModel: (db) => createDrizzleDocumentsReadModel({ db }),
       fundingAssessment,
+      idempotency: input.idempotency,
       persistence,
     }),
   });

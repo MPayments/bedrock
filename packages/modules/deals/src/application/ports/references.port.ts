@@ -1,4 +1,4 @@
-import type { PaymentRouteDraft } from "@bedrock/treasury/contracts";
+import type { PaymentRouteDraft } from "@bedrock/treasury/model";
 
 import type { DealType } from "../contracts/zod";
 

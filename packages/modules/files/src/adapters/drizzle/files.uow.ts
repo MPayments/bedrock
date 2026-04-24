@@ -14,7 +14,6 @@ import type {
 
 function bindFilesTx(transaction: Transaction): FilesCommandTx {
   return {
-    transaction,
     fileReads: new DrizzleFileReads(transaction),
     fileStore: new DrizzleFileStore(transaction),
   };

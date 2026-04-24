@@ -27,7 +27,7 @@ const KIND_LABELS: Record<TreasuryExceptionQueueRow["kind"], string> = {
   failed_instruction: "Неудачная инструкция",
   intercompany_imbalance: "Внутрикомпанейский дисбаланс",
   pre_funded_awaiting_collection: "Пре-фондирование",
-  ready_leg: "Готовая к подготовке",
+  ready_leg: "Подготовленный шаг",
   reconciliation_mismatch: "Нестыковка сверки",
 };
 

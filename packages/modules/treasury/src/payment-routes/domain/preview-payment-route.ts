@@ -5,18 +5,15 @@ import {
 } from "@bedrock/shared/money/math";
 
 import { ValidationError } from "../../errors";
-import type { CrossRate } from "../../rates/application/ports/rates.repository";
-import type { CurrenciesPort } from "../../shared/application/external-ports";
+import type { CrossRate } from "../../rates/domain/model";
 import type {
   PaymentRouteAmountTotal,
   PaymentRouteCalculation,
   PaymentRouteCalculationFee,
   PaymentRouteCalculationLeg,
-} from "../application/contracts/dto";
-import type {
   PaymentRouteDraft,
   PaymentRouteFee,
-} from "../application/contracts/zod";
+} from "./model";
 
 type CrossRateLookup = (
   base: string,
@@ -24,6 +21,10 @@ type CrossRateLookup = (
   asOf: Date,
   anchor?: string,
 ) => Promise<CrossRate>;
+
+interface CurrencyLookup {
+  findById(currencyId: string): Promise<{ code: string }>;
+}
 
 type CurrencyCodeCache = Map<string, string>;
 
@@ -101,7 +102,7 @@ function createCalculationFee(input: {
 }
 
 async function resolveCurrencyCode(
-  currencies: CurrenciesPort,
+  currencies: CurrencyLookup,
   cache: CurrencyCodeCache,
   currencyId: string,
 ) {
@@ -118,7 +119,7 @@ async function resolveCurrencyCode(
 async function resolveRate(input: {
   asOf: Date;
   cache: CurrencyCodeCache;
-  currencies: CurrenciesPort;
+  currencies: CurrencyLookup;
   fromCurrencyId: string;
   getCrossRate: CrossRateLookup;
   toCurrencyId: string;
@@ -157,7 +158,7 @@ async function convertAmount(input: {
   amountMinor: bigint;
   asOf: Date;
   cache: CurrencyCodeCache;
-  currencies: CurrenciesPort;
+  currencies: CurrencyLookup;
   fromCurrencyId: string;
   getCrossRate: CrossRateLookup;
   toCurrencyId: string;
@@ -181,7 +182,7 @@ async function convertAmount(input: {
 async function calculateFee(input: {
   asOf: Date;
   cache: CurrencyCodeCache;
-  currencies: CurrenciesPort;
+  currencies: CurrencyLookup;
   fee: PaymentRouteFee;
   getCrossRate: CrossRateLookup;
   grossBaseMinor: bigint;
@@ -291,7 +292,7 @@ async function calculateFxSpread(input: {
   asOf: Date;
   baseGrossOutputMinor: bigint;
   cache: CurrencyCodeCache;
-  currencies: CurrenciesPort;
+  currencies: CurrencyLookup;
   fee: PaymentRouteFee;
   fromCurrencyId: string;
   getCrossRate: CrossRateLookup;
@@ -346,7 +347,7 @@ async function calculateFxSpread(input: {
 async function runForwardPreview(input: {
   amountInMinor: bigint;
   asOf: Date;
-  currencies: CurrenciesPort;
+  currencies: CurrencyLookup;
   draft: PaymentRouteDraft;
   getCrossRate: CrossRateLookup;
 }): Promise<ForwardPreviewResult> {
@@ -576,7 +577,7 @@ function isInsufficientInputPreviewError(error: unknown) {
 async function tryRunForwardPreviewForTargetSearch(input: {
   amountInMinor: bigint;
   asOf: Date;
-  currencies: CurrenciesPort;
+  currencies: CurrencyLookup;
   draft: PaymentRouteDraft;
   getCrossRate: CrossRateLookup;
 }) {
@@ -593,7 +594,7 @@ async function tryRunForwardPreviewForTargetSearch(input: {
 
 async function resolveMinimalInputForTargetOutput(input: {
   asOf: Date;
-  currencies: CurrenciesPort;
+  currencies: CurrencyLookup;
   desiredAmountOutMinor: bigint;
   draft: PaymentRouteDraft;
   getCrossRate: CrossRateLookup;
@@ -669,7 +670,7 @@ async function resolveMinimalInputForTargetOutput(input: {
 
 export async function previewPaymentRoute(input: {
   asOf?: Date;
-  currencies: CurrenciesPort;
+  currencies: CurrencyLookup;
   draft: PaymentRouteDraft;
   getCrossRate: CrossRateLookup;
 }): Promise<PaymentRouteCalculation> {

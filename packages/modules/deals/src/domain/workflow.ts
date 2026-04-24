@@ -1,4 +1,4 @@
-import type { PaymentRouteDraft } from "@bedrock/treasury/contracts";
+import type { PaymentRouteDraft } from "@bedrock/treasury/model";
 
 import {
   DEAL_REQUIRED_SECTION_IDS_BY_TYPE,
@@ -9,17 +9,15 @@ import type {
   DealIntakeDraft,
   DealQuoteAcceptance,
   DealRelatedFormalDocument,
+  DealSectionId,
   DealSectionCompleteness,
+  DealStatus,
   DealTransitionReadiness,
+  DealType,
   DealTimelineEvent,
   DealWorkflowLeg,
   DealWorkflowParticipant,
-} from "../application/contracts/dto";
-import type {
-  DealSectionId,
-  DealStatus,
-  DealType,
-} from "../application/contracts/zod";
+} from "./model";
 
 const NEXT_PROGRESS_STATUS_BY_STATUS: Partial<Record<DealStatus, DealStatus>> = {
   awaiting_funds: "awaiting_payment",

@@ -35,7 +35,6 @@ export function createApiCalculationsModule(input: {
     logger: input.logger,
     now: input.now ?? (() => new Date()),
     generateUuid: input.generateUuid ?? randomUUID,
-    idempotency: input.idempotency,
     reads: new DrizzleCalculationReads(input.db),
     references: {
       async assertCurrencyExists(id: string) {
@@ -45,6 +44,9 @@ export function createApiCalculationsModule(input: {
         return input.treasuryQuotes.findById(id);
       },
     },
-    commandUow: new DrizzleCalculationsUnitOfWork({ persistence }),
+    commandUow: new DrizzleCalculationsUnitOfWork({
+      idempotency: input.idempotency,
+      persistence,
+    }),
   });
 }

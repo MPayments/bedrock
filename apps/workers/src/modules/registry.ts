@@ -159,12 +159,12 @@ export function createWorkerImplementations(
   const dealsModule = createDealsModule({
     commandUow: new DrizzleDealsUnitOfWork({
       bindDocumentsReadModel: (db) => createDrizzleDocumentsReadModel({ db }),
+      idempotency: {
+        withIdempotencyTx: async ({ handler }) => handler(),
+      },
       persistence: createPersistenceContext(deps.db),
     }),
     generateUuid: randomUUID,
-    idempotency: {
-      withIdempotencyTx: async ({ handler }) => handler(),
-    },
     logger: deps.logger,
     now: () => new Date(),
     reads: new DrizzleDealReads(

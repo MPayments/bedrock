@@ -71,7 +71,7 @@ export const DEAL_LEG_STATE_LABELS: Record<DealLegState, string> = {
   done: "Завершен",
   in_progress: "В работе",
   pending: "Ожидает",
-  ready: "Готов",
+  ready: "Подготовлен",
   skipped: "Пропущен",
 };
 

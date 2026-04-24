@@ -283,9 +283,6 @@ export function LegParticipantEditor({
       className="border-muted bg-muted/20 space-y-3 rounded-md border px-4 py-3"
       data-testid={`finance-deal-leg-participant-editor-${leg.idx}`}
     >
-      <div className="text-muted-foreground text-xs uppercase tracking-wider">
-        Участники шага
-      </div>
 
       {/* 3-column grid. Row 1 carries source / arrow / destination; row 2
           keeps the requisite in the destination column only, so it's

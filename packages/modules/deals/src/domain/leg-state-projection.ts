@@ -1,5 +1,5 @@
 import type { DEAL_LEG_STATE_VALUES } from "./constants";
-import type { DealLegKind } from "../application/contracts/zod";
+import type { DealLegKind } from "./model";
 
 type InstructionState =
   | "prepared"

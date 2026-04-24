@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-import type { IdempotencyPort } from "@bedrock/platform/idempotency";
 import type { ModuleRuntime } from "@bedrock/shared/core";
 import { NotFoundError } from "@bedrock/shared/core/errors";
 
@@ -135,7 +134,6 @@ export class CreateDealDraftCommand {
   constructor(
     private readonly runtime: ModuleRuntime,
     private readonly commandUow: DealsCommandUnitOfWork,
-    private readonly idempotency: IdempotencyPort,
     private readonly references: DealReferencesPort,
   ) {}
 
@@ -149,8 +147,7 @@ export class CreateDealDraftCommand {
     );
 
     return this.commandUow.run((tx) =>
-      this.idempotency.withIdempotencyTx({
-        tx: tx.transaction,
+      tx.idempotency.withIdempotency({
         scope: DEALS_CREATE_IDEMPOTENCY_SCOPE,
         idempotencyKey: validated.idempotencyKey,
         request: {

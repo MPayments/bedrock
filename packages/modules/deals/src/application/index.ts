@@ -1,4 +1,3 @@
-import type { IdempotencyPort } from "@bedrock/platform/idempotency";
 import type { ModuleRuntime } from "@bedrock/shared/core";
 
 import { AcceptDealQuoteCommand } from "./commands/accept-deal-quote";
@@ -40,7 +39,6 @@ import { ListTreasuryExceptionQueueQuery } from "./queries/list-treasury-excepti
 
 export interface DealsServiceDeps {
   commandUow: DealsCommandUnitOfWork;
-  idempotency: IdempotencyPort;
   reads: DealReads;
   references: DealReferencesPort;
   runtime: ModuleRuntime;
@@ -50,7 +48,6 @@ export function createDealsService(deps: DealsServiceDeps) {
   const createDealDraft = new CreateDealDraftCommand(
     deps.runtime,
     deps.commandUow,
-    deps.idempotency,
     deps.references,
   );
   const enqueueAttachmentIngestion = new EnqueueDealAttachmentIngestionCommand(

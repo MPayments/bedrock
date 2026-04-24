@@ -188,8 +188,7 @@ function AttachmentRow({
           </div>
         ) : null}
         <div className="text-muted-foreground mt-0.5 font-mono text-[11px]">
-          {formatFileSize(row.fileSize)} · {row.mimeType}
-          {row.uploadedBy ? ` · ${row.uploadedBy}` : ""}
+          {formatFileSize(row.fileSize)}
         </div>
       </div>
       <div className="flex items-center gap-1">

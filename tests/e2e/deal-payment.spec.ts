@@ -109,7 +109,7 @@ async function waitForLegReadyOrBeyond(page: Page, idx: number) {
       },
       { timeout: 60_000 },
     )
-    .toMatch(/Готов|В работе|Завершен/);
+    .toMatch(/Подготовлен|В работе|Завершен/);
 }
 
 async function waitForLegDone(page: Page, idx: number) {

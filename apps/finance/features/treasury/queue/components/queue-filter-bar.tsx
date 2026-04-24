@@ -18,7 +18,7 @@ const KIND_FILTER_OPTIONS: Array<{
   value: TreasuryExceptionQueueRow["kind"] | "all";
 }> = [
   { label: "Все типы", value: "all" },
-  { label: "Готовые шаги", value: "ready_leg" },
+  { label: "Подготовленные шаги", value: "ready_leg" },
   { label: "Заблокированные шаги", value: "blocked_leg" },
   { label: "Неудачные инструкции", value: "failed_instruction" },
   { label: "Пре-фондирование", value: "pre_funded_awaiting_collection" },
