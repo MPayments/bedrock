@@ -200,3 +200,5 @@ Hono with `@hono/zod-openapi`. Each route module is a function receiving app con
 - `docs/deploy.md` — Deployment notes
 - `docs/cutover/`, `docs/bugs/`, `docs/test-cases/` — operational and QA documentation
 - `docs/history/claude-md.md` — append-only changelog of every CLAUDE.md refresh (drift findings, baselines, flagged items)
+
+<!-- last-synced: 43a6f123cde6a2345db3d8751778b504de2fc7c1 -->
