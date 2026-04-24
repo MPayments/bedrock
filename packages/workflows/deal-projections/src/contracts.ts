@@ -36,7 +36,14 @@ import {
   MAX_QUERY_LIST_LIMIT,
 } from "@bedrock/shared/core/pagination";
 import {
-  PaymentStepSchema,
+  ArtifactRefSchema,
+  PaymentStepDealLegRoleSchema,
+  PaymentStepKindSchema,
+  PaymentStepPartyRefSchema,
+  PaymentStepPurposeSchema,
+  PaymentStepRateLockedSideSchema,
+  PaymentStepStateSchema,
+  PostingDocumentRefSchema,
   QuoteListItemSchema,
   QuoteSchema,
   TreasuryInstructionActionsSchema,
@@ -654,6 +661,66 @@ export const FinanceDealOperationSchema = z.object({
 
 export type FinanceDealOperation = z.infer<typeof FinanceDealOperationSchema>;
 
+/**
+ * Wire shape of a {@link PaymentStep} inside a finance workspace projection.
+ *
+ * Dates are ISO 8601 strings and amounts are decimal strings so the
+ * projection JSON-serializes cleanly over HTTP (the domain schema uses
+ * `bigint`/`Date` which cannot round-trip through `JSON.stringify`).
+ */
+export const FinanceDealPaymentStepAttemptSchema = z.object({
+  attemptNo: z.number().int().positive(),
+  createdAt: z.iso.datetime(),
+  id: z.uuid(),
+  outcome: z.enum(["pending", "settled", "failed", "voided", "returned"]),
+  outcomeAt: z.iso.datetime().nullable(),
+  paymentStepId: z.uuid(),
+  providerRef: z.string().nullable(),
+  providerSnapshot: z.unknown(),
+  submittedAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+});
+
+export type FinanceDealPaymentStepAttempt = z.infer<
+  typeof FinanceDealPaymentStepAttemptSchema
+>;
+
+export const FinanceDealPaymentStepSchema = z.object({
+  artifacts: z.array(ArtifactRefSchema),
+  attempts: z.array(FinanceDealPaymentStepAttemptSchema),
+  completedAt: z.iso.datetime().nullable(),
+  createdAt: z.iso.datetime(),
+  dealId: z.uuid().nullable(),
+  dealLegIdx: z.number().int().nonnegative().nullable(),
+  dealLegRole: PaymentStepDealLegRoleSchema.nullable(),
+  failureReason: z.string().nullable(),
+  fromAmountMinor: z.string().nullable(),
+  fromCurrencyId: z.uuid(),
+  fromParty: PaymentStepPartyRefSchema,
+  id: z.uuid(),
+  kind: PaymentStepKindSchema,
+  postings: z.array(PostingDocumentRefSchema),
+  purpose: PaymentStepPurposeSchema,
+  rate: z
+    .object({
+      lockedSide: PaymentStepRateLockedSideSchema,
+      value: z.string(),
+    })
+    .nullable(),
+  scheduledAt: z.iso.datetime().nullable(),
+  state: PaymentStepStateSchema,
+  submittedAt: z.iso.datetime().nullable(),
+  toAmountMinor: z.string().nullable(),
+  toCurrencyId: z.uuid(),
+  toParty: PaymentStepPartyRefSchema,
+  treasuryBatchId: z.uuid().nullable(),
+  updatedAt: z.iso.datetime(),
+});
+
+export type FinanceDealPaymentStep = z.infer<
+  typeof FinanceDealPaymentStepSchema
+>;
+
 export const FinanceDealInstructionSummarySchema = z.object({
   failed: z.number().int().nonnegative(),
   planned: z.number().int().nonnegative(),
@@ -900,7 +967,7 @@ export const FinanceDealWorkspaceProjectionSchema = z.object({
     formalDocuments: z.array(DealRelatedFormalDocumentSchema),
     instructionArtifacts: z.array(FinanceDealInstructionArtifactSchema),
     operations: z.array(FinanceDealOperationSchema),
-    paymentSteps: z.array(PaymentStepSchema).default([]),
+    paymentSteps: z.array(FinanceDealPaymentStepSchema).default([]),
     quotes: z.array(DealRelatedQuoteSchema),
     reconciliationExceptions: z.array(
       FinanceDealReconciliationExceptionSchema,

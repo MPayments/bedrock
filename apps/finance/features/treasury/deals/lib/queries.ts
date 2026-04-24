@@ -3,6 +3,14 @@ import { headers } from "next/headers";
 import { z } from "zod";
 
 import {
+  ArtifactRefSchema,
+  PaymentStepDealLegRoleSchema,
+  PaymentStepKindSchema,
+  PaymentStepPartyRefSchema,
+  PaymentStepPurposeSchema,
+  PaymentStepRateLockedSideSchema,
+  PaymentStepStateSchema,
+  PostingDocumentRefSchema,
   TreasuryInstructionActionsSchema,
   TreasuryInstructionAvailableOutcomeTransitionsSchema,
   TreasuryInstructionSchema,
@@ -470,6 +478,51 @@ const FinanceDealOperationSchema = z.object({
   state: TreasuryOperationStateSchema,
 });
 
+const FinanceDealPaymentStepAttemptSchema = z.object({
+  attemptNo: z.number().int().positive(),
+  createdAt: z.iso.datetime(),
+  id: z.string().uuid(),
+  outcome: z.enum(["pending", "settled", "failed", "voided", "returned"]),
+  outcomeAt: z.iso.datetime().nullable(),
+  paymentStepId: z.string().uuid(),
+  providerRef: z.string().nullable(),
+  providerSnapshot: z.unknown(),
+  submittedAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+});
+
+const FinanceDealPaymentStepSchema = z.object({
+  artifacts: z.array(ArtifactRefSchema),
+  attempts: z.array(FinanceDealPaymentStepAttemptSchema),
+  completedAt: z.iso.datetime().nullable(),
+  createdAt: z.iso.datetime(),
+  dealId: z.string().uuid().nullable(),
+  dealLegIdx: z.number().int().nonnegative().nullable(),
+  dealLegRole: PaymentStepDealLegRoleSchema.nullable(),
+  failureReason: z.string().nullable(),
+  fromAmountMinor: z.string().nullable(),
+  fromCurrencyId: z.string().uuid(),
+  fromParty: PaymentStepPartyRefSchema,
+  id: z.string().uuid(),
+  kind: PaymentStepKindSchema,
+  postings: z.array(PostingDocumentRefSchema),
+  purpose: PaymentStepPurposeSchema,
+  rate: z
+    .object({
+      lockedSide: PaymentStepRateLockedSideSchema,
+      value: z.string(),
+    })
+    .nullable(),
+  scheduledAt: z.iso.datetime().nullable(),
+  state: PaymentStepStateSchema,
+  submittedAt: z.iso.datetime().nullable(),
+  toAmountMinor: z.string().nullable(),
+  toCurrencyId: z.string().uuid(),
+  toParty: PaymentStepPartyRefSchema,
+  treasuryBatchId: z.string().uuid().nullable(),
+  updatedAt: z.iso.datetime(),
+});
+
 const FinanceDealInstructionArtifactSchema = z.object({
   fileAssetId: z.string().uuid(),
   fileName: z.string(),
@@ -612,6 +665,7 @@ const FinanceDealWorkspaceSchema = z.object({
       .array(FinanceDealInstructionArtifactSchema)
       .default([]),
     operations: z.array(FinanceDealOperationSchema),
+    paymentSteps: z.array(FinanceDealPaymentStepSchema).default([]),
     quotes: z.array(FinanceDealWorkspaceQuoteSchema),
     reconciliationExceptions: z.array(FinanceDealReconciliationExceptionSchema),
   }),
@@ -761,6 +815,12 @@ export type FinanceDealRouteAttachmentParticipant = z.infer<
 export type FinanceDealInstructionArtifact = z.infer<
   typeof FinanceDealInstructionArtifactSchema
 >;
+export type FinanceDealPaymentStep = z.infer<
+  typeof FinanceDealPaymentStepSchema
+>;
+export type FinanceDealPaymentStepAttempt = z.infer<
+  typeof FinanceDealPaymentStepAttemptSchema
+>;
 export type FinanceDealCalculationHistoryItem = z.infer<
   typeof FinanceDealCalculationHistoryItemSchema
 >;
@@ -785,6 +845,13 @@ export type FinanceDealBreadcrumb = z.infer<typeof FinanceDealBreadcrumbSchema>;
 export type FinanceDealWorkspace = z.infer<typeof FinanceDealWorkspaceSchema>;
 export type FinanceDealWorkbench = FinanceDealWorkspace & {
   calculationHistory: FinanceDealCalculationHistoryItem[];
+  /**
+   * Payment steps that materialize the deal execution plan, ordered by
+   * `dealLegIdx` ascending. Empty until commit 6's dual-write flag is on for
+   * the deal. New step-based UI should read from here; legacy components
+   * continue to read from {@link FinanceDealWorkspace.executionPlan}.
+   */
+  executionSteps: FinanceDealPaymentStep[];
   quoteHistory: FinanceDealQuoteItem[];
 };
 
@@ -877,6 +944,9 @@ const getFinanceDealWorkbenchByIdUncached = async (
     ...workspace,
     calculationHistory: [...calculationHistory].sort((left, right) =>
       right.createdAt.localeCompare(left.createdAt),
+    ),
+    executionSteps: [...workspace.relatedResources.paymentSteps].sort(
+      (left, right) => (left.dealLegIdx ?? 0) - (right.dealLegIdx ?? 0),
     ),
     quoteHistory: [...quoteHistory].sort((left, right) =>
       right.createdAt.localeCompare(left.createdAt),

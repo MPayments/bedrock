@@ -190,6 +190,7 @@ function createFinanceWorkspacePayload(): SerializedDates<FinanceDealWorkspace> 
       formalDocuments: [],
       instructionArtifacts: [],
       operations: [],
+      paymentSteps: [],
       quotes: [
         {
           expiresAt: "2026-04-02T09:15:00.000Z",

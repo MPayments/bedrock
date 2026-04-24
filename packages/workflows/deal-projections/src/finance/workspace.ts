@@ -3,10 +3,16 @@ import { LEG_KIND_REQUIRED_DOC_TYPE } from "@bedrock/deals/contracts";
 import type { DealLegKind } from "@bedrock/deals/contracts";
 import type { ReconciliationOperationLinkDto } from "@bedrock/reconciliation/contracts";
 import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
-import { computeOperationProjectedState } from "@bedrock/treasury/contracts";
+import {
+  computeOperationProjectedState,
+  type PaymentStep,
+} from "@bedrock/treasury/contracts";
 
 import { deriveFinanceDealReadiness } from "../close-readiness";
-import type { FinanceDealWorkspaceProjection } from "../contracts";
+import type {
+  FinanceDealPaymentStep,
+  FinanceDealWorkspaceProjection,
+} from "../contracts";
 import {
   buildFinanceDealOperation,
   isExecutionRequestAllowed,
@@ -46,6 +52,52 @@ type FinanceWorkspaceDeps = Pick<
   | "reconciliation"
   | "treasury"
 >;
+
+function serializeFinanceDealPaymentStep(
+  step: PaymentStep,
+): FinanceDealPaymentStep {
+  return {
+    artifacts: step.artifacts,
+    attempts: step.attempts.map((attempt) => ({
+      attemptNo: attempt.attemptNo,
+      createdAt: attempt.createdAt.toISOString(),
+      id: attempt.id,
+      outcome: attempt.outcome,
+      outcomeAt: attempt.outcomeAt
+        ? attempt.outcomeAt.toISOString()
+        : null,
+      paymentStepId: attempt.paymentStepId,
+      providerRef: attempt.providerRef,
+      providerSnapshot: attempt.providerSnapshot,
+      submittedAt: attempt.submittedAt.toISOString(),
+      updatedAt: attempt.updatedAt.toISOString(),
+    })),
+    completedAt: step.completedAt ? step.completedAt.toISOString() : null,
+    createdAt: step.createdAt.toISOString(),
+    dealId: step.dealId,
+    dealLegIdx: step.dealLegIdx,
+    dealLegRole: step.dealLegRole,
+    failureReason: step.failureReason,
+    fromAmountMinor:
+      step.fromAmountMinor === null ? null : step.fromAmountMinor.toString(),
+    fromCurrencyId: step.fromCurrencyId,
+    fromParty: step.fromParty,
+    id: step.id,
+    kind: step.kind,
+    postings: step.postings,
+    purpose: step.purpose,
+    rate: step.rate,
+    scheduledAt: step.scheduledAt ? step.scheduledAt.toISOString() : null,
+    state: step.state,
+    submittedAt: step.submittedAt ? step.submittedAt.toISOString() : null,
+    toAmountMinor:
+      step.toAmountMinor === null ? null : step.toAmountMinor.toString(),
+    toCurrencyId: step.toCurrencyId,
+    toParty: step.toParty,
+    treasuryBatchId: step.treasuryBatchId,
+    updatedAt: step.updatedAt.toISOString(),
+  };
+}
 
 export async function getFinanceDealWorkspaceProjection(
   deps: FinanceWorkspaceDeps,
@@ -388,7 +440,9 @@ export async function getFinanceDealWorkspaceProjection(
           queueBlocked,
         }),
       ),
-      paymentSteps: paymentStepsResult.data,
+      paymentSteps: paymentStepsResult.data.map(
+        serializeFinanceDealPaymentStep,
+      ),
       quotes: workflow.relatedResources.quotes,
       reconciliationExceptions,
     },
