@@ -114,7 +114,9 @@ export function compileDealExecutionRecipe(input: {
           amountRef =
             input.workflow.summary.type === "exporter_settlement"
               ? "incoming_receipt_expected"
-              : "money_request_source";
+              : hasConvert && input.acceptedQuote
+                ? "accepted_quote_from"
+                : "money_request_source";
           break;
         case "convert":
           operationKind = "fx_conversion";

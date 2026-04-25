@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 import { Info } from "lucide-react";
 
 import { Button } from "@bedrock/sdk-ui/components/button";
+import { toast } from "@bedrock/sdk-ui/components/sonner";
 
 import {
   getDealLegKindLabel,
@@ -186,6 +187,34 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
     router.refresh();
   }
 
+  const [isRequestingExecution, setIsRequestingExecution] = useState(false);
+  async function requestExecution() {
+    setIsRequestingExecution(true);
+    const result = await executeMutation({
+      fallbackMessage: "Не удалось создать платёжные шаги",
+      request: () =>
+        fetch(
+          `/v1/deals/${encodeURIComponent(deal.summary.id)}/execution/request`,
+          {
+            method: "POST",
+            credentials: "include",
+            headers: {
+              "Content-Type": "application/json",
+              "Idempotency-Key": createIdempotencyKey(),
+            },
+            body: JSON.stringify({}),
+          },
+        ),
+    });
+    setIsRequestingExecution(false);
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
+    }
+    toast.success("Платёжные шаги созданы");
+    router.refresh();
+  }
+
   return (
     <>
       <FinanceDealWorkspaceLayout title={title}>
@@ -226,6 +255,24 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
                   disabled={!canWrite}
                   onChanged={handleStepChanged}
                 />
+              ) : deal.executionPlan.length > 0 && canWrite ? (
+                <div className="bg-card space-y-3 rounded-lg border p-6 text-sm">
+                  <div className="font-medium">Маршрут собран</div>
+                  <div className="text-muted-foreground">
+                    Создайте платёжные шаги, чтобы начать отправлять платежи и
+                    прикреплять подтверждения.
+                  </div>
+                  <Button
+                    size="sm"
+                    disabled={isRequestingExecution}
+                    onClick={requestExecution}
+                    data-testid="finance-deal-request-execution"
+                  >
+                    {isRequestingExecution
+                      ? "Создаём..."
+                      : "Создать платёжные шаги"}
+                  </Button>
+                </div>
               ) : (
                 <div className="bg-card text-muted-foreground rounded-lg border p-6 text-sm">
                   Шагов исполнения ещё нет. Сначала зафиксируйте коммерческие

@@ -241,7 +241,7 @@ export async function materializeCompiledOperation(input: {
     fromCurrencyId,
     fromParty: partyRefs.fromParty,
     id,
-    initialState: "pending",
+    initialState: "draft",
     kind: input.compiled.operationKind,
     purpose: "deal_leg",
     rate: null,

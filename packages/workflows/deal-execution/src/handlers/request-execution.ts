@@ -9,7 +9,6 @@ import {
 } from "../shared/materialize";
 import { buildTimelineEvent } from "../shared/timeline";
 import {
-  assertExecutionRequestAllowed,
   getCustomerId,
   requireWorkflow,
 } from "../shared/workflow-helpers";
@@ -37,8 +36,6 @@ export async function requestExecution(
       if (existingSteps.total > 0) {
         return workflow;
       }
-
-      assertExecutionRequestAllowed(workflow);
 
       const recipeContext = await resolveRecipeContext(
         deps,

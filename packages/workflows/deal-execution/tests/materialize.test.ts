@@ -281,7 +281,6 @@ describe("materializeCompiledOperation", () => {
         dealLegRole: "collect",
         fromCurrencyId: "cur-usd",
         fromParty: { id: "customer-1", requisiteId: null },
-        initialState: "pending",
         kind: "payin",
         purpose: "deal_leg",
         toCurrencyId: "cur-usd",

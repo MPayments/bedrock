@@ -4,9 +4,3 @@ export const DEAL_EXECUTION_CREATE_LEG_OPERATION_SCOPE =
 export const DEAL_EXECUTION_RESOLVE_BLOCKER_SCOPE =
   "workflow-deal-execution.resolve-blocker";
 export const DEAL_EXECUTION_CLOSE_SCOPE = "workflow-deal-execution.close";
-
-export const EXECUTION_REQUESTABLE_STATUSES = new Set([
-  "awaiting_funds",
-  "awaiting_payment",
-  "closing_documents",
-]);

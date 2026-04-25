@@ -673,7 +673,7 @@ describe("deal execution workflow", () => {
         item.quoteLegIdx,
       ]),
     ).toEqual([
-      ["collect", "money_request_source", null, null],
+      ["collect", "accepted_quote_from", null, null],
       ["transit_hold", "quote_leg_to", null, 1],
       ["convert", "quote_leg_from", "quote_leg_to", 2],
       ["transit_hold", "quote_leg_to", null, 3],

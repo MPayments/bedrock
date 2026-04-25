@@ -10,7 +10,6 @@ import {
 } from "../shared/materialize";
 import { buildTimelineEvent } from "../shared/timeline";
 import {
-  assertExecutionRequestAllowed,
   findLegById,
   getCustomerId,
   requireWorkflow,
@@ -53,8 +52,6 @@ export async function createLegOperation(
       if (existingSteps.data.some((step) => step.dealLegIdx === leg.idx)) {
         return workflow;
       }
-
-      assertExecutionRequestAllowed(workflow);
 
       const recipeContext = await resolveRecipeContext(
         deps,
