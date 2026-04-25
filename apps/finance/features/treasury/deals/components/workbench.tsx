@@ -13,11 +13,15 @@ import {
   getFinanceDealDisplayTitle,
 } from "@/features/treasury/deals/labels";
 import type {
+  FinanceDealBankInstructionSnapshot,
   FinanceDealPaymentStep,
   FinanceDealWorkbench,
 } from "@/features/treasury/deals/lib/queries";
 import { StepCard } from "@/features/treasury/steps/components/step-card";
-import type { PartyKind } from "@/features/treasury/steps/lib/party-options";
+import type {
+  PartyKind,
+  PartyKindOrSnapshot,
+} from "@/features/treasury/steps/lib/party-options";
 import { executeMutation } from "@/lib/resources/http";
 
 import { DealAttachmentsCard } from "./deal-attachments-card";
@@ -109,38 +113,76 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
     [deal.executionSteps, selectedLeg],
   );
 
-  // Display name + kind hints come from the route attachment (so the
-  // editor shows "ARABIAN FUEL ALLIANCE DMCC" not a UUID, and knows
-  // whether to offer organization/counterparty selects). Currency codes
-  // are NOT taken from the route — they live on the step itself, and
-  // the editor resolves codes from `step.fromCurrencyId`/`toCurrencyId`
-  // through the currency catalog.
-  const { fromPartyDisplayName, fromPartyKind, toPartyDisplayName, toPartyKind } =
-    useMemo(() => {
-      const attachment = deal.pricing.routeAttachment;
-      if (!attachment || !selectedLeg) {
-        return {
-          fromPartyDisplayName: null,
-          fromPartyKind: null,
-          toPartyDisplayName: null,
-          toPartyKind: null,
-        };
-      }
-      const source = attachment.participants[selectedLeg.idx - 1] ?? null;
-      const destination = attachment.participants[selectedLeg.idx] ?? null;
-      const pickKind = (entityKind: string | null): PartyKind | null =>
-        entityKind === "organization" ||
-        entityKind === "counterparty" ||
-        entityKind === "customer"
-          ? entityKind
-          : null;
+  const {
+    fromBankInstruction,
+    fromPartyDisplayName,
+    fromPartyKind,
+    toBankInstruction,
+    toPartyDisplayName,
+    toPartyKind,
+  }: {
+    fromBankInstruction: FinanceDealBankInstructionSnapshot | null;
+    fromPartyDisplayName: string | null;
+    fromPartyKind: PartyKindOrSnapshot | null;
+    toBankInstruction: FinanceDealBankInstructionSnapshot | null;
+    toPartyDisplayName: string | null;
+    toPartyKind: PartyKindOrSnapshot | null;
+  } = useMemo(() => {
+    const attachment = deal.pricing.routeAttachment;
+    if (!attachment || !selectedLeg) {
       return {
-        fromPartyDisplayName: source?.displayName ?? null,
-        fromPartyKind: pickKind(source?.entityKind ?? null),
-        toPartyDisplayName: destination?.displayName ?? null,
-        toPartyKind: pickKind(destination?.entityKind ?? null),
+        fromBankInstruction: null,
+        fromPartyDisplayName: null,
+        fromPartyKind: null,
+        toBankInstruction: null,
+        toPartyDisplayName: null,
+        toPartyKind: null,
       };
-    }, [deal.pricing.routeAttachment, selectedLeg]);
+    }
+    const source = attachment.participants[selectedLeg.idx - 1] ?? null;
+    const destination = attachment.participants[selectedLeg.idx] ?? null;
+    const pickKind = (entityKind: string | null): PartyKind | null =>
+      entityKind === "organization" ||
+      entityKind === "counterparty" ||
+      entityKind === "customer"
+        ? entityKind
+        : null;
+
+    const isFinalLeg =
+      selectedLeg.idx === deal.executionPlan.length &&
+      selectedLeg.kind === "payout";
+    const externalBeneficiary =
+      deal.workflow?.intake.externalBeneficiary ?? null;
+    const beneficiarySnapshotName =
+      externalBeneficiary?.beneficiarySnapshot?.displayName ??
+      externalBeneficiary?.beneficiarySnapshot?.legalName ??
+      externalBeneficiary?.bankInstructionSnapshot?.beneficiaryName ??
+      null;
+    const useSnapshotForDestination =
+      isFinalLeg &&
+      !externalBeneficiary?.beneficiaryCounterpartyId &&
+      beneficiarySnapshotName !== null;
+
+    return {
+      fromBankInstruction: null,
+      fromPartyDisplayName: source?.displayName ?? null,
+      fromPartyKind: pickKind(source?.entityKind ?? null),
+      toBankInstruction: useSnapshotForDestination
+        ? (externalBeneficiary?.bankInstructionSnapshot ?? null)
+        : null,
+      toPartyDisplayName: useSnapshotForDestination
+        ? beneficiarySnapshotName
+        : (destination?.displayName ?? null),
+      toPartyKind: useSnapshotForDestination
+        ? ("beneficiary_snapshot" as const)
+        : pickKind(destination?.entityKind ?? null),
+    };
+  }, [
+    deal.executionPlan.length,
+    deal.pricing.routeAttachment,
+    deal.workflow,
+    selectedLeg,
+  ]);
 
   async function autoLinkPostingsForStep(step: FinanceDealPaymentStep) {
     const expectedDocTypes = expectedPostingDocTypes(step.kind);
@@ -243,8 +285,10 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
                   )}/attachments`}
                   fromPartyDisplayName={fromPartyDisplayName}
                   fromPartyKind={fromPartyKind}
+                  fromBankInstruction={fromBankInstruction}
                   toPartyDisplayName={toPartyDisplayName}
                   toPartyKind={toPartyKind}
+                  toBankInstruction={toBankInstruction}
                   disabled={!canWrite}
                   onChanged={handleStepChanged}
                 />

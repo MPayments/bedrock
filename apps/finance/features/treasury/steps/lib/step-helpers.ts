@@ -52,13 +52,6 @@ export const STEP_CONFIRM_OUTCOME_LABELS: Record<StepConfirmOutcome, string> = {
   returned: "Подтвердить возврат",
 };
 
-/**
- * Treasurer-facing primary action derived from the step's current state.
- * - `submit` while the step is actionable but not yet in-flight
- * - `confirm` while the banking leg is processing and awaiting evidence
- * - `null` for terminal states (completed/cancelled/skipped/returned) — the
- *   overflow menu surfaces any remaining options (e.g. retry after failed)
- */
 export type StepPrimaryAction = "submit" | "confirm" | null;
 
 export function deriveStepPrimaryAction(

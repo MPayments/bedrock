@@ -4,9 +4,12 @@ import { useState } from "react";
 
 import { Button } from "@bedrock/sdk-ui/components/button";
 
-import type { FinanceDealPaymentStep } from "@/features/treasury/deals/lib/queries";
+import type {
+  FinanceDealBankInstructionSnapshot,
+  FinanceDealPaymentStep,
+} from "@/features/treasury/deals/lib/queries";
 
-import type { PartyKind } from "../lib/party-options";
+import type { PartyKindOrSnapshot } from "../lib/party-options";
 import {
   deriveStepPrimaryAction,
   STEP_KIND_LABELS,
@@ -26,21 +29,25 @@ export interface StepCardProps {
   adminViewHref?: string;
   onChanged?: (step: FinanceDealPaymentStep) => void;
   title?: string;
-  fromPartyKind?: PartyKind | null;
-  toPartyKind?: PartyKind | null;
+  fromPartyKind?: PartyKindOrSnapshot | null;
+  toPartyKind?: PartyKindOrSnapshot | null;
   fromPartyDisplayName?: string | null;
   toPartyDisplayName?: string | null;
+  fromBankInstruction?: FinanceDealBankInstructionSnapshot | null;
+  toBankInstruction?: FinanceDealBankInstructionSnapshot | null;
   disabled?: boolean;
 }
 
 export function StepCard({
   adminViewHref,
   disabled,
+  fromBankInstruction = null,
   fromPartyDisplayName = null,
   fromPartyKind = null,
   onChanged,
   step,
   title,
+  toBankInstruction = null,
   toPartyDisplayName = null,
   toPartyKind = null,
   uploadAssetPath,
@@ -90,8 +97,10 @@ export function StepCard({
           disabled={disabled}
           fromPartyDisplayName={fromPartyDisplayName}
           fromPartyKind={fromPartyKind}
+          fromBankInstruction={fromBankInstruction}
           toPartyDisplayName={toPartyDisplayName}
           toPartyKind={toPartyKind}
+          toBankInstruction={toBankInstruction}
           onAmended={handleSuccess}
         />
 

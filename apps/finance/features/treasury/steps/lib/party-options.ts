@@ -2,6 +2,8 @@
 
 export type PartyKind = "organization" | "counterparty" | "customer";
 
+export type PartyKindOrSnapshot = PartyKind | "beneficiary_snapshot";
+
 export interface PartyOption {
   id: string;
   label: string;

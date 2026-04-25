@@ -83,12 +83,11 @@ describe("deriveStepPrimaryAction", () => {
     expect(deriveStepPrimaryAction("skipped")).toBeNull();
   });
 
-  it("returns null for non-actionable draft/scheduled", () => {
-    // The workbench publishes steps to treasurer as `pending`; steps still
-    // in `draft`/`scheduled` belong to the plan stage and shouldn't carry a
-    // primary action yet.
-    expect(deriveStepPrimaryAction("draft")).toBeNull();
-    expect(deriveStepPrimaryAction("scheduled")).toBeNull();
+  it("returns submit for draft/scheduled/pending/failed", () => {
+    expect(deriveStepPrimaryAction("draft")).toBe("submit");
+    expect(deriveStepPrimaryAction("scheduled")).toBe("submit");
+    expect(deriveStepPrimaryAction("pending")).toBe("submit");
+    expect(deriveStepPrimaryAction("failed")).toBe("submit");
   });
 });
 

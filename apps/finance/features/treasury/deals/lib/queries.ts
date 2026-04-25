@@ -405,12 +405,42 @@ const FinanceDealWorkflowParticipantSchema = z.object({
   ]),
 });
 
+const FinanceDealCounterpartySnapshotSchema = z
+  .object({
+    country: z.string().nullable(),
+    displayName: z.string().nullable(),
+    inn: z.string().nullable(),
+    legalName: z.string().nullable(),
+  })
+  .nullable();
+
+const FinanceDealBankInstructionSnapshotSchema = z
+  .object({
+    accountNo: z.string().nullable(),
+    bankAddress: z.string().nullable(),
+    bankCountry: z.string().nullable(),
+    bankName: z.string().nullable(),
+    beneficiaryName: z.string().nullable(),
+    bic: z.string().nullable(),
+    iban: z.string().nullable(),
+    label: z.string().nullable(),
+    swift: z.string().nullable(),
+  })
+  .nullable();
+
 const FinanceDealWorkflowContextSchema = z.object({
   fundingResolution: FinanceDealPricingContextSchema.shape.fundingResolution,
   intake: z.object({
     common: z.object({
       applicantCounterpartyId: z.string().uuid().nullable(),
     }),
+    externalBeneficiary: z
+      .object({
+        beneficiaryCounterpartyId: z.string().uuid().nullable(),
+        beneficiarySnapshot: FinanceDealCounterpartySnapshotSchema,
+        bankInstructionSnapshot: FinanceDealBankInstructionSnapshotSchema,
+      })
+      .optional(),
   }),
   participants: z.array(FinanceDealWorkflowParticipantSchema),
   summary: z.object({
@@ -706,6 +736,9 @@ export type FinanceDealRouteAttachmentLeg = z.infer<
 >;
 export type FinanceDealRouteAttachmentParticipant = z.infer<
   typeof FinanceDealRouteAttachmentParticipantSchema
+>;
+export type FinanceDealBankInstructionSnapshot = NonNullable<
+  z.infer<typeof FinanceDealBankInstructionSnapshotSchema>
 >;
 // Re-export the shared step schemas under the deal-workbench's own type
 // names so existing callers (components, tests) don't have to chase the
