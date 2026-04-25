@@ -55,6 +55,7 @@ export async function createLegOperation(
 
       const recipeContext = await resolveRecipeContext(
         deps,
+        dealsModule,
         treasuryModule,
         workflow,
       );
@@ -78,6 +79,7 @@ export async function createLegOperation(
         dealStore,
         internalEntityOrganizationId:
           recipeContext.internalEntityOrganizationId,
+        routeAttachment: recipeContext.routeAttachment,
         treasuryModule,
         workflow,
       });

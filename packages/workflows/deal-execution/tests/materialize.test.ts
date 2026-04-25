@@ -100,6 +100,7 @@ describe("resolveLegPartyRefs", () => {
       agreementOrganizationId: null,
       compiled: compiled({ legKind: "collect", operationKind: "payin" }),
       internalEntityOrganizationId: "org-1",
+      routeAttachment: null,
       workflow: createWorkflow(),
     });
 
@@ -114,6 +115,7 @@ describe("resolveLegPartyRefs", () => {
       agreementOrganizationId: null,
       compiled: compiled({ legKind: "payout", operationKind: "payout" }),
       internalEntityOrganizationId: "org-1",
+      routeAttachment: null,
       workflow: createWorkflow({
         participants: [
           {
@@ -139,6 +141,7 @@ describe("resolveLegPartyRefs", () => {
       agreementOrganizationId: null,
       compiled: compiled({ legKind: "convert", operationKind: "fx_conversion" }),
       internalEntityOrganizationId: "org-1",
+      routeAttachment: null,
       workflow: createWorkflow(),
     });
 
@@ -156,6 +159,7 @@ describe("resolveLegPartyRefs", () => {
         operationKind: "intercompany_funding",
       }),
       internalEntityOrganizationId: "org-1",
+      routeAttachment: null,
       workflow: createWorkflow(),
     });
 
@@ -173,6 +177,7 @@ describe("resolveLegPartyRefs", () => {
         operationKind: "intracompany_transfer",
       }),
       internalEntityOrganizationId: "org-1",
+      routeAttachment: null,
       workflow: createWorkflow(),
     });
 
@@ -187,6 +192,7 @@ describe("resolveLegPartyRefs", () => {
       agreementOrganizationId: null,
       compiled: compiled({ legKind: "collect", operationKind: "payin" }),
       internalEntityOrganizationId: "org-1",
+      routeAttachment: null,
       workflow: createWorkflow({ participants: [] }),
     });
 
@@ -198,6 +204,7 @@ describe("resolveLegPartyRefs", () => {
       agreementOrganizationId: null,
       compiled: compiled({ legKind: "collect", operationKind: "payin" }),
       internalEntityOrganizationId: "org-1",
+      routeAttachment: null,
       workflow: createWorkflow({
         participants: [
           {
@@ -269,6 +276,7 @@ describe("materializeCompiledOperation", () => {
       customerId: "customer-1",
       dealStore,
       internalEntityOrganizationId: "org-1",
+      routeAttachment: null,
       treasuryModule: treasuryModule as any,
       workflow: createWorkflow(),
     });
@@ -303,6 +311,7 @@ describe("materializeCompiledOperation", () => {
       customerId: "customer-1",
       dealStore: createDealStore(),
       internalEntityOrganizationId: "org-1",
+      routeAttachment: null,
       treasuryModule: treasuryModule as any,
       workflow,
     });
@@ -326,6 +335,7 @@ describe("materializeCompiledOperation", () => {
       customerId: "customer-1",
       dealStore: createDealStore(),
       internalEntityOrganizationId: "org-1",
+      routeAttachment: null,
       treasuryModule: treasuryModule as any,
       workflow: createWorkflow(),
     });

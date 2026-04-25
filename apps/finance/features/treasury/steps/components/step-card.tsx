@@ -30,21 +30,17 @@ export interface StepCardProps {
   toPartyKind?: PartyKind | null;
   fromPartyDisplayName?: string | null;
   toPartyDisplayName?: string | null;
-  fromCurrencyCode?: string | null;
-  toCurrencyCode?: string | null;
   disabled?: boolean;
 }
 
 export function StepCard({
   adminViewHref,
   disabled,
-  fromCurrencyCode = null,
   fromPartyDisplayName = null,
   fromPartyKind = null,
   onChanged,
   step,
   title,
-  toCurrencyCode = null,
   toPartyDisplayName = null,
   toPartyKind = null,
   uploadAssetPath,
@@ -92,10 +88,8 @@ export function StepCard({
         <StepRouteEditor
           step={step}
           disabled={disabled}
-          fromCurrencyCode={fromCurrencyCode}
           fromPartyDisplayName={fromPartyDisplayName}
           fromPartyKind={fromPartyKind}
-          toCurrencyCode={toCurrencyCode}
           toPartyDisplayName={toPartyDisplayName}
           toPartyKind={toPartyKind}
           onAmended={handleSuccess}

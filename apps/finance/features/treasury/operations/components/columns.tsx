@@ -3,13 +3,16 @@
 import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
 import { ExternalLink } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import { Badge } from "@bedrock/sdk-ui/components/badge";
 import { DataTableColumnHeader } from "@bedrock/sdk-tables-ui/components/data-table-column-header";
 import { formatCompactId } from "@bedrock/shared/core/uuid";
+import { minorToAmountString } from "@bedrock/shared/money";
 
 import type { TreasuryOperationRow } from "../lib/queries";
 import { formatDate } from "@/lib/format";
+import { listCurrencyOptions } from "@/features/treasury/steps/lib/currency-options";
 import {
   STEP_STATE_LABELS,
   stepBadgeVariant,
@@ -54,15 +57,32 @@ const PURPOSE_FILTER_OPTIONS: Array<{
   (purpose) => ({ label: PURPOSE_LABELS[purpose], value: purpose }),
 );
 
-function formatAmount(
-  amount: string | null,
-  currencyId: string,
-): string {
-  if (!amount) return "—";
-  // Amount is in minor units as a decimal string — render as-is with a short
-  // currency tag (full currency catalog resolution happens on the detail
-  // page / step card).
-  return `${amount} · ${formatCompactId(currencyId)}`;
+function AmountCell({
+  amount,
+  currencyId,
+}: {
+  amount: string | null;
+  currencyId: string;
+}) {
+  const [codes, setCodes] = useState<Map<string, string>>(new Map());
+  useEffect(() => {
+    let cancelled = false;
+    listCurrencyOptions().then((options) => {
+      if (cancelled) return;
+      setCodes(new Map(options.map((o) => [o.id, o.code] as const)));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  if (!amount) return <>—</>;
+  const code = codes.get(currencyId);
+  if (!code) return <>—</>;
+  return (
+    <>
+      {minorToAmountString(amount, { currency: code })} {code}
+    </>
+  );
 }
 
 export const columns: ColumnDef<TreasuryOperationRow>[] = [
@@ -134,17 +154,17 @@ export const columns: ColumnDef<TreasuryOperationRow>[] = [
     cell: ({ row }) => (
       <div className="space-y-1 text-sm">
         <div>
-          {formatAmount(
-            row.original.fromAmountMinor,
-            row.original.fromCurrencyId,
-          )}
+          <AmountCell
+            amount={row.original.fromAmountMinor}
+            currencyId={row.original.fromCurrencyId}
+          />
         </div>
         <div className="text-xs text-muted-foreground">
           →{" "}
-          {formatAmount(
-            row.original.toAmountMinor,
-            row.original.toCurrencyId,
-          )}
+          <AmountCell
+            amount={row.original.toAmountMinor}
+            currencyId={row.original.toCurrencyId}
+          />
         </div>
       </div>
     ),

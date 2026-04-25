@@ -2,12 +2,14 @@ import { randomUUID } from "node:crypto";
 
 import type {
   DealParticipantRole,
+  DealPricingRouteAttachment,
   DealWorkflowProjection,
 } from "@bedrock/deals/contracts";
 import { ValidationError } from "@bedrock/shared/core/errors";
 import { toMinorAmountString } from "@bedrock/shared/money";
 import type {
   PaymentStepPartyRef,
+  PaymentStepRate,
   QuoteDetailsRecord,
 } from "@bedrock/treasury/contracts";
 
@@ -124,6 +126,7 @@ export function resolveLegPartyRefs(input: {
   agreementOrganizationId: string | null;
   compiled: CompiledDealExecutionOperation;
   internalEntityOrganizationId: string | null;
+  routeAttachment: DealPricingRouteAttachment | null;
   workflow: DealWorkflowProjection;
 }): { fromParty: PaymentStepPartyRef; toParty: PaymentStepPartyRef } | null {
   const pickEntityId = (role: DealParticipantRole): string | null => {
@@ -146,35 +149,41 @@ export function resolveLegPartyRefs(input: {
   const beneficiary =
     pickEntityId("external_beneficiary") ?? pickEntityId("applicant");
 
+  const routeParticipants = input.routeAttachment?.snapshot.participants ?? [];
+  const sourceParticipant = routeParticipants[input.compiled.legIdx - 1] ?? null;
+  const destParticipant = routeParticipants[input.compiled.legIdx] ?? null;
+
   let fromPartyId: string | null;
   let toPartyId: string | null;
 
   switch (input.compiled.legKind) {
     case "collect":
-      fromPartyId = customer;
-      toPartyId = internal;
+      fromPartyId = sourceParticipant?.entityId ?? customer;
+      toPartyId = destParticipant?.entityId ?? internal;
       break;
     case "convert":
-      fromPartyId = internal;
-      toPartyId = internal;
+      fromPartyId = sourceParticipant?.entityId ?? internal;
+      toPartyId = destParticipant?.entityId ?? internal;
       break;
     case "payout":
-      fromPartyId = internal;
-      toPartyId = beneficiary;
+      fromPartyId = sourceParticipant?.entityId ?? internal;
+      toPartyId = destParticipant?.entityId ?? beneficiary;
       break;
     case "transit_hold":
-      fromPartyId = internal;
+      fromPartyId = sourceParticipant?.entityId ?? internal;
       toPartyId =
-        input.compiled.operationKind === "intercompany_funding"
+        destParticipant?.entityId ??
+        (input.compiled.operationKind === "intercompany_funding"
           ? (input.agreementOrganizationId ?? internal)
-          : internal;
+          : internal);
       break;
     case "settle_exporter":
-      fromPartyId = internal;
+      fromPartyId = sourceParticipant?.entityId ?? internal;
       toPartyId =
-        input.compiled.operationKind === "intercompany_funding"
+        destParticipant?.entityId ??
+        (input.compiled.operationKind === "intercompany_funding"
           ? (input.agreementOrganizationId ?? internal)
-          : (beneficiary ?? internal);
+          : (beneficiary ?? internal));
       break;
     default:
       return null;
@@ -185,9 +194,47 @@ export function resolveLegPartyRefs(input: {
   }
 
   return {
-    fromParty: { id: fromPartyId, requisiteId: null },
-    toParty: { id: toPartyId, requisiteId: null },
+    fromParty: {
+      id: fromPartyId,
+      requisiteId: sourceParticipant?.requisiteId ?? null,
+    },
+    toParty: {
+      id: toPartyId,
+      requisiteId: destParticipant?.requisiteId ?? null,
+    },
   };
+}
+
+function resolveStepRate(input: {
+  acceptedQuote: QuoteDetailsRecord | null;
+  compiled: CompiledDealExecutionOperation;
+}): PaymentStepRate | null {
+  if (input.compiled.legKind !== "convert" || !input.acceptedQuote) {
+    return null;
+  }
+  const quoteLeg =
+    input.compiled.quoteLegIdx !== null
+      ? input.acceptedQuote.legs.find(
+          (leg) => leg.idx === input.compiled.quoteLegIdx,
+        )
+      : null;
+  const rateNum = quoteLeg?.rateNum ?? input.acceptedQuote.quote.rateNum;
+  const rateDen = quoteLeg?.rateDen ?? input.acceptedQuote.quote.rateDen;
+  if (rateNum === null || rateDen === null || rateDen === 0n) {
+    return null;
+  }
+  const scale = 100_000_000n;
+  const scaled = (rateNum * scale) / rateDen;
+  const integerPart = scaled / scale;
+  const fractionPart = scaled % scale;
+  const fractionStr = fractionPart
+    .toString()
+    .padStart(8, "0")
+    .replace(/0+$/, "");
+  const value = fractionStr
+    ? `${integerPart.toString()}.${fractionStr}`
+    : integerPart.toString();
+  return { value, lockedSide: "in" };
 }
 
 export async function materializeCompiledOperation(input: {
@@ -199,6 +246,7 @@ export async function materializeCompiledOperation(input: {
   customerId: string | null;
   dealStore: DealExecutionStore;
   internalEntityOrganizationId: string | null;
+  routeAttachment: DealPricingRouteAttachment | null;
   treasuryModule: DealExecutionTreasuryModule;
   workflow: DealWorkflowProjection;
 }): Promise<{ id: string } | null> {
@@ -223,6 +271,7 @@ export async function materializeCompiledOperation(input: {
     agreementOrganizationId: input.agreementOrganizationId,
     compiled: input.compiled,
     internalEntityOrganizationId: input.internalEntityOrganizationId,
+    routeAttachment: input.routeAttachment,
     workflow: input.workflow,
   });
   const fromCurrencyId = amount.currencyId;
@@ -231,6 +280,11 @@ export async function materializeCompiledOperation(input: {
   if (!partyRefs || !fromCurrencyId || !toCurrencyId) {
     return null;
   }
+
+  const rate = resolveStepRate({
+    acceptedQuote: input.acceptedQuote,
+    compiled: input.compiled,
+  });
 
   const id = randomUUID();
   await input.treasuryModule.paymentSteps.commands.create({
@@ -244,7 +298,7 @@ export async function materializeCompiledOperation(input: {
     initialState: "draft",
     kind: input.compiled.operationKind,
     purpose: "deal_leg",
-    rate: null,
+    rate,
     toAmountMinor: counterAmount.amountMinor ?? amount.amountMinor,
     toCurrencyId,
     toParty: partyRefs.toParty,
@@ -256,12 +310,16 @@ export async function materializeCompiledOperation(input: {
 
 export async function resolveRecipeContext(
   deps: DealExecutionWorkflowDeps,
+  dealsModule: { deals: { queries: { findPricingContextByDealId: (input: { dealId: string }) => Promise<{ routeAttachment: DealPricingRouteAttachment | null }> } } },
   treasuryModule: DealExecutionTreasuryModule,
   workflow: DealWorkflowProjection,
 ) {
-  const agreement = await deps.agreements.agreements.queries.findById(
-    workflow.summary.agreementId,
-  );
+  const [agreement, pricingContext] = await Promise.all([
+    deps.agreements.agreements.queries.findById(workflow.summary.agreementId),
+    dealsModule.deals.queries
+      .findPricingContextByDealId({ dealId: workflow.summary.id })
+      .catch(() => null),
+  ]);
   const acceptedQuote =
     workflow.executionPlan.some((leg) => leg.kind === "convert") &&
     workflow.acceptedQuote?.quoteId
@@ -274,6 +332,7 @@ export async function resolveRecipeContext(
     acceptedQuote,
     agreementOrganizationId: agreement?.organizationId ?? null,
     internalEntityOrganizationId: getInternalEntityOrganizationId(workflow),
+    routeAttachment: pricingContext?.routeAttachment ?? null,
     recipe: compileDealExecutionRecipe({
       acceptedQuote,
       agreementOrganizationId: agreement?.organizationId ?? null,

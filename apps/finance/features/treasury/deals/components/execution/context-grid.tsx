@@ -153,7 +153,7 @@ export function ExecutionContextGrid({
               variant="outline"
               onClick={onOpenSwapRoute}
             >
-              Сменить шаблон
+              {routeAttachment ? "Сменить шаблон" : "Выбрать маршрут"}
             </Button>
           ) : null}
         </header>
@@ -162,7 +162,8 @@ export function ExecutionContextGrid({
             <RouteAttachmentHops attachment={routeAttachment} />
           ) : (
             <div className="text-muted-foreground text-sm">
-              Маршрут появится после выбора шаблона в коммерческой вкладке.
+              Маршрут пока не выбран. Нажмите «Выбрать маршрут», чтобы
+              привязать подходящий шаблон.
             </div>
           )}
 

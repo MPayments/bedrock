@@ -39,6 +39,7 @@ export async function requestExecution(
 
       const recipeContext = await resolveRecipeContext(
         deps,
+        dealsModule,
         treasuryModule,
         workflow,
       );
@@ -56,6 +57,7 @@ export async function requestExecution(
           dealStore,
           internalEntityOrganizationId:
             recipeContext.internalEntityOrganizationId,
+          routeAttachment: recipeContext.routeAttachment,
           treasuryModule,
           workflow,
         });

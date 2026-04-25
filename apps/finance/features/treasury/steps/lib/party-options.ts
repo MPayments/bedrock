@@ -42,7 +42,9 @@ async function readOptions(url: string): Promise<OptionsResponse | null> {
 const partyCache = new Map<PartyKind, PartyOption[]>();
 const partyInflight = new Map<PartyKind, Promise<PartyOption[]>>();
 
-export async function listPartyOptions(kind: PartyKind): Promise<PartyOption[]> {
+export async function listPartyOptions(
+  kind: PartyKind,
+): Promise<PartyOption[]> {
   const cached = partyCache.get(kind);
   if (cached) return cached;
   const running = partyInflight.get(kind);
@@ -69,11 +71,24 @@ export async function listPartyOptions(kind: PartyKind): Promise<PartyOption[]> 
 export async function resolvePartyDisplayName(
   partyId: string,
 ): Promise<string | null> {
+  const resolved = await resolvePartyOption(partyId);
+  return resolved?.label ?? null;
+}
+
+export async function resolvePartyOption(
+  partyId: string,
+): Promise<{ kind: PartyKind; label: string } | null> {
   const kinds: PartyKind[] = ["organization", "counterparty", "customer"];
-  const lookups = await Promise.all(kinds.map((kind) => listPartyOptions(kind)));
-  for (const options of lookups) {
+  const lookups = await Promise.all(
+    kinds.map((kind) => listPartyOptions(kind)),
+  );
+  for (let index = 0; index < kinds.length; index += 1) {
+    const kind = kinds[index]!;
+    const options = lookups[index]!;
     const match = options.find((opt) => opt.id === partyId);
-    if (match) return match.label;
+    if (match) {
+      return { kind, label: match.label };
+    }
   }
   return null;
 }
@@ -86,7 +101,9 @@ export async function listRequisiteOptions(input: {
     ownerType: input.ownerType,
     ownerId: input.ownerId,
   });
-  const payload = await readOptions(`/v1/requisites/options?${query.toString()}`);
+  const payload = await readOptions(
+    `/v1/requisites/options?${query.toString()}`,
+  );
   if (!payload) return [];
   return payload.data
     .filter((row): row is typeof row & { currencyId: string } =>

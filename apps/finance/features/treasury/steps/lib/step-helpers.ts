@@ -65,6 +65,8 @@ export function deriveStepPrimaryAction(
   state: StepState,
 ): StepPrimaryAction {
   switch (state) {
+    case "draft":
+    case "scheduled":
     case "pending":
     case "failed":
       return "submit";

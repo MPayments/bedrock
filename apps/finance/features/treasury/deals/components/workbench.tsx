@@ -109,43 +109,38 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
     [deal.executionSteps, selectedLeg],
   );
 
-  const {
-    fromCurrencyCode,
-    fromPartyDisplayName,
-    fromPartyKind,
-    toCurrencyCode,
-    toPartyDisplayName,
-    toPartyKind,
-  } = useMemo(() => {
-    const attachment = deal.pricing.routeAttachment;
-    if (!attachment || !selectedLeg) {
+  // Display name + kind hints come from the route attachment (so the
+  // editor shows "ARABIAN FUEL ALLIANCE DMCC" not a UUID, and knows
+  // whether to offer organization/counterparty selects). Currency codes
+  // are NOT taken from the route — they live on the step itself, and
+  // the editor resolves codes from `step.fromCurrencyId`/`toCurrencyId`
+  // through the currency catalog.
+  const { fromPartyDisplayName, fromPartyKind, toPartyDisplayName, toPartyKind } =
+    useMemo(() => {
+      const attachment = deal.pricing.routeAttachment;
+      if (!attachment || !selectedLeg) {
+        return {
+          fromPartyDisplayName: null,
+          fromPartyKind: null,
+          toPartyDisplayName: null,
+          toPartyKind: null,
+        };
+      }
+      const source = attachment.participants[selectedLeg.idx - 1] ?? null;
+      const destination = attachment.participants[selectedLeg.idx] ?? null;
+      const pickKind = (entityKind: string | null): PartyKind | null =>
+        entityKind === "organization" ||
+        entityKind === "counterparty" ||
+        entityKind === "customer"
+          ? entityKind
+          : null;
       return {
-        fromCurrencyCode: null,
-        fromPartyDisplayName: null,
-        fromPartyKind: null,
-        toCurrencyCode: null,
-        toPartyDisplayName: null,
-        toPartyKind: null,
+        fromPartyDisplayName: source?.displayName ?? null,
+        fromPartyKind: pickKind(source?.entityKind ?? null),
+        toPartyDisplayName: destination?.displayName ?? null,
+        toPartyKind: pickKind(destination?.entityKind ?? null),
       };
-    }
-    const source = attachment.participants[selectedLeg.idx - 1] ?? null;
-    const destination = attachment.participants[selectedLeg.idx] ?? null;
-    const legSnapshot = attachment.legs[selectedLeg.idx - 1] ?? null;
-    const pickKind = (entityKind: string | null): PartyKind | null =>
-      entityKind === "organization" ||
-      entityKind === "counterparty" ||
-      entityKind === "customer"
-        ? entityKind
-        : null;
-    return {
-      fromCurrencyCode: legSnapshot?.fromCurrencyCode ?? null,
-      fromPartyDisplayName: source?.displayName ?? null,
-      fromPartyKind: pickKind(source?.entityKind ?? null),
-      toCurrencyCode: legSnapshot?.toCurrencyCode ?? null,
-      toPartyDisplayName: destination?.displayName ?? null,
-      toPartyKind: pickKind(destination?.entityKind ?? null),
-    };
-  }, [deal.pricing.routeAttachment, selectedLeg]);
+    }, [deal.pricing.routeAttachment, selectedLeg]);
 
   async function autoLinkPostingsForStep(step: FinanceDealPaymentStep) {
     const expectedDocTypes = expectedPostingDocTypes(step.kind);
@@ -246,10 +241,8 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
                   uploadAssetPath={`/v1/deals/${encodeURIComponent(
                     deal.summary.id,
                   )}/attachments`}
-                  fromCurrencyCode={fromCurrencyCode}
                   fromPartyDisplayName={fromPartyDisplayName}
                   fromPartyKind={fromPartyKind}
-                  toCurrencyCode={toCurrencyCode}
                   toPartyDisplayName={toPartyDisplayName}
                   toPartyKind={toPartyKind}
                   disabled={!canWrite}
@@ -347,6 +340,7 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
 
       <RouteSwapDialog
         dealId={deal.summary.id}
+        hasExistingRoute={Boolean(deal.pricing.routeAttachment)}
         open={isSwapRouteOpen}
         onOpenChange={setIsSwapRouteOpen}
         onSuccess={() => router.refresh()}
