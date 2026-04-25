@@ -22,9 +22,5 @@ export { treasuryQueueRoutes } from "./treasury-queue";
 export { treasuryQuotesRoutes } from "./treasury-quotes";
 export { treasuryRatesRoutes } from "./treasury-rates";
 export { treasuryStepsRoutes } from "./treasury-steps";
-export {
-  treasuryInstructionRoutes,
-  treasuryOperationsRoutes,
-} from "./treasury-operations";
 export { treasuryOrganizationBalancesRoutes } from "./treasury-organizations-balances";
 export { usersRoutes } from "./users";

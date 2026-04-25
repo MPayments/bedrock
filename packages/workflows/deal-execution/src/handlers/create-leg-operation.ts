@@ -26,7 +26,6 @@ export async function createLegOperation(
     legId: string;
   },
 ): Promise<DealWorkflowProjection> {
-  const paymentStepsEnabled = deps.paymentStepsEnabled ?? false;
   return runIdempotent(deps, {
     actorUserId: input.actorUserId,
     handler: async ({ dealStore, dealsModule, treasuryModule }) => {
@@ -45,28 +44,13 @@ export async function createLegOperation(
         );
       }
 
-      const hasLegacyOp = leg.operationRefs.length > 0;
-
-      // Mirror the backfill semantics from request-execution: under the
-      // flag, create the missing payment step even when the legacy op
-      // already exists. The legacy link is skipped in that case — we only
-      // seed the step so the workbench has a row to render.
-      let skipLegacyLinks = false;
-      if (paymentStepsEnabled) {
-        const existingSteps =
-          await treasuryModule.paymentSteps.queries.list({
-            dealId: input.dealId,
-            limit: 100,
-            offset: 0,
-            purpose: "deal_leg",
-          });
-        if (
-          existingSteps.data.some((step) => step.dealLegIdx === leg.idx)
-        ) {
-          return workflow;
-        }
-        skipLegacyLinks = hasLegacyOp;
-      } else if (hasLegacyOp) {
+      const existingSteps = await treasuryModule.paymentSteps.queries.list({
+        dealId: input.dealId,
+        limit: 100,
+        offset: 0,
+        purpose: "deal_leg",
+      });
+      if (existingSteps.data.some((step) => step.dealLegIdx === leg.idx)) {
         return workflow;
       }
 
@@ -97,11 +81,15 @@ export async function createLegOperation(
         dealStore,
         internalEntityOrganizationId:
           recipeContext.internalEntityOrganizationId,
-        paymentStepsEnabled: deps.paymentStepsEnabled ?? false,
-        skipLegacyLinks,
         treasuryModule,
         workflow,
       });
+
+      if (!operation) {
+        throw new ValidationError(
+          `Deal ${input.dealId} could not materialize a payment step for leg ${input.legId}`,
+        );
+      }
 
       await dealStore.createDealTimelineEvents([
         buildTimelineEvent({

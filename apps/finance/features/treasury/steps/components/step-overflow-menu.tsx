@@ -56,15 +56,9 @@ const MUTABLE_STATES: ReadonlySet<FinanceDealPaymentStep["state"]> = new Set([
 export interface StepOverflowMenuProps {
   step: FinanceDealPaymentStep;
   onOpenHistory: () => void;
-  /**
-   * Opens the confirm dialog preseeded with `outcome = "returned"`. Parent
-   * owns dialog state so the same component is reused across every flow that
-   * can touch a completed step. Omit to hide the menu item.
-   */
   onMarkReturned?: () => void;
-  /** Called after any mutation that changes the step; default = router.refresh */
+  onRetry?: () => void;
   onChanged?: () => void;
-  /** Optional admin link for the bottom of the menu (instruction admin view) */
   adminViewHref?: string;
   disabled?: boolean;
 }
@@ -75,6 +69,7 @@ export function StepOverflowMenu({
   onChanged,
   onMarkReturned,
   onOpenHistory,
+  onRetry,
   step,
 }: StepOverflowMenuProps) {
   const router = useRouter();
@@ -146,17 +141,10 @@ export function StepOverflowMenu({
     });
   }
 
-  if (canRetrySubmit) {
-    // Retry is simply re-running Submit on a failed step. Parent opens the
-    // submit dialog rather than the menu sending the request directly, so the
-    // treasurer can update providerRef/memo before retrying.
+  if (canRetrySubmit && onRetry) {
     menuItems.push({
       action: "retry",
-      onSelect: () => {
-        // Parent resolves retry via the primary action when state === failed.
-        // This menu item is a discoverable surface that forwards to the same.
-        toast.info("Используйте основную кнопку «Отправить повторно»");
-      },
+      onSelect: onRetry,
     });
   }
 

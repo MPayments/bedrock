@@ -18,7 +18,7 @@ const DOWNSTREAM_LEG_KINDS = new Set([
   "transit_hold",
 ]);
 
-export function getPositionByKind(
+function getPositionByKind(
   workflow: DealWorkflowProjection,
   kind: string,
 ): DealOperationalPosition | null {
@@ -29,7 +29,7 @@ export function getPositionByKind(
   );
 }
 
-export function buildFundingMessage(workflow: DealWorkflowProjection) {
+function buildFundingMessage(workflow: DealWorkflowProjection) {
   if (!workflow.executionPlan.some((leg) => leg.kind === "convert")) {
     return null;
   }

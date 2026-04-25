@@ -2,14 +2,6 @@ import { z, type ZodTypeAny } from "zod";
 
 import { resolveApiErrorMessage } from "@/lib/api-error";
 
-export const ApiErrorPayloadSchema = z
-  .object({
-    error: z.string().optional(),
-    message: z.string().optional(),
-    details: z.unknown().optional(),
-  })
-  .passthrough();
-
 export class ApiRequestError extends Error {
   constructor(
     message: string,

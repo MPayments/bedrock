@@ -5,7 +5,7 @@ import { readJsonWithSchema, requestOk } from "@/lib/api/response";
 import { getServerApiClient } from "@/lib/api/server-client";
 import { isUuid } from "@/lib/resources/http";
 
-export const FinanceAgreementContextSchema = z.object({
+const FinanceAgreementContextSchema = z.object({
   id: z.string().uuid(),
   organizationId: z.string().uuid(),
   organizationRequisiteId: z.string().uuid(),

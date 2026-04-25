@@ -1,25 +1,29 @@
-import type { DealOperationalPosition, DealType, DealWorkflowProjection } from "@bedrock/deals/contracts";
+import type {
+  DealOperationalPosition,
+  DealType,
+  DealWorkflowProjection,
+} from "@bedrock/deals/contracts";
 import type { ReconciliationOperationLinkDto } from "@bedrock/reconciliation/contracts";
-import type { TreasuryInstruction } from "@bedrock/treasury/contracts";
+import type { PaymentStep } from "@bedrock/treasury/contracts";
 
 import type {
   FinanceDealCloseReadiness,
   FinanceDealCloseReadinessCriterion,
-  FinanceDealInstructionSummary,
   FinanceDealReconciliationException,
   FinanceDealReconciliationSummary,
   FinanceDealStage,
 } from "./contracts";
 
-const CLOSE_TERMINAL_INSTRUCTION_STATES = new Set([
+const TERMINAL_STEP_STATES = new Set<PaymentStep["state"]>([
+  "completed",
   "returned",
-  "settled",
-  "voided",
+  "cancelled",
+  "skipped",
 ]);
 
-const RECONCILIATION_REQUIRED_INSTRUCTION_STATES = new Set([
+const RECONCILIATION_REQUIRED_STEP_STATES = new Set<PaymentStep["state"]>([
+  "completed",
   "returned",
-  "settled",
 ]);
 
 const CLOSING_DOCUMENT_TYPE_BY_DEAL_TYPE: Record<DealType, string | null> = {
@@ -118,9 +122,9 @@ function addUniqueBlocker(blockers: string[], blocker: string) {
   }
 }
 
-function doLegOperationsSatisfyStates(input: {
-  allowedStates: Set<string>;
-  latestInstructionByOperationId: ReadonlyMap<string, TreasuryInstruction>;
+function doLegStepsSatisfyStates(input: {
+  allowedStates: ReadonlySet<PaymentStep["state"]>;
+  paymentStepByLegIdx: ReadonlyMap<number, PaymentStep>;
   workflow: DealWorkflowProjection;
   legKinds: string[];
 }) {
@@ -137,106 +141,34 @@ function doLegOperationsSatisfyStates(input: {
       return true;
     }
 
-    if (leg.operationRefs.length === 0) {
+    const step = input.paymentStepByLegIdx.get(leg.idx);
+    if (!step) {
       return false;
     }
 
-    return leg.operationRefs.every((ref) => {
-      const latest = input.latestInstructionByOperationId.get(ref.operationId);
-      return Boolean(latest && input.allowedStates.has(latest.state));
-    });
+    return input.allowedStates.has(step.state);
   });
 }
 
-function buildInstructionSummary(input: {
-  latestInstructionByOperationId: ReadonlyMap<string, TreasuryInstruction>;
-  workflow: DealWorkflowProjection;
-}): FinanceDealInstructionSummary {
-  const summary: FinanceDealInstructionSummary = {
-    failed: 0,
-    planned: 0,
-    prepared: 0,
-    returnRequested: 0,
-    returned: 0,
-    settled: 0,
-    submitted: 0,
-    terminalOperations: 0,
-    totalOperations: 0,
-    voided: 0,
-  };
-
-  const operationIds = Array.from(
-    new Set(
-      input.workflow.executionPlan.flatMap((leg) =>
-        leg.operationRefs.map((ref) => ref.operationId),
-      ),
-    ),
-  );
-
-  summary.totalOperations = operationIds.length;
-
-  for (const operationId of operationIds) {
-    const latest = input.latestInstructionByOperationId.get(operationId);
-
-    if (!latest) {
-      summary.planned += 1;
-      continue;
-    }
-
-    switch (latest.state) {
-      case "failed":
-        summary.failed += 1;
-        break;
-      case "prepared":
-        summary.prepared += 1;
-        break;
-      case "return_requested":
-        summary.returnRequested += 1;
-        break;
-      case "returned":
-        summary.returned += 1;
-        break;
-      case "settled":
-        summary.settled += 1;
-        break;
-      case "submitted":
-        summary.submitted += 1;
-        break;
-      case "voided":
-        summary.voided += 1;
-        break;
-    }
-
-    if (CLOSE_TERMINAL_INSTRUCTION_STATES.has(latest.state)) {
-      summary.terminalOperations += 1;
-    }
-  }
-
-  return summary;
-}
-
 function buildReconciliationState(input: {
-  latestInstructionByOperationId: ReadonlyMap<string, TreasuryInstruction>;
-  reconciliationLinksByOperationId: ReadonlyMap<string, ReconciliationOperationLinkDto>;
+  paymentStepByLegIdx: ReadonlyMap<number, PaymentStep>;
+  reconciliationLinksByStepId: ReadonlyMap<string, ReconciliationOperationLinkDto>;
   workflow: DealWorkflowProjection;
 }): {
   reconciliationExceptions: FinanceDealReconciliationException[];
   reconciliationSummary: FinanceDealReconciliationSummary;
-  requiredOperationIds: string[];
+  requiredStepIds: string[];
 } {
-  const requiredOperationIds = Array.from(
+  const requiredStepIds = Array.from(
     new Set(
-      input.workflow.executionPlan.flatMap((leg) =>
-        leg.operationRefs
-          .map((ref) => {
-            const latest = input.latestInstructionByOperationId.get(ref.operationId);
-            return latest &&
-              RECONCILIATION_REQUIRED_INSTRUCTION_STATES.has(latest.state)
-              ? ref.operationId
-              : null;
-          })
-          .filter((operationId): operationId is string => Boolean(operationId)),
-      ),
+      input.workflow.executionPlan
+        .map((leg) => input.paymentStepByLegIdx.get(leg.idx))
+        .filter(
+          (step): step is PaymentStep =>
+            Boolean(step) &&
+            RECONCILIATION_REQUIRED_STEP_STATES.has((step as PaymentStep).state),
+        )
+        .map((step) => step.id),
     ),
   );
   const seenExceptionIds = new Set<string>();
@@ -247,16 +179,21 @@ function buildReconciliationState(input: {
   let ignoredExceptionCount = 0;
   let reconciledOperationCount = 0;
 
-  for (const operationId of requiredOperationIds) {
-    const link = input.reconciliationLinksByOperationId.get(operationId);
-    const hasArtifact = Boolean(link && (link.matchCount > 0 || link.exceptions.length > 0));
+  for (const stepId of requiredStepIds) {
+    const link = input.reconciliationLinksByStepId.get(stepId);
+    const hasArtifact = Boolean(
+      link && (link.matchCount > 0 || link.exceptions.length > 0),
+    );
 
     if (hasArtifact) {
       reconciledOperationCount += 1;
     }
 
     if (link?.lastActivityAt) {
-      if (!lastActivityAt || link.lastActivityAt.getTime() > lastActivityAt.getTime()) {
+      if (
+        !lastActivityAt ||
+        link.lastActivityAt.getTime() > lastActivityAt.getTime()
+      ) {
         lastActivityAt = link.lastActivityAt;
       }
     }
@@ -296,10 +233,10 @@ function buildReconciliationState(input: {
 
   const pendingOperationCount = Math.max(
     0,
-    requiredOperationIds.length - reconciledOperationCount,
+    requiredStepIds.length - reconciledOperationCount,
   );
   const state =
-    requiredOperationIds.length === 0
+    requiredStepIds.length === 0
       ? "not_started"
       : openExceptionCount > 0
         ? "blocked"
@@ -317,23 +254,24 @@ function buildReconciliationState(input: {
       openExceptionCount,
       pendingOperationCount,
       reconciledOperationCount,
-      requiredOperationCount: requiredOperationIds.length,
+      requiredOperationCount: requiredStepIds.length,
       resolvedExceptionCount,
       state,
     },
-    requiredOperationIds,
+    requiredStepIds,
   };
 }
 
 function createCriteria(input: {
   executionUnblocked: boolean;
-  latestInstructionByOperationId: ReadonlyMap<string, TreasuryInstruction>;
+  paymentStepByLegIdx: ReadonlyMap<number, PaymentStep>;
   reconciliationSummary: FinanceDealReconciliationSummary;
   workflow: DealWorkflowProjection;
 }) {
   const criteria: FinanceDealCloseReadinessCriterion[] = [];
   const operationsMaterialized = input.workflow.executionPlan.every(
-    (leg) => leg.state === "skipped" || leg.operationRefs.length > 0,
+    (leg) =>
+      leg.state === "skipped" || input.paymentStepByLegIdx.has(leg.idx),
   );
 
   criteria.push(
@@ -365,9 +303,9 @@ function createCriteria(input: {
         createCriterion(
           "payment_payout_settled",
           "Выплата исполнена",
-          doLegOperationsSatisfyStates({
-            allowedStates: new Set(["settled"]),
-            latestInstructionByOperationId: input.latestInstructionByOperationId,
+          doLegStepsSatisfyStates({
+            allowedStates: new Set<PaymentStep["state"]>(["completed"]),
+            paymentStepByLegIdx: input.paymentStepByLegIdx,
             workflow: input.workflow,
             legKinds: ["payout"],
           }),
@@ -386,9 +324,9 @@ function createCriteria(input: {
         createCriterion(
           "currency_exchange_conversion_settled",
           "Конвертация исполнена",
-          doLegOperationsSatisfyStates({
-            allowedStates: new Set(["settled"]),
-            latestInstructionByOperationId: input.latestInstructionByOperationId,
+          doLegStepsSatisfyStates({
+            allowedStates: new Set<PaymentStep["state"]>(["completed"]),
+            paymentStepByLegIdx: input.paymentStepByLegIdx,
             workflow: input.workflow,
             legKinds: ["convert"],
           }),
@@ -398,9 +336,12 @@ function createCriteria(input: {
         createCriterion(
           "currency_exchange_payout_or_returned",
           "Выплата или возврат завершены",
-          doLegOperationsSatisfyStates({
-            allowedStates: new Set(["returned", "settled"]),
-            latestInstructionByOperationId: input.latestInstructionByOperationId,
+          doLegStepsSatisfyStates({
+            allowedStates: new Set<PaymentStep["state"]>([
+              "completed",
+              "returned",
+            ]),
+            paymentStepByLegIdx: input.paymentStepByLegIdx,
             workflow: input.workflow,
             legKinds: ["payout"],
           }),
@@ -412,9 +353,9 @@ function createCriteria(input: {
         createCriterion(
           "currency_transit_collect_settled",
           "Поступление подтверждено",
-          doLegOperationsSatisfyStates({
-            allowedStates: new Set(["settled"]),
-            latestInstructionByOperationId: input.latestInstructionByOperationId,
+          doLegStepsSatisfyStates({
+            allowedStates: new Set<PaymentStep["state"]>(["completed"]),
+            paymentStepByLegIdx: input.paymentStepByLegIdx,
             workflow: input.workflow,
             legKinds: ["collect"],
           }),
@@ -424,9 +365,9 @@ function createCriteria(input: {
         createCriterion(
           "currency_transit_payout_settled",
           "Выплата исполнена",
-          doLegOperationsSatisfyStates({
-            allowedStates: new Set(["settled"]),
-            latestInstructionByOperationId: input.latestInstructionByOperationId,
+          doLegStepsSatisfyStates({
+            allowedStates: new Set<PaymentStep["state"]>(["completed"]),
+            paymentStepByLegIdx: input.paymentStepByLegIdx,
             workflow: input.workflow,
             legKinds: ["payout"],
           }),
@@ -447,9 +388,9 @@ function createCriteria(input: {
         createCriterion(
           "exporter_settlement_payout_settled",
           "Выплата исполнена",
-          doLegOperationsSatisfyStates({
-            allowedStates: new Set(["settled"]),
-            latestInstructionByOperationId: input.latestInstructionByOperationId,
+          doLegStepsSatisfyStates({
+            allowedStates: new Set<PaymentStep["state"]>(["completed"]),
+            paymentStepByLegIdx: input.paymentStepByLegIdx,
             workflow: input.workflow,
             legKinds: ["payout"],
           }),
@@ -472,21 +413,26 @@ function createCriteria(input: {
 }
 
 export function deriveFinanceDealReadiness(input: {
-  latestInstructionByOperationId: ReadonlyMap<string, TreasuryInstruction>;
-  reconciliationLinksByOperationId: ReadonlyMap<string, ReconciliationOperationLinkDto>;
+  paymentStepByLegIdx: ReadonlyMap<number, PaymentStep>;
+  reconciliationLinksByStepId: ReadonlyMap<
+    string,
+    ReconciliationOperationLinkDto
+  >;
   workflow: DealWorkflowProjection;
 }): {
   closeReadiness: FinanceDealCloseReadiness;
-  instructionSummary: FinanceDealInstructionSummary;
   reconciliationExceptions: FinanceDealReconciliationException[];
   reconciliationSummary: FinanceDealReconciliationSummary;
+  terminalStepCount: number;
+  totalStepCount: number;
 } {
   const readiness = input.workflow.transitionReadiness.find(
     (item) => item.targetStatus === "done",
   );
-  const existingBlockers = readiness?.allowed === false
-    ? readiness.blockers.map((blocker) => blocker.message)
-    : [];
+  const existingBlockers =
+    readiness?.allowed === false
+      ? readiness.blockers.map((blocker) => blocker.message)
+      : [];
   const executionBlocked =
     input.workflow.executionPlan.some((leg) => leg.state === "blocked") ||
     input.workflow.operationalState.positions.some(
@@ -497,14 +443,20 @@ export function deriveFinanceDealReadiness(input: {
         message.includes("Execution leg is blocked") ||
         message.includes("Operational position is blocked"),
     );
-  const instructionSummary = buildInstructionSummary(input);
-  const {
-    reconciliationExceptions,
-    reconciliationSummary,
-  } = buildReconciliationState(input);
+
+  const totalStepCount = input.paymentStepByLegIdx.size;
+  let terminalStepCount = 0;
+  for (const step of input.paymentStepByLegIdx.values()) {
+    if (TERMINAL_STEP_STATES.has(step.state)) {
+      terminalStepCount += 1;
+    }
+  }
+
+  const { reconciliationExceptions, reconciliationSummary } =
+    buildReconciliationState(input);
   const criteria = createCriteria({
     executionUnblocked: !executionBlocked,
-    latestInstructionByOperationId: input.latestInstructionByOperationId,
+    paymentStepByLegIdx: input.paymentStepByLegIdx,
     reconciliationSummary,
     workflow: input.workflow,
   });
@@ -535,9 +487,10 @@ export function deriveFinanceDealReadiness(input: {
       criteria,
       ready: blockers.length === 0,
     },
-    instructionSummary,
     reconciliationExceptions,
     reconciliationSummary,
+    terminalStepCount,
+    totalStepCount,
   };
 }
 
@@ -612,7 +565,7 @@ export function deriveFinanceDealStage(input: {
   agreementOrganizationId: string | null;
   closeReadiness: FinanceDealCloseReadiness;
   internalEntityOrganizationId: string | null;
-  latestInstructionByOperationId: ReadonlyMap<string, TreasuryInstruction>;
+  paymentStepByLegIdx: ReadonlyMap<number, PaymentStep>;
   reconciliationSummary: FinanceDealReconciliationSummary;
   workflow: DealWorkflowProjection;
 }): { stage: FinanceDealStage; stageReason: string } {
@@ -623,27 +576,13 @@ export function deriveFinanceDealStage(input: {
     };
   }
 
-  const linkedOperationIds = Array.from(
-    new Set(
-      input.workflow.executionPlan.flatMap((leg) =>
-        leg.operationRefs.map((ref) => ref.operationId),
-      ),
-    ),
-  );
-  const allNonVoidedLinkedOperationsAreTerminal =
-    linkedOperationIds.length > 0 &&
-    linkedOperationIds.every((operationId) => {
-      const latest = input.latestInstructionByOperationId.get(operationId);
-
-      if (!latest || latest.state === "voided") {
-        return latest?.state === "voided";
-      }
-
-      return CLOSE_TERMINAL_INSTRUCTION_STATES.has(latest.state);
-    });
+  const linkedSteps = Array.from(input.paymentStepByLegIdx.values());
+  const allLinkedStepsTerminal =
+    linkedSteps.length > 0 &&
+    linkedSteps.every((step) => TERMINAL_STEP_STATES.has(step.state));
 
   if (
-    allNonVoidedLinkedOperationsAreTerminal &&
+    allLinkedStepsTerminal &&
     input.reconciliationSummary.state !== "clear"
   ) {
     return {
@@ -664,7 +603,8 @@ export function deriveFinanceDealStage(input: {
             ? "awaiting_payout"
             : resolveFundingStage({
                 agreementOrganizationId: input.agreementOrganizationId,
-                internalEntityOrganizationId: input.internalEntityOrganizationId,
+                internalEntityOrganizationId:
+                  input.internalEntityOrganizationId,
               });
 
     return {

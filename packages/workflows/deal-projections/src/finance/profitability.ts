@@ -4,8 +4,8 @@ import {
   type DealPricingProfitability,
 } from "@bedrock/deals/contracts";
 import type {
-  TreasuryInstruction,
-  TreasuryOperationKind,
+  PaymentStep,
+  PaymentStepKind,
 } from "@bedrock/treasury/contracts";
 
 import type {
@@ -16,13 +16,12 @@ import type {
 import type {
   CalculationDetailsLike,
   DealProjectionsWorkflowDeps,
-  TreasuryOperationRecord,
 } from "../shared/deps";
 
-const CASHFLOW_OUTBOUND_KINDS: ReadonlySet<TreasuryOperationKind> =
-  new Set<TreasuryOperationKind>(["payout", "intercompany_funding"]);
+const CASHFLOW_OUTBOUND_KINDS: ReadonlySet<PaymentStepKind> =
+  new Set<PaymentStepKind>(["payout", "intercompany_funding"]);
 
-export function sumCalculationLineAmountsByCurrency(
+function sumCalculationLineAmountsByCurrency(
   lines: CalculationDetailsLike["lines"],
   kind: string,
 ) {
@@ -39,7 +38,7 @@ export function sumCalculationLineAmountsByCurrency(
   }, new Map<string, bigint>());
 }
 
-export function mergeProfitabilityAmountsByCurrency(
+function mergeProfitabilityAmountsByCurrency(
   ...groups: Map<string, bigint>[]
 ) {
   const totals = new Map<string, bigint>();
@@ -53,7 +52,7 @@ export function mergeProfitabilityAmountsByCurrency(
   return totals;
 }
 
-export async function resolveProfitabilityAmounts(
+async function resolveProfitabilityAmounts(
   currencyIdsToAmounts: Map<string, bigint>,
   deps: Pick<DealProjectionsWorkflowDeps, "currencies">,
 ): Promise<FinanceProfitabilityAmount[]> {
@@ -156,7 +155,7 @@ export async function buildProfitabilitySnapshot(
   };
 }
 
-export function accumulateAmount(
+function accumulateAmount(
   accumulator: Map<string, bigint>,
   currencyId: string | null,
   amountMinor: string | null,
@@ -172,45 +171,40 @@ export function accumulateAmount(
 }
 
 export async function buildCashflowSummary(
-  operations: readonly TreasuryOperationRecord[],
-  latestInstructionByOperationId: ReadonlyMap<string, TreasuryInstruction>,
+  steps: readonly PaymentStep[],
   deps: Pick<DealProjectionsWorkflowDeps, "currencies">,
 ): Promise<FinanceDealCashflowSummary> {
   const receivedInByCurrency = new Map<string, bigint>();
   const scheduledOutByCurrency = new Map<string, bigint>();
   const settledOutByCurrency = new Map<string, bigint>();
 
-  for (const operation of operations) {
-    const latestInstruction =
-      latestInstructionByOperationId.get(operation.id) ?? null;
-    const instructionState = latestInstruction?.state ?? null;
+  for (const step of steps) {
+    const stepAmountMinor =
+      step.fromAmountMinor === null ? null : step.fromAmountMinor.toString();
 
-    if (operation.kind === "payin") {
-      if (instructionState === "settled") {
+    if (step.kind === "payin") {
+      if (step.state === "completed") {
         accumulateAmount(
           receivedInByCurrency,
-          operation.currencyId,
-          operation.amountMinor,
+          step.fromCurrencyId,
+          stepAmountMinor,
         );
       }
       continue;
     }
 
-    if (CASHFLOW_OUTBOUND_KINDS.has(operation.kind)) {
-      if (instructionState === "settled") {
+    if (CASHFLOW_OUTBOUND_KINDS.has(step.kind)) {
+      if (step.state === "completed") {
         accumulateAmount(
           settledOutByCurrency,
-          operation.currencyId,
-          operation.amountMinor,
+          step.fromCurrencyId,
+          stepAmountMinor,
         );
-      } else if (
-        instructionState === "prepared" ||
-        instructionState === "submitted"
-      ) {
+      } else if (step.state === "pending" || step.state === "processing") {
         accumulateAmount(
           scheduledOutByCurrency,
-          operation.currencyId,
-          operation.amountMinor,
+          step.fromCurrencyId,
+          stepAmountMinor,
         );
       }
     }

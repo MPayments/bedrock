@@ -2,7 +2,7 @@ import { PortalSessionSnapshotSchema } from "@bedrock/iam/contracts";
 
 import type { UserSessionSnapshot } from "./types";
 
-export function createAnonymousSessionSnapshot(): UserSessionSnapshot {
+function createAnonymousSessionSnapshot(): UserSessionSnapshot {
   return PortalSessionSnapshotSchema.parse({
     audience: "portal",
     canAccessDashboard: false,

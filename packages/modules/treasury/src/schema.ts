@@ -1,9 +1,4 @@
 import { feeRules } from "./fees/adapters/drizzle/schema";
-import {
-  treasuryInstructionArtifacts,
-  treasuryInstructions,
-} from "./instructions/adapters/drizzle/schema";
-import { treasuryOperations } from "./operations/adapters/drizzle/schema";
 import { paymentRouteTemplates } from "./payment-routes/adapters/drizzle/schema";
 import {
   paymentStepArtifacts,
@@ -30,9 +25,6 @@ export {
   paymentStepArtifacts,
   paymentStepAttempts,
   paymentSteps,
-  treasuryInstructionArtifacts,
-  treasuryInstructions,
-  treasuryOperations,
 };
 
 export const schema = {
@@ -47,7 +39,4 @@ export const schema = {
   paymentStepArtifacts,
   paymentStepAttempts,
   paymentSteps,
-  treasuryInstructionArtifacts,
-  treasuryInstructions,
-  treasuryOperations,
 };

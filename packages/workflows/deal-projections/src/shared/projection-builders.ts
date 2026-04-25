@@ -18,9 +18,9 @@ import {
 import { getDateTimeValue, toDateOrNull } from "./utils";
 import { isDealInTerminalStatus, isQuoteEligible } from "./workflow-helpers";
 
-export const EXTERNAL_EVIDENCE_REQUIRED_MESSAGE =
+const EXTERNAL_EVIDENCE_REQUIRED_MESSAGE =
   "Загрузите подтверждающие документы по сделке";
-export const PAYMENT_INVOICE_REQUIRED_MESSAGE = "Инвойс по сделке не загружен";
+const PAYMENT_INVOICE_REQUIRED_MESSAGE = "Инвойс по сделке не загружен";
 
 export function buildPortalQuoteSummary(workflow: DealWorkflowProjection) {
   if (workflow.acceptedQuote) {

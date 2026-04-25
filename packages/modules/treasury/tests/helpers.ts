@@ -11,7 +11,7 @@ interface CurrencyFixture {
   precision?: number;
 }
 
-export const CURRENCY_IDS = {
+const CURRENCY_IDS = {
   USD: "00000000-0000-4000-8000-000000000101",
   EUR: "00000000-0000-4000-8000-000000000102",
   RUB: "00000000-0000-4000-8000-000000000104",

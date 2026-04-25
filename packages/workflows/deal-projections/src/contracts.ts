@@ -46,13 +46,6 @@ import {
   PostingDocumentRefSchema,
   QuoteListItemSchema,
   QuoteSchema,
-  TreasuryInstructionActionsSchema,
-  TreasuryInstructionAvailableOutcomeTransitionsSchema,
-  TreasuryInstructionSchema,
-  TreasuryOperationInstructionStatusSchema,
-  TreasuryOperationKindSchema,
-  TreasuryOperationProjectedStateSchema,
-  TreasuryOperationStateSchema,
 } from "@bedrock/treasury/contracts";
 
 export const PortalSubmissionCompletenessSchema = z.object({
@@ -625,42 +618,6 @@ export type FinanceDealExecutionLeg = z.infer<
   typeof FinanceDealExecutionLegSchema
 >;
 
-export const FinanceDealInstructionArtifactSchema = z.object({
-  fileAssetId: z.uuid(),
-  fileName: z.string(),
-  fileSize: z.number().int().nonnegative(),
-  id: z.uuid(),
-  instructionId: z.uuid(),
-  legIdx: z.number().int().positive().nullable(),
-  legKind: z.string().nullable(),
-  memo: z.string().nullable(),
-  mimeType: z.string(),
-  operationId: z.uuid(),
-  purpose: z.string(),
-  uploadedAt: z.iso.datetime(),
-  uploadedByUserId: z.string(),
-});
-
-export type FinanceDealInstructionArtifact = z.infer<
-  typeof FinanceDealInstructionArtifactSchema
->;
-
-export const FinanceDealOperationSchema = z.object({
-  actions: TreasuryInstructionActionsSchema,
-  availableOutcomeTransitions:
-    TreasuryInstructionAvailableOutcomeTransitionsSchema,
-  id: z.uuid(),
-  instructionStatus: TreasuryOperationInstructionStatusSchema,
-  kind: TreasuryOperationKindSchema,
-  latestInstruction: TreasuryInstructionSchema.nullable(),
-  operationHref: z.string(),
-  projectedState: TreasuryOperationProjectedStateSchema.nullable(),
-  sourceRef: z.string(),
-  state: TreasuryOperationStateSchema,
-});
-
-export type FinanceDealOperation = z.infer<typeof FinanceDealOperationSchema>;
-
 /**
  * Wire shape of a {@link PaymentStep} inside a finance workspace projection.
  *
@@ -719,23 +676,6 @@ export const FinanceDealPaymentStepSchema = z.object({
 
 export type FinanceDealPaymentStep = z.infer<
   typeof FinanceDealPaymentStepSchema
->;
-
-export const FinanceDealInstructionSummarySchema = z.object({
-  failed: z.number().int().nonnegative(),
-  planned: z.number().int().nonnegative(),
-  prepared: z.number().int().nonnegative(),
-  returnRequested: z.number().int().nonnegative(),
-  returned: z.number().int().nonnegative(),
-  settled: z.number().int().nonnegative(),
-  submitted: z.number().int().nonnegative(),
-  terminalOperations: z.number().int().nonnegative(),
-  totalOperations: z.number().int().nonnegative(),
-  voided: z.number().int().nonnegative(),
-});
-
-export type FinanceDealInstructionSummary = z.infer<
-  typeof FinanceDealInstructionSummarySchema
 >;
 
 export const FinanceDealReconciliationStateSchema = z.enum([
@@ -951,7 +891,6 @@ export const FinanceDealWorkspaceProjectionSchema = z.object({
   formalDocumentRequirements: z.array(
     FinanceDealFormalDocumentRequirementSchema,
   ),
-  instructionSummary: FinanceDealInstructionSummarySchema,
   nextAction: z.string(),
   operationalState: DealOperationalStateSchema,
   pricing: FinanceDealPricingContextSchema,
@@ -965,8 +904,6 @@ export const FinanceDealWorkspaceProjectionSchema = z.object({
   relatedResources: z.object({
     attachments: z.array(FileAttachmentSchema),
     formalDocuments: z.array(DealRelatedFormalDocumentSchema),
-    instructionArtifacts: z.array(FinanceDealInstructionArtifactSchema),
-    operations: z.array(FinanceDealOperationSchema),
     paymentSteps: z.array(FinanceDealPaymentStepSchema).default([]),
     quotes: z.array(DealRelatedQuoteSchema),
     reconciliationExceptions: z.array(

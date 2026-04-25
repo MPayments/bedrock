@@ -10,7 +10,7 @@ import {
   toBankRequisiteFormValues,
 } from "@bedrock/sdk-parties-ui/lib/bank-requisites";
 
-export const BankRequisiteIdentifierSchema = z.object({
+const BankRequisiteIdentifierSchema = z.object({
   scheme: z.string(),
   value: z.string(),
   isPrimary: z.boolean(),

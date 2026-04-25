@@ -1,5 +1,4 @@
 import type {
-  CreateAdjustmentDocumentResult,
   ReconciliationExceptionListItemDto,
   ReconciliationExternalRecordDto,
   ReconciliationRunDto,
@@ -29,15 +28,5 @@ export function toReconciliationExceptionListItemDto(
     exception: { ...row.exception },
     run: { ...row.run },
     externalRecord: { ...row.externalRecord },
-  };
-}
-
-export function toCreateAdjustmentDocumentResult(input: {
-  exceptionId: string;
-  documentId: string;
-}): CreateAdjustmentDocumentResult {
-  return {
-    exceptionId: input.exceptionId,
-    documentId: input.documentId,
   };
 }

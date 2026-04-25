@@ -24,6 +24,8 @@ import {
 } from "@bedrock/sdk-ui/components/select";
 import { toast } from "@bedrock/sdk-ui/components/sonner";
 
+import { toMinorAmountString } from "@bedrock/shared/money";
+
 import { executeMutation } from "@/lib/resources/http";
 
 import {
@@ -45,12 +47,25 @@ function createIdempotencyKey() {
   return `idem-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-function normalizePositiveAmount(raw: string): string | null {
+function normalizeMajorToMinor(
+  raw: string,
+  currencyCode: string | null,
+): string | null {
   const trimmed = raw.trim();
   if (!trimmed) return null;
-  if (!/^\d+$/.test(trimmed)) return null;
-  if (trimmed === "0") return null;
-  return trimmed.replace(/^0+/, "") || "0";
+  if (!currencyCode) {
+    if (!/^\d+$/.test(trimmed)) return null;
+    if (trimmed === "0") return null;
+    return trimmed.replace(/^0+/, "") || "0";
+  }
+  try {
+    const minor = toMinorAmountString(trimmed, currencyCode, {
+      requirePositive: true,
+    });
+    return minor.replace(/^0+/, "") || "0";
+  } catch {
+    return null;
+  }
 }
 
 type StepKind =
@@ -95,7 +110,6 @@ const INITIAL_SIDE: SideState = {
 export interface CreateStepDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Called after a successful creation — defaults to `router.refresh()`. */
   onSuccess?: (createdStepId: string) => void;
 }
 
@@ -142,8 +156,12 @@ export function CreateStepDialog({
       toast.error("Выберите валюты отправителя и получателя");
       return;
     }
-    const fromAmount = normalizePositiveAmount(from.amount);
-    const toAmount = normalizePositiveAmount(to.amount);
+    const fromCurrencyCode =
+      currencyOptions.find((opt) => opt.id === from.currencyId)?.code ?? null;
+    const toCurrencyCode =
+      currencyOptions.find((opt) => opt.id === to.currencyId)?.code ?? null;
+    const fromAmount = normalizeMajorToMinor(from.amount, fromCurrencyCode);
+    const toAmount = normalizeMajorToMinor(to.amount, toCurrencyCode);
     if (!fromAmount || !toAmount) {
       toast.error("Укажите положительные суммы отправителя и получателя");
       return;
@@ -426,8 +444,15 @@ function SideEditor({
       </Select>
 
       <Input
-        inputMode="numeric"
-        placeholder="Сумма (minor)"
+        inputMode="decimal"
+        placeholder={
+          state.currencyId
+            ? `Сумма (${
+                currencyOptions.find((opt) => opt.id === state.currencyId)
+                  ?.code ?? ""
+              })`
+            : "Сумма"
+        }
         value={state.amount}
         disabled={disabled}
         onChange={(event) =>

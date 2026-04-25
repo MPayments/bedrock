@@ -2,7 +2,7 @@ import { CrmSessionSnapshotSchema } from "@bedrock/iam/contracts";
 
 import type { UserSessionSnapshot } from "./types";
 
-export function createAnonymousSessionSnapshot(): UserSessionSnapshot {
+function createAnonymousSessionSnapshot(): UserSessionSnapshot {
   return CrmSessionSnapshotSchema.parse({
     audience: "crm",
     canAccessDashboard: false,

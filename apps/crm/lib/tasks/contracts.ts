@@ -7,7 +7,7 @@ const nullableDateStringSchema = z
 
 const nullableUuidSchema = z.string().uuid().nullable();
 
-export const CrmTaskUserSummarySchema = z.object({
+const CrmTaskUserSummarySchema = z.object({
   id: z.string(),
   name: z.string(),
 });

@@ -219,7 +219,7 @@ describe("resolveLegPartyRefs", () => {
   });
 });
 
-describe("materializeCompiledOperation dual-write", () => {
+describe("materializeCompiledOperation", () => {
   function createPaymentStepsCommands() {
     return {
       create: vi.fn<(input: Record<string, unknown>) => Promise<unknown>>(
@@ -228,33 +228,10 @@ describe("materializeCompiledOperation dual-write", () => {
     };
   }
 
-  function createOperationsCommands() {
-    return {
-      createOrGetPlanned: vi.fn(async (input: any) => ({
-        amountMinor: input.amountMinor ?? 10000n,
-        counterAmountMinor: input.counterAmountMinor,
-        counterCurrencyId: input.counterCurrencyId,
-        currencyId: input.currencyId,
-        customerId: input.customerId,
-        dealId: input.dealId,
-        id: "op-1",
-        internalEntityOrganizationId: input.internalEntityOrganizationId,
-        kind: input.kind,
-        quoteId: input.quoteId,
-        sourceRef: input.sourceRef,
-        state: "planned",
-      })),
-    };
-  }
-
   function createTreasuryModule(overrides?: {
     paymentStepsCommands?: { create: ReturnType<typeof vi.fn> };
   }) {
     return {
-      instructions: {} as any,
-      operations: {
-        commands: createOperationsCommands(),
-      },
       paymentSteps: {
         commands:
           overrides?.paymentStepsCommands ?? createPaymentStepsCommands(),
@@ -274,12 +251,11 @@ describe("materializeCompiledOperation dual-write", () => {
 
   function createDealStore() {
     return {
-      createDealLegOperationLinks: vi.fn(async () => undefined),
       createDealTimelineEvents: vi.fn(async () => undefined),
     };
   }
 
-  it("writes payment step alongside operation when flag is enabled", async () => {
+  it("writes payment step", async () => {
     const paymentStepsCommands = createPaymentStepsCommands();
     const treasuryModule = createTreasuryModule({ paymentStepsCommands });
     const dealStore = createDealStore();
@@ -293,7 +269,6 @@ describe("materializeCompiledOperation dual-write", () => {
       customerId: "customer-1",
       dealStore,
       internalEntityOrganizationId: "org-1",
-      paymentStepsEnabled: true,
       treasuryModule: treasuryModule as any,
       workflow: createWorkflow(),
     });
@@ -306,7 +281,6 @@ describe("materializeCompiledOperation dual-write", () => {
         dealLegRole: "collect",
         fromCurrencyId: "cur-usd",
         fromParty: { id: "customer-1", requisiteId: null },
-        id: "op-1",
         initialState: "pending",
         kind: "payin",
         purpose: "deal_leg",
@@ -314,27 +288,6 @@ describe("materializeCompiledOperation dual-write", () => {
         toParty: { id: "org-1", requisiteId: null },
       }),
     );
-  });
-
-  it("does not write payment step when flag is disabled", async () => {
-    const paymentStepsCommands = createPaymentStepsCommands();
-    const treasuryModule = createTreasuryModule({ paymentStepsCommands });
-
-    await materializeCompiledOperation({
-      acceptedQuote: null,
-      agreementOrganizationId: "org-1",
-      compiled: compiled(),
-      currencies: createCurrencies() as any,
-      currencyCodeById: new Map(),
-      customerId: "customer-1",
-      dealStore: createDealStore(),
-      internalEntityOrganizationId: "org-1",
-      paymentStepsEnabled: false,
-      treasuryModule: treasuryModule as any,
-      workflow: createWorkflow(),
-    });
-
-    expect(paymentStepsCommands.create).not.toHaveBeenCalled();
   });
 
   it("skips payment step creation when party resolution fails", async () => {
@@ -351,12 +304,10 @@ describe("materializeCompiledOperation dual-write", () => {
       customerId: "customer-1",
       dealStore: createDealStore(),
       internalEntityOrganizationId: "org-1",
-      paymentStepsEnabled: true,
       treasuryModule: treasuryModule as any,
       workflow,
     });
 
-    expect(treasuryModule.operations.commands.createOrGetPlanned).toHaveBeenCalled();
     expect(paymentStepsCommands.create).not.toHaveBeenCalled();
   });
 
@@ -376,7 +327,6 @@ describe("materializeCompiledOperation dual-write", () => {
       customerId: "customer-1",
       dealStore: createDealStore(),
       internalEntityOrganizationId: "org-1",
-      paymentStepsEnabled: true,
       treasuryModule: treasuryModule as any,
       workflow: createWorkflow(),
     });

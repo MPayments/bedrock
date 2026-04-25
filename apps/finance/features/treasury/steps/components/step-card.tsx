@@ -9,6 +9,8 @@ import type { FinanceDealPaymentStep } from "@/features/treasury/deals/lib/queri
 import type { PartyKind } from "../lib/party-options";
 import {
   deriveStepPrimaryAction,
+  STEP_KIND_LABELS,
+  STEP_PURPOSE_LABELS,
   type StepConfirmOutcome,
 } from "../lib/step-helpers";
 import { StepAttemptsDrawer } from "./step-attempts-drawer";
@@ -20,38 +22,12 @@ import { StepSubmitDialog } from "./step-submit-dialog";
 
 export interface StepCardProps {
   step: FinanceDealPaymentStep;
-  /**
-   * Optional upload endpoint for the confirm dialog. Omit to disable the
-   * file-upload control — useful for standalone/draft steps where there is
-   * no owning deal yet.
-   */
   uploadAssetPath?: string;
-  /** Admin href (e.g. `/treasury/operations/{operationId}`) for overflow. */
   adminViewHref?: string;
-  /**
-   * Called after any successful mutation. Receives the step at the moment of
-   * change so the parent can run post-hooks (e.g. auto-linking newly
-   * appeared posting documents) before its own refresh.
-   */
   onChanged?: (step: FinanceDealPaymentStep) => void;
-  /**
-   * Short headline shown in the card header (e.g. "Шаг 2 · Конверсия").
-   * Parent supplies it because only the parent knows the deal/leg context
-   * (role labels, step position in the route).
-   */
   title?: string;
-  /**
-   * Optional party kinds per side — when provided the route editor turns
-   * party and requisite pickers into live Selects. Parent derives this from
-   * the deal's route-attachment participants (for `deal_leg` steps).
-   */
   fromPartyKind?: PartyKind | null;
   toPartyKind?: PartyKind | null;
-  /**
-   * Display names / currency codes for the route editor so the user sees
-   * `ARABIAN FUEL ALLIANCE DMCC` / `USD 125,00` instead of raw UUIDs and
-   * minor-unit integers. Parent resolves these from its rich deal context.
-   */
   fromPartyDisplayName?: string | null;
   toPartyDisplayName?: string | null;
   fromCurrencyCode?: string | null;
@@ -102,7 +78,7 @@ export function StepCard({
               <div className="text-sm font-semibold">{title}</div>
             ) : null}
             <div className="text-muted-foreground text-xs">
-              {step.kind} · {step.purpose}
+              {STEP_KIND_LABELS[step.kind]} · {STEP_PURPOSE_LABELS[step.purpose]}
             </div>
           </div>
           <StepStateBadge
@@ -163,6 +139,7 @@ export function StepCard({
             onChanged={handleSuccess}
             onMarkReturned={() => openConfirmDialog("returned")}
             onOpenHistory={() => setHistoryOpen(true)}
+            onRetry={() => setSubmitOpen(true)}
           />
         </div>
       </div>

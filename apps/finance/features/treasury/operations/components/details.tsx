@@ -11,6 +11,10 @@ import { formatCompactId } from "@bedrock/shared/core/uuid";
 import { EntityWorkspaceLayout } from "@/components/entities/workspace-layout";
 import { StepAttemptsDrawer } from "@/features/treasury/steps/components/step-attempts-drawer";
 import { StepCard } from "@/features/treasury/steps/components/step-card";
+import {
+  STEP_DEAL_LEG_ROLE_LABELS,
+  STEP_KIND_LABELS,
+} from "@/features/treasury/steps/lib/step-helpers";
 
 import type { TreasuryOperationDetails } from "../lib/queries";
 
@@ -76,8 +80,12 @@ export function TreasuryOperationDetailsView({
           step={operation}
           title={
             hasDealContext && operation.dealLegIdx !== null
-              ? `Шаг ${operation.dealLegIdx + 1} · ${operation.dealLegRole ?? operation.kind}`
-              : operation.kind
+              ? `Шаг ${operation.dealLegIdx} · ${
+                  operation.dealLegRole
+                    ? STEP_DEAL_LEG_ROLE_LABELS[operation.dealLegRole]
+                    : STEP_KIND_LABELS[operation.kind]
+                }`
+              : STEP_KIND_LABELS[operation.kind]
           }
           uploadAssetPath={uploadAssetPath}
           onChanged={() => router.refresh()}

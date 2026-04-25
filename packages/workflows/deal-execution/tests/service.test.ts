@@ -266,23 +266,26 @@ function createAcceptanceDocument() {
 }
 
 function createCloseDealHarness(input?: {
-  latestInstructions?: {
-    attempt: number;
-    createdAt: Date;
+  paymentSteps?: {
+    dealLegIdx: number;
     id: string;
-    operationId: string;
-    providerRef: string | null;
-    providerSnapshot: Record<string, unknown> | null;
-    sourceRef: string;
+    kind:
+      | "payin"
+      | "fx_conversion"
+      | "payout"
+      | "intracompany_transfer"
+      | "intercompany_funding"
+      | "internal_transfer";
     state:
-      | "prepared"
-      | "submitted"
-      | "settled"
+      | "draft"
+      | "scheduled"
+      | "pending"
+      | "processing"
+      | "completed"
       | "failed"
-      | "voided"
-      | "return_requested"
-      | "returned";
-    updatedAt: Date;
+      | "returned"
+      | "cancelled"
+      | "skipped";
   }[];
   reconciliationLinks?: {
     exceptions: {
@@ -365,16 +368,47 @@ function createCloseDealHarness(input?: {
       },
     } as any),
     createTreasuryModule: () => ({
-      instructions: {
-        queries: {
-          listLatestByOperationIds: vi.fn(
-            async () => input?.latestInstructions ?? [],
-          ),
-        },
-      },
       operations: {
         commands: {
           createOrGetPlanned: vi.fn(),
+        },
+      },
+      paymentSteps: {
+        queries: {
+          list: vi.fn(async () => {
+            const items = (input?.paymentSteps ?? []).map((step) => ({
+              artifacts: [],
+              attempts: [],
+              completedAt: null,
+              createdAt: new Date("2026-04-03T10:00:00.000Z"),
+              dealId: "deal-1",
+              dealLegIdx: step.dealLegIdx,
+              dealLegRole: null,
+              failureReason: null,
+              fromAmountMinor: null,
+              fromCurrencyId: "currency-usd",
+              fromParty: { id: "party-1", requisiteId: null },
+              id: step.id,
+              kind: step.kind,
+              postings: [],
+              purpose: "deal_leg" as const,
+              rate: null,
+              scheduledAt: null,
+              state: step.state,
+              submittedAt: null,
+              toAmountMinor: null,
+              toCurrencyId: "currency-usd",
+              toParty: { id: "party-2", requisiteId: null },
+              treasuryBatchId: null,
+              updatedAt: new Date("2026-04-03T10:00:00.000Z"),
+            }));
+            return {
+              data: items,
+              limit: 100,
+              offset: 0,
+              total: items.length,
+            };
+          }),
         },
       },
       quotes: {
@@ -757,11 +791,21 @@ describe("deal execution workflow", () => {
       .mockResolvedValueOnce(materializedWorkflow);
     const createDealLegOperationLinks = vi.fn(async () => undefined);
     const createDealTimelineEvents = vi.fn(async () => undefined);
-    const createOrGetPlanned = vi
+    let opCounter = 0;
+    const createOrGetPlanned = vi.fn(async () => {
+      opCounter += 1;
+      return { id: `op-${opCounter}` };
+    });
+    const listPaymentSteps = vi
       .fn()
-      .mockResolvedValueOnce({ id: "op-1" })
-      .mockResolvedValueOnce({ id: "op-2" })
-      .mockResolvedValueOnce({ id: "op-3" });
+      .mockResolvedValueOnce({ data: [], limit: 1, offset: 0, total: 0 })
+      .mockResolvedValue({
+        data: [{ id: "step-1" }],
+        limit: 1,
+        offset: 0,
+        total: 1,
+      });
+    const createPaymentStep = vi.fn(async () => undefined);
     const workflow = createDealExecutionWorkflow({
       agreements: {
         agreements: {
@@ -806,6 +850,14 @@ describe("deal execution workflow", () => {
             createOrGetPlanned,
           },
         },
+        paymentSteps: {
+          commands: {
+            create: createPaymentStep,
+          },
+          queries: {
+            list: listPaymentSteps,
+          },
+        },
         quotes: {
           queries: {
             getQuoteDetails: vi.fn(async () => createAcceptedQuoteDetails()),
@@ -825,36 +877,14 @@ describe("deal execution workflow", () => {
       idempotencyKey: "idem-1",
     });
 
-    expect(createOrGetPlanned).toHaveBeenCalledTimes(3);
-    expect(createDealLegOperationLinks).toHaveBeenCalledTimes(3);
     expect(createDealTimelineEvents).toHaveBeenCalledTimes(1);
   });
 
   it("rejects closeDeal while reconciliation is still pending", async () => {
     const harness = createCloseDealHarness({
-      latestInstructions: [
-        {
-          attempt: 1,
-          createdAt: new Date("2026-04-03T10:00:00.000Z"),
-          id: "instruction-1",
-          operationId: "op-1",
-          providerRef: null,
-          providerSnapshot: null,
-          sourceRef: "source-1",
-          state: "voided",
-          updatedAt: new Date("2026-04-03T10:00:00.000Z"),
-        },
-        {
-          attempt: 1,
-          createdAt: new Date("2026-04-03T10:05:00.000Z"),
-          id: "instruction-2",
-          operationId: "op-2",
-          providerRef: null,
-          providerSnapshot: null,
-          sourceRef: "source-2",
-          state: "settled",
-          updatedAt: new Date("2026-04-03T10:05:00.000Z"),
-        },
+      paymentSteps: [
+        { dealLegIdx: 1, id: "op-1", kind: "payin", state: "cancelled" },
+        { dealLegIdx: 2, id: "op-2", kind: "payout", state: "completed" },
       ],
       reconciliationLinks: [],
     });
@@ -873,29 +903,9 @@ describe("deal execution workflow", () => {
 
   it("rejects closeDeal when reconciliation has open exceptions", async () => {
     const harness = createCloseDealHarness({
-      latestInstructions: [
-        {
-          attempt: 1,
-          createdAt: new Date("2026-04-03T10:00:00.000Z"),
-          id: "instruction-1",
-          operationId: "op-1",
-          providerRef: null,
-          providerSnapshot: null,
-          sourceRef: "source-1",
-          state: "voided",
-          updatedAt: new Date("2026-04-03T10:00:00.000Z"),
-        },
-        {
-          attempt: 1,
-          createdAt: new Date("2026-04-03T10:05:00.000Z"),
-          id: "instruction-2",
-          operationId: "op-2",
-          providerRef: null,
-          providerSnapshot: null,
-          sourceRef: "source-2",
-          state: "settled",
-          updatedAt: new Date("2026-04-03T10:05:00.000Z"),
-        },
+      paymentSteps: [
+        { dealLegIdx: 1, id: "op-1", kind: "payin", state: "cancelled" },
+        { dealLegIdx: 2, id: "op-2", kind: "payout", state: "completed" },
       ],
       reconciliationLinks: [
         {
@@ -932,29 +942,9 @@ describe("deal execution workflow", () => {
 
   it("closes the deal once reconciliation-aware readiness is satisfied", async () => {
     const harness = createCloseDealHarness({
-      latestInstructions: [
-        {
-          attempt: 1,
-          createdAt: new Date("2026-04-03T10:00:00.000Z"),
-          id: "instruction-1",
-          operationId: "op-1",
-          providerRef: null,
-          providerSnapshot: null,
-          sourceRef: "source-1",
-          state: "voided",
-          updatedAt: new Date("2026-04-03T10:00:00.000Z"),
-        },
-        {
-          attempt: 1,
-          createdAt: new Date("2026-04-03T10:05:00.000Z"),
-          id: "instruction-2",
-          operationId: "op-2",
-          providerRef: null,
-          providerSnapshot: null,
-          sourceRef: "source-2",
-          state: "settled",
-          updatedAt: new Date("2026-04-03T10:05:00.000Z"),
-        },
+      paymentSteps: [
+        { dealLegIdx: 1, id: "op-1", kind: "payin", state: "cancelled" },
+        { dealLegIdx: 2, id: "op-2", kind: "payout", state: "completed" },
       ],
       reconciliationLinks: [
         {
@@ -1081,153 +1071,4 @@ describe("deal execution workflow", () => {
     expect(result.executionPlan.at(-1)?.state).toBe("pending");
   });
 
-  it("ingests a treasury settlement reconciliation record when an instruction reaches a terminal outcome", async () => {
-    const workflowProjection = createWorkflowProjection({
-      operationRefs: [
-        [
-          {
-            kind: "payin",
-            operationId: "op-1",
-            sourceRef: "deal:deal-1:leg:1:payin:1",
-          },
-        ],
-        [],
-      ],
-      status: "awaiting_payment",
-      type: "payment",
-      withConvert: false,
-    });
-    const ingestExternalRecord = vi.fn(async () => undefined);
-    const createDealTimelineEvents = vi.fn(async () => undefined);
-
-    const workflow = createDealExecutionWorkflow({
-      agreements: {
-        agreements: {
-          queries: {
-            findById: vi.fn(),
-          },
-        },
-      } as any,
-      currencies: {
-        findById: vi.fn(),
-      } as any,
-      db: {
-        transaction: vi.fn(async (handler: (tx: any) => Promise<unknown>) =>
-          handler({}),
-        ),
-      } as any,
-      idempotency: {
-        withIdempotencyTx: vi.fn(async ({ handler }) => handler()),
-      } as any,
-      createDealStore: () => ({
-        createDealLegOperationLinks: vi.fn(),
-        createDealTimelineEvents,
-      }),
-      createDealsModule: () => ({
-        deals: {
-          queries: {
-            findWorkflowById: vi.fn(async () => workflowProjection),
-          },
-        },
-      } as any),
-      createReconciliationService: () => ({
-        links: {
-          listOperationLinks: vi.fn(async () => []),
-        },
-        records: {
-          ingestExternalRecord,
-        },
-      } as any),
-      createTreasuryModule: () => ({
-        instructions: {
-          commands: {
-            recordOutcome: vi.fn(async () => ({
-              attempt: 1,
-              createdAt: new Date("2026-04-03T10:00:00.000Z"),
-              failedAt: null,
-              id: "instruction-1",
-              operationId: "op-1",
-              providerRef: "provider-ref-1",
-              providerSnapshot: { providerStatus: "settled" },
-              returnRequestedAt: null,
-              returnedAt: null,
-              settledAt: new Date("2026-04-03T10:05:00.000Z"),
-              sourceRef: "source-1",
-              state: "settled",
-              submittedAt: new Date("2026-04-03T10:01:00.000Z"),
-              updatedAt: new Date("2026-04-03T10:05:00.000Z"),
-              voidedAt: null,
-            })),
-          },
-          queries: {
-            findById: vi.fn(async () => ({
-              attempt: 1,
-              createdAt: new Date("2026-04-03T10:00:00.000Z"),
-              failedAt: null,
-              id: "instruction-1",
-              operationId: "op-1",
-              providerRef: null,
-              providerSnapshot: null,
-              returnRequestedAt: null,
-              returnedAt: null,
-              settledAt: null,
-              sourceRef: "source-1",
-              state: "submitted",
-              submittedAt: new Date("2026-04-03T10:01:00.000Z"),
-              updatedAt: new Date("2026-04-03T10:01:00.000Z"),
-              voidedAt: null,
-            })),
-          },
-        },
-        operations: {
-          queries: {
-            findById: vi.fn(async () => ({
-              dealId: "deal-1",
-              id: "op-1",
-              kind: "payout",
-            })),
-          },
-        },
-        quotes: {
-          queries: {
-            getQuoteDetails: vi.fn(async () => null),
-          },
-        },
-      } as any),
-    });
-
-    await workflow.recordInstructionOutcome({
-      actorUserId: "user-1",
-      idempotencyKey: "record-outcome-1",
-      instructionId: "instruction-1",
-      outcome: "settled",
-      providerRef: "provider-ref-1",
-      providerSnapshot: { providerStatus: "settled" },
-    });
-
-    expect(ingestExternalRecord).toHaveBeenCalledWith({
-      actorUserId: "user-1",
-      idempotencyKey: "reconciliation:auto:instruction-1:settled",
-      normalizationVersion: 1,
-      normalizedPayload: {
-        dealId: "deal-1",
-        instructionId: "instruction-1",
-        instructionState: "settled",
-        operationId: "op-1",
-        operationKind: "treasury",
-        treasuryOperationKind: "payout",
-      },
-      rawPayload: {
-        dealId: "deal-1",
-        instructionId: "instruction-1",
-        instructionState: "settled",
-        operationId: "op-1",
-        operationKind: "payout",
-        providerRef: "provider-ref-1",
-        providerSnapshot: { providerStatus: "settled" },
-      },
-      source: "treasury_instruction_outcomes",
-      sourceRecordId: "instruction-1:settled",
-    });
-  });
 });

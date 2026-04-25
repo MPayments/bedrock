@@ -79,7 +79,7 @@ function normalizeSearchParams(
   return new URLSearchParams(searchParams.toString());
 }
 
-export function normalizeCrmPathname(pathname: string) {
+function normalizeCrmPathname(pathname: string) {
   const sanitizedPathname = stripPathDecorators(pathname).trim();
 
   if (sanitizedPathname.length === 0 || sanitizedPathname === "/") {

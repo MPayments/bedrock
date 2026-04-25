@@ -4,7 +4,7 @@ import type {
   PaymentRouteCalculationFee,
 } from "@bedrock/treasury/contracts";
 
-export function aggregatePaymentRouteFeeTotals(
+function aggregatePaymentRouteFeeTotals(
   fees: PaymentRouteCalculationFee[],
 ): PaymentRouteAmountTotal[] {
   const totals = new Map<string, bigint>();

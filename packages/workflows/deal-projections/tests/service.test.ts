@@ -275,40 +275,6 @@ function createWorkflow(overrides?: {
     usedByRef: string | null;
     usedDocumentId: string | null;
   }[];
-  treasuryOperations?: {
-    amountMinor: bigint | null;
-    counterAmountMinor: bigint | null;
-    counterCurrencyId: string | null;
-    createdAt: Date;
-    currencyId: string | null;
-    customerId: string | null;
-    dealId: string | null;
-    id: string;
-    internalEntityOrganizationId: string | null;
-    kind: "payin" | "payout" | "fx_conversion" | "intracompany_transfer" | "intercompany_funding";
-    quoteId: string | null;
-    sourceRef: string;
-    state: "planned";
-    updatedAt: Date;
-  }[];
-  latestInstructions?: {
-    attempt: number;
-    createdAt: Date;
-    id: string;
-    operationId: string;
-    providerRef: string | null;
-    providerSnapshot: Record<string, unknown> | null;
-    sourceRef: string;
-    state:
-      | "prepared"
-      | "submitted"
-      | "settled"
-      | "failed"
-      | "voided"
-      | "return_requested"
-      | "returned";
-    updatedAt: Date;
-  }[];
   reconciliationLinks?: {
     exceptions: {
       createdAt: Date;
@@ -323,6 +289,38 @@ function createWorkflow(overrides?: {
     lastActivityAt: Date | null;
     matchCount: number;
     operationId: string;
+  }[];
+  paymentSteps?: {
+    dealId: string | null;
+    dealLegIdx: number | null;
+    dealLegRole:
+      | "collect"
+      | "convert"
+      | "payout"
+      | "settle_exporter"
+      | "transit_hold"
+      | null;
+    fromAmountMinor: bigint | null;
+    fromCurrencyId: string;
+    id: string;
+    kind:
+      | "payin"
+      | "fx_conversion"
+      | "payout"
+      | "intracompany_transfer"
+      | "intercompany_funding"
+      | "internal_transfer";
+    state:
+      | "draft"
+      | "scheduled"
+      | "pending"
+      | "processing"
+      | "completed"
+      | "failed"
+      | "returned"
+      | "cancelled"
+      | "skipped";
+    toCurrencyId: string;
   }[];
   workflow?: ReturnType<typeof createBaseWorkflow>;
 }) {
@@ -501,35 +499,42 @@ function createWorkflow(overrides?: {
       },
     } as never,
     treasury: {
-      instructions: {
-        queries: {
-          listArtifactsByInstructionIds: vi.fn(async () => []),
-          listByOperationIds: vi.fn(
-            async () => overrides?.latestInstructions ?? [],
-          ),
-          listLatestByOperationIds: vi.fn(
-            async () => overrides?.latestInstructions ?? [],
-          ),
-        },
-      },
-      operations: {
-        queries: {
-          list: vi.fn(async () => ({
-            data: overrides?.treasuryOperations ?? [],
-            limit: MAX_QUERY_LIST_LIMIT,
-            offset: 0,
-            total: overrides?.treasuryOperations?.length ?? 0,
-          })),
-        },
-      },
       paymentSteps: {
         queries: {
-          list: vi.fn(async () => ({
-            data: [],
-            limit: 100,
-            offset: 0,
-            total: 0,
-          })),
+          list: vi.fn(async () => {
+            const items = (overrides?.paymentSteps ?? []).map((step) => ({
+              artifacts: [],
+              attempts: [],
+              completedAt: null,
+              createdAt: new Date("2026-04-01T10:00:00.000Z"),
+              dealId: step.dealId,
+              dealLegIdx: step.dealLegIdx,
+              dealLegRole: step.dealLegRole,
+              failureReason: null,
+              fromAmountMinor: step.fromAmountMinor,
+              fromCurrencyId: step.fromCurrencyId,
+              fromParty: { id: "party-1", requisiteId: null },
+              id: step.id,
+              kind: step.kind,
+              postings: [],
+              purpose: "deal_leg" as const,
+              rate: null,
+              scheduledAt: null,
+              state: step.state,
+              submittedAt: null,
+              toAmountMinor: null,
+              toCurrencyId: step.toCurrencyId,
+              toParty: { id: "party-2", requisiteId: null },
+              treasuryBatchId: null,
+              updatedAt: new Date("2026-04-01T10:00:00.000Z"),
+            }));
+            return {
+              data: items,
+              limit: 100,
+              offset: 0,
+              total: items.length,
+            };
+          }),
         },
       },
       quotes: {
@@ -1008,19 +1013,6 @@ describe("createDealProjectionsWorkflow", () => {
         ],
         updatedAt: new Date("2026-04-01T09:00:00.000Z"),
       },
-      latestInstructions: [
-        {
-          attempt: 1,
-          createdAt: new Date("2026-04-01T10:00:00.000Z"),
-          id: "instruction-1",
-          operationId: "operation-1",
-          providerRef: null,
-          providerSnapshot: null,
-          sourceRef: "source-1",
-          state: "settled",
-          updatedAt: new Date("2026-04-01T10:00:00.000Z"),
-        },
-      ],
       reconciliationLinks: [
         {
           exceptions: [
@@ -1040,22 +1032,17 @@ describe("createDealProjectionsWorkflow", () => {
           operationId: "operation-1",
         },
       ],
-      treasuryOperations: [
+      paymentSteps: [
         {
-          amountMinor: 10000000n,
-          counterAmountMinor: null,
-          counterCurrencyId: null,
-          createdAt: new Date("2026-04-01T09:00:00.000Z"),
-          currencyId: "currency-rub",
-          customerId: "customer-1",
           dealId: "deal-1",
+          dealLegIdx: 1,
+          dealLegRole: "payout",
+          fromAmountMinor: 10000000n,
+          fromCurrencyId: "currency-rub",
           id: "operation-1",
-          internalEntityOrganizationId: "organization-1",
           kind: "payout",
-          quoteId: null,
-          sourceRef: "deal:deal-1:leg:1:payout:1",
-          state: "planned",
-          updatedAt: new Date("2026-04-01T09:00:00.000Z"),
+          state: "completed",
+          toCurrencyId: "currency-rub",
         },
       ],
       treasuryQuotes: [
@@ -1239,18 +1226,6 @@ describe("createDealProjectionsWorkflow", () => {
             currencyId: "currency-rub",
           },
         ],
-      },
-      instructionSummary: {
-        failed: 0,
-        planned: 0,
-        prepared: 0,
-        returnRequested: 0,
-        returned: 0,
-        settled: 1,
-        submitted: 0,
-        terminalOperations: 1,
-        totalOperations: 1,
-        voided: 0,
       },
       reconciliationSummary: {
         ignoredExceptionCount: 0,

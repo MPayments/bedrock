@@ -188,12 +188,3 @@ export type CorrespondenceRule = typeof correspondenceRules.$inferSelect;
 export type AccountingPackVersion = typeof accountingPackVersions.$inferSelect;
 export type AccountingPackAssignment =
   typeof accountingPackAssignments.$inferSelect;
-
-export const schema = {
-  chartTemplateAccounts,
-  chartAccountDimensionPolicy,
-  postingCodeDimensionPolicy,
-  correspondenceRules,
-  accountingPackVersions,
-  accountingPackAssignments,
-};

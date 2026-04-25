@@ -29,7 +29,7 @@ export function createDocumentsModuleRuntime(
   };
 }
 
-export function createDocumentsIdempotencyPort(input: {
+function createDocumentsIdempotencyPort(input: {
   tx: Transaction;
   idempotency: IdempotencyPort;
 }): DocumentsIdempotencyPort {
@@ -64,7 +64,7 @@ export function createDocumentsIdempotencyPort(input: {
   };
 }
 
-export function createDocumentsTransactionContext(input: {
+function createDocumentsTransactionContext(input: {
   tx: Transaction;
   idempotency: IdempotencyPort;
 }): DocumentsTransactionContext {

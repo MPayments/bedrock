@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const PORTAL_ACCESS_GRANT_STATUS_VALUES = [
+const PORTAL_ACCESS_GRANT_STATUS_VALUES = [
   "pending_onboarding",
   "consumed",
   "revoked",

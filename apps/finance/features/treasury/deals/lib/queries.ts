@@ -3,15 +3,6 @@ import { headers } from "next/headers";
 import { z } from "zod";
 
 import {
-  TreasuryInstructionActionsSchema,
-  TreasuryInstructionAvailableOutcomeTransitionsSchema,
-  TreasuryInstructionSchema,
-  TreasuryOperationInstructionStatusSchema,
-  TreasuryOperationKindSchema,
-  TreasuryOperationProjectedStateSchema,
-  TreasuryOperationStateSchema,
-} from "@bedrock/treasury/contracts";
-import {
   FinanceDealPaymentStepSchema,
   type FinanceDealPaymentStep as FinanceDealPaymentStepFromSchema,
   type FinanceDealPaymentStepAttempt as FinanceDealPaymentStepAttemptFromSchema,
@@ -461,49 +452,6 @@ const FinanceDealLegOperationRefSchema = z.object({
   sourceRef: z.string(),
 });
 
-const FinanceDealOperationSchema = z.object({
-  actions: TreasuryInstructionActionsSchema,
-  availableOutcomeTransitions:
-    TreasuryInstructionAvailableOutcomeTransitionsSchema,
-  id: z.string().uuid(),
-  instructionStatus: TreasuryOperationInstructionStatusSchema,
-  kind: TreasuryOperationKindSchema,
-  latestInstruction: TreasuryInstructionSchema.nullable(),
-  operationHref: z.string(),
-  projectedState: TreasuryOperationProjectedStateSchema.nullable(),
-  sourceRef: z.string(),
-  state: TreasuryOperationStateSchema,
-});
-
-const FinanceDealInstructionArtifactSchema = z.object({
-  fileAssetId: z.string().uuid(),
-  fileName: z.string(),
-  fileSize: z.number().int().nonnegative(),
-  id: z.string().uuid(),
-  instructionId: z.string().uuid(),
-  legIdx: z.number().int().positive().nullable(),
-  legKind: z.string().nullable(),
-  memo: z.string().nullable(),
-  mimeType: z.string(),
-  operationId: z.string().uuid(),
-  purpose: z.string(),
-  uploadedAt: z.iso.datetime(),
-  uploadedByUserId: z.string(),
-});
-
-const FinanceDealInstructionSummarySchema = z.object({
-  failed: z.number().int().nonnegative(),
-  planned: z.number().int().nonnegative(),
-  prepared: z.number().int().nonnegative(),
-  returnRequested: z.number().int().nonnegative(),
-  returned: z.number().int().nonnegative(),
-  settled: z.number().int().nonnegative(),
-  submitted: z.number().int().nonnegative(),
-  terminalOperations: z.number().int().nonnegative(),
-  totalOperations: z.number().int().nonnegative(),
-  voided: z.number().int().nonnegative(),
-});
-
 const FinanceDealReconciliationExceptionSchema = z.object({
   actions: z.object({
     adjustmentDocumentDocType: z.string().nullable(),
@@ -581,7 +529,6 @@ const FinanceDealWorkspaceSchema = z.object({
   formalDocumentRequirements: z.array(
     FinanceDealFormalDocumentRequirementSchema,
   ),
-  instructionSummary: FinanceDealInstructionSummarySchema,
   nextAction: z.string(),
   operationalState: z.object({
     positions: z.array(
@@ -613,10 +560,6 @@ const FinanceDealWorkspaceSchema = z.object({
   relatedResources: z.object({
     attachments: z.array(FinanceDealAttachmentSchema),
     formalDocuments: z.array(FinanceDealFormalDocumentSchema),
-    instructionArtifacts: z
-      .array(FinanceDealInstructionArtifactSchema)
-      .default([]),
-    operations: z.array(FinanceDealOperationSchema),
     paymentSteps: z.array(FinanceDealPaymentStepSchema).default([]),
     quotes: z.array(FinanceDealWorkspaceQuoteSchema),
     reconciliationExceptions: z.array(FinanceDealReconciliationExceptionSchema),
@@ -763,9 +706,6 @@ export type FinanceDealRouteAttachmentLeg = z.infer<
 >;
 export type FinanceDealRouteAttachmentParticipant = z.infer<
   typeof FinanceDealRouteAttachmentParticipantSchema
->;
-export type FinanceDealInstructionArtifact = z.infer<
-  typeof FinanceDealInstructionArtifactSchema
 >;
 // Re-export the shared step schemas under the deal-workbench's own type
 // names so existing callers (components, tests) don't have to chase the

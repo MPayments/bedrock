@@ -4,6 +4,11 @@ import type {
 } from "@/features/treasury/deals/lib/queries";
 
 export type StepState = FinanceDealPaymentStep["state"];
+export type StepKind = FinanceDealPaymentStep["kind"];
+export type StepPurpose = FinanceDealPaymentStep["purpose"];
+export type StepDealLegRole = NonNullable<
+  FinanceDealPaymentStep["dealLegRole"]
+>;
 export type StepConfirmOutcome = "settled" | "failed" | "returned";
 
 export const STEP_STATE_LABELS: Record<StepState, string> = {
@@ -16,6 +21,29 @@ export const STEP_STATE_LABELS: Record<StepState, string> = {
   returned: "Возврат",
   cancelled: "Отменён",
   skipped: "Пропущен",
+};
+
+export const STEP_KIND_LABELS: Record<StepKind, string> = {
+  payin: "Входящий платёж",
+  fx_conversion: "Конверсия",
+  payout: "Выплата",
+  intracompany_transfer: "Внутренний перевод",
+  intercompany_funding: "Межкомпанейское фондирование",
+  internal_transfer: "Собственный перевод",
+};
+
+export const STEP_PURPOSE_LABELS: Record<StepPurpose, string> = {
+  deal_leg: "Шаг сделки",
+  pre_fund: "Пре-фондирование",
+  standalone_payment: "Отдельная операция",
+};
+
+export const STEP_DEAL_LEG_ROLE_LABELS: Record<StepDealLegRole, string> = {
+  collect: "Сбор средств",
+  convert: "Конверсия",
+  payout: "Выплата",
+  transit_hold: "Транзитный счёт",
+  settle_exporter: "Расчёт с экспортёром",
 };
 
 export const STEP_CONFIRM_OUTCOME_LABELS: Record<StepConfirmOutcome, string> = {
@@ -53,11 +81,6 @@ export type StepBadgeVariant =
   | "outline"
   | "secondary";
 
-/**
- * Map each state to a shadcn Badge variant. Mutable states use `outline` to
- * stay low-visual-weight; terminal success uses the strong `default`; errors
- * use `destructive`; override/skip uses `secondary`.
- */
 export function stepBadgeVariant(state: StepState): StepBadgeVariant {
   switch (state) {
     case "completed":
@@ -90,16 +113,6 @@ export interface AmendRouteInput {
   after: AmendFieldValues;
 }
 
-/**
- * Build the `POST /v1/treasury/steps/{id}/amend` body for the fields that
- * actually changed. Returns `null` when nothing has changed so the caller can
- * skip the network round-trip.
- *
- * Party updates always send the full `{ id, requisiteId }` payload because
- * the backend schema requires both — changing only the entity leaves the
- * old requisite attached to the new owner, so the UI also resets the
- * requisite whenever the entity changes (enforced by the editor, not here).
- */
 export function buildAmendRouteBody(
   input: AmendRouteInput,
 ): Record<string, unknown> | null {
@@ -151,10 +164,6 @@ function rateEquals(
   return left.value === right.value && left.lockedSide === right.lockedSide;
 }
 
-/**
- * Latest attempt for a step (attempts are append-only and ordered by attempt
- * number). Returns `null` if the step has never been submitted.
- */
 export function latestStepAttempt(
   step: FinanceDealPaymentStep,
 ): FinanceDealPaymentStepAttempt | null {

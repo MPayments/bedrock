@@ -6,77 +6,11 @@ import { Download, Paperclip, Trash2, Upload } from "lucide-react";
 import { Badge } from "@bedrock/sdk-ui/components/badge";
 import { Button } from "@bedrock/sdk-ui/components/button";
 
-import { getDealLegKindLabel } from "@/features/treasury/deals/labels";
-import type {
-  FinanceDealInstructionArtifact,
-  FinanceDealWorkbench,
-} from "@/features/treasury/deals/lib/queries";
+import type { FinanceDealWorkbench } from "@/features/treasury/deals/lib/queries";
 
 import { formatFileSize } from "./file-utils";
 
 type DealAttachment = FinanceDealWorkbench["relatedResources"]["attachments"][number];
-
-interface MergedRow {
-  description: string | null;
-  fileName: string;
-  fileSize: number;
-  id: string;
-  kind: "deal" | "instruction";
-  legIdx: number | null;
-  legKind: string | null;
-  mimeType: string;
-  purpose: string | null;
-  source: DealAttachment | FinanceDealInstructionArtifact;
-  uploadedAt: string;
-  uploadedBy: string | null;
-}
-
-const INSTRUCTION_ARTIFACT_PURPOSE_LABEL: Record<string, string> = {
-  submission_confirmation: "Подтверждение отправки",
-  bank_confirmation: "Подтверждение банка",
-  counterparty_receipt: "Квитанция контрагента",
-  settlement_confirmation: "Подтверждение расчёта",
-  exception_note: "Примечание по исключению",
-};
-
-function mergeRows(deal: FinanceDealWorkbench): MergedRow[] {
-  const dealRows: MergedRow[] = deal.relatedResources.attachments.map(
-    (attachment) => ({
-      description: attachment.description,
-      fileName: attachment.fileName,
-      fileSize: attachment.fileSize,
-      id: attachment.id,
-      kind: "deal",
-      legIdx: null,
-      legKind: null,
-      mimeType: attachment.mimeType,
-      purpose: attachment.visibility,
-      source: attachment,
-      uploadedAt: attachment.createdAt,
-      uploadedBy: attachment.uploadedBy,
-    }),
-  );
-
-  const artifactRows: MergedRow[] =
-    deal.relatedResources.instructionArtifacts.map((artifact) => ({
-      description: artifact.memo,
-      fileName: artifact.fileName,
-      fileSize: artifact.fileSize,
-      id: artifact.id,
-      kind: "instruction",
-      legIdx: artifact.legIdx,
-      legKind: artifact.legKind,
-      mimeType: artifact.mimeType,
-      purpose: artifact.purpose,
-      source: artifact,
-      uploadedAt: artifact.uploadedAt,
-      uploadedBy: artifact.uploadedByUserId,
-    }));
-
-  return [...dealRows, ...artifactRows].sort((left, right) =>
-    right.uploadedAt.localeCompare(left.uploadedAt),
-  );
-}
 
 export interface DealAttachmentsCardProps {
   canUpload: boolean;
@@ -95,7 +29,13 @@ export function DealAttachmentsCard({
   onDownloadAttachment,
   onOpenUpload,
 }: DealAttachmentsCardProps) {
-  const rows = useMemo(() => mergeRows(deal), [deal]);
+  const rows = useMemo(
+    () =>
+      [...deal.relatedResources.attachments].sort((left, right) =>
+        right.createdAt.localeCompare(left.createdAt),
+      ),
+    [deal.relatedResources.attachments],
+  );
 
   return (
     <section
@@ -130,7 +70,7 @@ export function DealAttachmentsCard({
         ) : (
           rows.map((row) => (
             <AttachmentRow
-              key={`${row.kind}:${row.id}`}
+              key={row.id}
               deletingAttachmentId={deletingAttachmentId}
               onDelete={onDeleteAttachment}
               onDownload={onDownloadAttachment}
@@ -152,35 +92,19 @@ function AttachmentRow({
   deletingAttachmentId: string | null;
   onDelete: (attachmentId: string) => void;
   onDownload: (attachmentId: string) => void;
-  row: MergedRow;
+  row: DealAttachment;
 }) {
-  const sourceLabel =
-    row.kind === "deal"
-      ? "Сделка"
-      : row.legIdx !== null
-        ? `Шаг ${row.legIdx} · ${row.legKind ? getDealLegKindLabel(row.legKind) : ""}`
-        : "Инструкция";
-  const purposeLabel =
-    row.kind === "instruction" && row.purpose
-      ? INSTRUCTION_ARTIFACT_PURPOSE_LABEL[row.purpose] ?? row.purpose
-      : null;
-
   return (
     <div
       className="flex flex-wrap items-center gap-3 px-4 py-3"
-      data-testid={`finance-deal-attachment-row-${row.kind}-${row.id}`}
+      data-testid={`finance-deal-attachment-row-deal-${row.id}`}
     >
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2 text-sm">
           <span className="truncate font-medium">{row.fileName}</span>
           <Badge variant="secondary" className="shrink-0 font-normal">
-            {sourceLabel}
+            Сделка
           </Badge>
-          {purposeLabel ? (
-            <Badge variant="outline" className="shrink-0 font-normal">
-              {purposeLabel}
-            </Badge>
-          ) : null}
         </div>
         {row.description ? (
           <div className="text-muted-foreground mt-0.5 truncate text-xs">
@@ -192,27 +116,23 @@ function AttachmentRow({
         </div>
       </div>
       <div className="flex items-center gap-1">
-        {row.kind === "deal" ? (
-          <Button
-            size="icon"
-            variant="ghost"
-            title="Скачать"
-            onClick={() => onDownload(row.id)}
-          >
-            <Download className="h-4 w-4" />
-          </Button>
-        ) : null}
-        {row.kind === "deal" ? (
-          <Button
-            size="icon"
-            variant="ghost"
-            title="Удалить"
-            disabled={deletingAttachmentId === row.id}
-            onClick={() => onDelete(row.id)}
-          >
-            <Trash2 className="h-4 w-4 text-rose-600" />
-          </Button>
-        ) : null}
+        <Button
+          size="icon"
+          variant="ghost"
+          title="Скачать"
+          onClick={() => onDownload(row.id)}
+        >
+          <Download className="h-4 w-4" />
+        </Button>
+        <Button
+          size="icon"
+          variant="ghost"
+          title="Удалить"
+          disabled={deletingAttachmentId === row.id}
+          onClick={() => onDelete(row.id)}
+        >
+          <Trash2 className="h-4 w-4 text-rose-600" />
+        </Button>
       </div>
     </div>
   );

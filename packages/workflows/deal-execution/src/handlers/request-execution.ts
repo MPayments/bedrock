@@ -23,39 +23,18 @@ export async function requestExecution(
     idempotencyKey: string;
   },
 ): Promise<DealWorkflowProjection> {
-  const paymentStepsEnabled = deps.paymentStepsEnabled ?? false;
   return runIdempotent(deps, {
     actorUserId: input.actorUserId,
     handler: async ({ dealStore, dealsModule, treasuryModule }) => {
       const workflow = await requireWorkflow(dealsModule, input.dealId);
 
-      const hasLegacyOps = workflow.executionPlan.some(
-        (leg) => leg.operationRefs.length > 0,
-      );
-
-      // When the dual-write flag is on we treat this handler as a
-      // PaymentStep-first idempotent primitive:
-      //   - fully materialized (steps present) → no-op
-      //   - legs planned but no steps yet → backfill steps, skip legacy
-      //     link rewrites if legacy is already there
-      //   - fresh deal → full dual-write
-      //
-      // With the flag off we keep the original semantics (legacy-only,
-      // exit on existing ops).
-      let skipLegacyLinks = false;
-      if (paymentStepsEnabled) {
-        const existingSteps =
-          await treasuryModule.paymentSteps.queries.list({
-            dealId: input.dealId,
-            limit: 1,
-            offset: 0,
-            purpose: "deal_leg",
-          });
-        if (existingSteps.total > 0) {
-          return workflow;
-        }
-        skipLegacyLinks = hasLegacyOps;
-      } else if (hasLegacyOps) {
+      const existingSteps = await treasuryModule.paymentSteps.queries.list({
+        dealId: input.dealId,
+        limit: 1,
+        offset: 0,
+        purpose: "deal_leg",
+      });
+      if (existingSteps.total > 0) {
         return workflow;
       }
 
@@ -68,9 +47,6 @@ export async function requestExecution(
       );
       const currencyCodeById = new Map<string, string>();
       const customerId = getCustomerId(workflow);
-      const linkCountBefore = workflow.executionPlan.flatMap(
-        (leg) => leg.operationRefs,
-      ).length;
 
       for (const operation of recipeContext.recipe) {
         await materializeCompiledOperation({
@@ -83,27 +59,23 @@ export async function requestExecution(
           dealStore,
           internalEntityOrganizationId:
             recipeContext.internalEntityOrganizationId,
-          paymentStepsEnabled: deps.paymentStepsEnabled ?? false,
-          skipLegacyLinks,
           treasuryModule,
           workflow,
         });
       }
 
-      if (linkCountBefore === 0) {
-        await dealStore.createDealTimelineEvents([
-          buildTimelineEvent({
-            actorUserId: input.actorUserId,
-            dealId: workflow.summary.id,
-            payload: {
-              comment: input.comment ?? null,
-              operationCount: recipeContext.recipe.length,
-            },
-            sourceRef: `execution:${workflow.summary.id}:request:${input.idempotencyKey}`,
-            type: "execution_requested",
-          }),
-        ]);
-      }
+      await dealStore.createDealTimelineEvents([
+        buildTimelineEvent({
+          actorUserId: input.actorUserId,
+          dealId: workflow.summary.id,
+          payload: {
+            comment: input.comment ?? null,
+            operationCount: recipeContext.recipe.length,
+          },
+          sourceRef: `execution:${workflow.summary.id}:request:${input.idempotencyKey}`,
+          type: "execution_requested",
+        }),
+      ]);
 
       return requireWorkflow(dealsModule, input.dealId);
     },

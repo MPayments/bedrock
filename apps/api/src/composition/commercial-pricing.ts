@@ -71,14 +71,6 @@ export function calculatePercentAmountMinorHalfUp(
   return mulDivRoundHalfUp(amountMinor, bps, BPS_SCALE);
 }
 
-export function ratioToRoundedBps(numerator: bigint, denominator: bigint) {
-  if (denominator === 0n) {
-    return 0n;
-  }
-
-  return mulDivRoundHalfUp(numerator, BPS_SCALE, denominator);
-}
-
 export function extractAgreementCommercialDefaults(input: {
   agreement: AgreementDetails;
   fallbackFixedFeeCurrency: string | null;

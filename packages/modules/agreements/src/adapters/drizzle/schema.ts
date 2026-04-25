@@ -1,4 +1,4 @@
-import { relations, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import {
   boolean,
   check,
@@ -191,72 +191,4 @@ export const agreementParties = pgTable(
       )`,
     ),
   ],
-);
-
-export const agreementsRelations = relations(agreements, ({ many, one }) => ({
-  customer: one(customers, {
-    fields: [agreements.customerId],
-    references: [customers.id],
-  }),
-  organization: one(organizations, {
-    fields: [agreements.organizationId],
-    references: [organizations.id],
-  }),
-  organizationRequisite: one(requisites, {
-    fields: [agreements.organizationRequisiteId],
-    references: [requisites.id],
-  }),
-  currentVersion: one(agreementVersions, {
-    relationName: "agreements_current_version",
-    fields: [agreements.currentVersionId],
-    references: [agreementVersions.id],
-  }),
-  versions: many(agreementVersions, {
-    relationName: "agreement_versions_agreement",
-  }),
-}));
-
-export const agreementVersionsRelations = relations(
-  agreementVersions,
-  ({ many, one }) => ({
-    agreement: one(agreements, {
-      relationName: "agreement_versions_agreement",
-      fields: [agreementVersions.agreementId],
-      references: [agreements.id],
-    }),
-    feeRules: many(agreementFeeRules),
-    parties: many(agreementParties),
-  }),
-);
-
-export const agreementFeeRulesRelations = relations(
-  agreementFeeRules,
-  ({ one }) => ({
-    agreementVersion: one(agreementVersions, {
-      fields: [agreementFeeRules.agreementVersionId],
-      references: [agreementVersions.id],
-    }),
-    currency: one(currencies, {
-      fields: [agreementFeeRules.currencyId],
-      references: [currencies.id],
-    }),
-  }),
-);
-
-export const agreementPartiesRelations = relations(
-  agreementParties,
-  ({ one }) => ({
-    agreementVersion: one(agreementVersions, {
-      fields: [agreementParties.agreementVersionId],
-      references: [agreementVersions.id],
-    }),
-    customer: one(customers, {
-      fields: [agreementParties.customerId],
-      references: [customers.id],
-    }),
-    organization: one(organizations, {
-      fields: [agreementParties.organizationId],
-      references: [organizations.id],
-    }),
-  }),
 );

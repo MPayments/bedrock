@@ -7,13 +7,13 @@ import {
   REQUISITE_PROVIDER_IDENTIFIER_SCHEME_VALUES,
 } from "../../domain/identifier-schemes";
 
-export const RequisiteProviderIdentifierSchemeSchema = z.enum(
+const RequisiteProviderIdentifierSchemeSchema = z.enum(
   REQUISITE_PROVIDER_IDENTIFIER_SCHEME_VALUES,
 );
 export type RequisiteProviderIdentifierSchemeValue = z.infer<
   typeof RequisiteProviderIdentifierSchemeSchema
 >;
-export const RequisiteProviderBranchIdentifierSchemeSchema = z.enum(
+const RequisiteProviderBranchIdentifierSchemeSchema = z.enum(
   REQUISITE_PROVIDER_BRANCH_IDENTIFIER_SCHEME_VALUES,
 );
 export type RequisiteProviderBranchIdentifierSchemeValue = z.infer<

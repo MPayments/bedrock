@@ -29,7 +29,7 @@ type CreateCalculationCommandInput = CreateCalculationInput & {
   idempotencyKey: string;
 };
 
-export async function validateCurrencyReferences(
+async function validateCurrencyReferences(
   input: NormalizedCreateCalculationInput,
   references: CalculationReferencesPort,
 ) {
@@ -51,7 +51,7 @@ export async function validateCurrencyReferences(
   );
 }
 
-export async function validateQuoteProvenance(
+async function validateQuoteProvenance(
   input: NormalizedCreateCalculationInput,
   references: CalculationReferencesPort,
 ) {

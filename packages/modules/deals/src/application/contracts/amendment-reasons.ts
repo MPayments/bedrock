@@ -35,17 +35,3 @@ export const DEAL_AMENDMENT_KIND_VALUES = ["execution", "commercial"] as const;
 export const DealAmendmentKindSchema = z.enum(DEAL_AMENDMENT_KIND_VALUES);
 
 export type DealAmendmentKind = z.infer<typeof DealAmendmentKindSchema>;
-
-export function validateAmendmentReason(
-  kind: DealAmendmentKind,
-  reasonCode: string,
-): void {
-  const parsed =
-    kind === "execution"
-      ? ExecutionAmendmentReasonSchema.safeParse(reasonCode)
-      : CommercialAmendmentReasonSchema.safeParse(reasonCode);
-
-  if (!parsed.success) {
-    throw new Error(`Invalid reason code "${reasonCode}" for ${kind} amendment`);
-  }
-}

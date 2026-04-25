@@ -1,20 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { createModuleRuntime } from "@bedrock/shared/core";
+import { createTestLogger } from "@bedrock/test-utils";
 
 import { AmendDealLegCommand } from "../../src/application/commands/amend-deal-leg";
-
-function createLogger() {
-  const logger = {
-    child: vi.fn(),
-    debug: vi.fn(),
-    error: vi.fn(),
-    info: vi.fn(),
-    warn: vi.fn(),
-  };
-  logger.child.mockReturnValue(logger);
-  return logger;
-}
 
 function createExecutionLeg(
   idx: number,
@@ -191,7 +180,7 @@ function createCommand(input: {
   const command = new AmendDealLegCommand(
     createModuleRuntime({
       generateUuid: () => "00000000-0000-4000-8000-000000000099",
-      logger: createLogger(),
+      logger: createTestLogger(),
       now: () => new Date("2026-04-01T12:05:00.000Z"),
       service: "deals",
     }),

@@ -34,7 +34,7 @@ import {
   toMinorOrZero,
 } from "../shared/utils";
 
-export async function listAllDeals(
+async function listAllDeals(
   deps: Pick<DealProjectionsWorkflowDeps, "deals">,
   input?: { customerId?: string },
 ): Promise<DealListRecord[]> {

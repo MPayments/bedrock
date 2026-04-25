@@ -1,5 +1,6 @@
 import type { ReconciliationOperationLinkDto } from "@bedrock/reconciliation/contracts";
 import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
+import type { PaymentStep } from "@bedrock/treasury/contracts";
 
 import {
   deriveFinanceDealReadiness,
@@ -82,35 +83,31 @@ export async function listFinanceDealQueues(
           return null;
         }
 
-        const [agreement, operationsResult] = await Promise.all([
+        const [agreement, paymentStepsResult] = await Promise.all([
           deps.agreements.agreements.queries.findById(
             workflow.summary.agreementId,
           ),
-          deps.treasury.operations.queries.list({
+          deps.treasury.paymentSteps.queries.list({
             dealId: deal.id,
-            limit: MAX_QUERY_LIST_LIMIT,
+            limit: 100,
             offset: 0,
-            sortBy: "createdAt",
-            sortOrder: "desc",
+            purpose: "deal_leg",
           }),
         ]);
         const queueContext = classifyFinanceQueue(workflow);
-        const latestInstructions =
-          await deps.treasury.instructions.queries.listLatestByOperationIds(
-            operationsResult.data.map((operation) => operation.id),
-          );
-        const latestInstructionByOperationId = new Map(
-          latestInstructions.map(
-            (instruction) => [instruction.operationId, instruction] as const,
-          ),
-        );
+        const paymentStepByLegIdx = new Map<number, PaymentStep>();
+        for (const step of paymentStepsResult.data) {
+          if (step.dealLegIdx !== null) {
+            paymentStepByLegIdx.set(step.dealLegIdx, step);
+          }
+        }
         const reconciliationLinks =
-          await deps.reconciliation.links.listOperationLinks({
-            operationIds: operationsResult.data.map(
-              (operation) => operation.id,
-            ),
-          });
-        const reconciliationLinksByOperationId = new Map(
+          paymentStepsResult.data.length > 0
+            ? await deps.reconciliation.links.listOperationLinks({
+                operationIds: paymentStepsResult.data.map((step) => step.id),
+              })
+            : [];
+        const reconciliationLinksByStepId = new Map(
           reconciliationLinks.map(
             (link): readonly [string, ReconciliationOperationLinkDto] => [
               link.operationId,
@@ -120,8 +117,8 @@ export async function listFinanceDealQueues(
         );
         const { closeReadiness, reconciliationSummary } =
           deriveFinanceDealReadiness({
-            latestInstructionByOperationId,
-            reconciliationLinksByOperationId,
+            paymentStepByLegIdx,
+            reconciliationLinksByStepId,
             workflow,
           });
         const { stage, stageReason } = deriveFinanceDealStage({
@@ -129,7 +126,7 @@ export async function listFinanceDealQueues(
           closeReadiness,
           internalEntityOrganizationId:
             getInternalEntityParticipant(workflow)?.organizationId ?? null,
-          latestInstructionByOperationId,
+          paymentStepByLegIdx,
           reconciliationSummary,
           workflow,
         });

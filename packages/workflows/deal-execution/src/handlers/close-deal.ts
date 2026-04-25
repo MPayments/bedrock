@@ -1,16 +1,14 @@
 import { DealTransitionBlockedError } from "@bedrock/deals";
 import type { DealWorkflowProjection } from "@bedrock/deals/contracts";
 import type { ReconciliationOperationLinkDto } from "@bedrock/reconciliation/contracts";
+import type { PaymentStep } from "@bedrock/treasury/contracts";
 import { deriveFinanceDealReadiness } from "@bedrock/workflow-deal-projections";
 
 import { DEAL_EXECUTION_CLOSE_SCOPE } from "../shared/constants";
 import type { DealExecutionWorkflowDeps } from "../shared/deps";
 import { runIdempotent } from "../shared/idempotency";
 import { buildTimelineEvent } from "../shared/timeline";
-import {
-  getAllLinkedOperationIds,
-  requireWorkflow,
-} from "../shared/workflow-helpers";
+import { requireWorkflow } from "../shared/workflow-helpers";
 
 export async function closeDeal(
   deps: DealExecutionWorkflowDeps,
@@ -35,21 +33,27 @@ export async function closeDeal(
         return workflow;
       }
 
-      const linkedOperationIds = getAllLinkedOperationIds(workflow);
-      const latestInstructions =
-        await treasuryModule.instructions.queries.listLatestByOperationIds(
-          linkedOperationIds,
-        );
-      const instructionByOperationId = new Map(
-        latestInstructions.map(
-          (instruction) => [instruction.operationId, instruction] as const,
-        ),
+      const paymentStepsResult = await treasuryModule.paymentSteps.queries.list(
+        {
+          dealId: input.dealId,
+          limit: 100,
+          offset: 0,
+          purpose: "deal_leg",
+        },
       );
+      const paymentStepByLegIdx = new Map<number, PaymentStep>();
+      for (const step of paymentStepsResult.data) {
+        if (step.dealLegIdx !== null) {
+          paymentStepByLegIdx.set(step.dealLegIdx, step);
+        }
+      }
       const reconciliationLinks =
-        await reconciliation.links.listOperationLinks({
-          operationIds: linkedOperationIds,
-        });
-      const reconciliationLinksByOperationId = new Map(
+        paymentStepsResult.data.length > 0
+          ? await reconciliation.links.listOperationLinks({
+              operationIds: paymentStepsResult.data.map((step) => step.id),
+            })
+          : [];
+      const reconciliationLinksByStepId = new Map(
         reconciliationLinks.map(
           (link): readonly [string, ReconciliationOperationLinkDto] => [
             link.operationId,
@@ -58,8 +62,8 @@ export async function closeDeal(
         ),
       );
       const { closeReadiness } = deriveFinanceDealReadiness({
-        latestInstructionByOperationId: instructionByOperationId,
-        reconciliationLinksByOperationId,
+        paymentStepByLegIdx,
+        reconciliationLinksByStepId,
         workflow,
       });
 
@@ -86,7 +90,7 @@ export async function closeDeal(
           dealId: input.dealId,
           payload: {
             comment: input.comment ?? null,
-            instructionCount: latestInstructions.length,
+            stepCount: paymentStepsResult.data.length,
           },
           sourceRef: `execution:${input.dealId}:close:${input.idempotencyKey}`,
           type: "deal_closed",

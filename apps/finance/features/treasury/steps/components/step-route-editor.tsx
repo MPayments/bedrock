@@ -21,16 +21,17 @@ import type { FinanceDealPaymentStep } from "@/features/treasury/deals/lib/queri
 import { executeMutation } from "@/lib/resources/http";
 
 import {
-  buildAmendRouteBody,
-  type AmendFieldValues,
-} from "../lib/step-helpers";
-import {
   listCurrencyOptions,
   type CurrencyOption,
 } from "../lib/currency-options";
 import {
+  buildAmendRouteBody,
+  type AmendFieldValues,
+} from "../lib/step-helpers";
+import {
   listPartyOptions,
   listRequisiteOptions,
+  resolvePartyDisplayName,
   type PartyKind,
   type PartyOption,
   type RequisiteOption,
@@ -44,14 +45,6 @@ function createIdempotencyKey() {
   return `idem-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-/**
- * Convert a user-typed major amount into the backend's minor-units string
- * representation. Accepts both `.` and `,` as decimal separators, trims
- * leading zeros, and rejects empty / zero inputs (the amend schema requires
- * positive amounts). When no currency code is supplied the editor stays in
- * the legacy minor-mode for backwards compat — the input is expected to
- * already be an integer string of minor units.
- */
 function normalizeMajorToMinor(
   raw: string,
   currencyCode: string | null,
@@ -105,27 +98,10 @@ const PARTY_KIND_LABELS: Record<PartyKind, string> = {
 
 export interface StepRouteEditorProps {
   step: FinanceDealPaymentStep;
-  /**
-   * Kind of the source party, as known by the parent (usually derived from
-   * the deal's `routeAttachment.participants`). When set, the editor renders
-   * an inline Select for both the party and its requisite. When null or
-   * undefined (e.g. for standalone steps), the side stays read-only.
-   */
   fromPartyKind?: PartyKind | null;
   toPartyKind?: PartyKind | null;
-  /**
-   * Human-readable display names — e.g. `"ARABIAN FUEL ALLIANCE DMCC"` —
-   * resolved upstream from the deal's route-attachment participants. Used
-   * both for the read-only fallback (no party kind) and to seed the initial
-   * label on the editable Select so the user never sees a raw UUID.
-   */
   fromPartyDisplayName?: string | null;
   toPartyDisplayName?: string | null;
-  /**
-   * ISO-4217 codes for the amount inputs. The editor shows / edits the
-   * major-unit amount ("125.00 USD") and converts to/from minor on save
-   * using `Intl` precision. Omit to fall back to the raw minor input.
-   */
   fromCurrencyCode?: string | null;
   toCurrencyCode?: string | null;
   debounceMs?: number;
@@ -136,16 +112,38 @@ export interface StepRouteEditorProps {
 export function StepRouteEditor({
   debounceMs = 500,
   disabled,
-  fromCurrencyCode = null,
+  fromCurrencyCode: fromCurrencyCodeProp = null,
   fromPartyDisplayName = null,
   fromPartyKind = null,
   onAmended,
   step,
-  toCurrencyCode = null,
+  toCurrencyCode: toCurrencyCodeProp = null,
   toPartyDisplayName = null,
   toPartyKind = null,
 }: StepRouteEditorProps) {
   const isEditable = MUTABLE_STATES.has(step.state) && !disabled;
+
+  const [currencyCatalog, setCurrencyCatalog] = useState<CurrencyOption[]>([]);
+  const needsCatalogFallback =
+    !fromCurrencyCodeProp || !toCurrencyCodeProp;
+  useEffect(() => {
+    if (!needsCatalogFallback) return;
+    let cancelled = false;
+    listCurrencyOptions().then((options) => {
+      if (!cancelled) setCurrencyCatalog(options);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [needsCatalogFallback]);
+  const currencyCodeById = useMemo(
+    () => new Map(currencyCatalog.map((opt) => [opt.id, opt.code] as const)),
+    [currencyCatalog],
+  );
+  const fromCurrencyCode =
+    fromCurrencyCodeProp ?? currencyCodeById.get(step.fromCurrencyId) ?? null;
+  const toCurrencyCode =
+    toCurrencyCodeProp ?? currencyCodeById.get(step.toCurrencyId) ?? null;
 
   const initialValues = useMemo<AmendFieldValues>(
     () => ({
@@ -163,10 +161,6 @@ export function StepRouteEditor({
   );
 
   const [values, setValues] = useState<AmendFieldValues>(initialValues);
-  // The input shows the major-unit amount to humans ("125,00"), while the
-  // source of truth (`values.fromAmountMinor`) stays in minor units. We
-  // track the editing text separately so intermediate states like "125," or
-  // "125.0" don't get squashed by the minor→major round-trip.
   const [fromAmountDisplay, setFromAmountDisplay] = useState(() =>
     formatMinorForInput(initialValues.fromAmountMinor, fromCurrencyCode),
   );
@@ -249,8 +243,6 @@ export function StepRouteEditor({
             applyChange({
               ...values,
               fromPartyId: nextPartyId,
-              // Requisite must be revalidated against the new owner — reset
-              // it locally; the treasurer picks a new one in the Select below.
               fromRequisiteId: null,
             })
           }
@@ -291,10 +283,6 @@ export function StepRouteEditor({
           onChange={(nextDisplay) => {
             setFromAmountDisplay(nextDisplay);
             const minor = normalizeMajorToMinor(nextDisplay, fromCurrencyCode);
-            // Only push to the debounced save when the input parses; the
-            // user can keep typing through intermediate invalid states
-            // (e.g. "125," or "12.34.") without each keystroke sending a
-            // request.
             if (minor !== null) {
               applyChange({ ...values, fromAmountMinor: minor });
             }
@@ -376,6 +364,21 @@ function PartySideEditor({
   const [requisiteOptions, setRequisiteOptions] = useState<RequisiteOption[]>(
     [],
   );
+  const [resolvedName, setResolvedName] = useState<string | null>(null);
+  useEffect(() => {
+    if (displayName || !partyId) {
+      setResolvedName(null);
+      return;
+    }
+    let cancelled = false;
+    resolvePartyDisplayName(partyId).then((name) => {
+      if (!cancelled) setResolvedName(name);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [displayName, partyId]);
+  const effectiveDisplayName = displayName ?? resolvedName ?? null;
 
   useEffect(() => {
     if (!kind || !editable) {
@@ -412,7 +415,7 @@ function PartySideEditor({
       <div className="space-y-2">
         <Label>{SIDE_LABELS[side]}</Label>
         <div className="text-sm font-medium">
-          {displayName ?? "Не назначен"}
+          {effectiveDisplayName ?? "Не назначен"}
         </div>
         <div className="text-muted-foreground text-xs">
           {requisiteId ? "Реквизит привязан" : "Реквизит не задан"}
@@ -423,7 +426,7 @@ function PartySideEditor({
 
   const selectedPartyLabel =
     partyOptions.find((opt) => opt.id === partyId)?.label ??
-    displayName ??
+    effectiveDisplayName ??
     partyId;
   const selectedRequisiteLabel =
     requisiteOptions.find((opt) => opt.id === requisiteId)?.label ??

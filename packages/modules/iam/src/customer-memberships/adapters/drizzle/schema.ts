@@ -41,8 +41,4 @@ export const customerMemberships = pgTable(
   ],
 );
 
-export const schema = {
-  customerMemberships,
-};
-
 export type CustomerMembershipRow = typeof customerMemberships.$inferSelect;

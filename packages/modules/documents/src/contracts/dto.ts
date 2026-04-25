@@ -5,11 +5,9 @@ import type { LedgerOperationDetails } from "@bedrock/ledger/contracts";
 import type {
   financialLineBucketSchema,
   financialLineSettlementModeSchema,
-  financialLineSourceSchema} from "./zod";
-import {
-  FINANCIAL_LINE_BUCKETS,
-  financialLineSchema
+  financialLineSourceSchema,
 } from "./zod";
+import { financialLineSchema } from "./zod";
 import type {
   Document,
   DocumentEvent,
@@ -119,5 +117,3 @@ export interface DocumentDetails {
   computed?: unknown;
   extra?: unknown;
 }
-
-export { FINANCIAL_LINE_BUCKETS };

@@ -308,7 +308,7 @@ export type TransitionDealStatusInput = z.infer<
   typeof TransitionDealStatusInputSchema
 >;
 
-export const DealLegManualOverrideSchema = z.enum(["blocked", "skipped"]);
+const DealLegManualOverrideSchema = z.enum(["blocked", "skipped"]);
 
 export const SetDealLegManualOverrideInputSchema = z.object({
   comment: nullableText.optional(),

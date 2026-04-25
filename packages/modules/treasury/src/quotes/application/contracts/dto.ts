@@ -15,7 +15,7 @@ import {
   quoteStatusSchema,
 } from "./zod";
 
-export const QuoteDealRefSchema = z
+const QuoteDealRefSchema = z
   .object({
     applicantName: z.string().nullable(),
     dealId: z.uuid(),

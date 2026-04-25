@@ -1,28 +1,5 @@
 "use client";
 
-import {
-  FileImage,
-  FileText,
-  FileType,
-  Paperclip,
-} from "lucide-react";
-
-export function getFileIcon(mimeType: string) {
-  if (mimeType.startsWith("image/")) {
-    return <FileImage className="h-5 w-5" />;
-  }
-
-  if (mimeType === "application/pdf") {
-    return <FileText className="h-5 w-5" />;
-  }
-
-  if (mimeType.includes("word") || mimeType.includes("document")) {
-    return <FileType className="h-5 w-5" />;
-  }
-
-  return <Paperclip className="h-5 w-5" />;
-}
-
 export function formatFileSize(bytes: number): string {
   if (bytes === 0) {
     return "0 Б";

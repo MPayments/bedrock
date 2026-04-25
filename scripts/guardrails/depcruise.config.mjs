@@ -184,7 +184,7 @@ function buildDbImportRules(workspacePackages) {
   ];
 }
 
-export function buildDependencyCruiserRuleSet(rootDir = resolveRootDir()) {
+function buildDependencyCruiserRuleSet(rootDir = resolveRootDir()) {
   const workspacePackages = collectWorkspacePackages(rootDir);
 
   return {

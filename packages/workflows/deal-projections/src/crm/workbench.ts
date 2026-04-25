@@ -59,7 +59,7 @@ function countBankInstructionFields(
   ].filter((value) => Boolean(value)).length;
 }
 
-export function buildCrmBeneficiaryDraft(input: {
+function buildCrmBeneficiaryDraft(input: {
   attachments: DealAttachmentRecord[];
   workflow: DealWorkflowProjection;
 }) {
@@ -112,7 +112,7 @@ export function buildCrmBeneficiaryDraft(input: {
   };
 }
 
-export function buildCrmWorkbenchEditability(workflow: DealWorkflowProjection) {
+function buildCrmWorkbenchEditability(workflow: DealWorkflowProjection) {
   return {
     agreement: workflow.summary.status === "draft",
     assignee: true,
@@ -120,7 +120,7 @@ export function buildCrmWorkbenchEditability(workflow: DealWorkflowProjection) {
   };
 }
 
-export function toCrmDealCustomerContext(
+function toCrmDealCustomerContext(
   customer: Customer,
   counterparties: Counterparty[],
 ): CrmDealCustomerContext {

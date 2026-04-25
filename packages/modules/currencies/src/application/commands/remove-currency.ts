@@ -1,21 +1,10 @@
+import { hasPostgresForeignKeyViolation } from "@bedrock/platform/persistence/postgres-errors";
+
 import {
   CurrencyDeleteConflictError,
   CurrencyNotFoundError,
 } from "../../errors";
 import type { CurrenciesServiceContext } from "../shared/context";
-
-function hasForeignKeyViolation(error: unknown): boolean {
-  if (!error || typeof error !== "object") {
-    return false;
-  }
-
-  const candidate = error as { code?: unknown; cause?: unknown };
-  if (candidate.code === "23503") {
-    return true;
-  }
-
-  return hasForeignKeyViolation(candidate.cause);
-}
 
 export class RemoveCurrencyCommand {
   constructor(private readonly context: CurrenciesServiceContext) {}
@@ -32,7 +21,7 @@ export class RemoveCurrencyCommand {
         throw error;
       }
 
-      if (hasForeignKeyViolation(error)) {
+      if (hasPostgresForeignKeyViolation(error)) {
         throw new CurrencyDeleteConflictError(id);
       }
 

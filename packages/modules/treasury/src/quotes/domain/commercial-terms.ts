@@ -20,17 +20,6 @@ export interface SerializedQuoteCommercialTerms {
   fixedFeeCurrency: string | null;
 }
 
-export function emptyQuoteCommercialTerms(): QuoteCommercialTermsSnapshot {
-  return {
-    agreementVersionId: null,
-    agreementFeeBps: 0n,
-    quoteMarkupBps: 0n,
-    totalFeeBps: 0n,
-    fixedFeeAmountMinor: null,
-    fixedFeeCurrency: null,
-  };
-}
-
 export function serializeQuoteCommercialTerms(
   terms: QuoteCommercialTermsSnapshot | null,
 ): SerializedQuoteCommercialTerms | null {
@@ -94,7 +83,7 @@ export function createQuoteCommercialTerms(input: {
   };
 }
 
-export function calculateCommercialFeeAmountMinor(
+function calculateCommercialFeeAmountMinor(
   amountMinor: bigint,
   bps: bigint,
 ): bigint {

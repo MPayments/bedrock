@@ -1,8 +1,8 @@
 import type { DealWorkflowProjection } from "@bedrock/deals/contracts";
 import { ValidationError } from "@bedrock/shared/core/errors";
 import type {
+  PaymentStepKind,
   QuoteDetailsRecord,
-  TreasuryOperationKind,
 } from "@bedrock/treasury/contracts";
 
 export type DealExecutionAmountRef =
@@ -19,16 +19,16 @@ export interface CompiledDealExecutionOperation {
   legId: string;
   legIdx: number;
   legKind: DealWorkflowProjection["executionPlan"][number]["kind"];
-  operationKind: TreasuryOperationKind;
+  operationKind: PaymentStepKind;
   quoteId: string | null;
   quoteLegIdx: number | null;
   sourceRef: string;
 }
 
-export function resolveFundingOperationKind(input: {
+function resolveFundingOperationKind(input: {
   agreementOrganizationId: string | null;
   internalEntityOrganizationId: string | null;
-}): TreasuryOperationKind {
+}): PaymentStepKind {
   if (
     input.agreementOrganizationId &&
     input.internalEntityOrganizationId &&
@@ -40,7 +40,7 @@ export function resolveFundingOperationKind(input: {
   return "intracompany_transfer";
 }
 
-export function resolvePayoutAmountRef(
+function resolvePayoutAmountRef(
   workflow: DealWorkflowProjection,
 ): DealExecutionAmountRef {
   const hasConvert = workflow.executionPlan.some(
@@ -93,7 +93,7 @@ export function compileDealExecutionRecipe(input: {
 
       let amountRef: DealExecutionAmountRef | null = null;
       let counterAmountRef: DealExecutionAmountRef | null = null;
-      let operationKind: TreasuryOperationKind;
+      let operationKind: PaymentStepKind;
       let quoteId: string | null = null;
       let quoteLegIdx: number | null = null;
 

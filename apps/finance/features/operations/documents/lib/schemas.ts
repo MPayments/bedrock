@@ -3,7 +3,7 @@ import { z } from "zod";
 import { createPaginatedResponseSchema } from "@/lib/api/schemas";
 import { OperationDetailsSchema } from "@/features/operations/journal/lib/queries";
 
-export const DocumentSchema = z.object({
+const DocumentSchema = z.object({
   id: z.uuid(),
   docType: z.string(),
   docNo: z.string(),
@@ -51,7 +51,7 @@ export const DocumentSchema = z.object({
   postingOperationId: z.string().nullable(),
 });
 
-export const DocumentLinkSchema = z.object({
+const DocumentLinkSchema = z.object({
   id: z.uuid(),
   fromDocumentId: z.uuid(),
   toDocumentId: z.uuid(),
@@ -60,7 +60,7 @@ export const DocumentLinkSchema = z.object({
   createdAt: z.iso.datetime(),
 });
 
-export const DocumentOperationSchema = z.object({
+const DocumentOperationSchema = z.object({
   id: z.uuid(),
   documentId: z.uuid(),
   operationId: z.uuid(),

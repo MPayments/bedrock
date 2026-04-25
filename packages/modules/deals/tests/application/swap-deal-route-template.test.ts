@@ -1,20 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { createModuleRuntime } from "@bedrock/shared/core";
+import { createTestLogger } from "@bedrock/test-utils";
 
 import { SwapDealRouteTemplateCommand } from "../../src/application/commands/swap-deal-route-template";
-
-function createLogger() {
-  const logger = {
-    child: vi.fn(),
-    debug: vi.fn(),
-    error: vi.fn(),
-    info: vi.fn(),
-    warn: vi.fn(),
-  };
-  logger.child.mockReturnValue(logger);
-  return logger;
-}
 
 const RUB_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const USD_ID = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
@@ -199,7 +188,7 @@ function buildCommand(input: {
   const command = new SwapDealRouteTemplateCommand(
     createModuleRuntime({
       generateUuid: () => "00000000-0000-4000-8000-000000000099",
-      logger: createLogger(),
+      logger: createTestLogger(),
       now: () => new Date("2026-04-01T12:05:00.000Z"),
       service: "deals",
     }),
@@ -265,7 +254,7 @@ describe("SwapDealRouteTemplateCommand", () => {
     const command = new SwapDealRouteTemplateCommand(
       createModuleRuntime({
         generateUuid: () => "00000000-0000-4000-8000-000000000099",
-        logger: createLogger(),
+        logger: createTestLogger(),
         now: () => new Date("2026-04-01T12:05:00.000Z"),
         service: "deals",
       }),

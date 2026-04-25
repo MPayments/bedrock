@@ -57,7 +57,7 @@ export const feeOperationKindSchema = z.enum([
 
 export const feeCalcMethodSchema = z.enum(["bps", "fixed"]);
 
-export const feeSourceSchema = z.enum(["rule", "manual"]);
+const feeSourceSchema = z.enum(["rule", "manual"]);
 
 export const feeSettlementModeSchema = z.enum([
   "in_ledger",
@@ -69,12 +69,6 @@ export const feeAccountingTreatmentSchema = z.enum([
   "expense",
 ]);
 
-export const adjustmentEffectSchema = z.enum([
-  "increase_charge",
-  "decrease_charge",
-]);
-export const adjustmentSourceSchema = z.enum(["manual", "rule"]);
-
 export const feeComponentSchema = z.object({
   id: componentIdSchema,
   ruleId: uuidSchema.optional(),
@@ -82,19 +76,6 @@ export const feeComponentSchema = z.object({
   currency: currencySchema,
   amountMinor: nonNegativeAmountSchema,
   source: feeSourceSchema,
-  settlementMode: feeSettlementModeSchema.optional(),
-  accountingTreatment: feeAccountingTreatmentSchema.optional(),
-  memo: z.string().max(1000).optional(),
-  metadata: z.record(z.string(), z.string().max(255)).optional(),
-});
-
-export const adjustmentComponentSchema = z.object({
-  id: componentIdSchema,
-  kind: componentKindSchema,
-  effect: adjustmentEffectSchema,
-  currency: currencySchema,
-  amountMinor: positiveAmountSchema,
-  source: adjustmentSourceSchema,
   settlementMode: feeSettlementModeSchema.optional(),
   accountingTreatment: feeAccountingTreatmentSchema.optional(),
   memo: z.string().max(1000).optional(),

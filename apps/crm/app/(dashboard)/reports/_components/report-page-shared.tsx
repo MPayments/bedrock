@@ -48,7 +48,7 @@ import { DataTable } from "@bedrock/sdk-tables-ui/components/data-table";
 import { DataTableFacetedMultiFilter } from "@bedrock/sdk-tables-ui/components/data-table-faceted-filter";
 import { DataTableViewOptions } from "@bedrock/sdk-tables-ui/components/data-table-view-options";
 
-export const REPORT_CURRENCY_OPTIONS = [
+const REPORT_CURRENCY_OPTIONS = [
   { value: "RUB", label: "RUB" },
   { value: "USD", label: "USD" },
   { value: "EUR", label: "EUR" },
@@ -70,7 +70,7 @@ export type ChartDataPoint = {
   [key: string]: string | number | undefined;
 };
 
-export const CURRENCY_KEYS = ["USD", "EUR", "CNY"] as const;
+const CURRENCY_KEYS = ["USD", "EUR", "CNY"] as const;
 
 type SearchParamsLike = {
   get(name: string): string | null;
@@ -111,7 +111,7 @@ export function getInitialDateRange(): DateRange {
   };
 }
 
-export function normalizeDealsByDayChartData(
+function normalizeDealsByDayChartData(
   rawData: ChartDataPoint[],
 ): ChartDataPoint[] {
   return rawData.map((point) => {

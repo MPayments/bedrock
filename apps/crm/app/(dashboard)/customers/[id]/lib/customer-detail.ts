@@ -39,7 +39,7 @@ export type CustomerWorkspaceDetail = {
   updatedAt: string;
 };
 
-export const CUSTOMER_DETAIL_TABS = [
+const CUSTOMER_DETAIL_TABS = [
   "common",
   "counterparties",
   "requisites",
@@ -125,14 +125,6 @@ export function buildCustomerTabHref(input: {
 
   const query = nextSearchParams.toString();
   return query.length > 0 ? `${input.pathname}?${query}` : input.pathname;
-}
-
-export function buildCustomerCounterpartiesTabHref(customerId: string) {
-  return buildCustomerTabHref({
-    pathname: `/customers/${customerId}`,
-    searchParams: new URLSearchParams(),
-    tab: "counterparties",
-  });
 }
 
 export function buildCustomerCounterpartyCreateHref(customerId: string) {

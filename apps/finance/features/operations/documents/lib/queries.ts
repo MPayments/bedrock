@@ -11,10 +11,8 @@ import { createResourceListQuery } from "@/lib/resources/search-params";
 
 import {
   DocumentDetailsSchema,
-  DocumentSchema,
   DocumentsListResponseSchema,
   type DocumentDetailsDto,
-  type DocumentDto,
   type DocumentsListResponseDto,
 } from "./schemas";
 import type { OperationsSearchParams } from "./validations";
@@ -72,20 +70,6 @@ export async function getDocuments(
   return readJsonWithSchema(response, DocumentsListResponseSchema);
 }
 
-const getDocumentUncached = async (
-  docType: string,
-  id: string,
-): Promise<DocumentDto | null> => {
-  const response = await fetchApi(`/v1/documents/${docType}/${id}`);
-
-  if (response.status === 404) {
-    return null;
-  }
-
-  await requestOk(response, "Не удалось загрузить документ");
-  return readJsonWithSchema(response, DocumentSchema);
-};
-
 const getDocumentDetailsUncached = async (
   docType: string,
   id: string,
@@ -100,5 +84,4 @@ const getDocumentDetailsUncached = async (
   return readJsonWithSchema(response, DocumentDetailsSchema);
 };
 
-export const getDocument = cache(getDocumentUncached);
 export const getDocumentDetails = cache(getDocumentDetailsUncached);

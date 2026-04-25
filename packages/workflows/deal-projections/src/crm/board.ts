@@ -13,7 +13,7 @@ import {
   getCustomerParticipant,
 } from "../shared/workflow-helpers";
 
-export function classifyCrmBoardStage(workflow: DealWorkflowProjection): {
+function classifyCrmBoardStage(workflow: DealWorkflowProjection): {
   blockingReasons: string[];
   stage: CrmDealBoardStage;
 } {

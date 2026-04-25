@@ -192,23 +192,17 @@ export const CustomerAgreementSchema = z.object({
   updatedAt: z.string(),
 });
 
-export const CustomerAgreementUpdateContractInputSchema = z
-  .object({
-    organizationId: z.string().uuid().optional(),
-    organizationRequisiteId: z.string().uuid().optional(),
-    contractDate: z.string().nullable().optional(),
-    contractNumber: z.string().nullable().optional(),
-    agentFee: z.string().nullable().optional(),
-    fixedFee: z.string().nullable().optional(),
-  })
-  .strict();
-
 export type CustomerAgreement = z.infer<typeof CustomerAgreementSchema>;
-export type CustomerAgreementUpdateInput = z.infer<
-  typeof CustomerAgreementUpdateContractInputSchema
->;
+export interface CustomerAgreementUpdateInput {
+  agentFee?: string | null;
+  contractDate?: string | null;
+  contractNumber?: string | null;
+  fixedFee?: string | null;
+  organizationId?: string;
+  organizationRequisiteId?: string;
+}
 
-export function serializeCustomerAgreement(
+function serializeCustomerAgreement(
   agreement: AgreementDetails,
 ): CustomerAgreement {
   const fees = serializeAgreementFees(agreement);
@@ -259,7 +253,7 @@ async function listAgreementDetails(
   };
 }
 
-export async function resolveEffectiveAgreementByCustomerId(
+async function resolveEffectiveAgreementByCustomerId(
   ctx: AppContext,
   customerId: string,
 ): Promise<AgreementDetails | null> {

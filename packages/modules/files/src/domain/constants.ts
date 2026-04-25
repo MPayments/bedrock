@@ -28,11 +28,3 @@ export const GENERATED_FILE_LINK_KINDS = new Set<
   "deal_acceptance",
   "legal_entity_contract",
 ]);
-
-export const ATTACHMENT_FILE_LINK_KINDS = new Set<
-  (typeof FILE_LINK_KIND_VALUES)[number]
->([
-  "deal_attachment",
-  "legal_entity_attachment",
-  "payment_step_evidence",
-]);

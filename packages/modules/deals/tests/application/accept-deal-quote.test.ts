@@ -1,21 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { createModuleRuntime } from "@bedrock/shared/core";
+import { createTestLogger } from "@bedrock/test-utils";
 
 import { AcceptDealQuoteCommand } from "../../src/application/commands/accept-deal-quote";
 import { DealQuoteInactiveError } from "../../src/errors";
-
-function createLogger() {
-  const logger = {
-    child: vi.fn(),
-    debug: vi.fn(),
-    error: vi.fn(),
-    info: vi.fn(),
-    warn: vi.fn(),
-  };
-  logger.child.mockReturnValue(logger);
-  return logger;
-}
 
 describe("accept deal quote command", () => {
   it("is idempotent when the same active quote is already accepted for the current revision", async () => {
@@ -122,7 +111,7 @@ describe("accept deal quote command", () => {
     const command = new AcceptDealQuoteCommand(
       createModuleRuntime({
         generateUuid: () => "00000000-0000-4000-8000-000000000099",
-        logger: createLogger(),
+        logger: createTestLogger(),
         now: () => new Date("2026-04-01T10:05:00.000Z"),
         service: "deals",
       }),
@@ -223,7 +212,7 @@ describe("accept deal quote command", () => {
     const command = new AcceptDealQuoteCommand(
       createModuleRuntime({
         generateUuid: () => "00000000-0000-4000-8000-000000000099",
-        logger: createLogger(),
+        logger: createTestLogger(),
         now: () => new Date("2026-04-01T10:05:00.000Z"),
         service: "deals",
       }),

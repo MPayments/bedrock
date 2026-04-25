@@ -35,7 +35,7 @@ function sumRouteInputImpact(fees: PaymentRouteCalculationFee[]) {
   );
 }
 
-export function getPaymentRouteMarginMinor(
+function getPaymentRouteMarginMinor(
   calculation: PaymentRouteCalculation | null,
 ): { grossInMinor: bigint; marginInMinor: bigint } | null {
   if (!calculation) {

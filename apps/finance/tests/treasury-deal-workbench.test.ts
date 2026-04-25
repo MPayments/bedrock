@@ -213,18 +213,6 @@ function createDeal(): FinanceDealWorkbenchData {
         state: "missing",
       },
     ],
-    instructionSummary: {
-      failed: 0,
-      planned: 0,
-      prepared: 0,
-      returnRequested: 0,
-      returned: 0,
-      settled: 0,
-      submitted: 0,
-      terminalOperations: 0,
-      totalOperations: 0,
-      voided: 0,
-    },
     nextAction: "Complete intake form",
     operationalState: {
       positions: [],
@@ -262,8 +250,6 @@ function createDeal(): FinanceDealWorkbenchData {
     relatedResources: {
       attachments: [],
       formalDocuments: [],
-      instructionArtifacts: [],
-      operations: [],
       paymentSteps: [],
       quotes: [],
       reconciliationExceptions: [],

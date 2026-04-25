@@ -28,7 +28,6 @@ import {
   dealCalculationLinks,
   dealIntakeSnapshots,
   dealLegs,
-  dealLegOperationLinks,
   dealPricingContexts,
   dealParticipants,
   deals,
@@ -533,63 +532,27 @@ export class DrizzleDealReads implements DealReads {
   private async loadStoredLegs(
     dealId: string,
   ): Promise<DealWorkflowProjection["executionPlan"]> {
-    const [rows, operationRefRows] = await Promise.all([
-      this.db
-        .select({
-          fromCurrencyId: dealLegs.fromCurrencyId,
-          id: dealLegs.id,
-          idx: dealLegs.idx,
-          kind: dealLegs.kind,
-          manualOverrideState: dealLegs.manualOverrideState,
-          routeSnapshotLegId: dealLegs.routeSnapshotLegId,
-          toCurrencyId: dealLegs.toCurrencyId,
-        })
-        .from(dealLegs)
-        .where(eq(dealLegs.dealId, dealId))
-        .orderBy(asc(dealLegs.idx)),
-      this.db
-        .select({
-          dealLegId: dealLegOperationLinks.dealLegId,
-          kind: dealLegOperationLinks.operationKind,
-          operationId: dealLegOperationLinks.treasuryOperationId,
-          sourceRef: dealLegOperationLinks.sourceRef,
-        })
-        .from(dealLegOperationLinks)
-        .innerJoin(dealLegs, eq(dealLegOperationLinks.dealLegId, dealLegs.id))
-        .where(eq(dealLegs.dealId, dealId))
-        .orderBy(asc(dealLegs.idx), asc(dealLegOperationLinks.createdAt)),
-    ]);
-
-    const operationRefsByLegId = new Map<
-      string,
-      DealWorkflowProjection["executionPlan"][number]["operationRefs"]
-    >();
-
-    for (const row of operationRefRows) {
-      const operationRefs = operationRefsByLegId.get(row.dealLegId) ?? [];
-      operationRefs.push({
-        kind: row.kind,
-        operationId: row.operationId,
-        sourceRef: row.sourceRef,
-      });
-      operationRefsByLegId.set(row.dealLegId, operationRefs);
-    }
+    const rows = await this.db
+      .select({
+        fromCurrencyId: dealLegs.fromCurrencyId,
+        id: dealLegs.id,
+        idx: dealLegs.idx,
+        kind: dealLegs.kind,
+        manualOverrideState: dealLegs.manualOverrideState,
+        routeSnapshotLegId: dealLegs.routeSnapshotLegId,
+        toCurrencyId: dealLegs.toCurrencyId,
+      })
+      .from(dealLegs)
+      .where(eq(dealLegs.dealId, dealId))
+      .orderBy(asc(dealLegs.idx));
 
     return rows.map((row) => ({
       fromCurrencyId: row.fromCurrencyId,
       id: row.id,
       idx: row.idx,
       kind: row.kind,
-      operationRefs: operationRefsByLegId.get(row.id) ?? [],
+      operationRefs: [],
       routeSnapshotLegId: row.routeSnapshotLegId,
-      // Best-effort state at the reader level: a manual override wins; when
-      // no override is set we default to `pending` and expect the caller
-      // (deal-projections workflow) to upgrade the state with the
-      // instruction-derived projection via `computeDealLegState`. Internal
-      // deals-module consumers that read leg state without going through the
-      // projection workflow are expected to treat non-overridden legs as
-      // pending — the canonical "done-ness" gate lives in close-readiness,
-      // which reads instruction states directly.
       state: row.manualOverrideState ?? "pending",
       toCurrencyId: row.toCurrencyId,
     }));
@@ -1473,11 +1436,10 @@ export class DrizzleDealReads implements DealReads {
           and d.status not in ('draft', 'rejected', 'done', 'cancelled')
           and not exists (
             select 1
-            from deal_leg_operation_links dlol
-            inner join treasury_instructions ti
-              on ti.operation_id = dlol.treasury_operation_id
-            where dlol.deal_leg_id = dl.id
-              and ti.state <> 'voided'
+            from payment_steps ps
+            where ps.deal_id = d.id
+              and ps.deal_leg_idx = dl.idx
+              and ps.state in ('pending', 'processing', 'completed', 'returned')
           )
           ${dealFilter}
           ${entityFilter}
@@ -1518,16 +1480,16 @@ export class DrizzleDealReads implements DealReads {
 
         union all
 
-        -- failed_instruction: latest instruction per op in failed/returned/return_requested AND no successor
+        -- failed_instruction: payment steps in failed/returned terminal states
         select
           'failed_instruction' as kind,
           d.id as "dealId",
           left(d.id::text, 8) as "dealRef",
-          dl.idx as "legIdx",
-          ti.id as "instructionId",
+          ps.deal_leg_idx as "legIdx",
+          ps.id as "instructionId",
           cur.code as "currencyCode",
-          top.currency_id as "currencyId",
-          top.amount_minor::text as "amountMinor",
+          ps.from_currency_id as "currencyId",
+          ps.from_amount_minor::text as "amountMinor",
           (
             select c.short_name
             from deal_participants pb
@@ -1535,28 +1497,17 @@ export class DrizzleDealReads implements DealReads {
             where pb.deal_id = d.id and pb.role = 'external_beneficiary'
             limit 1
           ) as "counterpartyName",
-          coalesce(ti.failed_at, ti.returned_at, ti.return_requested_at, ti.updated_at)
-            as "triggeredAt",
+          ps.updated_at as "triggeredAt",
           jsonb_build_object(
-            'instructionState', ti.state,
-            'operationId', top.id,
-            'attempt', ti.attempt
+            'instructionState', ps.state,
+            'operationId', ps.id
           ) as metadata
-        from treasury_instructions ti
-        inner join treasury_operations top on top.id = ti.operation_id
-        left join deal_leg_operation_links dlol
-          on dlol.treasury_operation_id = top.id
-        left join deal_legs dl on dl.id = dlol.deal_leg_id
-        left join deals d on d.id = top.deal_id
-        left join currencies cur on cur.id = top.currency_id
+        from payment_steps ps
+        left join deals d on d.id = ps.deal_id
+        left join currencies cur on cur.id = ps.from_currency_id
         left join deal_participants p
           on p.deal_id = d.id and p.role = 'internal_entity'
-        where ti.state in ('failed', 'returned', 'return_requested')
-          and ti.attempt = (
-            select max(inner_ti.attempt)
-            from treasury_instructions inner_ti
-            where inner_ti.operation_id = ti.operation_id
-          )
+        where ps.state in ('failed', 'returned')
           ${dealFilter}
           ${entityFilter}
           ${currencyFilter}

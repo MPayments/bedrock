@@ -1,22 +1,10 @@
 import { eq, sql } from "drizzle-orm";
 
 import type { Queryable } from "@bedrock/platform/persistence";
+import { hasPostgresForeignKeyViolation } from "@bedrock/platform/persistence/postgres-errors";
 
 import { organizations } from "./schema";
 import type { OrganizationStore } from "../../application/ports/organization.store";
-
-function hasForeignKeyViolation(error: unknown): boolean {
-  if (!error || typeof error !== "object") {
-    return false;
-  }
-
-  const candidate = error as { code?: unknown; cause?: unknown };
-  if (candidate.code === "23503") {
-    return true;
-  }
-
-  return hasForeignKeyViolation(candidate.cause);
-}
 
 export class DrizzleOrganizationStore implements OrganizationStore {
   constructor(private readonly db: Queryable) {}
@@ -96,7 +84,7 @@ export class DrizzleOrganizationStore implements OrganizationStore {
 
       return deleted ? "deleted" : "not_found";
     } catch (error) {
-      if (hasForeignKeyViolation(error)) {
+      if (hasPostgresForeignKeyViolation(error)) {
         return "conflict";
       }
 

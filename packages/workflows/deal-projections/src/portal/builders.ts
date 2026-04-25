@@ -16,21 +16,21 @@ import {
   getCustomerParticipant,
 } from "../shared/workflow-helpers";
 
-export const CUSTOMER_SAFE_INVOICE_REQUIRED_ACTION = "Загрузите инвойс";
-export const PORTAL_OWNED_SECTIONS_BY_TYPE: Record<DealType, string[]> = {
+const CUSTOMER_SAFE_INVOICE_REQUIRED_ACTION = "Загрузите инвойс";
+const PORTAL_OWNED_SECTIONS_BY_TYPE: Record<DealType, string[]> = {
   currency_exchange: ["common", "moneyRequest"],
   currency_transit: ["common", "moneyRequest", "incomingReceipt"],
   exporter_settlement: ["common", "moneyRequest", "incomingReceipt"],
   payment: ["common", "moneyRequest"],
 };
 
-export function getCustomerSafeTimeline(
+function getCustomerSafeTimeline(
   timeline: DealTimelineEvent[],
 ): DealTimelineEvent[] {
   return timeline.filter((event) => event.visibility === "customer_safe");
 }
 
-export function buildCustomerSafeAttachments(
+function buildCustomerSafeAttachments(
   attachments: DealAttachmentRecord[],
   workflow: DealWorkflowProjection,
 ) {
@@ -73,7 +73,7 @@ export function buildCustomerSafeAttachments(
     );
 }
 
-export function buildPortalSubmissionCompleteness(input: {
+function buildPortalSubmissionCompleteness(input: {
   attachments: DealAttachmentRecord[];
   workflow: DealWorkflowProjection;
 }) {
@@ -97,14 +97,14 @@ export function buildPortalSubmissionCompleteness(input: {
   };
 }
 
-export function requiresCustomerAttachment(nextAction: string) {
+function requiresCustomerAttachment(nextAction: string) {
   return (
     nextAction === "Prepare documents" ||
     nextAction === "Prepare closing documents"
   );
 }
 
-export function mapPortalNextAction(input: {
+function mapPortalNextAction(input: {
   hasRequiredInvoice: boolean;
   nextAction: string;
 }) {
@@ -129,7 +129,7 @@ export function mapPortalNextAction(input: {
   }
 }
 
-export function buildPortalRequiredActions(input: {
+function buildPortalRequiredActions(input: {
   hasRequiredInvoice: boolean;
   nextAction: string;
   submissionCompleteness: {
@@ -160,7 +160,7 @@ export function buildPortalRequiredActions(input: {
   return Array.from(actions);
 }
 
-export async function resolvePortalIntakeCurrencyCodes(
+async function resolvePortalIntakeCurrencyCodes(
   workflow: DealWorkflowProjection,
   deps: Pick<DealProjectionsWorkflowDeps, "currencies">,
 ) {
@@ -198,7 +198,7 @@ export async function resolvePortalIntakeCurrencyCodes(
   };
 }
 
-export async function toPortalIntakeSummary(
+async function toPortalIntakeSummary(
   workflow: DealWorkflowProjection,
   deps: Pick<DealProjectionsWorkflowDeps, "currencies">,
 ) {

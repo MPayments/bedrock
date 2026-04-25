@@ -10,11 +10,9 @@ export type UserRole = (typeof USER_ROLE_VALUES)[number];
 
 export const AGENT_PROFILE_ROLE_VALUES = ["agent", "admin"] as const;
 
-export const INTERNAL_APP_ROLE_VALUES = ["admin", "agent", "finance"] as const;
+export type InternalAppRole = "admin" | "agent" | "finance";
 
-export type InternalAppRole = (typeof INTERNAL_APP_ROLE_VALUES)[number];
-
-export function isUserRole(value: string): value is UserRole {
+function isUserRole(value: string): value is UserRole {
   return (USER_ROLE_VALUES as readonly string[]).includes(value);
 }
 

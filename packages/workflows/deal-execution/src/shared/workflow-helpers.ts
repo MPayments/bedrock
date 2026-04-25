@@ -4,8 +4,6 @@ import {
   type DealsModule,
 } from "@bedrock/deals";
 import type { DealWorkflowProjection } from "@bedrock/deals/contracts";
-import { ValidationError } from "@bedrock/shared/core/errors";
-import type { TreasuryModule } from "@bedrock/treasury";
 
 import { EXECUTION_REQUESTABLE_STATUSES } from "./constants";
 
@@ -50,12 +48,6 @@ export function findLegById(workflow: DealWorkflowProjection, legId: string) {
   return workflow.executionPlan.find((leg) => leg.id === legId) ?? null;
 }
 
-export function getAllLinkedOperationIds(workflow: DealWorkflowProjection) {
-  return workflow.executionPlan.flatMap((leg) =>
-    leg.operationRefs.map((ref) => ref.operationId),
-  );
-}
-
 export async function requireWorkflow(
   dealsModule: Pick<DealsModule, "deals">,
   dealId: string,
@@ -67,75 +59,4 @@ export async function requireWorkflow(
   }
 
   return workflow;
-}
-
-export async function requireDealForOperation(
-  treasuryModule: Pick<
-    TreasuryModule,
-    "instructions" | "operations" | "quotes"
-  >,
-  dealsModule: Pick<DealsModule, "deals">,
-  operationId: string,
-) {
-  const operation =
-    await treasuryModule.operations.queries.findById(operationId);
-
-  if (!operation) {
-    throw new ValidationError(`Treasury operation ${operationId} not found`);
-  }
-
-  if (!operation.dealId) {
-    throw new ValidationError(
-      `Treasury operation ${operationId} is not linked to a deal`,
-    );
-  }
-
-  const workflow = await requireWorkflow(dealsModule, operation.dealId);
-
-  return {
-    operation,
-    workflow,
-  };
-}
-
-export async function requireInstructionForMutation(
-  treasuryModule: Pick<
-    TreasuryModule,
-    "instructions" | "operations" | "quotes"
-  >,
-  dealsModule: Pick<DealsModule, "deals">,
-  instructionId: string,
-) {
-  const instruction =
-    await treasuryModule.instructions.queries.findById(instructionId);
-
-  if (!instruction) {
-    throw new ValidationError(
-      `Treasury instruction ${instructionId} not found`,
-    );
-  }
-
-  const operation = await treasuryModule.operations.queries.findById(
-    instruction.operationId,
-  );
-
-  if (!operation) {
-    throw new ValidationError(
-      `Treasury instruction ${instructionId} references missing operation ${instruction.operationId}`,
-    );
-  }
-
-  if (!operation.dealId) {
-    throw new ValidationError(
-      `Treasury operation ${operation.id} is not linked to a deal`,
-    );
-  }
-
-  const workflow = await requireWorkflow(dealsModule, operation.dealId);
-
-  return {
-    instruction,
-    operation,
-    workflow,
-  };
 }

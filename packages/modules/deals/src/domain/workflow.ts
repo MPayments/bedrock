@@ -9,14 +9,12 @@ import type {
   DealIntakeDraft,
   DealQuoteAcceptance,
   DealRelatedFormalDocument,
-  DealSectionId,
   DealSectionCompleteness,
   DealStatus,
   DealTransitionReadiness,
   DealType,
   DealTimelineEvent,
   DealWorkflowLeg,
-  DealWorkflowParticipant,
 } from "./model";
 
 const NEXT_PROGRESS_STATUS_BY_STATUS: Partial<Record<DealStatus, DealStatus>> = {
@@ -69,7 +67,7 @@ export function dealIntakeHasConvertLeg(intake: DealIntakeDraft): boolean {
   );
 }
 
-export function isAcceptedQuoteCurrentAndExecutable(input: {
+function isAcceptedQuoteCurrentAndExecutable(input: {
   acceptance: DealQuoteAcceptance | null;
   now: Date;
 }): boolean {
@@ -205,7 +203,7 @@ export function evaluateDealSectionCompleteness(
   return result;
 }
 
-export function isRequiredDealSectionComplete(
+function isRequiredDealSectionComplete(
   type: DealType,
   completeness: DealSectionCompleteness[],
 ): boolean {
@@ -575,22 +573,8 @@ export function deriveDealNextAction(input: {
   return "Continue processing";
 }
 
-export function buildParticipantDisplayNameMap(
-  participants: DealWorkflowParticipant[],
-): Map<DealWorkflowParticipant["role"], string | null> {
-  return new Map(
-    participants.map((participant) => [participant.role, participant.displayName]),
-  );
-}
-
 export function filterTimelineForPortal(
   timeline: DealTimelineEvent[],
 ): DealTimelineEvent[] {
   return timeline.filter((event) => event.visibility === "customer_safe");
-}
-
-export function summarizeRequiredSectionsByType(
-  type: DealType,
-): DealSectionId[] {
-  return [...DEAL_REQUIRED_SECTION_IDS_BY_TYPE[type]];
 }

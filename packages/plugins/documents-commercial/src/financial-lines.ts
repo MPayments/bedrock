@@ -77,7 +77,7 @@ export function normalizeFinancialLine(input: FinancialLine): FinancialLine {
   };
 }
 
-export function financialLineAggregateKey(line: FinancialLine): string {
+function financialLineAggregateKey(line: FinancialLine): string {
   return [
     line.bucket,
     line.currency,

@@ -42,8 +42,4 @@ export const organizations = pgTable("organizations", {
     .$onUpdateFn(() => new Date()),
 });
 
-export const schema = {
-  organizations,
-};
-
 export type OrganizationRow = typeof organizations.$inferSelect;

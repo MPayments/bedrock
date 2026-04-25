@@ -15,7 +15,7 @@ import type {
   AccountingOrganizationsQueryPort,
 } from "../party-query.ports";
 
-export function keyByParts(...parts: (string | null | undefined)[]): string {
+function keyByParts(...parts: (string | null | undefined)[]): string {
   return parts.map((part) => part ?? "").join("::");
 }
 

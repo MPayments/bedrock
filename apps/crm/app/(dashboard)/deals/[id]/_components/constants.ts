@@ -43,7 +43,7 @@ export const DEAL_TYPE_LABELS: Record<DealType, string> = {
   payment: "Платеж поставщику",
 };
 
-export const DEAL_PARTICIPANT_ROLE_LABELS: Record<string, string> = {
+const DEAL_PARTICIPANT_ROLE_LABELS: Record<string, string> = {
   applicant: "контрагент клиента",
   customer: "клиент",
   external_beneficiary: "получатель выплаты",
@@ -78,7 +78,7 @@ export const DEAL_LEG_STATE_COLORS: Record<DealLegState, string> = {
   skipped: "bg-zinc-100 text-zinc-700",
 };
 
-export const DEAL_OPERATIONAL_POSITION_LABELS: Record<
+const DEAL_OPERATIONAL_POSITION_LABELS: Record<
   DealOperationalPositionKind,
   string
 > = {
@@ -91,13 +91,6 @@ export const DEAL_OPERATIONAL_POSITION_LABELS: Record<
   provider_payable: "Обязательство перед провайдером",
   spread_revenue: "Доход от спреда",
   suspense: "Суспенс",
-};
-
-export const DEAL_QUOTE_STATUS_LABELS: Record<string, string> = {
-  active: "Активна",
-  cancelled: "Отменена",
-  expired: "Истекла",
-  used: "Исполнена",
 };
 
 export const DEAL_OPERATIONAL_POSITION_STATE_LABELS: Record<

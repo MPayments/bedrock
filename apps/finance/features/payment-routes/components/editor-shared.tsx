@@ -116,11 +116,11 @@ type ParticipantRequisiteFieldProps = {
   state: PaymentRouteEditorState;
 };
 
-export function getFeeKindLabel(kind: PaymentRouteFee["kind"]) {
+function getFeeKindLabel(kind: PaymentRouteFee["kind"]) {
   return FEE_KIND_LABELS[kind] ?? kind;
 }
 
-export function getParticipantKindLabel(
+function getParticipantKindLabel(
   kind: PaymentRouteSelectableParticipantOption["kind"],
 ) {
   return PARTICIPANT_KIND_LABELS[kind] ?? kind;
@@ -136,7 +136,7 @@ function getSelectableOptionLabel(
   return option.shortLabel;
 }
 
-export function BufferedMinorAmountInput({
+function BufferedMinorAmountInput({
   ariaLabel,
   className,
   currencyId,
@@ -211,7 +211,7 @@ export function BufferedMinorAmountInput({
   );
 }
 
-export function BufferedDecimalInput({
+function BufferedDecimalInput({
   ariaLabel,
   className,
   onCommit,

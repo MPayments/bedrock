@@ -27,8 +27,6 @@ export {
   dealIntakeSnapshots,
   dealLegKindEnum,
   dealLegManualOverrideEnum,
-  dealLegOperationKindEnum,
-  dealLegOperationLinks,
   dealLegs,
   dealParticipantRoleEnum,
   dealParticipants,
@@ -88,9 +86,6 @@ export {
   paymentStepArtifacts,
   paymentStepAttempts,
   paymentSteps,
-  treasuryInstructionArtifacts,
-  treasuryInstructions,
-  treasuryOperations,
 } from "@bedrock/treasury/schema";
 export {
   balanceEvents,

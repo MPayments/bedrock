@@ -5,31 +5,13 @@ import type { IdempotencyPort } from "@bedrock/platform/idempotency";
 import type { Database, Transaction } from "@bedrock/platform/persistence";
 import type { ReconciliationService } from "@bedrock/reconciliation";
 import type { TreasuryModule } from "@bedrock/treasury";
-import type { TreasuryOperationKind } from "@bedrock/treasury/contracts";
 
 export type ExecutionLifecycleEventType =
   | "deal_closed"
   | "execution_requested"
-  | "instruction_failed"
-  | "instruction_prepared"
-  | "instruction_retried"
-  | "instruction_returned"
-  | "instruction_settled"
-  | "instruction_submitted"
-  | "instruction_voided"
-  | "leg_operation_created"
-  | "return_requested";
+  | "leg_operation_created";
 
 export interface DealExecutionStore {
-  createDealLegOperationLinks(
-    input: {
-      dealLegId: string;
-      id: string;
-      operationKind: TreasuryOperationKind;
-      sourceRef: string;
-      treasuryOperationId: string;
-    }[],
-  ): Promise<void>;
   createDealTimelineEvents(
     input: {
       actorLabel: string | null;
@@ -45,15 +27,9 @@ export interface DealExecutionStore {
   ): Promise<void>;
 }
 
-export interface OperationMutationResult {
-  dealId: string;
-  instructionId: string | null;
-  operationId: string;
-}
-
 export type DealExecutionTreasuryModule = Pick<
   TreasuryModule,
-  "instructions" | "operations" | "paymentSteps" | "quotes"
+  "paymentSteps" | "quotes"
 >;
 
 export interface DealExecutionTxDeps {
@@ -68,7 +44,6 @@ export interface DealExecutionWorkflowDeps {
   currencies: Pick<CurrenciesService, "findById">;
   db: Database;
   idempotency: IdempotencyPort;
-  paymentStepsEnabled?: boolean;
   createDealStore(tx: Transaction): DealExecutionStore;
   createDealsModule(tx: Transaction): Pick<DealsModule, "deals">;
   createReconciliationService(

@@ -19,7 +19,7 @@ function asCsvCell(value: unknown): string {
   return `"${rendered.replaceAll("\"", "\"\"")}"`;
 }
 
-export function toCsvContent(
+function toCsvContent(
   headers: string[],
   rows: Record<string, unknown>[],
 ): string {

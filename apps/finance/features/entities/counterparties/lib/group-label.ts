@@ -31,7 +31,7 @@ export function getCounterpartyGroupPresentation(value: string): {
   return known;
 }
 
-export function localizeCounterpartyGroupLabel(value: string) {
+function localizeCounterpartyGroupLabel(value: string) {
   return getCounterpartyGroupPresentation(value).label;
 }
 

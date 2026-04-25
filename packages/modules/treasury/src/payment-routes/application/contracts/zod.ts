@@ -20,16 +20,6 @@ import {
   type PaymentRouteLegTreasuryOperationHint,
 } from "../../domain/model";
 
-export {
-  PAYMENT_ROUTE_FEE_KIND_VALUES,
-  PAYMENT_ROUTE_LEG_SEMANTIC_TAG_VALUES,
-  PAYMENT_ROUTE_LEG_TREASURY_OPERATION_HINT_VALUES,
-  PAYMENT_ROUTE_LOCKED_SIDE_VALUES,
-  PAYMENT_ROUTE_PARTICIPANT_BINDING_VALUES,
-  PAYMENT_ROUTE_PARTICIPANT_KIND_VALUES,
-  PAYMENT_ROUTE_PARTICIPANT_ROLE_VALUES,
-  PAYMENT_ROUTE_TEMPLATE_STATUS_VALUES,
-} from "../../domain/model";
 export type {
   PaymentRouteDraft,
   PaymentRouteFee,
@@ -71,16 +61,6 @@ const positiveDecimalStringSchema = z
 export const ABSTRACT_PAYMENT_ROUTE_SOURCE_DISPLAY_NAME = "Клиент";
 export const ABSTRACT_PAYMENT_ROUTE_DESTINATION_DISPLAY_NAME =
   "Бенефициар";
-
-export const PAYMENT_ROUTE_FEE_KIND_LABELS: Record<
-  (typeof PAYMENT_ROUTE_FEE_KIND_VALUES)[number],
-  string
-> = {
-  fixed: "Фикс. сумма",
-  fx_spread: "Надбавка к курсу",
-  gross_percent: "% от суммы шага",
-  net_percent: "% от остатка",
-};
 
 const FX_SPREAD_MAX_PERCENT = 10n;
 
@@ -315,7 +295,7 @@ function isLegacyPaymentRouteParticipantRef(
   );
 }
 
-export function normalizePaymentRouteParticipantRef(input: {
+function normalizePaymentRouteParticipantRef(input: {
   index: number;
   participant: unknown;
   total: number;
@@ -504,7 +484,7 @@ export const PaymentRouteDraftSchema = z
     });
   });
 
-export const PAYMENT_ROUTE_TEMPLATES_SORTABLE_COLUMNS = [
+const PAYMENT_ROUTE_TEMPLATES_SORTABLE_COLUMNS = [
   "name",
   "status",
   "createdAt",

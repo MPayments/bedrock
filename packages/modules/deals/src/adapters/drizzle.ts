@@ -9,8 +9,6 @@ export {
   dealIntakeSnapshots,
   dealLegKindEnum,
   dealLegManualOverrideEnum,
-  dealLegOperationKindEnum,
-  dealLegOperationLinks,
   dealLegs,
   dealPricingContexts,
   dealParticipantRoleEnum,

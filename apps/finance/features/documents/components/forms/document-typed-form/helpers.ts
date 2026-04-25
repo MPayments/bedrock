@@ -114,7 +114,7 @@ export function resolveRequisiteFieldSource(
   return field.optionsSource ?? "counterpartyRequisites";
 }
 
-export function resolveOwnerKey(input: {
+function resolveOwnerKey(input: {
   currencyId?: string | null;
   ownerId: string;
   requisiteSource: "counterpartyRequisites" | "organizationRequisites";
@@ -128,7 +128,7 @@ export function resolveOwnerKey(input: {
   return `${key}:${input.currencyId}`;
 }
 
-export function resolveAccountFieldCurrencyId(input: {
+function resolveAccountFieldCurrencyId(input: {
   currencyIdByCode: Map<string, string>;
   field: Extract<DocumentFormField, { kind: "account" }>;
   values: DocumentFormValues;

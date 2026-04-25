@@ -6,7 +6,7 @@ import type { TransactionRunner } from "@bedrock/platform/persistence";
 import { canonicalJson } from "@bedrock/shared/core/canon";
 import { sha256Hex } from "@bedrock/shared/core/crypto";
 
-export function serializeIdempotencyError(
+function serializeIdempotencyError(
   error: unknown,
 ): Record<string, unknown> {
   if (error instanceof Error) {

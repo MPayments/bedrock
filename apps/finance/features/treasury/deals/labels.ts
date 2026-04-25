@@ -58,13 +58,13 @@ export const FINANCE_DEAL_TYPE_VALUES = [
 
 export type FinanceDealType = (typeof FINANCE_DEAL_TYPE_VALUES)[number];
 
-export const FINANCE_DEAL_QUEUE_LABELS: Record<FinanceDealQueue, string> = {
+const FINANCE_DEAL_QUEUE_LABELS: Record<FinanceDealQueue, string> = {
   execution: "Исполнение",
   failed_instruction: "Блокеры исполнения",
   funding: "Фондирование",
 };
 
-export const FINANCE_DEAL_STAGE_LABELS: Record<FinanceDealStage, string> = {
+const FINANCE_DEAL_STAGE_LABELS: Record<FinanceDealStage, string> = {
   awaiting_collection: "Ожидание поступления",
   awaiting_fx: "Ожидание FX",
   awaiting_intercompany_funding: "Ожидание межкомпанейского фондирования",
@@ -74,7 +74,7 @@ export const FINANCE_DEAL_STAGE_LABELS: Record<FinanceDealStage, string> = {
   ready_to_close: "Готова к закрытию",
 };
 
-export const FINANCE_DEAL_BLOCKER_STATE_LABELS: Record<
+const FINANCE_DEAL_BLOCKER_STATE_LABELS: Record<
   FinanceDealBlockerState,
   string
 > = {
@@ -82,7 +82,7 @@ export const FINANCE_DEAL_BLOCKER_STATE_LABELS: Record<
   clear: "Без блокеров",
 };
 
-export const FINANCE_DEAL_STATUS_LABELS: Record<FinanceDealStatus, string> = {
+const FINANCE_DEAL_STATUS_LABELS: Record<FinanceDealStatus, string> = {
   awaiting_funds: "Ожидание средств",
   awaiting_payment: "Ожидание оплаты",
   cancelled: "Отменена",
@@ -94,14 +94,14 @@ export const FINANCE_DEAL_STATUS_LABELS: Record<FinanceDealStatus, string> = {
   submitted: "Отправлена",
 };
 
-export const FINANCE_DEAL_TYPE_LABELS: Record<FinanceDealType, string> = {
+const FINANCE_DEAL_TYPE_LABELS: Record<FinanceDealType, string> = {
   currency_exchange: "Обмен валюты",
   currency_transit: "Валютный транзит",
   exporter_settlement: "Расчеты с экспортером",
   payment: "Платеж поставщику",
 };
 
-export const DEAL_PARTICIPANT_ROLE_LABELS: Record<string, string> = {
+const DEAL_PARTICIPANT_ROLE_LABELS: Record<string, string> = {
   applicant: "юридическое лицо клиента",
   customer: "клиент",
   external_beneficiary: "получатель выплаты",
@@ -109,7 +109,7 @@ export const DEAL_PARTICIPANT_ROLE_LABELS: Record<string, string> = {
   internal_entity: "наша организация",
 };
 
-export const DEAL_LEG_KIND_LABELS: Record<string, string> = {
+const DEAL_LEG_KIND_LABELS: Record<string, string> = {
   collect: "Сбор средств",
   convert: "Конвертация",
   payout: "Выплата",
@@ -117,7 +117,7 @@ export const DEAL_LEG_KIND_LABELS: Record<string, string> = {
   transit_hold: "Транзитное удержание",
 };
 
-export const DEAL_LEG_STATE_LABELS: Record<string, string> = {
+const DEAL_LEG_STATE_LABELS: Record<string, string> = {
   blocked: "Заблокирован",
   done: "Завершен",
   in_progress: "В работе",
@@ -126,7 +126,7 @@ export const DEAL_LEG_STATE_LABELS: Record<string, string> = {
   skipped: "Пропущен",
 };
 
-export const DEAL_OPERATIONAL_POSITION_LABELS: Record<string, string> = {
+const DEAL_OPERATIONAL_POSITION_LABELS: Record<string, string> = {
   customer_receivable: "Дебиторка клиента",
   exporter_expected_receivable: "Ожидаемая выручка экспортера",
   fee_revenue: "Комиссионный доход",
@@ -146,7 +146,7 @@ const FINANCE_PRIMARY_POSITION_LABELS: Record<string, string> = {
 };
 
 
-export const DEAL_OPERATIONAL_POSITION_STATE_LABELS: Record<string, string> = {
+const DEAL_OPERATIONAL_POSITION_STATE_LABELS: Record<string, string> = {
   blocked: "Заблокирована",
   done: "Закрыта",
   in_progress: "В работе",
@@ -155,14 +155,14 @@ export const DEAL_OPERATIONAL_POSITION_STATE_LABELS: Record<string, string> = {
   ready: "Готова",
 };
 
-export const DEAL_QUOTE_STATUS_LABELS: Record<string, string> = {
+const DEAL_QUOTE_STATUS_LABELS: Record<string, string> = {
   active: "Активна",
   cancelled: "Отменена",
   expired: "Истекла",
   used: "Исполнена",
 };
 
-export const DEAL_TIMELINE_EVENT_LABELS: Record<string, string> = {
+const DEAL_TIMELINE_EVENT_LABELS: Record<string, string> = {
   attachment_deleted: "Вложение удалено",
   attachment_ingested: "Файл распознан",
   attachment_uploaded: "Вложение загружено",
@@ -189,22 +189,6 @@ export const DEAL_TIMELINE_EVENT_LABELS: Record<string, string> = {
   quote_used: "Котировка исполнена",
   return_requested: "Запрошен возврат",
   status_changed: "Статус сделки изменен",
-};
-
-export const DEAL_ATTACHMENT_REQUIREMENT_STATE_LABELS: Record<string, string> = {
-  missing: "Отсутствует",
-  not_required: "Не требуется",
-  provided: "Загружен",
-};
-
-export const DEAL_FORMAL_DOCUMENT_REQUIREMENT_STATE_LABELS: Record<
-  string,
-  string
-> = {
-  in_progress: "В работе",
-  missing: "Отсутствует",
-  not_required: "Не требуется",
-  ready: "Готов",
 };
 
 const DEAL_NEXT_ACTION_LABELS: Record<string, string> = {
@@ -281,16 +265,6 @@ export function getFinanceDealStageLabel(value: string | null | undefined) {
   return FINANCE_DEAL_STAGE_LABELS[value as FinanceDealStage] ?? value;
 }
 
-export function getFinanceDealBlockerStateLabel(
-  value: string | null | undefined,
-) {
-  if (!value) {
-    return "—";
-  }
-
-  return FINANCE_DEAL_BLOCKER_STATE_LABELS[value as FinanceDealBlockerState] ?? value;
-}
-
 export function getFinanceDealStatusLabel(value: string | null | undefined) {
   if (!value) {
     return "—";
@@ -305,14 +279,6 @@ export function getFinanceDealTypeLabel(value: string | null | undefined) {
   }
 
   return FINANCE_DEAL_TYPE_LABELS[value as FinanceDealType] ?? value;
-}
-
-export function getFormalDocumentLabel(value: string | null | undefined) {
-  if (!value) {
-    return "—";
-  }
-
-  return FORMAL_DOCUMENT_LABELS[value] ?? value;
 }
 
 export function getDealLegKindLabel(value: string | null | undefined) {
@@ -331,7 +297,7 @@ export function getDealLegStateLabel(value: string | null | undefined) {
   return DEAL_LEG_STATE_LABELS[value] ?? value;
 }
 
-export function getDealOperationalPositionLabel(
+function getDealOperationalPositionLabel(
   value: string | null | undefined,
 ) {
   if (!value) {
@@ -375,50 +341,6 @@ export function getDealTimelineEventLabel(value: string | null | undefined) {
   }
 
   return DEAL_TIMELINE_EVENT_LABELS[value] ?? value;
-}
-
-export function getDealAttachmentRequirementStateLabel(
-  value: string | null | undefined,
-) {
-  if (!value) {
-    return "—";
-  }
-
-  return DEAL_ATTACHMENT_REQUIREMENT_STATE_LABELS[value] ?? value;
-}
-
-export function getDealFormalDocumentRequirementStateLabel(
-  value: string | null | undefined,
-) {
-  if (!value) {
-    return "—";
-  }
-
-  return DEAL_FORMAL_DOCUMENT_REQUIREMENT_STATE_LABELS[value] ?? value;
-}
-
-export function getAttachmentVisibilityLabel(value: string | null | undefined) {
-  if (value === "customer_safe") {
-    return "Клиент + CRM";
-  }
-
-  if (value === "internal") {
-    return "Только CRM";
-  }
-
-  return "Не указана";
-}
-
-export function getFormalDocumentStageLabel(value: string | null | undefined) {
-  if (value === "opening") {
-    return "Открывающий документ";
-  }
-
-  if (value === "closing") {
-    return "Закрывающий документ";
-  }
-
-  return "Документ";
 }
 
 export function formatDealNextAction(value: string | null | undefined) {

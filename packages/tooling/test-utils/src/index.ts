@@ -35,3 +35,6 @@ export {
   testUuid,
   createTestId,
 } from "./fixtures.js";
+
+// Test doubles
+export { createTestLogger, type TestLogger } from "./logger.js";

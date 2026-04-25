@@ -119,7 +119,6 @@ function createWorkflowProjection(input?: {
 }
 
 function createHarness(input: {
-  paymentStepsEnabled: boolean;
   paymentStepsListResult?: { data: unknown[]; total: number };
   workflow: Workflow;
 }) {
@@ -170,7 +169,6 @@ function createHarness(input: {
     idempotency: {
       withIdempotencyTx: vi.fn(async ({ handler }) => handler()),
     } as any,
-    paymentStepsEnabled: input.paymentStepsEnabled,
     createDealStore: () => ({
       createDealLegOperationLinks,
       createDealTimelineEvents,
@@ -205,10 +203,9 @@ function createHarness(input: {
   };
 }
 
-describe("requestExecution flag-aware early exit", () => {
-  it("returns early without materializing when flag is on and a step exists", async () => {
+describe("requestExecution payment-steps idempotency", () => {
+  it("returns early without materializing when a step already exists", async () => {
     const harness = createHarness({
-      paymentStepsEnabled: true,
       paymentStepsListResult: {
         data: [{ id: "step-1" }],
         total: 1,
@@ -232,9 +229,8 @@ describe("requestExecution flag-aware early exit", () => {
     expect(harness.createPaymentStep).not.toHaveBeenCalled();
   });
 
-  it("proceeds with materialization when flag is on but no steps exist yet", async () => {
+  it("proceeds with materialization when no steps exist yet", async () => {
     const harness = createHarness({
-      paymentStepsEnabled: true,
       paymentStepsListResult: { data: [], total: 0 },
       workflow: createWorkflowProjection(),
     });
@@ -245,36 +241,13 @@ describe("requestExecution flag-aware early exit", () => {
       idempotencyKey: "idem-1",
     });
 
-    expect(harness.createOrGetPlanned).toHaveBeenCalled();
     expect(harness.createPaymentStep).toHaveBeenCalled();
-  });
-
-  it("ignores step existence check when flag is off", async () => {
-    const harness = createHarness({
-      paymentStepsEnabled: false,
-      paymentStepsListResult: {
-        data: [{ id: "step-1" }],
-        total: 1,
-      },
-      workflow: createWorkflowProjection(),
-    });
-
-    await harness.workflow.requestExecution({
-      actorUserId: "user-1",
-      dealId: "deal-1",
-      idempotencyKey: "idem-1",
-    });
-
-    expect(harness.listPaymentSteps).not.toHaveBeenCalled();
-    expect(harness.createOrGetPlanned).toHaveBeenCalled();
-    expect(harness.createPaymentStep).not.toHaveBeenCalled();
   });
 });
 
-describe("createLegOperation flag-aware early exit", () => {
-  it("returns early when flag is on and a step for the leg exists", async () => {
+describe("createLegOperation payment-steps idempotency", () => {
+  it("returns early when a step for the leg already exists", async () => {
     const harness = createHarness({
-      paymentStepsEnabled: true,
       paymentStepsListResult: {
         data: [{ dealLegIdx: 1, id: "step-1" }],
         total: 1,
@@ -301,7 +274,6 @@ describe("createLegOperation flag-aware early exit", () => {
 
   it("proceeds when a step for a different leg exists", async () => {
     const harness = createHarness({
-      paymentStepsEnabled: true,
       paymentStepsListResult: {
         data: [{ dealLegIdx: 2, id: "step-2" }],
         total: 1,
@@ -316,7 +288,6 @@ describe("createLegOperation flag-aware early exit", () => {
       legId: "leg-1",
     });
 
-    expect(harness.createOrGetPlanned).toHaveBeenCalled();
     expect(harness.createPaymentStep).toHaveBeenCalled();
   });
 });

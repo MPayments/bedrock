@@ -1,4 +1,4 @@
-import { relations, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import {
   check,
   foreignKey,
@@ -190,46 +190,3 @@ export const fileLinks = pgTable(
       ),
   ],
 );
-
-export const fileAssetsRelations = relations(fileAssets, ({ many, one }) => ({
-  currentVersion: one(fileVersions, {
-    relationName: "file_assets_current_version",
-    fields: [fileAssets.currentVersionId],
-    references: [fileVersions.id],
-  }),
-  link: one(fileLinks, {
-    fields: [fileAssets.id],
-    references: [fileLinks.fileAssetId],
-  }),
-  versions: many(fileVersions, {
-    relationName: "file_versions_file_asset",
-  }),
-}));
-
-export const fileVersionsRelations = relations(fileVersions, ({ one }) => ({
-  currentForAsset: one(fileAssets, {
-    relationName: "file_assets_current_version",
-    fields: [fileVersions.id],
-    references: [fileAssets.currentVersionId],
-  }),
-  fileAsset: one(fileAssets, {
-    relationName: "file_versions_file_asset",
-    fields: [fileVersions.fileAssetId],
-    references: [fileAssets.id],
-  }),
-}));
-
-export const fileLinksRelations = relations(fileLinks, ({ one }) => ({
-  counterparty: one(counterparties, {
-    fields: [fileLinks.counterpartyId],
-    references: [counterparties.id],
-  }),
-  deal: one(deals, {
-    fields: [fileLinks.dealId],
-    references: [deals.id],
-  }),
-  fileAsset: one(fileAssets, {
-    fields: [fileLinks.fileAssetId],
-    references: [fileAssets.id],
-  }),
-}));

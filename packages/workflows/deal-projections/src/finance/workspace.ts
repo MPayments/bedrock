@@ -1,23 +1,13 @@
-import { computeDealLegState } from "@bedrock/deals";
-import { LEG_KIND_REQUIRED_DOC_TYPE } from "@bedrock/deals/contracts";
-import type { DealLegKind } from "@bedrock/deals/contracts";
 import type { ReconciliationOperationLinkDto } from "@bedrock/reconciliation/contracts";
 import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
-import {
-  computeOperationProjectedState,
-  type PaymentStep,
-} from "@bedrock/treasury/contracts";
+import { type PaymentStep } from "@bedrock/treasury/contracts";
 
 import { deriveFinanceDealReadiness } from "../close-readiness";
 import type {
   FinanceDealPaymentStep,
   FinanceDealWorkspaceProjection,
 } from "../contracts";
-import {
-  buildFinanceDealOperation,
-  isExecutionRequestAllowed,
-  resolveAdjustmentDocumentDocType,
-} from "./instructions";
+import { isExecutionRequestAllowed } from "./instructions";
 import {
   buildCashflowSummary,
   buildProfitabilitySnapshot,
@@ -40,6 +30,31 @@ import {
   isDealInTerminalStatus,
   isQuoteEligible,
 } from "../shared/workflow-helpers";
+
+function deriveLegStateFromStep(
+  step: PaymentStep | undefined,
+  manualOverride: "blocked" | "skipped" | null,
+): "blocked" | "done" | "pending" | "ready" | "skipped" {
+  if (manualOverride === "blocked") return "blocked";
+  if (manualOverride === "skipped") return "skipped";
+  if (!step) return "pending";
+
+  switch (step.state) {
+    case "completed":
+      return "done";
+    case "cancelled":
+    case "skipped":
+      return "skipped";
+    case "failed":
+    case "returned":
+      return "blocked";
+    case "draft":
+    case "scheduled":
+    case "pending":
+    case "processing":
+      return "ready";
+  }
+}
 
 type FinanceWorkspaceDeps = Pick<
   DealProjectionsWorkflowDeps,
@@ -112,10 +127,8 @@ export async function getFinanceDealWorkspaceProjection(
   const [
     attachments,
     currentCalculation,
-    operationsResult,
     paymentStepsResult,
     quotesResult,
-    dealTraceDocuments,
     pricingContext,
   ] = await Promise.all([
     deps.files.files.queries.listDealAttachments(dealId),
@@ -124,13 +137,6 @@ export async function getFinanceDealWorkspaceProjection(
           workflow.summary.calculationId,
         )
       : Promise.resolve(null),
-    deps.treasury.operations.queries.list({
-      dealId,
-      limit: MAX_QUERY_LIST_LIMIT,
-      offset: 0,
-      sortBy: "createdAt",
-      sortOrder: "desc",
-    }),
     deps.treasury.paymentSteps.queries.list({
       dealId,
       limit: 100,
@@ -144,7 +150,6 @@ export async function getFinanceDealWorkspaceProjection(
       sortBy: "createdAt",
       sortOrder: "desc",
     }),
-    deps.documentsReadModel.listDealTraceRowsByDealId(dealId),
     deps.deals.deals.queries.findPricingContextByDealId({ dealId }),
   ]);
 
@@ -167,11 +172,6 @@ export async function getFinanceDealWorkspaceProjection(
     pricingContext,
   });
 
-  const postedDocuments = dealTraceDocuments
-    .filter((row) => row.postingStatus === "posted")
-    .map((row) => ({ docType: row.docType }));
-  const postedDocTypes = new Set(postedDocuments.map((d) => d.docType));
-
   const actions = buildCrmWorkbenchActions(workflow);
   const attachmentRequirements = buildCrmEvidenceRequirements({
     attachments,
@@ -188,97 +188,19 @@ export async function getFinanceDealWorkspaceProjection(
       (document) => document.docType === "exchange",
     ) ?? null;
   const queueContext = classifyFinanceQueue(workflow);
-  const operationIds = operationsResult.data.map((operation) => operation.id);
-  const [latestInstructions, allInstructions] = await Promise.all([
-    deps.treasury.instructions.queries.listLatestByOperationIds(operationIds),
-    deps.treasury.instructions.queries.listByOperationIds({ operationIds }),
-  ]);
-  const operationsById = new Map(
-    operationsResult.data.map(
-      (operation) => [operation.id, operation] as const,
-    ),
-  );
-  const latestInstructionByOperationId = new Map(
-    latestInstructions.map(
-      (instruction) => [instruction.operationId, instruction] as const,
-    ),
-  );
-  const instructionById = new Map(
-    allInstructions.map(
-      (instruction) => [instruction.id, instruction] as const,
-    ),
-  );
-  const legByOperationId = new Map<string, { idx: number; kind: string }>();
-  for (const leg of workflow.executionPlan) {
-    for (const ref of leg.operationRefs) {
-      legByOperationId.set(ref.operationId, { idx: leg.idx, kind: leg.kind });
+  const paymentStepByLegIdx = new Map<number, PaymentStep>();
+  for (const step of paymentStepsResult.data) {
+    if (step.dealLegIdx !== null) {
+      paymentStepByLegIdx.set(step.dealLegIdx, step);
     }
   }
-  const instructionArtifactRecords =
-    allInstructions.length > 0
-      ? await deps.treasury.instructions.queries.listArtifactsByInstructionIds(
-          {
-            instructionIds: allInstructions.map(
-              (instruction) => instruction.id,
-            ),
-          },
-        )
-      : [];
-  const artifactFileAssetIds = Array.from(
-    new Set(
-      instructionArtifactRecords.map((artifact) => artifact.fileAssetId),
-    ),
-  );
-  const fileVersionsByAssetId = new Map(
-    (
-      await deps.files.files.queries.listCurrentFileVersionsByAssetIds(
-        artifactFileAssetIds,
-      )
-    ).map((version) => [version.assetId, version] as const),
-  );
-  const instructionArtifacts = instructionArtifactRecords
-    .map((artifact) => {
-      const instruction = instructionById.get(artifact.instructionId);
-      if (!instruction) return null;
-      const legContext =
-        legByOperationId.get(instruction.operationId) ?? null;
-      const fileVersion = fileVersionsByAssetId.get(artifact.fileAssetId);
-      if (!fileVersion) return null;
-      return {
-        fileAssetId: artifact.fileAssetId,
-        fileName: fileVersion.fileName,
-        fileSize: fileVersion.fileSize,
-        id: artifact.id,
-        instructionId: artifact.instructionId,
-        legIdx: legContext?.idx ?? null,
-        legKind: legContext?.kind ?? null,
-        memo: artifact.memo,
-        mimeType: fileVersion.mimeType,
-        operationId: instruction.operationId,
-        purpose: artifact.purpose,
-        uploadedAt: artifact.uploadedAt.toISOString(),
-        uploadedByUserId: artifact.uploadedByUserId,
-      };
-    })
-    .filter((value): value is NonNullable<typeof value> => value !== null)
-    .sort((left, right) => right.uploadedAt.localeCompare(left.uploadedAt));
-
-  // Files uploaded through the instruction-artifact drawer create a deal
-  // attachment link as a byproduct (the upload endpoint always links by
-  // `deal_attachment`). Hide the deal-attachment row when the same file
-  // asset already appears as an instruction artifact so each physical file
-  // is listed exactly once — on its richer, leg-scoped artifact row.
-  const artifactFileAssetIdSet = new Set(
-    instructionArtifacts.map((artifact) => artifact.fileAssetId),
-  );
-  const dedupedAttachments = attachments.filter(
-    (attachment) => !artifactFileAssetIdSet.has(attachment.id),
-  );
   const reconciliationLinks =
-    await deps.reconciliation.links.listOperationLinks({
-      operationIds: operationsResult.data.map((operation) => operation.id),
-    });
-  const reconciliationLinksByOperationId = new Map(
+    paymentStepsResult.data.length > 0
+      ? await deps.reconciliation.links.listOperationLinks({
+          operationIds: paymentStepsResult.data.map((step) => step.id),
+        })
+      : [];
+  const reconciliationLinksByStepId = new Map(
     reconciliationLinks.map(
       (link): readonly [string, ReconciliationOperationLinkDto] => [
         link.operationId,
@@ -288,32 +210,25 @@ export async function getFinanceDealWorkspaceProjection(
   );
   const {
     closeReadiness,
-    instructionSummary,
     reconciliationExceptions: readinessReconciliationExceptions,
     reconciliationSummary,
+    terminalStepCount,
+    totalStepCount,
   } = deriveFinanceDealReadiness({
-    latestInstructionByOperationId,
-    reconciliationLinksByOperationId,
+    paymentStepByLegIdx,
+    reconciliationLinksByStepId,
     workflow,
   });
   const reconciliationExceptions = readinessReconciliationExceptions.map(
     (exception) => ({
       ...exception,
       actions: {
-        adjustmentDocumentDocType: resolveAdjustmentDocumentDocType({
-          operationKind:
-            operationsById.get(exception.operationId)?.kind ?? null,
-        }),
+        adjustmentDocumentDocType: null,
         canIgnore: exception.state === "open",
       },
     }),
   );
-  const queueBlocked =
-    queueContext.blockers.length > 0 ||
-    workflow.executionPlan.some((leg) => leg.state === "blocked");
-  const hasAnyMaterializedOperations = workflow.executionPlan.some(
-    (leg) => leg.operationRefs.length > 0,
-  );
+  const hasAnyMaterializedSteps = paymentStepsResult.data.length > 0;
   const acceptedQuoteDetails = workflow.acceptedQuote
     ? (quotesResult.data
         .map(serializeCrmPricingQuote)
@@ -321,8 +236,7 @@ export async function getFinanceDealWorkspaceProjection(
       null)
     : null;
   const cashflowSummary = await buildCashflowSummary(
-    operationsResult.data,
-    latestInstructionByOperationId,
+    paymentStepsResult.data,
     deps,
   );
 
@@ -334,11 +248,10 @@ export async function getFinanceDealWorkspaceProjection(
       canCreateCalculation: false,
       canCreateQuote: false,
       canRequestExecution:
-        !hasAnyMaterializedOperations && isExecutionRequestAllowed(workflow),
+        !hasAnyMaterializedSteps && isExecutionRequestAllowed(workflow),
       canRunReconciliation:
-        instructionSummary.totalOperations > 0 &&
-        instructionSummary.terminalOperations ===
-          instructionSummary.totalOperations &&
+        totalStepCount > 0 &&
+        terminalStepCount === totalStepCount &&
         (reconciliationSummary.state === "pending" ||
           reconciliationSummary.state === "blocked"),
       canResolveExecutionBlocker: workflow.executionPlan.some(
@@ -352,39 +265,15 @@ export async function getFinanceDealWorkspaceProjection(
     executionPlan: workflow.executionPlan.map((leg) => {
       const manualOverride =
         leg.state === "blocked" || leg.state === "skipped" ? leg.state : null;
-      const latestInstructionStateByOperationId = new Map(
-        leg.operationRefs
-          .map((ref) => {
-            const instruction = latestInstructionByOperationId.get(
-              ref.operationId,
-            );
-            return instruction
-              ? ([ref.operationId, instruction.state] as const)
-              : null;
-          })
-          .filter(
-            (
-              entry,
-            ): entry is readonly [
-              string,
-              typeof entry extends readonly [string, infer S] ? S : never,
-            ] => entry !== null,
-          ),
-      );
-      const computedState = computeDealLegState({
-        manualOverride,
-        operationRefs: leg.operationRefs,
-        latestInstructionStateByOperationId,
-        requiredDocType: LEG_KIND_REQUIRED_DOC_TYPE[leg.kind as DealLegKind],
-        postedDocTypes,
-      });
+      const step = paymentStepByLegIdx.get(leg.idx);
+      const computedState = deriveLegStateFromStep(step, manualOverride);
       return {
         ...leg,
         state: computedState,
         actions: {
           canCreateLegOperation:
-            hasAnyMaterializedOperations &&
-            leg.operationRefs.length === 0 &&
+            hasAnyMaterializedSteps &&
+            !step &&
             computedState !== "blocked" &&
             computedState !== "skipped" &&
             !isDealInTerminalStatus(workflow),
@@ -409,7 +298,6 @@ export async function getFinanceDealWorkspaceProjection(
       };
     }),
     formalDocumentRequirements,
-    instructionSummary,
     nextAction: workflow.nextAction,
     operationalState: workflow.operationalState,
     pricing: {
@@ -425,21 +313,8 @@ export async function getFinanceDealWorkspaceProjection(
     queueContext,
     reconciliationSummary,
     relatedResources: {
-      attachments: dedupedAttachments,
+      attachments,
       formalDocuments: workflow.relatedResources.formalDocuments,
-      instructionArtifacts,
-      operations: operationsResult.data.map((operation) =>
-        buildFinanceDealOperation({
-          latestInstruction:
-            latestInstructionByOperationId.get(operation.id) ?? null,
-          operation,
-          projectedState: computeOperationProjectedState({
-            operationKind: operation.kind,
-            postedDocuments,
-          }),
-          queueBlocked,
-        }),
-      ),
       paymentSteps: paymentStepsResult.data.map(
         serializeFinanceDealPaymentStep,
       ),

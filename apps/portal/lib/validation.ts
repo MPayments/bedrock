@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const localizedTextSchema = z.object({
+const localizedTextSchema = z.object({
   ru: z.string().optional(),
   en: z.string().optional(),
 });

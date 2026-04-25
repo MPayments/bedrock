@@ -1,17 +1,10 @@
 import {
+  type FinanceDealBlockerState,
   formatDealWorkflowMessage,
   formatOperationalPositionIssue,
   getFinancePrimaryOperationalPositionLabel,
   isPrimaryOperationalPositionVisible,
 } from "@/features/treasury/deals/labels";
-
-export const FINANCE_DEAL_BLOCKER_STATE_VALUES = [
-  "blocked",
-  "clear",
-] as const;
-
-export type FinanceDealBlockerState =
-  (typeof FINANCE_DEAL_BLOCKER_STATE_VALUES)[number];
 
 type FinanceDealListItemForBlockerState = {
   blockingReasons: string[];
@@ -67,7 +60,7 @@ export type FinanceDealExecutionLegSummary = {
   state: string;
 };
 
-export const LEG_PRIMARY_POSITION_KIND_MAP: Record<string, string | null> = {
+const LEG_PRIMARY_POSITION_KIND_MAP: Record<string, string | null> = {
   collect: "customer_receivable",
   convert: null,
   payout: "provider_payable",
@@ -101,7 +94,7 @@ export function getFinanceDealExecutionProgress(
   };
 }
 
-export function getFinanceDealExecutionIssueCount(
+function getFinanceDealExecutionIssueCount(
   deal: Pick<FinanceDealExecutionInput, "executionPlan" | "operationalState">,
 ) {
   return (

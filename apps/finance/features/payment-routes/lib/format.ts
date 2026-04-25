@@ -38,7 +38,7 @@ export function formatCurrencyMinorAmount(
   }
 }
 
-export function formatCurrencyRatio(input: {
+function formatCurrencyRatio(input: {
   amountInMinor: string;
   amountOutMinor: string;
   currencyIn: PaymentRouteCurrencyOption | null | undefined;
@@ -78,7 +78,7 @@ function formatScaledDecimal(scaledValue: bigint, fractionDigits: number) {
     .padStart(fractionDigits, "0")}`;
 }
 
-export function formatExactCurrencyRatio(input: {
+function formatExactCurrencyRatio(input: {
   amountBaseMinor: string | bigint;
   amountQuoteMinor: string | bigint;
   baseCurrency: PaymentRouteCurrencyOption | null | undefined;

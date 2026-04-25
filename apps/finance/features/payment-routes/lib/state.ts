@@ -71,7 +71,7 @@ export type PaymentRouteEditorState = {
   visual: PaymentRouteVisualMetadata;
 };
 
-export const DEFAULT_PAYMENT_ROUTE_VIEWPORT = {
+const DEFAULT_PAYMENT_ROUTE_VIEWPORT = {
   x: 0,
   y: 0,
   zoom: 1,
@@ -223,7 +223,7 @@ function createAbstractEndpointParticipantRef(
   };
 }
 
-export function getEntityOptions(
+function getEntityOptions(
   options: PaymentRouteConstructorOptions,
 ): PaymentRouteEntityOption[] {
   return [
@@ -242,7 +242,7 @@ export function getEntityOptions(
   ];
 }
 
-export function getCustomerOptions(
+function getCustomerOptions(
   options: PaymentRouteConstructorOptions,
 ): PaymentRouteSelectableParticipantOption[] {
   return options.customers.map((customer) => ({
@@ -274,7 +274,7 @@ export function getSelectableParticipantOptions(input: {
   );
 }
 
-export function findSelectableParticipantOption(input: {
+function findSelectableParticipantOption(input: {
   entityId: string;
   options: PaymentRouteConstructorOptions;
   role: PaymentRouteParticipantRole;
@@ -360,7 +360,7 @@ export function createPaymentRouteEditorStateFromTemplate(
   };
 }
 
-export function ensureVisualMetadata(
+function ensureVisualMetadata(
   draft: PaymentRouteDraft,
   visual: PaymentRouteVisualMetadata,
 ): PaymentRouteVisualMetadata {
@@ -385,7 +385,7 @@ export function ensureVisualMetadata(
   return PaymentRouteVisualMetadataSchema.parse(next);
 }
 
-export function syncDraftAmounts(
+function syncDraftAmounts(
   draft: PaymentRouteDraft,
   calculation: PaymentRouteCalculation | null,
 ): PaymentRouteDraft {
@@ -1006,10 +1006,6 @@ export function applyCalculation(
     calculation,
     draft,
   };
-}
-
-export function createDuplicateRouteName(name: string) {
-  return `${name} (копия)`;
 }
 
 export function getParticipantKindOptions(

@@ -1,10 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
-import {
-  COMMERCIAL_CORE_ACTOR_USER_ID,
-  createAgreementFixture,
-} from "../../../../../tests/integration/commercial-core/fixtures";
+import { COMMERCIAL_CORE_ACTOR_USER_ID } from "../../../../../tests/integration/commercial-core/constants";
+import { createAgreementFixture } from "../../../../../tests/integration/commercial-core/fixtures";
 
 describe("agreements integration characterization", () => {
   it("creates an agreement from a bound organization requisite and versions on update", async () => {

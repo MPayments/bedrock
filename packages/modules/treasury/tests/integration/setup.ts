@@ -27,4 +27,4 @@ registerPgIntegrationLifecycle({
   },
 });
 
-export { db, pool };
+export { db };

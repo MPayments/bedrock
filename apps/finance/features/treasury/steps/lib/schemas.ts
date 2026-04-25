@@ -20,7 +20,7 @@ import {
  * workbench and the treasury operations screen parse API responses through
  * it.
  */
-export const FinanceDealPaymentStepAttemptSchema = z.object({
+const FinanceDealPaymentStepAttemptSchema = z.object({
   attemptNo: z.number().int().positive(),
   createdAt: z.iso.datetime(),
   id: z.string().uuid(),

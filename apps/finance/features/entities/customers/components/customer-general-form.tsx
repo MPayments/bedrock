@@ -102,14 +102,6 @@ function valuesSignature(values: CustomerGeneralFormValues) {
   return `${values.name}\n${values.externalRef}\n${values.description}`;
 }
 
-const CREATE_GENERAL_FORM_VARIANT: CustomerGeneralFormVariant = {
-  submitLabel: "Создать",
-  submittingLabel: "Создание...",
-  disableSubmitUntilDirty: false,
-  showDelete: false,
-  usePlaceholderDates: true,
-};
-
 const EDIT_GENERAL_FORM_VARIANT: CustomerGeneralFormVariant = {
   submitLabel: "Сохранить",
   submittingLabel: "Сохранение...",
@@ -345,15 +337,6 @@ function CustomerGeneralFormBase({
         </form>
       </CardContent>
     </Card>
-  );
-}
-
-export function CustomerCreateGeneralForm(props: CustomerGeneralFormProps) {
-  return (
-    <CustomerGeneralFormBase
-      variant={CREATE_GENERAL_FORM_VARIANT}
-      {...props}
-    />
   );
 }
 

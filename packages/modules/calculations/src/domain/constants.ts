@@ -23,8 +23,6 @@ export const CALCULATION_LINE_KIND_VALUES = [
 ] as const;
 
 export const CALCULATIONS_CREATE_IDEMPOTENCY_SCOPE = "calculations.create";
-export const CALCULATIONS_CREATE_FOR_APPLICATION_IDEMPOTENCY_SCOPE =
-  "calculations.create.application";
 
 export type CalculationRateSource = (typeof CALCULATION_RATE_SOURCE_VALUES)[number];
 export type CalculationLineKind = (typeof CALCULATION_LINE_KIND_VALUES)[number];

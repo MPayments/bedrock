@@ -11,7 +11,7 @@ function normalizeValue(value?: string | null): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
-export function resolveLocalizedText(
+function resolveLocalizedText(
   localized?: LocalizedTextValue | null,
   lang: SupportedLang = "ru",
 ): string | undefined {

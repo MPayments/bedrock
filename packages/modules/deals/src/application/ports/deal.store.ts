@@ -7,7 +7,6 @@ import type {
   DealApprovalStatus,
   DealApprovalType,
   DealLegKind,
-  DealLegOperationKind,
   DealParticipantRole,
   DealStatus,
   DealTimelineEventType,
@@ -58,14 +57,6 @@ export interface CreateDealParticipantStoredInput {
   id: string;
   organizationId: string | null;
   role: DealParticipantRole;
-}
-
-export interface CreateDealLegOperationLinkStoredInput {
-  dealLegId: string;
-  id: string;
-  operationKind: DealLegOperationKind;
-  sourceRef: string;
-  treasuryOperationId: string;
 }
 
 export interface CreateDealTimelineEventStoredInput {
@@ -151,9 +142,6 @@ export interface DealStore {
   ): Promise<void>;
   createDealPricingContext(
     input: CreateDealPricingContextStoredInput,
-  ): Promise<void>;
-  createDealLegOperationLinks(
-    input: CreateDealLegOperationLinkStoredInput[],
   ): Promise<void>;
   createDealQuoteAcceptance(
     input: CreateDealQuoteAcceptanceStoredInput,

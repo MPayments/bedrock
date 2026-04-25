@@ -120,18 +120,6 @@ function createDeal(): FinanceDealWorkspace {
         state: "missing",
       },
     ],
-    instructionSummary: {
-      failed: 0,
-      planned: 1,
-      prepared: 0,
-      returnRequested: 0,
-      returned: 0,
-      settled: 0,
-      submitted: 0,
-      terminalOperations: 0,
-      totalOperations: 1,
-      voided: 0,
-    },
     nextAction: "Create calculation from accepted quote",
     operationalState: {
       positions: [
@@ -187,8 +175,6 @@ function createDeal(): FinanceDealWorkspace {
         },
       ],
       formalDocuments: [],
-      instructionArtifacts: [],
-      operations: [],
       paymentSteps: [],
       quotes: [
         {

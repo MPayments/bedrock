@@ -2,27 +2,16 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createModuleRuntime } from "@bedrock/shared/core";
 import { sha256Hex } from "@bedrock/shared/core/crypto";
+import { createTestLogger } from "@bedrock/test-utils";
 
 import { DeleteFileAttachmentCommand } from "../../src/application/commands/delete-file-attachment";
 import { PersistGeneratedFileCommand } from "../../src/application/commands/persist-generated-file";
 import { UploadFileAttachmentCommand } from "../../src/application/commands/upload-file-attachment";
 
-function createLogger() {
-  const logger = {
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    debug: vi.fn(),
-    child: vi.fn(),
-  };
-  logger.child.mockReturnValue(logger);
-  return logger;
-}
-
 function createRuntime(service: string, uuids: string[]) {
   return createModuleRuntime({
     service,
-    logger: createLogger(),
+    logger: createTestLogger(),
     generateUuid: () =>
       uuids.shift() ?? "00000000-0000-4000-8000-000000000099",
     now: () => new Date("2026-03-30T12:00:00.000Z"),

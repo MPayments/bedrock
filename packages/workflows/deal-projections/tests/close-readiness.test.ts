@@ -2,12 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import type { DealWorkflowProjection } from "@bedrock/deals/contracts";
 import type { ReconciliationOperationLinkDto } from "@bedrock/reconciliation/contracts";
-import type { TreasuryInstruction } from "@bedrock/treasury/contracts";
+import type { PaymentStep } from "@bedrock/treasury/contracts";
 
-import {
-  deriveFinanceDealReadiness,
-  deriveFinanceDealStage,
-} from "../src";
+import { deriveFinanceDealReadiness, deriveFinanceDealStage } from "../src";
 
 function createLeg(input: {
   id: string;
@@ -163,42 +160,56 @@ function createWorkflow(input?: {
   } as DealWorkflowProjection;
 }
 
-function createInstructionStateMap(
-  entries: [operationId: string, state: TreasuryInstruction["state"]][],
-): ReadonlyMap<string, TreasuryInstruction> {
-  return new Map<string, TreasuryInstruction>(
-    entries.map(([operationId, state], index) => [
-      operationId,
-      {
-        attempt: 1,
-        createdAt: new Date("2026-04-03T10:00:00.000Z"),
-        failedAt: state === "failed" ? new Date("2026-04-03T10:05:00.000Z") : null,
-        id: `instruction-${index + 1}`,
-        operationId,
-        providerRef: null,
-        providerSnapshot: null,
-        returnRequestedAt:
-          state === "return_requested"
-            ? new Date("2026-04-03T10:05:00.000Z")
-            : null,
-        returnedAt: state === "returned" ? new Date("2026-04-03T10:05:00.000Z") : null,
-        settledAt: state === "settled" ? new Date("2026-04-03T10:05:00.000Z") : null,
-        sourceRef: `source-${index + 1}`,
-        state,
-        submittedAt: state === "submitted" ? new Date("2026-04-03T10:05:00.000Z") : null,
-        updatedAt: new Date("2026-04-03T10:00:00.000Z"),
-        voidedAt: state === "voided" ? new Date("2026-04-03T10:05:00.000Z") : null,
-      },
+function createStep(input: {
+  id: string;
+  legIdx: number;
+  state: PaymentStep["state"];
+}): PaymentStep {
+  return {
+    artifacts: [],
+    attempts: [],
+    completedAt: null,
+    createdAt: new Date("2026-04-03T10:00:00.000Z"),
+    dealId: "deal-1",
+    dealLegIdx: input.legIdx,
+    dealLegRole: null,
+    failureReason: null,
+    fromAmountMinor: null,
+    fromCurrencyId: "currency-usd",
+    fromParty: { id: "party-1", requisiteId: null },
+    id: input.id,
+    kind: "payout",
+    postings: [],
+    purpose: "deal_leg",
+    rate: null,
+    scheduledAt: null,
+    state: input.state,
+    submittedAt: null,
+    toAmountMinor: null,
+    toCurrencyId: "currency-eur",
+    toParty: { id: "party-2", requisiteId: null },
+    treasuryBatchId: null,
+    updatedAt: new Date("2026-04-03T10:00:00.000Z"),
+  };
+}
+
+function createStepMap(
+  entries: [legIdx: number, id: string, state: PaymentStep["state"]][],
+): ReadonlyMap<number, PaymentStep> {
+  return new Map(
+    entries.map(([legIdx, id, state]) => [
+      legIdx,
+      createStep({ id, legIdx, state }),
     ]),
   );
 }
 
 function createReconciliationLinkMap(
-  entries: [operationId: string, matchCount: number, openExceptionCount?: number][],
+  entries: [stepId: string, matchCount: number, openExceptionCount?: number][],
 ): ReadonlyMap<string, ReconciliationOperationLinkDto> {
   return new Map<string, ReconciliationOperationLinkDto>(
-    entries.map(([operationId, matchCount, openExceptionCount = 0], index) => [
-      operationId,
+    entries.map(([stepId, matchCount, openExceptionCount = 0], index) => [
+      stepId,
       {
         exceptions:
           openExceptionCount > 0
@@ -207,7 +218,7 @@ function createReconciliationLinkMap(
                   createdAt: new Date("2026-04-03T11:00:00.000Z"),
                   externalRecordId: `external-${index + 1}`,
                   id: `exception-${index + 1}`,
-                  operationId,
+                  operationId: stepId,
                   reasonCode: "no_match",
                   resolvedAt: null,
                   source: "bank_statement",
@@ -220,7 +231,7 @@ function createReconciliationLinkMap(
             ? new Date("2026-04-03T11:00:00.000Z")
             : null,
         matchCount,
-        operationId,
+        operationId: stepId,
       },
     ]),
   );
@@ -244,13 +255,14 @@ describe("finance close readiness", () => {
     const workflow = createWorkflow({
       formalDocuments: [createActiveAcceptanceDocument()],
     });
+    const paymentStepByLegIdx = createStepMap([
+      [1, "step-1", "cancelled"],
+      [2, "step-2", "completed"],
+    ]);
     const readiness = deriveFinanceDealReadiness({
-      latestInstructionByOperationId: createInstructionStateMap([
-        ["operation-1", "voided"],
-        ["operation-2", "settled"],
-      ]),
-      reconciliationLinksByOperationId: createReconciliationLinkMap([
-        ["operation-2", 0],
+      paymentStepByLegIdx,
+      reconciliationLinksByStepId: createReconciliationLinkMap([
+        ["step-2", 0],
       ]),
       workflow,
     });
@@ -259,10 +271,7 @@ describe("finance close readiness", () => {
       agreementOrganizationId: "org-internal",
       closeReadiness: readiness.closeReadiness,
       internalEntityOrganizationId: "org-internal",
-      latestInstructionByOperationId: createInstructionStateMap([
-        ["operation-1", "voided"],
-        ["operation-2", "settled"],
-      ]),
+      paymentStepByLegIdx,
       reconciliationSummary: readiness.reconciliationSummary,
       workflow,
     });
@@ -279,14 +288,14 @@ describe("finance close readiness", () => {
     const workflow = createWorkflow({
       formalDocuments: [createActiveAcceptanceDocument()],
     });
-    const latestInstructionByOperationId = createInstructionStateMap([
-      ["operation-1", "voided"],
-      ["operation-2", "settled"],
+    const paymentStepByLegIdx = createStepMap([
+      [1, "step-1", "cancelled"],
+      [2, "step-2", "completed"],
     ]);
     const readiness = deriveFinanceDealReadiness({
-      latestInstructionByOperationId,
-      reconciliationLinksByOperationId: createReconciliationLinkMap([
-        ["operation-2", 1],
+      paymentStepByLegIdx,
+      reconciliationLinksByStepId: createReconciliationLinkMap([
+        ["step-2", 1],
       ]),
       workflow,
     });
@@ -295,7 +304,7 @@ describe("finance close readiness", () => {
       agreementOrganizationId: "org-internal",
       closeReadiness: readiness.closeReadiness,
       internalEntityOrganizationId: "org-internal",
-      latestInstructionByOperationId,
+      paymentStepByLegIdx,
       reconciliationSummary: readiness.reconciliationSummary,
       workflow,
     });
@@ -342,15 +351,16 @@ describe("finance close readiness", () => {
       type: "currency_exchange",
     });
 
+    const paymentStepByLegIdx = createStepMap([
+      [1, "step-1", "cancelled"],
+      [2, "step-2", "completed"],
+      [3, "step-3", "returned"],
+    ]);
     const readiness = deriveFinanceDealReadiness({
-      latestInstructionByOperationId: createInstructionStateMap([
-        ["operation-1", "voided"],
-        ["operation-2", "settled"],
-        ["operation-3", "returned"],
-      ]),
-      reconciliationLinksByOperationId: createReconciliationLinkMap([
-        ["operation-2", 1],
-        ["operation-3", 1],
+      paymentStepByLegIdx,
+      reconciliationLinksByStepId: createReconciliationLinkMap([
+        ["step-2", 1],
+        ["step-3", 1],
       ]),
       workflow,
     });
@@ -390,12 +400,13 @@ describe("finance close readiness", () => {
       ],
       type: "currency_transit",
     });
+    const paymentStepByLegIdx = createStepMap([
+      [1, "step-1", "completed"],
+    ]);
     const readiness = deriveFinanceDealReadiness({
-      latestInstructionByOperationId: createInstructionStateMap([
-        ["operation-1", "settled"],
-      ]),
-      reconciliationLinksByOperationId: createReconciliationLinkMap([
-        ["operation-1", 1],
+      paymentStepByLegIdx,
+      reconciliationLinksByStepId: createReconciliationLinkMap([
+        ["step-1", 1],
       ]),
       workflow,
     });
@@ -405,9 +416,7 @@ describe("finance close readiness", () => {
         agreementOrganizationId: "org-internal",
         closeReadiness: readiness.closeReadiness,
         internalEntityOrganizationId: "org-internal",
-        latestInstructionByOperationId: createInstructionStateMap([
-          ["operation-1", "settled"],
-        ]),
+        paymentStepByLegIdx,
         reconciliationSummary: readiness.reconciliationSummary,
         workflow,
       }).stage,
@@ -417,9 +426,7 @@ describe("finance close readiness", () => {
         agreementOrganizationId: "org-external",
         closeReadiness: readiness.closeReadiness,
         internalEntityOrganizationId: "org-internal",
-        latestInstructionByOperationId: createInstructionStateMap([
-          ["operation-1", "settled"],
-        ]),
+        paymentStepByLegIdx,
         reconciliationSummary: readiness.reconciliationSummary,
         workflow,
       }).stage,
@@ -462,14 +469,15 @@ describe("finance close readiness", () => {
       type: "exporter_settlement",
     });
 
+    const paymentStepByLegIdx = createStepMap([
+      [1, "step-1", "completed"],
+      [2, "step-2", "cancelled"],
+      [3, "step-3", "cancelled"],
+    ]);
     const readiness = deriveFinanceDealReadiness({
-      latestInstructionByOperationId: createInstructionStateMap([
-        ["operation-1", "settled"],
-        ["operation-2", "voided"],
-        ["operation-3", "voided"],
-      ]),
-      reconciliationLinksByOperationId: createReconciliationLinkMap([
-        ["operation-1", 1],
+      paymentStepByLegIdx,
+      reconciliationLinksByStepId: createReconciliationLinkMap([
+        ["step-1", 1],
       ]),
       workflow,
     });
@@ -504,16 +512,17 @@ describe("finance close readiness", () => {
       type: "currency_exchange",
     });
 
+    const paymentStepByLegIdx = createStepMap([
+      [1, "step-1", "completed"],
+      [2, "step-2", "completed"],
+      [3, "step-3", "completed"],
+      [4, "step-4", "completed"],
+      [5, "step-5", "processing"],
+      [6, "step-6", "pending"],
+    ]);
     const readiness = deriveFinanceDealReadiness({
-      latestInstructionByOperationId: createInstructionStateMap([
-        ["op-1", "settled"],
-        ["op-2", "settled"],
-        ["op-3", "settled"],
-        ["op-4", "settled"],
-        ["op-5", "submitted"],
-        ["op-6", "prepared"],
-      ]),
-      reconciliationLinksByOperationId: createReconciliationLinkMap([]),
+      paymentStepByLegIdx,
+      reconciliationLinksByStepId: createReconciliationLinkMap([]),
       workflow,
     });
 

@@ -7,10 +7,6 @@ import {
   evaluateDealSectionCompleteness,
 } from "../../domain/workflow";
 import type {
-  CreateDealDraftInput,
-  CreatePortalDealInput,
-} from "../contracts/commands";
-import type {
   DealIntakeDraft,
   DealQuoteAcceptance,
   DealWorkflowLeg,
@@ -24,76 +20,6 @@ import type {
   DealAgreementReference,
   DealReferencesPort,
 } from "../ports/references.port";
-
-export function createEmptyDealIntakeDraft(
-  type: CreateDealDraftInput["intake"]["type"],
-): DealIntakeDraft {
-  return {
-    common: {
-      applicantCounterpartyId: null,
-      customerNote: null,
-      requestedExecutionDate: null,
-    },
-    externalBeneficiary: {
-      bankInstructionSnapshot: null,
-      beneficiaryCounterpartyId: null,
-      beneficiarySnapshot: null,
-    },
-    incomingReceipt: {
-      contractNumber: null,
-      expectedAmount: null,
-      expectedAt: null,
-      invoiceNumber: null,
-      payerCounterpartyId: null,
-      payerSnapshot: null,
-    },
-    moneyRequest: {
-      purpose: null,
-      sourceAmount: null,
-      sourceCurrencyId: null,
-      targetCurrencyId: null,
-    },
-    settlementDestination: {
-      bankInstructionSnapshot: null,
-      mode: null,
-      requisiteId: null,
-    },
-    type,
-  };
-}
-
-export function buildPortalIntakeDraft(input: CreatePortalDealInput): DealIntakeDraft {
-  const draft = createEmptyDealIntakeDraft(input.type);
-
-  draft.common = {
-    applicantCounterpartyId: input.common.applicantCounterpartyId,
-    customerNote: input.common.customerNote ?? null,
-    requestedExecutionDate: input.common.requestedExecutionDate ?? null,
-  };
-  draft.moneyRequest = {
-    purpose: input.moneyRequest.purpose ?? null,
-    sourceAmount: input.moneyRequest.sourceAmount ?? null,
-    sourceCurrencyId: input.moneyRequest.sourceCurrencyId ?? null,
-    targetCurrencyId: input.moneyRequest.targetCurrencyId ?? null,
-  };
-
-  if (
-    input.type === "payment" ||
-    input.type === "currency_transit" ||
-    input.type === "exporter_settlement"
-  ) {
-    draft.incomingReceipt = {
-      contractNumber: input.incomingReceipt?.contractNumber ?? null,
-      expectedAmount: input.incomingReceipt?.expectedAmount ?? null,
-      expectedAt: input.incomingReceipt?.expectedAt ?? null,
-      invoiceNumber: input.incomingReceipt?.invoiceNumber ?? null,
-      payerCounterpartyId: null,
-      payerSnapshot: null,
-    };
-  }
-
-  return draft;
-}
 
 export async function deriveDealRootState(input: {
   acceptance: DealQuoteAcceptance | null;

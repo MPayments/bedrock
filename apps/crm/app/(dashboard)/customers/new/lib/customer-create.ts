@@ -153,7 +153,7 @@ const phoneSchema = z.string().refine(
   { message: "Некорректный формат телефона (например: +7 999 123-45-67)" },
 );
 
-export const customerCreateCustomerSchema = z.object({
+const customerCreateCustomerSchema = z.object({
   description: z.string(),
   name: z.string().trim().min(1, "Название клиента обязательно"),
   externalRef: z.string(),
@@ -463,48 +463,6 @@ function buildPartyProfileBundle(
     licenses: [],
   };
 }
-
-export const customerCreateCounterpartySchema = z.object({
-  address: z.string(),
-  addressI18n: localizedTextSchema,
-  directorBasis: z.string().trim().min(1, "Основание полномочий обязательно"),
-  directorBasisI18n: localizedTextSchema,
-  directorName: z.string().trim().min(1, "ФИО директора обязательно"),
-  directorNameI18n: localizedTextSchema,
-  email: emailSchema,
-  inn: z
-    .string()
-    .trim()
-    .min(1, "ИНН обязателен")
-    .refine((value) => /^\d{10}$|^\d{12}$/.test(value), {
-      message: "ИНН должен содержать 10 или 12 цифр",
-    }),
-  kpp: z.string().refine((value) => value === "" || /^\d{9}$/.test(value), {
-    message: "КПП должен содержать только цифры (9 символов)",
-  }),
-  ogrn: z
-    .string()
-    .refine((value) => value === "" || /^\d{13}$|^\d{15}$/.test(value), {
-      message: "ОГРН должен содержать только цифры (13 или 15 символов)",
-    }),
-  okpo: z
-    .string()
-    .refine((value) => value === "" || /^\d{8}$|^\d{10}$/.test(value), {
-      message: "ОКПО должен содержать только цифры (8 или 10 символов)",
-    }),
-  oktmo: z
-    .string()
-    .refine((value) => value === "" || /^\d{8}$|^\d{11}$/.test(value), {
-      message: "ОКТМО должен содержать только цифры (8 или 11 символов)",
-    }),
-  orgName: z.string().trim().min(1, "Название организации обязательно"),
-  orgNameI18n: localizedTextSchema,
-  orgType: z.string().trim().min(1, "Тип организации обязателен"),
-  orgTypeI18n: localizedTextSchema,
-  phone: phoneSchema,
-  position: z.string().trim().min(1, "Должность обязательна"),
-  positionI18n: localizedTextSchema,
-});
 
 export function getCustomerCreateDefaultValues(): CustomerCreateFormData {
   return {

@@ -1,15 +1,5 @@
 "use client";
 
-/**
- * Client-side fetchers that power the inline party / requisite selects inside
- * {@link ./step-route-editor.tsx}. Each fetcher returns a minimal `{id, label}`
- * shape so the editor can render Selects without caring about the underlying
- * entity schema.
- *
- * The finance app talks to the API over same-origin cookies, so we use
- * `credentials: "include"` and skip ad-hoc fetch wrappers.
- */
-
 export type PartyKind = "organization" | "counterparty" | "customer";
 
 export interface PartyOption {
@@ -49,13 +39,43 @@ async function readOptions(url: string): Promise<OptionsResponse | null> {
   }
 }
 
+const partyCache = new Map<PartyKind, PartyOption[]>();
+const partyInflight = new Map<PartyKind, Promise<PartyOption[]>>();
+
 export async function listPartyOptions(kind: PartyKind): Promise<PartyOption[]> {
-  const payload = await readOptions(PARTY_ENDPOINT[kind]);
-  if (!payload) return [];
-  return payload.data.map((row) => ({
-    id: row.id,
-    label: row.label ?? row.displayName ?? row.name ?? row.id,
-  }));
+  const cached = partyCache.get(kind);
+  if (cached) return cached;
+  const running = partyInflight.get(kind);
+  if (running) return running;
+  const promise = (async () => {
+    try {
+      const payload = await readOptions(PARTY_ENDPOINT[kind]);
+      const options = payload
+        ? payload.data.map((row) => ({
+            id: row.id,
+            label: row.label ?? row.displayName ?? row.name ?? row.id,
+          }))
+        : [];
+      partyCache.set(kind, options);
+      return options;
+    } finally {
+      partyInflight.delete(kind);
+    }
+  })();
+  partyInflight.set(kind, promise);
+  return promise;
+}
+
+export async function resolvePartyDisplayName(
+  partyId: string,
+): Promise<string | null> {
+  const kinds: PartyKind[] = ["organization", "counterparty", "customer"];
+  const lookups = await Promise.all(kinds.map((kind) => listPartyOptions(kind)));
+  for (const options of lookups) {
+    const match = options.find((opt) => opt.id === partyId);
+    if (match) return match.label;
+  }
+  return null;
 }
 
 export async function listRequisiteOptions(input: {

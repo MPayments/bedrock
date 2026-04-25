@@ -4,4 +4,4 @@ export const authClient = createAuthClient({
   basePath: "/api/auth/portal",
 });
 
-export const { signIn, signOut, signUp, useSession } = authClient;
+export const { signOut } = authClient;

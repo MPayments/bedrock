@@ -7,11 +7,6 @@ import {
 
 import { createFeesService } from "./fees/application";
 import type { FeeRuleRepository } from "./fees/application/ports";
-import { createTreasuryInstructionsService } from "./instructions/application";
-import type { TreasuryInstructionArtifactsRepository } from "./instructions/application/ports/artifacts.repository";
-import type { TreasuryInstructionsRepository } from "./instructions/application/ports/instructions.repository";
-import { createTreasuryOperationsService } from "./operations/application";
-import type { TreasuryOperationsRepository } from "./operations/application/ports/operations.repository";
 import { createPaymentRoutesService } from "./payment-routes/application";
 import type { PaymentRouteTemplatesRepository } from "./payment-routes/application/ports/payment-routes.repository";
 import { createPaymentStepsService } from "./payment-steps/application";
@@ -38,9 +33,6 @@ export interface TreasuryModuleDeps {
   now: Clock;
   generateUuid: UuidGenerator;
   currencies: CurrenciesPort;
-  instructionArtifactsRepository: TreasuryInstructionArtifactsRepository;
-  instructionsRepository: TreasuryInstructionsRepository;
-  operationsRepository: TreasuryOperationsRepository;
   ratesRepository: RatesRepository;
   quotesRepository: QuotesRepository;
   quoteFeeComponentsRepository: QuoteFeeComponentsRepository;
@@ -83,16 +75,6 @@ export function createTreasuryModule(deps: TreasuryModuleDeps) {
   });
 
   return {
-    instructions: createTreasuryInstructionsService({
-      artifactsRepository: deps.instructionArtifactsRepository,
-      instructionsRepository: deps.instructionsRepository,
-      operationsRepository: deps.operationsRepository,
-      runtime: createRuntime("treasury.instructions"),
-    }),
-    operations: createTreasuryOperationsService({
-      operationsRepository: deps.operationsRepository,
-      runtime: createRuntime("treasury.operations"),
-    }),
     paymentSteps: createPaymentStepsService({
       repository: deps.paymentStepsRepository,
       runtime: createRuntime("treasury.payment_steps"),

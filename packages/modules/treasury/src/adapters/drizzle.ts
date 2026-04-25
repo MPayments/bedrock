@@ -1,7 +1,4 @@
 export { DrizzleTreasuryFeeRulesRepository } from "../fees/adapters/drizzle/fee-rules.repository";
-export { DrizzleTreasuryInstructionArtifactsRepository } from "../instructions/adapters/drizzle/artifacts.repository";
-export { DrizzleTreasuryInstructionsRepository } from "../instructions/adapters/drizzle/instructions.repository";
-export { DrizzleTreasuryOperationsRepository } from "../operations/adapters/drizzle/operations.repository";
 export { DrizzlePaymentRouteTemplatesRepository } from "../payment-routes/adapters/drizzle/payment-routes.repository";
 export { DrizzlePaymentStepsRepository } from "../payment-steps/infra/drizzle/payment-steps.repository";
 export { DrizzleTreasuryQuoteFinancialLinesRepository } from "../quotes/adapters/drizzle/quote-financial-lines.repository";

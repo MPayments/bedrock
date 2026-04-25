@@ -41,9 +41,6 @@ import {
   DrizzlePaymentRouteTemplatesRepository,
   DrizzlePaymentStepsRepository,
   DrizzleTreasuryFeeRulesRepository,
-  DrizzleTreasuryInstructionArtifactsRepository,
-  DrizzleTreasuryInstructionsRepository,
-  DrizzleTreasuryOperationsRepository,
   DrizzleTreasuryQuoteFeeComponentsRepository,
   DrizzleTreasuryQuoteFinancialLinesRepository,
   DrizzleTreasuryQuotesRepository,
@@ -253,10 +250,6 @@ export function createWorkerImplementations(
     now: () => new Date(),
     generateUuid: randomUUID,
     currencies: currenciesService,
-    instructionArtifactsRepository:
-      new DrizzleTreasuryInstructionArtifactsRepository(deps.db),
-    instructionsRepository: new DrizzleTreasuryInstructionsRepository(deps.db),
-    operationsRepository: new DrizzleTreasuryOperationsRepository(deps.db),
     ratesRepository: new DrizzleTreasuryRatesRepository(deps.db),
     quotesRepository: new DrizzleTreasuryQuotesRepository(deps.db),
     quoteFinancialLinesRepository:
@@ -302,7 +295,9 @@ export function createWorkerImplementations(
         );
       },
       async treasuryOperationExists(operationId: string) {
-        return (await treasuryModule.operations.queries.findById(operationId)) !== null;
+        return (
+          (await treasuryModule.paymentSteps.queries.findById({ stepId: operationId })) !== null
+        );
       },
     },
     logger: deps.logger,

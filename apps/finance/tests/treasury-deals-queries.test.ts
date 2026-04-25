@@ -124,18 +124,6 @@ function createFinanceWorkspacePayload(): SerializedDates<FinanceDealWorkspace> 
         state: "missing",
       },
     ],
-    instructionSummary: {
-      failed: 0,
-      planned: 0,
-      prepared: 0,
-      returnRequested: 0,
-      returned: 0,
-      settled: 0,
-      submitted: 0,
-      terminalOperations: 0,
-      totalOperations: 0,
-      voided: 0,
-    },
     nextAction: "Create calculation from accepted quote",
     operationalState: {
       positions: [
@@ -188,8 +176,6 @@ function createFinanceWorkspacePayload(): SerializedDates<FinanceDealWorkspace> 
         },
       ],
       formalDocuments: [],
-      instructionArtifacts: [],
-      operations: [],
       paymentSteps: [],
       quotes: [
         {
@@ -599,74 +585,6 @@ describe("treasury deals queries", () => {
           quotes: [
             expect.objectContaining({
               expiresAt: "2026-04-02T09:15:00Z",
-            }),
-          ],
-        }),
-      }),
-    );
-  });
-
-  it("accepts treasury instruction timestamps serialized as strings in deal operations", async () => {
-    const workspacePayload = createFinanceWorkspacePayload();
-
-    workspacePayload.relatedResources.operations = [
-      {
-        actions: {
-          canPrepareInstruction: false,
-          canRequestReturn: false,
-          canRetryInstruction: false,
-          canSubmitInstruction: true,
-          canVoidInstruction: false,
-        },
-        availableOutcomeTransitions: [],
-        id: "114fb6eb-a1bd-429e-9628-e97d0f2efa0b",
-        instructionStatus: "prepared",
-        kind: "payout",
-        latestInstruction: {
-          attempt: 1,
-          createdAt: "2026-04-02T08:20:00.000Z",
-          failedAt: null,
-          id: "214fb6eb-a1bd-429e-9628-e97d0f2efa0b",
-          operationId: "114fb6eb-a1bd-429e-9628-e97d0f2efa0b",
-          providerRef: null,
-          providerSnapshot: null,
-          returnRequestedAt: null,
-          returnedAt: null,
-          settledAt: null,
-          sourceRef: "deal:614fb6eb-a1bd-429e-9628-e97d0f2efa0b:leg:2:payout:1",
-          state: "prepared",
-          submittedAt: null,
-          updatedAt: "2026-04-02T08:21:00.000Z",
-          voidedAt: null,
-        },
-        operationHref: "/treasury/operations/114fb6eb-a1bd-429e-9628-e97d0f2efa0b",
-        projectedState: null,
-        sourceRef: "deal:614fb6eb-a1bd-429e-9628-e97d0f2efa0b:leg:2:payout:1",
-        state: "planned",
-      },
-    ];
-
-    fetchMock.mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: async () => workspacePayload,
-    });
-
-    const { getFinanceDealWorkspaceById } = await import(
-      "@/features/treasury/deals/lib/queries"
-    );
-
-    await expect(
-      getFinanceDealWorkspaceById("614fb6eb-a1bd-429e-9628-e97d0f2efa0b"),
-    ).resolves.toEqual(
-      expect.objectContaining({
-        relatedResources: expect.objectContaining({
-          operations: [
-            expect.objectContaining({
-              latestInstruction: expect.objectContaining({
-                createdAt: expect.any(Date),
-                updatedAt: expect.any(Date),
-              }),
             }),
           ],
         }),

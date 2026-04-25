@@ -1,4 +1,5 @@
-import type { OrganizationGeneralFormValues } from "../components/organization-form";
+import type { OrganizationGeneralFormValues } from "@bedrock/sdk-parties-ui/components/organization-general-editor";
+
 import type { SerializedOrganization } from "./types";
 
 export function buildOrganizationLegalEntityPayload(

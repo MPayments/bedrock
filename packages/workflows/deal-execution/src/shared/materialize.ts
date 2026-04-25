@@ -23,7 +23,7 @@ import type {
 } from "./deps";
 import { getInternalEntityOrganizationId } from "./workflow-helpers";
 
-export async function resolveAmountRef(input: {
+async function resolveAmountRef(input: {
   acceptedQuote: QuoteDetailsRecord | null;
   amountRef: DealExecutionAmountRef | null;
   currencyCodeById: Map<string, string>;
@@ -199,18 +199,9 @@ export async function materializeCompiledOperation(input: {
   customerId: string | null;
   dealStore: DealExecutionStore;
   internalEntityOrganizationId: string | null;
-  paymentStepsEnabled: boolean;
-  /**
-   * When true, skip `createDealLegOperationLinks` — used by the step-backfill
-   * path on deals whose legacy ops+links already exist. `createOrGetPlanned`
-   * stays in the flow because it's idempotent by `sourceRef` (a no-op for
-   * existing operations) and we still need the returned operation id to
-   * seed `PaymentStep.id`.
-   */
-  skipLegacyLinks?: boolean;
   treasuryModule: DealExecutionTreasuryModule;
   workflow: DealWorkflowProjection;
-}) {
+}): Promise<{ id: string } | null> {
   const amount = await resolveAmountRef({
     acceptedQuote: input.acceptedQuote,
     amountRef: input.compiled.amountRef,
@@ -227,65 +218,40 @@ export async function materializeCompiledOperation(input: {
     quoteLegIdx: input.compiled.quoteLegIdx,
     workflow: input.workflow,
   });
-  const created =
-    await input.treasuryModule.operations.commands.createOrGetPlanned({
-      amountMinor: amount.amountMinor,
-      counterAmountMinor: counterAmount.amountMinor,
-      counterCurrencyId: counterAmount.currencyId,
-      currencyId: amount.currencyId,
-      customerId: input.customerId,
-      dealId: input.workflow.summary.id,
-      id: randomUUID(),
-      internalEntityOrganizationId: input.internalEntityOrganizationId,
-      kind: input.compiled.operationKind,
-      quoteId: input.compiled.quoteId,
-      sourceRef: input.compiled.sourceRef,
-    });
 
-  if (!input.skipLegacyLinks) {
-    await input.dealStore.createDealLegOperationLinks([
-      {
-        dealLegId: input.compiled.legId,
-        id: randomUUID(),
-        operationKind: input.compiled.operationKind,
-        sourceRef: input.compiled.sourceRef,
-        treasuryOperationId: created.id,
-      },
-    ]);
+  const partyRefs = resolveLegPartyRefs({
+    agreementOrganizationId: input.agreementOrganizationId,
+    compiled: input.compiled,
+    internalEntityOrganizationId: input.internalEntityOrganizationId,
+    workflow: input.workflow,
+  });
+  const fromCurrencyId = amount.currencyId;
+  const toCurrencyId = counterAmount.currencyId ?? amount.currencyId;
+
+  if (!partyRefs || !fromCurrencyId || !toCurrencyId) {
+    return null;
   }
 
-  if (input.paymentStepsEnabled) {
-    const partyRefs = resolveLegPartyRefs({
-      agreementOrganizationId: input.agreementOrganizationId,
-      compiled: input.compiled,
-      internalEntityOrganizationId: input.internalEntityOrganizationId,
-      workflow: input.workflow,
-    });
-    const fromCurrencyId = amount.currencyId;
-    const toCurrencyId = counterAmount.currencyId ?? amount.currencyId;
+  const id = randomUUID();
+  await input.treasuryModule.paymentSteps.commands.create({
+    dealId: input.workflow.summary.id,
+    dealLegIdx: input.compiled.legIdx,
+    dealLegRole: input.compiled.legKind,
+    fromAmountMinor: amount.amountMinor,
+    fromCurrencyId,
+    fromParty: partyRefs.fromParty,
+    id,
+    initialState: "pending",
+    kind: input.compiled.operationKind,
+    purpose: "deal_leg",
+    rate: null,
+    toAmountMinor: counterAmount.amountMinor ?? amount.amountMinor,
+    toCurrencyId,
+    toParty: partyRefs.toParty,
+    treasuryBatchId: null,
+  });
 
-    if (partyRefs && fromCurrencyId && toCurrencyId) {
-      await input.treasuryModule.paymentSteps.commands.create({
-        dealId: input.workflow.summary.id,
-        dealLegIdx: input.compiled.legIdx,
-        dealLegRole: input.compiled.legKind,
-        fromAmountMinor: amount.amountMinor,
-        fromCurrencyId,
-        fromParty: partyRefs.fromParty,
-        id: created.id,
-        initialState: "pending",
-        kind: input.compiled.operationKind,
-        purpose: "deal_leg",
-        rate: null,
-        toAmountMinor: counterAmount.amountMinor ?? amount.amountMinor,
-        toCurrencyId,
-        toParty: partyRefs.toParty,
-        treasuryBatchId: null,
-      });
-    }
-  }
-
-  return created;
+  return { id };
 }
 
 export async function resolveRecipeContext(

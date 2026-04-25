@@ -28,7 +28,7 @@ const DOCUMENT_FORM_DEFINITION_BY_TYPE = new Map<string, DocumentFormDefinition>
   ),
 );
 
-export function getDocumentFormDefinition(
+function getDocumentFormDefinition(
   docType: string,
 ): DocumentFormDefinition | null {
   return DOCUMENT_FORM_DEFINITION_BY_TYPE.get(docType) ?? null;

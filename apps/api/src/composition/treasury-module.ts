@@ -15,9 +15,6 @@ import {
   DrizzlePaymentRouteTemplatesRepository,
   DrizzlePaymentStepsRepository,
   DrizzleTreasuryFeeRulesRepository,
-  DrizzleTreasuryInstructionArtifactsRepository,
-  DrizzleTreasuryInstructionsRepository,
-  DrizzleTreasuryOperationsRepository,
   DrizzleTreasuryQuoteFeeComponentsRepository,
   DrizzleTreasuryQuoteFinancialLinesRepository,
   DrizzleTreasuryQuotesRepository,
@@ -41,10 +38,6 @@ export function createApiTreasuryModule(input: {
     now: input.now ?? (() => new Date()),
     generateUuid: input.generateUuid ?? randomUUID,
     currencies: input.currencies,
-    instructionArtifactsRepository:
-      new DrizzleTreasuryInstructionArtifactsRepository(input.db),
-    instructionsRepository: new DrizzleTreasuryInstructionsRepository(input.db),
-    operationsRepository: new DrizzleTreasuryOperationsRepository(input.db),
     ratesRepository: new DrizzleTreasuryRatesRepository(input.db),
     quotesRepository: new DrizzleTreasuryQuotesRepository(input.db),
     quoteFinancialLinesRepository:

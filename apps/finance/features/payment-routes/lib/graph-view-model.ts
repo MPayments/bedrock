@@ -28,7 +28,7 @@ export type PaymentRouteGraphEdgeData = {
   legId: string;
 };
 
-export function getPaymentRouteLegCalculation(
+function getPaymentRouteLegCalculation(
   state: PaymentRouteEditorState,
   legId: string,
 ) {

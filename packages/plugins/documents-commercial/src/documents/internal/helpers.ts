@@ -25,8 +25,6 @@ import { canonicalJson } from "@bedrock/shared/core/canon";
 
 import type { CommercialDocumentRuntime, CommercialModuleDeps } from "./types";
 import {
-  AcceptancePayloadSchema,
-  ExchangePayloadSchema,
   InvoicePayloadSchema,
   QuoteSnapshotSchema,
   type ExchangePayload,
@@ -714,12 +712,4 @@ export async function invoiceRequiresExchange(
   }
 
   return false;
-}
-
-export function parseExchangePayload(document: Document) {
-  return parseDocumentPayload(ExchangePayloadSchema, document);
-}
-
-export function parseAcceptancePayload(document: Document) {
-  return parseDocumentPayload(AcceptancePayloadSchema, document);
 }

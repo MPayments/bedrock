@@ -43,7 +43,7 @@ export interface UpdateRequisiteProviderPatch
   now: Date;
 }
 
-export function validateRequisiteProviderDetails(
+function validateRequisiteProviderDetails(
   input: RequisiteProviderDetails,
 ) {
   const kind = input.kind;
@@ -72,7 +72,7 @@ export function validateRequisiteProviderDetails(
   }
 }
 
-export function normalizeRequisiteProviderDetails(
+function normalizeRequisiteProviderDetails(
   input: RequisiteProviderDetails,
 ): Omit<
   RequisiteProviderSnapshot,
@@ -128,17 +128,6 @@ export function updateRequisiteProviderSnapshot(
     ...normalizeRequisiteProviderDetails(next),
     archivedAt: current.archivedAt,
     createdAt: current.createdAt,
-    updatedAt: now,
-  };
-}
-
-export function archiveRequisiteProviderSnapshot(
-  current: RequisiteProviderSnapshot,
-  now: Date,
-): RequisiteProviderSnapshot {
-  return {
-    ...current,
-    archivedAt: current.archivedAt ?? now,
     updatedAt: now,
   };
 }

@@ -6,7 +6,6 @@ import { useMemo, useState } from "react";
 import { Info } from "lucide-react";
 
 import { Button } from "@bedrock/sdk-ui/components/button";
-import { toast } from "@bedrock/sdk-ui/components/sonner";
 
 import {
   getDealLegKindLabel,
@@ -33,12 +32,6 @@ import { useWorkbenchActions } from "./workbench/use-workbench-actions";
 import { refreshPage } from "./workbench/utils";
 import { FinanceDealWorkspaceLayout } from "./workspace-layout";
 
-/**
- * Kind-heuristic mapping from a payment step's transactional kind to the
- * posting-document types that we expect to appear on the deal for that kind.
- * Used by the auto-link hook after StepCard mutations — treasurers no longer
- * need to manually attach documents in the common path.
- */
 function expectedPostingDocTypes(
   kind: FinanceDealPaymentStep["kind"],
 ): string[] {
@@ -105,9 +98,6 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
     [deal.executionPlan, selectedLegIdx],
   );
 
-  // `PaymentStep` is now the single primitive for rendering a step — the
-  // legacy LegEditor/operationsById/InstructionArtifactDrawer path has been
-  // retired. Timeline selection still drives matching by `dealLegIdx`.
   const selectedStep = useMemo(
     () =>
       selectedLeg
@@ -118,11 +108,6 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
     [deal.executionSteps, selectedLeg],
   );
 
-  // The route editor's inline party/requisite selects need to know the entity
-  // kind for each side. For `deal_leg` steps the parent derives it from the
-  // attached route's participants list (positional: source at idx-1,
-  // destination at idx). Returns null when no kind info is available (e.g.
-  // dangling route, standalone step) — the editor then stays read-only.
   const {
     fromCurrencyCode,
     fromPartyDisplayName,
@@ -161,13 +146,6 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
     };
   }, [deal.pricing.routeAttachment, selectedLeg]);
 
-  /**
-   * After any StepCard mutation, try to link any active posting document on
-   * the deal that matches this step's kind-heuristic and isn't already
-   * attached. The backend `attachPosting` command is idempotent per
-   * `(documentId, kind)`, so double-invoking is safe. Errors are swallowed —
-   * auto-link is best-effort; the treasurer still sees the step mutation.
-   */
   async function autoLinkPostingsForStep(step: FinanceDealPaymentStep) {
     const expectedDocTypes = expectedPostingDocTypes(step.kind);
     if (expectedDocTypes.length === 0) return;
@@ -207,39 +185,6 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
     await autoLinkPostingsForStep(step);
     router.refresh();
   }
-
-  const [isMaterializing, setIsMaterializing] = useState(false);
-  async function materializeSteps() {
-    setIsMaterializing(true);
-    const result = await executeMutation({
-      fallbackMessage: "Не удалось материализовать шаги",
-      request: () =>
-        fetch(
-          `/v1/deals/${encodeURIComponent(deal.summary.id)}/execution/request`,
-          {
-            method: "POST",
-            credentials: "include",
-            headers: {
-              "Content-Type": "application/json",
-              "Idempotency-Key": createIdempotencyKey(),
-            },
-            body: JSON.stringify({}),
-          },
-        ),
-    });
-    setIsMaterializing(false);
-    if (!result.ok) {
-      toast.error(result.message);
-      return;
-    }
-    toast.success("Шаги материализованы");
-    router.refresh();
-  }
-
-  const canMaterializeSteps =
-    !selectedStep &&
-    deal.executionPlan.length > 0 &&
-    canWrite;
 
   return (
     <>
@@ -281,30 +226,6 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
                   disabled={!canWrite}
                   onChanged={handleStepChanged}
                 />
-              ) : canMaterializeSteps ? (
-                <div
-                  className="bg-card space-y-3 rounded-lg border p-6 text-sm"
-                  data-testid="finance-deal-materialize-steps"
-                >
-                  <div className="font-medium">
-                    Маршрут собран, но платёжные шаги ещё не созданы
-                  </div>
-                  <div className="text-muted-foreground">
-                    Эта сделка была заведена до перехода на новую модель
-                    исполнения. Нажмите кнопку, чтобы создать карточки шагов
-                    на основе существующего маршрута — после этого можно будет
-                    отправлять платежи и прикреплять подтверждения.
-                  </div>
-                  <Button
-                    size="sm"
-                    disabled={isMaterializing}
-                    onClick={materializeSteps}
-                  >
-                    {isMaterializing
-                      ? "Материализуем..."
-                      : "Материализовать шаги"}
-                  </Button>
-                </div>
               ) : (
                 <div className="bg-card text-muted-foreground rounded-lg border p-6 text-sm">
                   Шагов исполнения ещё нет. Сначала зафиксируйте коммерческие

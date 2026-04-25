@@ -2,7 +2,4 @@ export const TREASURY_RATE_SOURCES = ["cbr", "investing", "xe", "grinex"] as con
 
 export type RateSource = (typeof TREASURY_RATE_SOURCES)[number];
 
-export const TREASURY_RATE_SOURCE_SYNC_STATUSES = ["idle", "ok", "error"] as const;
-
-export type RateSourceSyncStatus =
-  (typeof TREASURY_RATE_SOURCE_SYNC_STATUSES)[number];
+export type RateSourceSyncStatus = "idle" | "ok" | "error";

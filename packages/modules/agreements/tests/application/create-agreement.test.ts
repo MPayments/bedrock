@@ -1,24 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { createModuleRuntime } from "@bedrock/shared/core";
+import { createTestLogger } from "@bedrock/test-utils";
 
 import { CreateAgreementCommand } from "../../src/application/commands/create-agreement";
 import {
   AgreementRequisiteBindingMissingError,
   AgreementRequisiteOwnershipError,
 } from "../../src/errors";
-
-function createLogger() {
-  const logger = {
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    debug: vi.fn(),
-    child: vi.fn(),
-  };
-  logger.child.mockReturnValue(logger);
-  return logger;
-}
 
 function createHandlerHarness() {
   const agreementReads = {
@@ -64,7 +53,7 @@ function createHandlerHarness() {
   ];
   const runtime = createModuleRuntime({
     service: "agreements",
-    logger: createLogger(),
+    logger: createTestLogger(),
     generateUuid: () => uuids.shift() ?? "00000000-0000-4000-8000-000000000099",
     now: () => new Date("2026-03-30T12:00:00.000Z"),
   });

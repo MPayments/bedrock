@@ -2,24 +2,13 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createModuleRuntime } from "@bedrock/shared/core";
 import { ValidationError } from "@bedrock/shared/core/errors";
+import { createTestLogger } from "@bedrock/test-utils";
 
 import { SetDealLegManualOverrideCommand } from "../../src/application/commands/set-deal-leg-manual-override";
 import { DealNotFoundError } from "../../src/errors";
 
 const DEAL_ID = "00000000-0000-4000-8000-000000000010";
 const TIMESTAMP = new Date("2026-04-01T12:00:00.000Z");
-
-function createLogger() {
-  const logger = {
-    child: vi.fn(),
-    debug: vi.fn(),
-    error: vi.fn(),
-    info: vi.fn(),
-    warn: vi.fn(),
-  };
-  logger.child.mockReturnValue(logger);
-  return logger;
-}
 
 function createWorkflow(
   overrides?: Partial<{
@@ -130,7 +119,7 @@ function createCommand(overrides?: {
   const command = new SetDealLegManualOverrideCommand(
     createModuleRuntime({
       generateUuid: () => "00000000-0000-4000-8000-000000000099",
-      logger: createLogger(),
+      logger: createTestLogger(),
       now: () => TIMESTAMP,
       service: "deals",
     }),

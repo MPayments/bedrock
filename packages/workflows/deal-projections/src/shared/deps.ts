@@ -24,10 +24,7 @@ export interface DealProjectionsWorkflowDeps {
     "counterparties" | "customers" | "organizations" | "requisites"
   >;
   reconciliation: Pick<ReconciliationService, "links">;
-  treasury: Pick<
-    TreasuryModule,
-    "instructions" | "operations" | "paymentSteps" | "quotes"
-  >;
+  treasury: Pick<TreasuryModule, "paymentSteps" | "quotes">;
 }
 
 export type CalculationDetailsLike = NonNullable<
@@ -44,9 +41,6 @@ export type CustomerListItemLike = Awaited<
 >[number];
 export type TreasuryQuoteRecord = Awaited<
   ReturnType<TreasuryModule["quotes"]["queries"]["listQuotes"]>
->["data"][number];
-export type TreasuryOperationRecord = Awaited<
-  ReturnType<TreasuryModule["operations"]["queries"]["list"]>
 >["data"][number];
 export type UserDetailsLike = Awaited<
   ReturnType<DealProjectionsWorkflowDeps["iam"]["queries"]["findById"]>

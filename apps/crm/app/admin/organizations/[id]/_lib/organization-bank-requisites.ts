@@ -6,11 +6,10 @@ import {
   bankRequisiteFormSchema,
   createBankRequisiteCreatePayload,
   createBankRequisiteUpdatePayload,
-  createEmptyBankRequisiteValues as createEmptyCanonicalBankRequisiteValues,
   toBankRequisiteFormValues,
 } from "@bedrock/sdk-parties-ui/lib/bank-requisites";
 
-export const BankRequisiteIdentifierSchema = z.object({
+const BankRequisiteIdentifierSchema = z.object({
   scheme: z.string(),
   value: z.string(),
   isPrimary: z.boolean(),
@@ -72,26 +71,18 @@ export const OrganizationBankRequisitesListResponseSchema = z.object({
   offset: z.number().int().nonnegative(),
 });
 
-export const OrganizationRequisiteProviderSchema = z.object({
-  id: z.uuid(),
-  displayName: z.string(),
-  branches: z.array(
-    z.object({
-      id: z.uuid(),
-      name: z.string(),
-    }),
-  ),
-});
-
-export type OrganizationRequisiteProvider = z.infer<
-  typeof OrganizationRequisiteProviderSchema
->;
-
-export const bankRequisiteEditorFormSchema = bankRequisiteFormSchema;
-
 export type BankRequisiteEditorFormData = z.infer<
-  typeof bankRequisiteEditorFormSchema
+  typeof bankRequisiteFormSchema
 >;
+
+export interface OrganizationRequisiteProvider {
+  branches: {
+    id: string;
+    name: string;
+  }[];
+  displayName: string;
+  id: string;
+}
 
 export type GroupedBankRequisites = {
   currency: CurrencyOption;
@@ -164,12 +155,6 @@ export function resolveInitialBankRequisiteId(
 
   const [first] = [...requisites].sort(sortRequisites);
   return first?.id ?? null;
-}
-
-export function createEmptyBankRequisiteValues(
-  beneficiaryName: string,
-): BankRequisiteEditorFormData {
-  return createEmptyCanonicalBankRequisiteValues(beneficiaryName);
 }
 
 export function bankRequisiteToFormValues(

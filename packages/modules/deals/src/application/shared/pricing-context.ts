@@ -15,7 +15,7 @@ import {
   type DealPricingContextSnapshot,
 } from "../contracts/dto";
 
-export function createDefaultDealPricingContext(): DealPricingContext {
+function createDefaultDealPricingContext(): DealPricingContext {
   return DealPricingContextSchema.parse({
     commercialDraft: {
       fixedFeeAmount: null,
@@ -33,16 +33,10 @@ export function createDefaultDealPricingContextSnapshot(): DealPricingContextSna
   return DealPricingContextSnapshotSchema.parse(snapshot);
 }
 
-export function cloneDealPricingContext(
+function cloneDealPricingContext(
   input: DealPricingContext,
 ): DealPricingContext {
   return DealPricingContextSchema.parse(structuredClone(input));
-}
-
-export function cloneDealPricingContextSnapshot(
-  input: DealPricingContextSnapshot,
-): DealPricingContextSnapshot {
-  return DealPricingContextSnapshotSchema.parse(structuredClone(input));
 }
 
 function normalizeOptionalDecimalString(value: string | null | undefined) {
