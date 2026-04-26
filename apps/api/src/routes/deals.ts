@@ -75,6 +75,7 @@ import {
   withRequiredIdempotency,
 } from "../middleware/idempotency";
 import { requirePermission } from "../middleware/permission";
+import { generateDealInvoice } from "./internal/deal-invoice-generate";
 import {
   buildDealTrace,
   createDealScopedFormalDocument,
@@ -1617,6 +1618,51 @@ export function dealsRoutes(ctx: AppContext) {
     },
   });
 
+  const generateInvoiceDocumentRoute = createRoute({
+    middleware: [
+      requirePermission({ deals: ["update"] }),
+      requirePermission({ documents: ["create"] }),
+    ],
+    method: "post",
+    path: "/{id}/documents/invoice/generate",
+    tags: ["Deals"],
+    summary:
+      "Create the deal invoice formal-document (idempotent) and stream the rendered file",
+    request: {
+      params: IdParamSchema,
+      body: {
+        content: {
+          "application/json": {
+            schema: z.object({
+              format: z.enum(["docx", "pdf"]).default("pdf"),
+              lang: z.enum(["ru", "en"]).default("ru"),
+            }),
+          },
+        },
+        required: false,
+      },
+    },
+    responses: {
+      200: { description: "Generated invoice file" },
+      404: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Deal or required dependency not found",
+      },
+      409: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Deal lacks data needed to assemble an invoice",
+      },
+    },
+  });
+
   const createFormalDocumentRoute = createRoute({
     middleware: [
       requirePermission({ deals: ["update"] }),
@@ -2607,6 +2653,41 @@ export function dealsRoutes(ctx: AppContext) {
           c,
           result.data.map((document) => toDocumentDto(document)),
         );
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(generateInvoiceDocumentRoute, async (c): Promise<any> => {
+      try {
+        const { id } = c.req.valid("param");
+        const { format, lang } = c.req.valid("json");
+        const result = await withRequiredIdempotency(c, (idempotencyKey) =>
+          generateDealInvoice({
+            actorUserId: c.get("user")!.id,
+            ctx,
+            dealId: id,
+            format,
+            idempotencyKey,
+            lang,
+            requestContext: getRequestContext(c),
+          }),
+        );
+
+        if (result instanceof Response) {
+          return result;
+        }
+
+        c.header("Content-Type", result.generated.mimeType);
+        c.header(
+          "Content-Disposition",
+          `attachment; filename="${result.generated.fileName}"`,
+        );
+        c.header("X-Document-Id", result.documentId);
+        c.header(
+          "Access-Control-Expose-Headers",
+          "Content-Disposition, X-Document-Id",
+        );
+        return c.body(result.generated.buffer as unknown as ArrayBuffer);
       } catch (error) {
         return handleRouteError(c, error);
       }

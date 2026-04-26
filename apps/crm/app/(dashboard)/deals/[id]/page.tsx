@@ -2000,6 +2000,7 @@ export default function DealDetailPage() {
                 attachments={data.attachments}
                 attachmentIngestions={data.workflow.attachmentIngestions}
                 beneficiaryDraft={data.workbench.beneficiaryDraft}
+                dealId={dealId}
                 deletingAttachmentId={deletingAttachmentId}
                 documentRequirements={data.workbench.documentRequirements}
                 evidenceRequirements={data.workbench.evidenceRequirements}

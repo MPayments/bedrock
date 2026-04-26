@@ -8,6 +8,7 @@ type DealDocumentsTabProps = {
   attachments: ApiAttachment[];
   attachmentIngestions: ApiCrmDealWorkbenchProjection["workflow"]["attachmentIngestions"];
   beneficiaryDraft: ApiCrmDealWorkbenchProjection["beneficiaryDraft"];
+  dealId: string;
   deletingAttachmentId: string | null;
   documentRequirements: ApiCrmDealWorkbenchProjection["documentRequirements"];
   evidenceRequirements: ApiCrmDealWorkbenchProjection["evidenceRequirements"];
@@ -23,6 +24,7 @@ export function DealDocumentsTab({
   attachments,
   attachmentIngestions,
   beneficiaryDraft,
+  dealId,
   deletingAttachmentId,
   documentRequirements,
   evidenceRequirements,
@@ -58,6 +60,7 @@ export function DealDocumentsTab({
 
       <section className="space-y-4">
         <FormalDocumentsCard
+          dealId={dealId}
           documents={formalDocuments}
           requirements={documentRequirements}
         />

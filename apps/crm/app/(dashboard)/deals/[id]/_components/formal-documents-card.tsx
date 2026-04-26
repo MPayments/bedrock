@@ -9,10 +9,12 @@ import {
   formatDealWorkflowMessage,
   FORMAL_DOCUMENT_LABELS,
 } from "./constants";
+import { DealInvoiceGenerateButton } from "./deal-invoice-generate-button";
 import { formatCurrency, formatDate } from "./format";
 import type { ApiFormalDocument } from "./types";
 
 type FormalDocumentsCardProps = {
+  dealId: string;
   documents: ApiFormalDocument[];
   requirements?: Array<{
     activeDocumentId: string | null;
@@ -51,6 +53,7 @@ function renderDocumentStatusLabel(
 }
 
 export function FormalDocumentsCard({
+  dealId,
   documents,
   requirements = [],
 }: FormalDocumentsCardProps) {
@@ -85,9 +88,20 @@ export function FormalDocumentsCard({
                         : "Закрывающий документ"}
                     </div>
                   </div>
-                  <Badge variant="outline">
-                    {REQUIREMENT_STATE_LABELS[requirement.state]}
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    {requirement.docType === "invoice" ? (
+                      <DealInvoiceGenerateButton
+                        dealId={dealId}
+                        disabled={
+                          !requirement.createAllowed &&
+                          !requirement.activeDocumentId
+                        }
+                      />
+                    ) : null}
+                    <Badge variant="outline">
+                      {REQUIREMENT_STATE_LABELS[requirement.state]}
+                    </Badge>
+                  </div>
                 </div>
                 {requirement.blockingReasons.length > 0 ? (
                   <div className="mt-2 text-sm text-muted-foreground">
