@@ -4,15 +4,15 @@ import { ZodError } from "zod";
 
 import { cn } from "@bedrock/sdk-ui/lib/utils";
 
-import type { DocumentFormDefinition } from "@/features/documents/lib/document-form-registry";
+import type { DocumentFormDefinition } from "../../lib/document-form-registry";
 import type {
   DocumentFormBreakpoint,
   DocumentFormField,
   DocumentFormResponsiveCount,
   DocumentFormSection,
   DocumentFormValues,
-} from "@/features/documents/lib/document-form-registry";
-import { isUuid } from "@/lib/resources/http";
+} from "../../lib/document-form-registry";
+import { isUuid } from "../../lib/validation";
 
 export type DocumentFormMode = "create" | "edit";
 

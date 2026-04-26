@@ -203,7 +203,7 @@ describe("commercial document modules", () => {
     );
   });
 
-  it("compiles percent financial lines into direct invoice draft payload", async () => {
+  it("creates direct invoice draft payload from valid input", async () => {
     const module = createInvoiceDocumentModule(createDeps() as any);
 
     const draft = await module.createDraft?.({ db: {} } as any, {
@@ -215,14 +215,6 @@ describe("commercial document modules", () => {
       amount: "100.00",
       amountMinor: "10000",
       currency: "USD",
-      financialLines: [
-        {
-          calcMethod: "percent",
-          bucket: "fee_revenue",
-          currency: "USD",
-          percent: "1.25",
-        },
-      ],
       memo: "invoice",
     });
 
@@ -232,18 +224,10 @@ describe("commercial document modules", () => {
       counterpartyId: "00000000-0000-4000-8000-000000000302",
       currency: "USD",
       customerId: "00000000-0000-4000-8000-000000000301",
-      financialLines: [
-        {
-          calcMethod: "percent",
-          percentBps: 125,
-          currency: "USD",
-          amountMinor: "125",
-          source: "manual",
-        },
-      ],
       organizationId: "00000000-0000-4000-8000-000000000113",
       organizationRequisiteId: "00000000-0000-4000-8000-000000000111",
     });
+    expect(draft?.payload).not.toHaveProperty("financialLines");
   });
 
   it("creates exchange drafts from linked deal FX context", async () => {

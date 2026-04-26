@@ -6,186 +6,158 @@ import { useRouter } from "next/navigation";
 import { Button } from "@bedrock/sdk-ui/components/button";
 import { toast } from "@bedrock/sdk-ui/components/sonner";
 
-import {
-  approveDocument,
-  postDocument,
-  rejectDocument,
-  repostDocument,
-  resolveDealReconciliationExceptionWithAdjustmentDocument,
-  submitDocument,
-  voidDocument,
-} from "@/features/operations/documents/lib/mutations";
+import type { DocumentTransitionMutators } from "../lib/mutations";
 
 type DocumentActionButtonsProps = {
   docType: string;
   documentId: string;
   allowedActions: string[];
-  reconciliationAdjustment?: {
-    dealId: string;
-    exceptionId: string;
-    returnToHref?: string;
-  };
+  mutators: DocumentTransitionMutators;
   returnOnPostedHref?: string;
+  onPostedSuccess?: () => Promise<void> | void;
 };
 
+type TransitionAction =
+  | "submit"
+  | "approve"
+  | "reject"
+  | "post"
+  | "cancel"
+  | "repost";
+
 type ActionButtonConfig = {
-  actionId: "submit" | "approve" | "reject" | "post" | "cancel" | "repost";
+  actionId: TransitionAction;
   label: string;
   pendingLabel: string;
   title: string;
   variant?: "default" | "outline" | "destructive";
-  execute: () => Promise<{ ok: boolean; message?: string }>;
+};
+
+const ACTION_CONFIG: Record<TransitionAction, ActionButtonConfig> = {
+  submit: {
+    actionId: "submit",
+    label: "Отправить",
+    pendingLabel: "Отправка...",
+    title: "отправка",
+    variant: "outline",
+  },
+  approve: {
+    actionId: "approve",
+    label: "Согласовать",
+    pendingLabel: "Согласование...",
+    title: "согласование",
+    variant: "outline",
+  },
+  reject: {
+    actionId: "reject",
+    label: "Отклонить",
+    pendingLabel: "Отклонение...",
+    title: "отклонение",
+    variant: "destructive",
+  },
+  post: {
+    actionId: "post",
+    label: "Провести",
+    pendingLabel: "Проведение...",
+    title: "проведение",
+  },
+  cancel: {
+    actionId: "cancel",
+    label: "Отменить",
+    pendingLabel: "Отмена...",
+    title: "отмена",
+    variant: "destructive",
+  },
+  repost: {
+    actionId: "repost",
+    label: "Перепровести",
+    pendingLabel: "Перепроведение...",
+    title: "перепроведение",
+    variant: "outline",
+  },
 };
 
 export function DocumentActionButtons({
   docType,
   documentId,
   allowedActions,
-  reconciliationAdjustment,
+  mutators,
   returnOnPostedHref,
+  onPostedSuccess,
 }: DocumentActionButtonsProps) {
   const router = useRouter();
-  const [activeAction, setActiveAction] = useState<string | null>(null);
+  const [activeAction, setActiveAction] = useState<TransitionAction | null>(
+    null,
+  );
 
-  const actionButtons: ActionButtonConfig[] = [];
+  const visibleActions = (
+    [
+      "submit",
+      "approve",
+      "reject",
+      "post",
+      "cancel",
+      "repost",
+    ] as TransitionAction[]
+  ).filter((action) => allowedActions.includes(action) && mutators[action]);
 
-  if (allowedActions.includes("submit")) {
-    actionButtons.push({
-      actionId: "submit",
-      label: "Отправить",
-      pendingLabel: "Отправка...",
-      title: "отправка",
-      variant: "outline",
-      execute: () => submitDocument({ docType, documentId }),
-    });
-  }
-
-  if (allowedActions.includes("approve")) {
-    actionButtons.push({
-      actionId: "approve",
-      label: "Согласовать",
-      pendingLabel: "Согласование...",
-      title: "согласование",
-      variant: "outline",
-      execute: () => approveDocument({ docType, documentId }),
-    });
-
-    actionButtons.push({
-      actionId: "reject",
-      label: "Отклонить",
-      pendingLabel: "Отклонение...",
-      title: "отклонение",
-      variant: "destructive",
-      execute: () => rejectDocument({ docType, documentId }),
-    });
-  }
-
-  if (allowedActions.includes("post")) {
-    actionButtons.push({
-      actionId: "post",
-      label: "Провести",
-      pendingLabel: "Проведение...",
-      title: "проведение",
-      execute: () => postDocument({ docType, documentId }),
-    });
-  }
-
-  if (allowedActions.includes("cancel")) {
-    actionButtons.push({
-      actionId: "cancel",
-      label: "Отменить",
-      pendingLabel: "Отмена...",
-      title: "отмена",
-      variant: "destructive",
-      execute: () => voidDocument({ docType, documentId }),
-    });
-  }
-
-  if (allowedActions.includes("repost")) {
-    actionButtons.push({
-      actionId: "repost",
-      label: "Перепровести",
-      pendingLabel: "Перепроведение...",
-      title: "перепроведение",
-      variant: "outline",
-      execute: () => repostDocument({ docType, documentId }),
-    });
-  }
-
-  if (actionButtons.length === 0) {
+  if (visibleActions.length === 0) {
     return null;
   }
 
-  async function runAction(input: ActionButtonConfig) {
-    setActiveAction(input.actionId);
+  async function runAction(action: TransitionAction) {
+    const mutator = mutators[action];
+    if (!mutator) return;
 
-    const result = await input.execute();
+    const config = ACTION_CONFIG[action];
+    setActiveAction(action);
+
+    const result = await mutator({ docType, documentId });
 
     if (!result.ok) {
       toast.error(
-        result.message ?? `Не удалось выполнить действие ${input.title}`,
+        result.message ?? `Не удалось выполнить действие ${config.title}`,
       );
       setActiveAction(null);
       return;
     }
 
-    if (input.actionId === "post" && reconciliationAdjustment) {
-      const resolution =
-        await resolveDealReconciliationExceptionWithAdjustmentDocument({
-          dealId: reconciliationAdjustment.dealId,
-          docType,
-          documentId,
-          exceptionId: reconciliationAdjustment.exceptionId,
-        });
+    if (action === "post") {
+      if (onPostedSuccess) {
+        await onPostedSuccess();
+      }
 
-      if (!resolution.ok) {
-        toast.error(resolution.message);
+      if (returnOnPostedHref) {
+        toast.success("Документ проведен — возвращаемся к сделке");
         setActiveAction(null);
-        router.refresh();
+        router.push(returnOnPostedHref);
         return;
       }
-
-      toast.success("Документ проведен, исключение сверки разрешено");
-      setActiveAction(null);
-
-      if (reconciliationAdjustment.returnToHref) {
-        router.push(reconciliationAdjustment.returnToHref);
-        return;
-      }
-
-      router.refresh();
-      return;
     }
 
-    if (input.actionId === "post" && returnOnPostedHref) {
-      toast.success("Документ проведен — возвращаемся к сделке");
-      setActiveAction(null);
-      router.push(returnOnPostedHref);
-      return;
-    }
-
-    toast.success(`Документ: ${input.title}`);
+    toast.success(`Документ: ${config.title}`);
     setActiveAction(null);
     router.refresh();
   }
 
   return (
     <div className="flex w-full flex-wrap justify-start gap-2 md:w-auto md:justify-end">
-      {actionButtons.map((action) => (
-        <Button
-          key={action.actionId}
-          data-testid={`finance-document-action-${action.actionId}`}
-          type="button"
-          size="lg"
-          variant={action.variant}
-          disabled={activeAction !== null}
-          onClick={() => void runAction(action)}
-        >
-          {activeAction === action.actionId
-            ? action.pendingLabel
-            : action.label}
-        </Button>
-      ))}
+      {visibleActions.map((action) => {
+        const config = ACTION_CONFIG[action];
+        return (
+          <Button
+            key={action}
+            data-testid={`document-action-${action}`}
+            type="button"
+            size="lg"
+            variant={config.variant}
+            disabled={activeAction !== null}
+            onClick={() => void runAction(action)}
+          >
+            {activeAction === action ? config.pendingLabel : config.label}
+          </Button>
+        );
+      })}
     </div>
   );
 }

@@ -1,0 +1,59 @@
+{
+  "name": "@bedrock/sdk-documents-form-ui",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./components/typed-form/index": "./src/components/typed-form/index.ts",
+    "./components/typed-form/components": "./src/components/typed-form/components.tsx",
+    "./components/typed-form/context": "./src/components/typed-form/context.tsx",
+    "./components/typed-form/providers": "./src/components/typed-form/providers.tsx",
+    "./components/typed-form/helpers": "./src/components/typed-form/helpers.ts",
+    "./components/typed-form/section-context": "./src/components/typed-form/section-context.tsx",
+    "./components/typed-form/renderers/registry": "./src/components/typed-form/renderers/registry.tsx",
+    "./components/*": "./src/components/*.tsx",
+    "./hooks/*": "./src/hooks/*.ts",
+    "./lib/*.json": "./src/lib/*.json",
+    "./lib/document-form-registry": "./src/lib/document-form-registry.ts",
+    "./lib/document-form-registry/types": "./src/lib/document-form-registry/types.ts",
+    "./lib/document-form-registry/layout": "./src/lib/document-form-registry/layout.ts",
+    "./lib/*": "./src/lib/*.ts"
+  },
+  "scripts": {
+    "lint": "eslint . --max-warnings 0",
+    "check-types": "tsgo --noEmit",
+    "test": "vitest run --config vitest.config.ts"
+  },
+  "dependencies": {
+    "@bedrock/documents": "workspace:*",
+    "@bedrock/plugin-documents-commercial": "workspace:*",
+    "@bedrock/plugin-documents-ifrs": "workspace:*",
+    "@bedrock/plugin-documents-sdk": "workspace:*",
+    "@bedrock/sdk-ui": "workspace:*",
+    "@bedrock/shared": "workspace:*",
+    "@bedrock/treasury": "workspace:*",
+    "lucide-react": "^0.577.0",
+    "next": "^16.0.10",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "react-hook-form": "^7.71.2",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@bedrock/eslint-config": "workspace:*",
+    "@bedrock/typescript-config": "workspace:*",
+    "@types/node": "^22.15.3",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "eslint": "^10.2.0",
+    "typescript": "^6.0.2",
+    "vitest": "^4.1.4"
+  },
+  "bedrock": {
+    "kind": "sdk",
+    "tags": [
+      "sdk",
+      "documents-form-ui"
+    ]
+  }
+}

@@ -15,7 +15,7 @@ import { Textarea } from "@bedrock/sdk-ui/components/textarea";
 import type {
   DocumentFormField,
   DocumentFormValues,
-} from "@/features/documents/lib/document-form-registry";
+} from "../../../lib/document-form-registry";
 
 import { useDocumentTypedForm } from "../context";
 import {

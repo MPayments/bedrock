@@ -4,7 +4,7 @@ import { createContext, use, useMemo } from "react";
 import { useWatch } from "react-hook-form";
 import type { ReactNode } from "react";
 
-import type { DocumentFormSection } from "@/features/documents/lib/document-form-registry";
+import type { DocumentFormSection } from "../../lib/document-form-registry";
 
 import {
   buildWatchedValueMap,

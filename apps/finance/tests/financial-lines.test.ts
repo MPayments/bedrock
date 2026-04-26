@@ -5,8 +5,8 @@ import {
   getFinancialLinePercentAmountPreview,
   getLockedFinancialLineCurrency,
   resolveFinancialLineCalcMethod,
-} from "@/features/documents/lib/financial-lines";
-import type { DocumentFormField } from "@/features/documents/lib/document-form-registry";
+} from "@bedrock/sdk-documents-form-ui/lib/financial-lines";
+import type { DocumentFormField } from "@bedrock/sdk-documents-form-ui/lib/document-form-registry";
 
 const financialLinesField: Extract<DocumentFormField, { kind: "financialLines" }> =
   {

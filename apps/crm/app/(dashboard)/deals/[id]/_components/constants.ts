@@ -88,7 +88,7 @@ const DEAL_OPERATIONAL_POSITION_LABELS: Record<
   in_transit: "Средства в транзите",
   intercompany_due_from: "Межкомпанейская дебиторка",
   intercompany_due_to: "Межкомпанейская кредиторка",
-  provider_payable: "Обязательство перед провайдером",
+  downstream_payable: "Исходящая кредиторка",
   spread_revenue: "Доход от спреда",
   suspense: "Суспенс",
 };

@@ -10,7 +10,7 @@ import {
   InputGroupText,
 } from "@bedrock/sdk-ui/components/input-group";
 
-import type { DocumentFormValues } from "@/features/documents/lib/document-form-registry";
+import type { DocumentFormValues } from "../../../lib/document-form-registry";
 
 import { readValueAsString } from "../helpers";
 import { useDocumentTypedFormSection } from "../section-context";

@@ -14,15 +14,15 @@ import { Field } from "@bedrock/sdk-ui/components/field";
 import { Spinner } from "@bedrock/sdk-ui/components/spinner";
 import type { QuotePreviewResponse } from "@bedrock/treasury/contracts";
 
-import type { DocumentFormValues } from "@/features/documents/lib/document-form-registry";
+import type { DocumentFormValues } from "../../../lib/document-form-registry";
 import {
   buildFxQuotePreviewRequest,
   fetchFxQuotePreview,
   formatFxQuotePreviewMinorAmount,
   formatFxQuotePreviewTimestamp,
   getFinancialLineBucketLabel,
-} from "@/features/documents/lib/fx-quote-preview";
-import { formatRate } from "@/features/treasury/rates/lib/format";
+} from "../../../lib/fx-quote-preview";
+import { formatRate } from "../../../lib/format";
 
 import { readValueAsString } from "../helpers";
 import {

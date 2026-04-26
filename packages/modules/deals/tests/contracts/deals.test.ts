@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  canDealCreateFormalDocuments,
+  canDealWriteTreasuryOrFormalDocuments,
+} from "../../src";
+import {
   DealPricingContextSchema,
   DealPricingPreviewSchema,
   DealTypeSchema,
@@ -225,6 +229,55 @@ describe("deals contracts", () => {
         asOf: "2026-04-19T13:00:00.000Z",
         expectedRevision: 3,
       }).success,
+    ).toBe(false);
+  });
+
+  it("allows formal document creation only from preparing_documents onwards", () => {
+    const allowedStatuses = [
+      "preparing_documents",
+      "awaiting_funds",
+      "awaiting_payment",
+      "closing_documents",
+    ] as const;
+    const deniedStatuses = [
+      "draft",
+      "submitted",
+      "rejected",
+      "done",
+      "cancelled",
+    ] as const;
+
+    for (const status of allowedStatuses) {
+      expect(
+        canDealCreateFormalDocuments({
+          status,
+          type: "payment",
+        }),
+      ).toBe(true);
+    }
+
+    for (const status of deniedStatuses) {
+      expect(
+        canDealCreateFormalDocuments({
+          status,
+          type: "payment",
+        }),
+      ).toBe(false);
+    }
+  });
+
+  it("keeps submitted deals writable for pricing while blocking formal document creation", () => {
+    expect(
+      canDealWriteTreasuryOrFormalDocuments({
+        status: "submitted",
+        type: "payment",
+      }),
+    ).toBe(true);
+    expect(
+      canDealCreateFormalDocuments({
+        status: "submitted",
+        type: "payment",
+      }),
     ).toBe(false);
   });
 });

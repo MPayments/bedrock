@@ -2,7 +2,7 @@
 
 import type { ComponentType } from "react";
 
-import type { DocumentFormField } from "@/features/documents/lib/document-form-registry";
+import type { DocumentFormField } from "../../../lib/document-form-registry";
 
 import { AccountFieldRenderer } from "./account-field-renderer";
 import { AmountFieldRenderer } from "./amount-field-renderer";

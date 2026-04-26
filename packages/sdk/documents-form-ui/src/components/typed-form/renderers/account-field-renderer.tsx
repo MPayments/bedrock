@@ -11,8 +11,8 @@ import {
   SelectValue,
 } from "@bedrock/sdk-ui/components/select";
 
-import type { DocumentFormValues } from "@/features/documents/lib/document-form-registry";
-import { isUuid } from "@/lib/resources/http";
+import type { DocumentFormValues } from "../../../lib/document-form-registry";
+import { isUuid } from "../../../lib/validation";
 
 import { useDocumentTypedForm } from "../context";
 import {

@@ -1,1 +1,1 @@
-export * from "./document-typed-form/index";
+export * from "@bedrock/sdk-documents-form-ui/components/typed-form/index";

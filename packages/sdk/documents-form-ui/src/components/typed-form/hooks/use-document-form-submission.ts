@@ -6,19 +6,29 @@ import type { UseFormReturn } from "react-hook-form";
 
 import { toast } from "@bedrock/sdk-ui/components/sonner";
 
-import type { DocumentFormDefinition } from "@/features/documents/lib/document-form-registry";
-import type { DocumentFormValues } from "@/features/documents/lib/document-form-registry";
-import {
-  createDealScopedDocumentDraft,
-  createDocumentDraft,
-  updateDocumentDraft,
-  type DocumentMutationDto,
-} from "@/features/operations/documents/lib/mutations";
+import type { DocumentFormDefinition } from "../../../lib/document-form-registry";
+import type { DocumentFormValues } from "../../../lib/document-form-registry";
+import type {
+  DocumentMutationDto,
+  DocumentMutationResult,
+} from "../../../lib/mutations";
 
 import {
   mapDocumentFormZodError,
   type DocumentFormMode,
 } from "../helpers";
+
+export type DocumentFormCreateMutator = (input: {
+  docType: string;
+  dealId?: string;
+  payload: unknown;
+}) => Promise<DocumentMutationResult>;
+
+export type DocumentFormUpdateMutator = (input: {
+  docType: string;
+  documentId: string;
+  payload: unknown;
+}) => Promise<DocumentMutationResult>;
 
 export function useDocumentFormSubmission(input: {
   createDealId?: string;
@@ -30,6 +40,8 @@ export function useDocumentFormSubmission(input: {
   disabled: boolean;
   defaultValues: DocumentFormValues;
   onSuccess?: (result: DocumentMutationDto) => void;
+  createMutator: DocumentFormCreateMutator;
+  updateMutator: DocumentFormUpdateMutator;
 }) {
   const {
     clearErrors,
@@ -40,6 +52,7 @@ export function useDocumentFormSubmission(input: {
   } = input.methods;
   const {
     createDealId,
+    createMutator,
     defaultValues,
     definition,
     disabled,
@@ -47,6 +60,7 @@ export function useDocumentFormSubmission(input: {
     documentId,
     mode,
     onSuccess,
+    updateMutator,
   } = input;
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -103,17 +117,12 @@ export function useDocumentFormSubmission(input: {
 
       const mutationResult =
         mode === "create"
-          ? await (createDealId
-              ? createDealScopedDocumentDraft({
-                  dealId: createDealId,
-                  docType,
-                  payload,
-                })
-              : createDocumentDraft({
-                  docType,
-                  payload,
-                }))
-          : await updateDocumentDraft({
+          ? await createMutator({
+              docType,
+              dealId: createDealId,
+              payload,
+            })
+          : await updateMutator({
               docType,
               documentId: documentId ?? "",
               payload,
@@ -139,6 +148,7 @@ export function useDocumentFormSubmission(input: {
     [
       clearErrors,
       createDealId,
+      createMutator,
       definition,
       disabled,
       docType,
@@ -147,6 +157,7 @@ export function useDocumentFormSubmission(input: {
       onSuccess,
       reset,
       setError,
+      updateMutator,
     ],
   );
 

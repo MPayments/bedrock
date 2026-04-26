@@ -1,29 +1,15 @@
 "use client";
 
-import { useMemo } from "react";
+import { DocumentWorkbenchCard as SharedDocumentWorkbenchCard } from "@bedrock/sdk-documents-form-ui/components/document-workbench-card";
+import type { DocumentFormOptions } from "@bedrock/sdk-documents-form-ui/lib/form-options";
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@bedrock/sdk-ui/components/card";
-
-import type { UserRole } from "@/lib/auth/types";
 import { getDocumentTypeLabel } from "@/features/documents/lib/doc-types";
-import { getDocumentFormDefinitionForRole } from "@/features/documents/lib/document-form-registry";
-import type { DocumentFormOptions } from "@/features/documents/lib/form-options";
-
 import {
-  DocumentTypedFormForm,
-  DocumentTypedFormFormError,
-  DocumentTypedFormResetButton,
-  DocumentTypedFormSections,
-  DocumentTypedFormSubmitButton,
-  EditDocumentTypedFormProvider,
-  useDocumentTypedForm,
-} from "./forms/document-typed-form";
+  createDealScopedDocumentDraft,
+  createDocumentDraft,
+  updateDocumentDraft,
+} from "@/features/operations/documents/lib/mutations";
+import type { UserRole } from "@/lib/auth/types";
 
 type DocumentWorkbenchCardProps = {
   docType: string;
@@ -35,84 +21,39 @@ type DocumentWorkbenchCardProps = {
 };
 
 export function DocumentWorkbenchCard({
+  allowedActions,
   docType,
   documentId,
-  payload,
-  allowedActions,
-  userRole,
   options,
+  payload,
+  userRole,
 }: DocumentWorkbenchCardProps) {
-  const definition = useMemo(
-    () => getDocumentFormDefinitionForRole({ docType, role: userRole }),
-    [docType, userRole],
-  );
-
-  const canEditDraft = allowedActions.includes("edit");
-
-  function DocumentWorkbenchTypedForm() {
-    const {
-      state: { definition: activeDefinition },
-    } = useDocumentTypedForm();
-
-    return (
-      <Card className="rounded-sm">
-        <CardHeader className="border-b">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="space-y-1">
-              <CardTitle>Редактирование</CardTitle>
-              <CardDescription>
-                {activeDefinition
-                  ? `Типизированная форма редактирования ${getDocumentTypeLabel(docType)}.`
-                  : "Для этого типа документа типизированная форма редактирования недоступна."}
-              </CardDescription>
-            </div>
-            {activeDefinition ? (
-              <div className="flex items-center gap-2">
-                <DocumentTypedFormSubmitButton />
-                <DocumentTypedFormResetButton />
-              </div>
-            ) : null}
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-6 py-6">
-          <DocumentTypedFormForm className="space-y-6">
-            <DocumentTypedFormSections />
-            <DocumentTypedFormFormError />
-          </DocumentTypedFormForm>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
-    <EditDocumentTypedFormProvider
+    <SharedDocumentWorkbenchCard
       docType={docType}
-      userRole={userRole}
-      options={options}
-      initialPayload={payload}
+      docTypeLabel={getDocumentTypeLabel(docType)}
       documentId={documentId}
-      disabled={!canEditDraft}
-    >
-      {definition ? (
-        <DocumentWorkbenchTypedForm />
-      ) : (
-        <Card className="rounded-sm">
-          <CardHeader className="border-b">
-            <div className="space-y-1">
-              <CardTitle>Редактирование</CardTitle>
-              <CardDescription>
-                Для этого типа документа типизированная форма редактирования
-                недоступна.
-              </CardDescription>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-6 py-6">
-            <DocumentTypedFormForm className="space-y-6">
-              <DocumentTypedFormSections />
-            </DocumentTypedFormForm>
-          </CardContent>
-        </Card>
-      )}
-    </EditDocumentTypedFormProvider>
+      payload={payload}
+      allowedActions={allowedActions}
+      isAdmin={userRole === "admin"}
+      options={options}
+      createMutator={async ({ docType: type, dealId, payload: input }) => {
+        if (dealId) {
+          return createDealScopedDocumentDraft({
+            dealId,
+            docType: type,
+            payload: input,
+          });
+        }
+        return createDocumentDraft({ docType: type, payload: input });
+      }}
+      updateMutator={async ({ docType: type, documentId: id, payload: input }) =>
+        updateDocumentDraft({
+          docType: type,
+          documentId: id,
+          payload: input,
+        })
+      }
+    />
   );
 }

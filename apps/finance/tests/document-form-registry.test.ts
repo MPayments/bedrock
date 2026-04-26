@@ -7,7 +7,7 @@ import {
 } from "@bedrock/plugin-documents-ifrs/contracts";
 import { describe, expect, it } from "vitest";
 
-import { getDocumentFormDefinitionForRole } from "@/features/documents/lib/document-form-registry";
+import { getDocumentFormDefinitionForRole } from "@bedrock/sdk-documents-form-ui/lib/document-form-registry";
 
 describe("document form registry", () => {
   it("provides definitions for all typed IFRS doc types", () => {
@@ -22,7 +22,7 @@ describe("document form registry", () => {
       expect(
         getDocumentFormDefinitionForRole({
           docType,
-          role: "admin",
+          isAdmin: true,
         }),
       ).not.toBeNull();
     }
@@ -32,35 +32,35 @@ describe("document form registry", () => {
     expect(
       getDocumentFormDefinitionForRole({
         docType: "fx_execute",
-        role: "finance",
+        isAdmin: false,
       }),
     ).not.toBeNull();
 
     expect(
       getDocumentFormDefinitionForRole({
         docType: "fx_resolution",
-        role: "admin",
+        isAdmin: true,
       }),
     ).toBeNull();
 
     expect(
       getDocumentFormDefinitionForRole({
         docType: "period_reopen",
-        role: "admin",
+        isAdmin: true,
       }),
     ).not.toBeNull();
 
     expect(
       getDocumentFormDefinitionForRole({
         docType: "period_reopen",
-        role: "finance",
+        isAdmin: false,
       }),
     ).toBeNull();
 
     expect(
       getDocumentFormDefinitionForRole({
         docType: "period_close",
-        role: "admin",
+        isAdmin: true,
       }),
     ).toBeNull();
   });
@@ -68,7 +68,7 @@ describe("document form registry", () => {
   it("exposes an auto-cross quote preview field for fx_execute", () => {
     const definition = getDocumentFormDefinitionForRole({
       docType: "fx_execute",
-      role: "admin",
+      isAdmin: true,
     });
 
     const previewField = definition?.sections
@@ -84,26 +84,24 @@ describe("document form registry", () => {
     });
   });
 
-  it("exposes percent-enabled financial-lines metadata for invoice and fx_execute", () => {
+  it("exposes percent-enabled financial-lines metadata for fx_execute", () => {
     const definitions = [
       ...COMMERCIAL_DOCUMENT_DEFINITIONS,
       ...IFRS_DOCUMENT_DEFINITIONS,
     ];
 
-    for (const docType of ["invoice", "fx_execute"]) {
-      const definition = definitions.find((item) => item.docType === docType)
-        ?.formDefinition;
-      const financialLinesField = definition?.sections
-        .flatMap((section) => section.fields)
-        .find((field) => field.name === "financialLines");
+    const definition = definitions.find((item) => item.docType === "fx_execute")
+      ?.formDefinition;
+    const financialLinesField = definition?.sections
+      .flatMap((section) => section.fields)
+      .find((field) => field.name === "financialLines");
 
-      expect(financialLinesField).toMatchObject({
-        kind: "financialLines",
-        supportedCalcMethods: ["fixed", "percent"],
-        baseAmountFieldName: "amount",
-        baseCurrencyFieldName: "currency",
-      });
-    }
+    expect(financialLinesField).toMatchObject({
+      kind: "financialLines",
+      supportedCalcMethods: ["fixed", "percent"],
+      baseAmountFieldName: "amount",
+      baseCurrencyFieldName: "currency",
+    });
   });
 
   it("keeps layout metadata valid for current typed definitions", () => {

@@ -23,6 +23,7 @@
     "@bedrock/plugin-documents-sdk": "workspace:*",
     "@bedrock/sdk-api-client": "workspace:*",
     "@bedrock/sdk-clients-ui": "workspace:*",
+    "@bedrock/sdk-documents-form-ui": "workspace:*",
     "@bedrock/sdk-organizations-ui": "workspace:*",
     "@bedrock/sdk-parties-ui": "workspace:*",
     "@bedrock/sdk-tables-ui": "workspace:*",

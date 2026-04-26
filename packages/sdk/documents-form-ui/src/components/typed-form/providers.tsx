@@ -4,12 +4,11 @@ import { FormProvider, useForm } from "react-hook-form";
 import { useCallback, useEffect, useId, useMemo } from "react";
 import type { ReactNode } from "react";
 
-import type { DocumentFormField } from "@/features/documents/lib/document-form-registry";
-import type { DocumentFormValues } from "@/features/documents/lib/document-form-registry";
-import type { DocumentFormOptions } from "@/features/documents/lib/form-options";
-import { getDocumentFormDefinitionForRole } from "@/features/documents/lib/document-form-registry";
-import type { DocumentMutationDto } from "@/features/operations/documents/lib/mutations";
-import type { UserRole } from "@/lib/auth/types";
+import type { DocumentFormField } from "../../lib/document-form-registry";
+import type { DocumentFormValues } from "../../lib/document-form-registry";
+import type { DocumentFormOptions } from "../../lib/form-options";
+import { getDocumentFormDefinitionForRole } from "../../lib/document-form-registry";
+import type { DocumentMutationDto } from "../../lib/mutations";
 
 import {
   DocumentTypedFormContextProvider,
@@ -24,59 +23,71 @@ import {
 import { useAccountRequisiteOptions } from "./hooks/use-account-requisite-options";
 import { useDerivedAccountCurrencyFields } from "./hooks/use-derived-account-currency-fields";
 import { useResetIncompatibleAccountFields } from "./hooks/use-reset-incompatible-account-fields";
-import { useDocumentFormSubmission } from "./hooks/use-document-form-submission";
+import {
+  useDocumentFormSubmission,
+  type DocumentFormCreateMutator,
+  type DocumentFormUpdateMutator,
+} from "./hooks/use-document-form-submission";
 
 type DocumentTypedFormProviderProps = {
   children: ReactNode;
   createDealId?: string;
   docType: string;
-  userRole: UserRole;
+  isAdmin: boolean;
   options: DocumentFormOptions;
   disabled?: boolean;
   onSuccess?: (result: DocumentMutationDto) => void;
   documentId?: string;
   initialPayload?: Record<string, unknown>;
   mode: DocumentFormMode;
+  createMutator: DocumentFormCreateMutator;
+  updateMutator: DocumentFormUpdateMutator;
 };
 
 export type CreateDocumentTypedFormProviderProps = {
   children: ReactNode;
   createDealId?: string;
   docType: string;
-  userRole: UserRole;
+  isAdmin: boolean;
   options: DocumentFormOptions;
   disabled?: boolean;
   initialPayload?: Record<string, unknown>;
   onSuccess?: (result: DocumentMutationDto) => void;
+  createMutator: DocumentFormCreateMutator;
+  updateMutator: DocumentFormUpdateMutator;
 };
 
 export type EditDocumentTypedFormProviderProps = {
   children: ReactNode;
   docType: string;
-  userRole: UserRole;
+  isAdmin: boolean;
   options: DocumentFormOptions;
   initialPayload: Record<string, unknown>;
   documentId: string;
   disabled?: boolean;
   onSuccess?: (result: DocumentMutationDto) => void;
+  createMutator: DocumentFormCreateMutator;
+  updateMutator: DocumentFormUpdateMutator;
 };
 
 function DocumentTypedFormProvider({
   children,
   createDealId,
+  createMutator,
   docType,
-  userRole,
+  isAdmin,
   options,
   disabled = false,
   onSuccess,
   documentId,
   initialPayload,
   mode,
+  updateMutator,
 }: DocumentTypedFormProviderProps) {
   const formId = useId();
   const definition = useMemo(
-    () => getDocumentFormDefinitionForRole({ docType, role: userRole }),
-    [docType, userRole],
+    () => getDocumentFormDefinitionForRole({ docType, isAdmin }),
+    [docType, isAdmin],
   );
   const defaultValues = useMemo(
     () =>
@@ -195,6 +206,7 @@ function DocumentTypedFormProvider({
 
   const submission = useDocumentFormSubmission({
     createDealId,
+    createMutator,
     methods,
     definition,
     mode,
@@ -203,6 +215,7 @@ function DocumentTypedFormProvider({
     disabled,
     defaultValues,
     onSuccess,
+    updateMutator,
   });
 
   const resetDependentAccountFields = useCallback(
@@ -235,7 +248,7 @@ function DocumentTypedFormProvider({
       meta: {
         mode,
         docType,
-        userRole,
+        isAdmin,
         documentId,
         formId,
         options,
@@ -252,6 +265,7 @@ function DocumentTypedFormProvider({
       docType,
       documentId,
       formId,
+      isAdmin,
       methods,
       mode,
       onSuccess,
@@ -266,7 +280,6 @@ function DocumentTypedFormProvider({
       submission.resetDisabled,
       submission.submitDisabled,
       submission.submitting,
-      userRole,
     ],
   );
 

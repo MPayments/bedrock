@@ -4,14 +4,13 @@ import { createContext, use } from "react";
 import type { BaseSyntheticEvent, ReactNode } from "react";
 import type { UseFormReturn } from "react-hook-form";
 
-import type { RequisiteOption } from "@/features/documents/lib/account-options";
+import type { RequisiteOption } from "../../lib/account-options";
 import type {
   DocumentFormDefinition,
   DocumentFormValues,
-} from "@/features/documents/lib/document-form-registry";
-import type { DocumentFormOptions } from "@/features/documents/lib/form-options";
-import type { DocumentMutationDto } from "@/features/operations/documents/lib/mutations";
-import type { UserRole } from "@/lib/auth/types";
+} from "../../lib/document-form-registry";
+import type { DocumentFormOptions } from "../../lib/form-options";
+import type { DocumentMutationDto } from "../../lib/mutations";
 
 import type { DocumentFormMode } from "./helpers";
 
@@ -38,7 +37,7 @@ export type DocumentTypedFormActions = {
 export type DocumentTypedFormMeta = {
   mode: DocumentFormMode;
   docType: string;
-  userRole: UserRole;
+  isAdmin: boolean;
   documentId?: string;
   formId: string;
   options: DocumentFormOptions;

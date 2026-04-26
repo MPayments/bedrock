@@ -1,5 +1,8 @@
 export * from "./errors";
-export { canDealWriteTreasuryOrFormalDocuments } from "./domain/constants";
+export {
+  canDealCreateFormalDocuments,
+  canDealWriteTreasuryOrFormalDocuments,
+} from "./domain/constants";
 export {
   computeDealLegState,
   type ComputeDealLegStateInput,

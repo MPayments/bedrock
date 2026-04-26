@@ -133,7 +133,7 @@ const DEAL_OPERATIONAL_POSITION_LABELS: Record<string, string> = {
   in_transit: "Средства в транзите",
   intercompany_due_from: "Межкомпанейская дебиторка",
   intercompany_due_to: "Межкомпанейская кредиторка",
-  provider_payable: "Обязательство перед провайдером",
+  downstream_payable: "Исходящая кредиторка",
   spread_revenue: "Доход от спреда",
   suspense: "Суспенс",
 };
@@ -142,7 +142,7 @@ const FINANCE_PRIMARY_POSITION_LABELS: Record<string, string> = {
   customer_receivable: "Поступление от клиента",
   exporter_expected_receivable: "Ожидаемая экспортная выручка",
   in_transit: "Средства в транзите",
-  provider_payable: "Выплата получателю",
+  downstream_payable: "Выплата получателю",
 };
 
 

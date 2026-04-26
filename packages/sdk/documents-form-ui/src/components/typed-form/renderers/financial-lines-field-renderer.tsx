@@ -25,13 +25,13 @@ import {
   SelectValue,
 } from "@bedrock/sdk-ui/components/select";
 
-import type { DocumentFormValues } from "@/features/documents/lib/document-form-registry";
+import type { DocumentFormValues } from "../../../lib/document-form-registry";
 import {
   createEmptyFinancialLineFormValue,
   getFinancialLinePercentAmountPreview,
   getLockedFinancialLineCurrency,
   resolveFinancialLineCalcMethod,
-} from "@/features/documents/lib/financial-lines";
+} from "../../../lib/financial-lines";
 
 import { useDocumentTypedForm } from "../context";
 import {

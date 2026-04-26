@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { fetchRequisiteOptions } from "@/features/documents/lib/account-options";
+import { fetchRequisiteOptions } from "@bedrock/sdk-documents-form-ui/lib/account-options";
 
 describe("document account options", () => {
   afterEach(() => {
@@ -43,8 +43,7 @@ describe("document account options", () => {
       {
         id: "11111111-1111-4111-8111-111111111111",
         currencyId: "33333333-3333-4333-8333-333333333333",
-        label:
-          "Main RUB · 11111111-1111-4111-8111-111111111111 · RUB",
+        label: "Main RUB · RUB",
       },
     ]);
   });

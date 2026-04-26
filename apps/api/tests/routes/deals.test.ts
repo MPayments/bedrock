@@ -100,6 +100,54 @@ function createDealDetail() {
   };
 }
 
+function createDocumentWithOperation() {
+  const now = new Date("2026-01-01T00:00:00.000Z");
+
+  return {
+    document: {
+      id: "11111111-1111-4111-8111-111111111111",
+      docType: "invoice",
+      docNo: "DOC-1",
+      payloadVersion: 1,
+      payload: { amountMinor: "1234", currency: "USD" },
+      title: "Document",
+      occurredAt: now,
+      submissionStatus: "submitted",
+      approvalStatus: "approved",
+      postingStatus: "posted",
+      lifecycleStatus: "active",
+      createIdempotencyKey: "create-idem",
+      amountMinor: 1234n,
+      currency: "USD",
+      memo: null,
+      counterpartyId: null,
+      customerId: null,
+      organizationRequisiteId: null,
+      searchText: "",
+      createdBy: "user-1",
+      submittedBy: "user-1",
+      submittedAt: now,
+      approvedBy: "user-1",
+      approvedAt: now,
+      rejectedBy: null,
+      rejectedAt: null,
+      cancelledBy: null,
+      cancelledAt: null,
+      postingStartedAt: now,
+      postedAt: now,
+      postingError: null,
+      createdAt: now,
+      updatedAt: now,
+      version: 1,
+      moduleId: "documents.core",
+      moduleVersion: "1.0.0",
+    },
+    postingOperationId: null,
+    allowedActions: ["submit", "approve", "reject", "post", "cancel", "repost"],
+    dealId: "00000000-0000-4000-8000-000000000010",
+  };
+}
+
 function createDealsModuleStub() {
   return {
     deals: {
@@ -757,6 +805,9 @@ function createTestApp() {
   const documentsService = {
     get: vi.fn(),
   };
+  const documentDraftWorkflow = {
+    createDraft: vi.fn(),
+  };
   const persistence = {
     db: {
       execute: vi.fn(async () => ({ rows: [] })),
@@ -792,6 +843,7 @@ function createTestApp() {
       currenciesService,
       reconciliationService,
       documentsService,
+      documentDraftWorkflow,
       persistence,
     } as any),
   );
@@ -811,6 +863,7 @@ function createTestApp() {
     currenciesService,
     reconciliationService,
     documentsService,
+    documentDraftWorkflow,
     persistence,
   };
 }
@@ -1287,6 +1340,112 @@ describe("deals routes", () => {
       quote: {
         id: "00000000-0000-4000-8000-000000000302",
       },
+    });
+  });
+
+  it("rejects deal-scoped formal document creation in draft", async () => {
+    const { app, dealsModule, documentDraftWorkflow } = createTestApp();
+    dealsModule.deals.queries.findById.mockResolvedValue({
+      ...createDealDetail(),
+      status: "draft",
+    });
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/formal-documents/invoice",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "idempotency-key": "doc-create-draft",
+        },
+        body: JSON.stringify({
+          input: {},
+        }),
+      },
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      error: expect.stringContaining(
+        "cannot create formal documents from status draft",
+      ),
+    });
+    expect(documentDraftWorkflow.createDraft).not.toHaveBeenCalled();
+  });
+
+  it("rejects deal-scoped formal document creation in submitted", async () => {
+    const { app, dealsModule, documentDraftWorkflow } = createTestApp();
+    dealsModule.deals.queries.findById.mockResolvedValue({
+      ...createDealDetail(),
+      status: "submitted",
+    });
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/formal-documents/invoice",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "idempotency-key": "doc-create-submitted",
+        },
+        body: JSON.stringify({
+          input: {},
+        }),
+      },
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      error: expect.stringContaining(
+        "cannot create formal documents from status submitted",
+      ),
+    });
+    expect(documentDraftWorkflow.createDraft).not.toHaveBeenCalled();
+  });
+
+  it("creates a deal-scoped formal document in preparing_documents", async () => {
+    const { app, dealsModule, documentDraftWorkflow } = createTestApp();
+    dealsModule.deals.queries.findById.mockResolvedValue({
+      ...createDealDetail(),
+      status: "preparing_documents",
+    });
+    documentDraftWorkflow.createDraft.mockResolvedValue(createDocumentWithOperation());
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/formal-documents/invoice",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "idempotency-key": "doc-create-preparing",
+        },
+        body: JSON.stringify({
+          input: {},
+        }),
+      },
+    );
+
+    expect(response.status).toBe(201);
+    expect(documentDraftWorkflow.createDraft).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorUserId: "user-1",
+        createIdempotencyKey: "doc-create-preparing",
+        dealId: "00000000-0000-4000-8000-000000000010",
+        docType: "invoice",
+      }),
+    );
+    expect(dealsModule.deals.commands.appendTimelineEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payload: {
+          docType: "invoice",
+          documentId: "11111111-1111-4111-8111-111111111111",
+        },
+        type: "document_created",
+      }),
+    );
+    await expect(response.json()).resolves.toMatchObject({
+      docType: "invoice",
+      id: "11111111-1111-4111-8111-111111111111",
     });
   });
 

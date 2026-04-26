@@ -8,8 +8,8 @@ import { toast } from "@bedrock/sdk-ui/components/sonner";
 import {
   fetchRequisiteOptions,
   type RequisiteOption,
-} from "@/features/documents/lib/account-options";
-import type { DocumentFormField } from "@/features/documents/lib/document-form-registry";
+} from "../../../lib/account-options";
+import type { DocumentFormField } from "../../../lib/document-form-registry";
 
 import {
   buildWatchedValueMap,

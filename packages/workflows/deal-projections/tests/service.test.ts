@@ -88,7 +88,7 @@ function createBaseWorkflow(): DealWorkflowProjection {
         {
           amountMinor: "100000",
           currencyId: "currency-rub",
-          kind: "provider_payable",
+          kind: "downstream_payable",
           reasonCode: null,
           sourceRefs: [],
           state: "ready",
@@ -612,7 +612,7 @@ describe("createDealProjectionsWorkflow", () => {
       operationalState: {
         ...workflowState.operationalState,
         positions: workflowState.operationalState.positions.map((position) =>
-          position.kind === "provider_payable"
+          position.kind === "downstream_payable"
             ? {
                 ...position,
                 reasonCode: "provider_timeout",
@@ -1166,7 +1166,7 @@ describe("createDealProjectionsWorkflow", () => {
       ],
       formalDocumentRequirements: [
         {
-          createAllowed: true,
+          createAllowed: false,
           docType: "invoice",
           openAllowed: false,
           state: "missing",
@@ -1282,6 +1282,60 @@ describe("createDealProjectionsWorkflow", () => {
       expect.arrayContaining([
         expect.objectContaining({
           createAllowed: false,
+          docType: "invoice",
+          openAllowed: false,
+          state: "missing",
+        }),
+      ]),
+    );
+  });
+
+  it("keeps createAllowed disabled for missing formal documents in submitted status", async () => {
+    const baseWorkflow = createBaseWorkflow();
+    const workflow = createWorkflow({
+      workflow: {
+        ...baseWorkflow,
+        summary: {
+          ...baseWorkflow.summary,
+          status: "submitted",
+        },
+      },
+    });
+
+    const projection = await workflow.getFinanceDealWorkspaceProjection("deal-1");
+
+    expect(projection).not.toBeNull();
+    expect(projection?.formalDocumentRequirements).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          createAllowed: false,
+          docType: "invoice",
+          openAllowed: false,
+          state: "missing",
+        }),
+      ]),
+    );
+  });
+
+  it("allows creating missing formal documents in preparing_documents status", async () => {
+    const baseWorkflow = createBaseWorkflow();
+    const workflow = createWorkflow({
+      workflow: {
+        ...baseWorkflow,
+        summary: {
+          ...baseWorkflow.summary,
+          status: "preparing_documents",
+        },
+      },
+    });
+
+    const projection = await workflow.getFinanceDealWorkspaceProjection("deal-1");
+
+    expect(projection).not.toBeNull();
+    expect(projection?.formalDocumentRequirements).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          createAllowed: true,
           docType: "invoice",
           openAllowed: false,
           state: "missing",

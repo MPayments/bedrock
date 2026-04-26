@@ -78,7 +78,7 @@ function createBaseInput() {
         {
           amountMinor: null,
           currencyId: null,
-          kind: "provider_payable" as const,
+          kind: "downstream_payable" as const,
           reasonCode: null,
           sourceRefs: ["leg:3:payout"],
           state: "ready" as const,

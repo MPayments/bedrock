@@ -9,10 +9,11 @@ import {
   CardTitle,
 } from "@bedrock/sdk-ui/components/card";
 
-import type { UserRole } from "@/lib/auth/types";
-import { getDocumentTypeLabel } from "@/features/documents/lib/doc-types";
-import type { DocumentFormOptions } from "@/features/documents/lib/form-options";
-import { buildDocumentDetailsHref } from "@/features/documents/lib/routes";
+import type { DocumentFormOptions } from "../lib/form-options";
+import type {
+  DocumentFormCreateMutator,
+  DocumentFormUpdateMutator,
+} from "./typed-form/hooks/use-document-form-submission";
 
 import {
   CreateDocumentTypedFormProvider,
@@ -21,25 +22,27 @@ import {
   DocumentTypedFormResetButton,
   DocumentTypedFormSections,
   DocumentTypedFormSubmitButton,
-} from "./forms/document-typed-form";
+} from "./typed-form";
 
-type DocumentCreateTypedFormClientProps = {
+type DocumentCreateFormProps = {
   dealId?: string;
   docType: string;
+  docTypeLabel: string;
   initialPayload?: Record<string, unknown>;
-  userRole: UserRole;
+  isAdmin: boolean;
   options: DocumentFormOptions;
-  reconciliationAdjustmentExceptionId?: string;
-  successHref?: string;
+  buildSuccessHref: (input: { docType: string; documentId: string }) => string;
+  createMutator: DocumentFormCreateMutator;
+  updateMutator: DocumentFormUpdateMutator;
 };
 
-function DocumentCreateTypedFormCard({ docType }: { docType: string }) {
+function DocumentCreateFormCard({ docTypeLabel }: { docTypeLabel: string }) {
   return (
     <Card className="rounded-sm">
       <CardHeader className="border-b">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-1">
-            <CardTitle>{`Создать ${getDocumentTypeLabel(docType)}`}</CardTitle>
+            <CardTitle>{`Создать ${docTypeLabel}`}</CardTitle>
             <CardDescription>
               Заполните поля формы и создайте черновик документа.
             </CardDescription>
@@ -60,34 +63,38 @@ function DocumentCreateTypedFormCard({ docType }: { docType: string }) {
   );
 }
 
-export function DocumentCreateTypedFormClient({
+export function DocumentCreateForm({
+  buildSuccessHref,
+  createMutator,
   dealId,
   docType,
+  docTypeLabel,
   initialPayload,
-  userRole,
+  isAdmin,
   options,
-  reconciliationAdjustmentExceptionId,
-  successHref,
-}: DocumentCreateTypedFormClientProps) {
+  updateMutator,
+}: DocumentCreateFormProps) {
   const router = useRouter();
 
   return (
     <CreateDocumentTypedFormProvider
       createDealId={dealId}
+      createMutator={createMutator}
       docType={docType}
       initialPayload={initialPayload}
-      userRole={userRole}
+      isAdmin={isAdmin}
       options={options}
+      updateMutator={updateMutator}
       onSuccess={(document) => {
-        const detailsHref = buildDocumentDetailsHref(document.docType, document.id, {
-          reconciliationExceptionId: reconciliationAdjustmentExceptionId,
-          returnTo: successHref,
-        });
-
-        router.push(detailsHref ?? successHref ?? "/documents");
+        router.push(
+          buildSuccessHref({
+            docType: document.docType,
+            documentId: document.id,
+          }),
+        );
       }}
     >
-      <DocumentCreateTypedFormCard docType={docType} />
+      <DocumentCreateFormCard docTypeLabel={docTypeLabel} />
     </CreateDocumentTypedFormProvider>
   );
 }

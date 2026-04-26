@@ -1,5 +1,3 @@
-import type { UserRole } from "@/lib/auth/types";
-
 import { COMMERCIAL_DOCUMENT_DEFINITIONS } from "@bedrock/plugin-documents-commercial/contracts";
 import { IFRS_DOCUMENT_DEFINITIONS } from "@bedrock/plugin-documents-ifrs/contracts";
 
@@ -28,7 +26,7 @@ const DOCUMENT_FORM_DEFINITION_BY_TYPE = new Map<string, DocumentFormDefinition>
   ),
 );
 
-function getDocumentFormDefinition(
+export function getDocumentFormDefinition(
   docType: string,
 ): DocumentFormDefinition | null {
   return DOCUMENT_FORM_DEFINITION_BY_TYPE.get(docType) ?? null;
@@ -36,14 +34,14 @@ function getDocumentFormDefinition(
 
 export function getDocumentFormDefinitionForRole(input: {
   docType: string;
-  role: UserRole;
+  isAdmin: boolean;
 }): DocumentFormDefinition | null {
   const definition = getDocumentFormDefinition(input.docType);
   if (!definition) {
     return null;
   }
 
-  if (definition.adminOnly && input.role !== "admin") {
+  if (definition.adminOnly && !input.isAdmin) {
     return null;
   }
 

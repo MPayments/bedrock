@@ -9,7 +9,7 @@ import { collectBlockingReasons } from "../shared/workflow-helpers";
 const DOWNSTREAM_POSITION_KINDS = new Set([
   "exporter_expected_receivable",
   "in_transit",
-  "provider_payable",
+  "downstream_payable",
 ]);
 
 const DOWNSTREAM_LEG_KINDS = new Set([

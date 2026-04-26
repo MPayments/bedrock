@@ -46,7 +46,7 @@ export const DEAL_LEG_OPERATION_KIND_VALUES = [
 
 export const DEAL_OPERATIONAL_POSITION_KIND_VALUES = [
   "customer_receivable",
-  "provider_payable",
+  "downstream_payable",
   "intercompany_due_from",
   "intercompany_due_to",
   "in_transit",
@@ -214,4 +214,16 @@ export function canDealWriteTreasuryOrFormalDocuments(input: {
   type: (typeof DEAL_TYPE_VALUES)[number];
 }): boolean {
   return !["draft", "rejected", "done", "cancelled"].includes(input.status);
+}
+
+export function canDealCreateFormalDocuments(input: {
+  status: (typeof DEAL_STATUS_VALUES)[number];
+  type: (typeof DEAL_TYPE_VALUES)[number];
+}): boolean {
+  return [
+    "preparing_documents",
+    "awaiting_funds",
+    "awaiting_payment",
+    "closing_documents",
+  ].includes(input.status);
 }

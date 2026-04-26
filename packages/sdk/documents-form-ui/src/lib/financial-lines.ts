@@ -7,7 +7,7 @@ import { minorToAmountString, toMinorAmountString } from "@bedrock/shared/money"
 import type {
   DocumentFormField,
   FinancialLineCalcMethod,
-} from "@/features/documents/lib/document-form-registry";
+} from "./document-form-registry";
 
 export type FinancialLineFormValue = {
   calcMethod?: string;

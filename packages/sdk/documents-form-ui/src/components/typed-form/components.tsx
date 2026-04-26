@@ -16,7 +16,7 @@ import {
 import { Spinner } from "@bedrock/sdk-ui/components/spinner";
 import { cn } from "@bedrock/sdk-ui/lib/utils";
 
-import { resolveDocumentFormSectionRows } from "@/features/documents/lib/document-form-registry/layout";
+import { resolveDocumentFormSectionRows } from "../../lib/document-form-registry/layout";
 
 import { useDocumentTypedForm } from "./context";
 import {

@@ -4,7 +4,7 @@ import {
   buildFxQuotePreviewRequest,
   formatFxQuotePreviewMinorAmount,
   getFinancialLineBucketLabel,
-} from "@/features/documents/lib/fx-quote-preview";
+} from "@bedrock/sdk-documents-form-ui/lib/fx-quote-preview";
 
 describe("fx quote preview helpers", () => {
   it("builds preview requests from amount and currencies", () => {

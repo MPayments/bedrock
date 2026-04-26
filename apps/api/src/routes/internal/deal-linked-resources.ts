@@ -1,7 +1,10 @@
 import { z } from "@hono/zod-openapi";
 import { and, eq, inArray } from "drizzle-orm";
 
-import { canDealWriteTreasuryOrFormalDocuments } from "@bedrock/deals";
+import {
+  canDealCreateFormalDocuments,
+  canDealWriteTreasuryOrFormalDocuments,
+} from "@bedrock/deals";
 import type { DealDetails, DealTrace } from "@bedrock/deals/contracts";
 import { DealTraceSchema } from "@bedrock/deals/contracts";
 import { fileLinks } from "@bedrock/files/schema";
@@ -43,6 +46,19 @@ export function assertDealAllowsCommercialWrite(deal: DealDetails) {
   ) {
     throw new ValidationError(
       `Deal ${deal.id} cannot start treasury quotes or formal documents from status ${deal.status}`,
+    );
+  }
+}
+
+export function assertDealAllowsFormalDocumentCreate(deal: DealDetails) {
+  if (
+    !canDealCreateFormalDocuments({
+      status: deal.status,
+      type: deal.type,
+    })
+  ) {
+    throw new ValidationError(
+      `Deal ${deal.id} cannot create formal documents from status ${deal.status}; formal documents are available from status preparing_documents onwards`,
     );
   }
 }
@@ -142,7 +158,7 @@ export async function createDealScopedFormalDocument(input: {
   requestContext?: Parameters<AppContext["documentDraftWorkflow"]["createDraft"]>[0]["requestContext"];
 }) {
   const deal = await requireDeal(input.ctx, input.dealId);
-  assertDealAllowsCommercialWrite(deal);
+  assertDealAllowsFormalDocumentCreate(deal);
 
   if (input.body.dealId && input.body.dealId !== input.dealId) {
     throw new ValidationError(

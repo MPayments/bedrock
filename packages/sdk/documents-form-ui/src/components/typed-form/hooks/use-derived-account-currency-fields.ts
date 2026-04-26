@@ -3,8 +3,8 @@
 import { useEffect, useMemo } from "react";
 import { useWatch } from "react-hook-form";
 
-import type { DocumentFormField } from "@/features/documents/lib/document-form-registry";
-import type { DocumentFormValues } from "@/features/documents/lib/document-form-registry";
+import type { DocumentFormField } from "../../../lib/document-form-registry";
+import type { DocumentFormValues } from "../../../lib/document-form-registry";
 
 import {
   buildWatchedValueMap,

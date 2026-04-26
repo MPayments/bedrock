@@ -1,6 +1,14 @@
-import { File } from "lucide-react";
+import Link from "next/link";
+import { ExternalLink, File, Plus } from "lucide-react";
 import { Badge } from "@bedrock/sdk-ui/components/badge";
+import { Button } from "@bedrock/sdk-ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/components/card";
+
+import { canCreateCrmDocumentType } from "@/features/documents/lib/doc-types";
+import {
+  buildCrmDealDocumentCreateHref,
+  buildCrmDealDocumentDetailsHref,
+} from "@/features/documents/lib/routes";
 
 import {
   DOCUMENT_APPROVAL_STATUS_LABELS,
@@ -9,7 +17,6 @@ import {
   formatDealWorkflowMessage,
   FORMAL_DOCUMENT_LABELS,
 } from "./constants";
-import { DealInvoiceGenerateButton } from "./deal-invoice-generate-button";
 import { formatCurrency, formatDate } from "./format";
 import type { ApiFormalDocument } from "./types";
 
@@ -89,12 +96,41 @@ export function FormalDocumentsCard({
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    {requirement.docType === "invoice" ? (
-                      <DealInvoiceGenerateButton
-                        dealId={dealId}
-                        disabled={
-                          !requirement.createAllowed &&
-                          !requirement.activeDocumentId
+                    {requirement.state === "missing" &&
+                    requirement.createAllowed &&
+                    canCreateCrmDocumentType(requirement.docType) ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        nativeButton={false}
+                        render={
+                          <Link
+                            href={buildCrmDealDocumentCreateHref(
+                              dealId,
+                              requirement.docType,
+                            )}
+                          >
+                            <Plus className="h-4 w-4" /> Создать
+                          </Link>
+                        }
+                      />
+                    ) : null}
+                    {requirement.activeDocumentId &&
+                    requirement.openAllowed ? (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        nativeButton={false}
+                        render={
+                          <Link
+                            href={buildCrmDealDocumentDetailsHref(
+                              dealId,
+                              requirement.docType,
+                              requirement.activeDocumentId,
+                            )}
+                          >
+                            <ExternalLink className="h-4 w-4" /> Открыть
+                          </Link>
                         }
                       />
                     ) : null}

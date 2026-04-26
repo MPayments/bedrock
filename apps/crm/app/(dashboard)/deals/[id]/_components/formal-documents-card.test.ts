@@ -55,4 +55,32 @@ describe("FormalDocumentsCard", () => {
     expect(normalizedMarkup).toContain("Акт / подтверждение исполнения");
     expect(normalizedMarkup).not.toContain(">acceptance<");
   });
+
+  it("does not render a create action when the requirement is missing but creation is disallowed", () => {
+    (
+      globalThis as typeof globalThis & {
+        React: typeof React;
+      }
+    ).React = React;
+
+    const markup = renderToStaticMarkup(
+      createElement(FormalDocumentsCard, {
+        dealId: "00000000-0000-4000-8000-000000000001",
+        documents: [],
+        requirements: [
+          {
+            activeDocumentId: null,
+            blockingReasons: ["Формальный документ еще не создан"],
+            createAllowed: false,
+            docType: "invoice",
+            openAllowed: false,
+            stage: "opening",
+            state: "missing",
+          },
+        ],
+      }),
+    );
+
+    expect(normalizeMarkupWhitespace(markup)).not.toContain("Создать");
+  });
 });

@@ -718,13 +718,13 @@ export function DealPricingTab({
 
         if (!cancelled) {
           setRouteCandidates(nextCandidates);
-          setSelectedRouteId((current) => {
-            if (serverContext.routeAttachment?.templateId) {
-              return serverContext.routeAttachment.templateId;
-            }
-
-            return current || nextCandidates[0]?.id || "";
-          });
+          // Reflect real attachment state only — do NOT pre-select the first
+          // candidate. Pre-selection without an attach call misleads users:
+          // CRM showed a route in the dropdown while finance correctly
+          // reported `routeAttachment: null`. Now an empty selector means
+          // "no route attached" — picking a value triggers handleRouteChange
+          // which POSTs /pricing/route/attach.
+          setSelectedRouteId(serverContext.routeAttachment?.templateId ?? "");
         }
       } catch (error) {
         if (!cancelled) {

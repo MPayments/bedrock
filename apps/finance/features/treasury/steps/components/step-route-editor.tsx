@@ -538,13 +538,18 @@ function PartySideEditor({
     "Выберите контрагента";
   const selectedRequisite =
     allRequisiteOptions.find((opt) => opt.id === requisiteId) ?? null;
-  const selectedRequisiteLabel =
-    selectedRequisite?.label ?? (requisiteId ?? undefined);
-  const placeholder = noRequisitesAtAll
-    ? `Нет реквизитов у ${PARTY_KIND_LABELS[kind].toLowerCase()}а`
-    : noCompatibleRequisites
-      ? `Нет реквизитов в ${currencyCode ?? "нужной валюте"}`
-      : "Выберите реквизит";
+  const selectedRequisiteUnknown =
+    requisiteId !== null && selectedRequisite === null;
+  // Never expose raw UUID: if the bound requisite isn't in the fetched owner's
+  // option list, show a clear "unknown binding" message instead of a hex blob.
+  const selectedRequisiteLabel = selectedRequisite?.label ?? undefined;
+  const placeholder = selectedRequisiteUnknown
+    ? "Привязанный реквизит не найден у владельца"
+    : noRequisitesAtAll
+      ? `Нет реквизитов у ${PARTY_KIND_LABELS[kind].toLowerCase()}а`
+      : noCompatibleRequisites
+        ? `Нет реквизитов в ${currencyCode ?? "нужной валюте"}`
+        : "Выберите реквизит";
 
   return (
     <div className="space-y-2">

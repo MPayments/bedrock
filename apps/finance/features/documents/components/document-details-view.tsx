@@ -11,7 +11,7 @@ import {
 import { Separator } from "@bedrock/sdk-ui/components/separator";
 
 import type { UserRole } from "@/lib/auth/types";
-import type { DocumentFormOptions } from "@/features/documents/lib/form-options";
+import type { DocumentFormOptions } from "@bedrock/sdk-documents-form-ui/lib/form-options";
 import { getDocumentTypeLabel } from "@/features/documents/lib/doc-types";
 import { OperationDetailsCards } from "@/features/operations/journal/components/operation-details-cards";
 import {

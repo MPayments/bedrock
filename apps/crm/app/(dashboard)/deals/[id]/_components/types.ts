@@ -34,7 +34,7 @@ export type DealLegManualOverride = "blocked" | "skipped";
 
 export type DealOperationalPositionKind =
   | "customer_receivable"
-  | "provider_payable"
+  | "downstream_payable"
   | "intercompany_due_from"
   | "intercompany_due_to"
   | "in_transit"
@@ -641,7 +641,7 @@ export type ApiQuotePreview = {
     amountMinor: string;
     bucket:
       | "adjustment"
-      | "provider_payable"
+      | "downstream_payable"
       | "provider_fee_expense"
       | "provider_receivable"
       | "customer_payable"

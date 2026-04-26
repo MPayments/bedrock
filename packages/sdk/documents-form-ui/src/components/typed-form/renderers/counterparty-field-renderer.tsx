@@ -10,7 +10,7 @@ import {
   SelectValue,
 } from "@bedrock/sdk-ui/components/select";
 
-import type { DocumentFormValues } from "@/features/documents/lib/document-form-registry";
+import type { DocumentFormValues } from "../../../lib/document-form-registry";
 
 import { useDocumentTypedForm } from "../context";
 import {

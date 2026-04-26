@@ -249,6 +249,39 @@ export function buildCrmBreadcrumbs(
           icon: "deal",
           label: resolveOverrideLabel(overrideLookup, dealHref, "Сделка"),
         });
+
+        if (pathSegments[2] === "documents") {
+          const documentsTabHref = `${dealHref}?tab=documents`;
+          breadcrumbs.push({
+            href: documentsTabHref,
+            icon: "documents",
+            label: "Документы",
+          });
+
+          if (pathSegments[3] === "create" && pathSegments[4]) {
+            const createHref = `${dealHref}/documents/create/${pathSegments[4]}`;
+            breadcrumbs.push({
+              href: createHref,
+              icon: "documents",
+              label: resolveOverrideLabel(
+                overrideLookup,
+                createHref,
+                "Создание документа",
+              ),
+            });
+          } else if (pathSegments[3] && pathSegments[4]) {
+            const docHref = `${dealHref}/documents/${pathSegments[3]}/${pathSegments[4]}`;
+            breadcrumbs.push({
+              href: docHref,
+              icon: "documents",
+              label: resolveOverrideLabel(
+                overrideLookup,
+                docHref,
+                "Документ",
+              ),
+            });
+          }
+        }
       }
 
       return breadcrumbs;

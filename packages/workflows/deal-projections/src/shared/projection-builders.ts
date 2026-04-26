@@ -1,4 +1,4 @@
-import { canDealWriteTreasuryOrFormalDocuments } from "@bedrock/deals";
+import { canDealCreateFormalDocuments } from "@bedrock/deals";
 import {
   CLOSING_DOCUMENT_TYPE_BY_DEAL_TYPE,
   OPENING_DOCUMENT_TYPE_BY_DEAL_TYPE,
@@ -189,7 +189,7 @@ export function buildCrmDocumentRequirements(workflow: DealWorkflowProjection) {
     OPENING_DOCUMENT_TYPE_BY_DEAL_TYPE[workflow.summary.type];
   const closingDocType =
     CLOSING_DOCUMENT_TYPE_BY_DEAL_TYPE[workflow.summary.type];
-  const createAllowed = canDealWriteTreasuryOrFormalDocuments({
+  const createAllowed = canDealCreateFormalDocuments({
     status: workflow.summary.status,
     type: workflow.summary.type,
   });

@@ -15,3 +15,7 @@ export {
   type CreateDocumentTypedFormProviderProps,
   type EditDocumentTypedFormProviderProps,
 } from "./providers";
+export type {
+  DocumentFormCreateMutator,
+  DocumentFormUpdateMutator,
+} from "./hooks/use-document-form-submission";

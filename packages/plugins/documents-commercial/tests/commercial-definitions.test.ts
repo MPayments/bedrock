@@ -36,7 +36,7 @@ describe("commercial document definitions", () => {
     ).toEqual(COMMERCIAL_DOCUMENT_TYPE_ORDER);
   });
 
-  it("keeps invoice typed form single-shape with a financial-lines editor", () => {
+  it("keeps invoice typed form single-shape without finance line editor", () => {
     const invoice = getCommercialDocumentDefinition("invoice");
     const formDefinition = invoice?.formDefinition;
     expect(formDefinition).not.toBeNull();
@@ -59,23 +59,17 @@ describe("commercial document definitions", () => {
       columns: { base: 1, sm: 2 },
       fields: ["organizationId", "organizationRequisiteId"],
     });
-    expect(financialLines).toMatchObject({
-      kind: "financialLines",
-      supportedCalcMethods: ["fixed", "percent"],
-      baseAmountFieldName: "amount",
-      baseCurrencyFieldName: "currency",
-    });
+    expect(financialLines).toBeUndefined();
     expect(currencyField).toMatchObject({
       kind: "currency",
       label: "Валюта списания",
     });
     expect(amountsSection?.layout?.rows).toEqual([
       { fields: ["amount", "currency"] },
-      { fields: ["financialLines"] },
     ]);
   });
 
-  it("round-trips invoice percent rows through the typed definition", () => {
+  it("round-trips invoice payload through the typed definition", () => {
     const invoice = getCommercialDocumentDefinition("invoice");
     const formDefinition = invoice?.formDefinition;
 
@@ -88,41 +82,23 @@ describe("commercial document definitions", () => {
       amount: "100.00",
       amountMinor: "10000",
       currency: "USD",
-      financialLines: [
-        {
-          id: "manual:1",
-          bucket: "fee_revenue",
-          currency: "USD",
-          amount: "1.25",
-          amountMinor: "125",
-          source: "manual",
-          settlementMode: "in_ledger",
-          calcMethod: "percent",
-          percentBps: 125,
-        },
-      ],
     });
 
-    expect(values?.financialLines).toEqual([
-      {
-        calcMethod: "percent",
-        bucket: "fee_revenue",
-        currency: "USD",
-        amount: "",
-        percent: "1.25",
-        memo: "",
-      },
-    ]);
+    expect(values).toMatchObject({
+      customerId: "00000000-0000-4000-8000-000000000001",
+      counterpartyId: "00000000-0000-4000-8000-000000000002",
+      organizationId: "00000000-0000-4000-8000-000000000003",
+      organizationRequisiteId: "00000000-0000-4000-8000-000000000004",
+      amount: "100",
+      currency: "USD",
+    });
 
     expect(formDefinition?.toPayload(values ?? {})).toMatchObject({
-      financialLines: [
-        {
-          calcMethod: "percent",
-          bucket: "fee_revenue",
-          currency: "USD",
-          percent: "1.25",
-        },
-      ],
+      customerId: "00000000-0000-4000-8000-000000000001",
+      counterpartyId: "00000000-0000-4000-8000-000000000002",
+      organizationId: "00000000-0000-4000-8000-000000000003",
+      organizationRequisiteId: "00000000-0000-4000-8000-000000000004",
+      currency: "USD",
     });
   });
 

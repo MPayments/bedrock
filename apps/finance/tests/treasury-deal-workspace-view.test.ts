@@ -125,7 +125,7 @@ function createDeal(): FinanceDealWorkspace {
       positions: [
         {
           amountMinor: "12500000",
-          kind: "provider_payable",
+          kind: "downstream_payable",
           reasonCode: "execution_pending",
           state: "blocked",
         },
