@@ -318,19 +318,20 @@ export function OrganizationGeneralEditor({
   }, [reset, resolvedInitialValues]);
 
   const externalPatchNonce = externalPatch?.nonce ?? null;
+  const externalPatchRef = useRef(externalPatch);
+  externalPatchRef.current = externalPatch;
   useEffect(() => {
-    if (!externalPatch) {
+    const currentPatch = externalPatchRef.current;
+    if (!currentPatch) {
       return;
     }
 
     const current = getValues();
     reset(
-      { ...current, ...externalPatch.patch },
+      { ...current, ...currentPatch.patch },
       { keepDirty: true, keepTouched: true },
     );
-    // `reset` is from react-hook-form: replacing form values programmatically
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [externalPatchNonce]);
+  }, [externalPatchNonce, getValues, reset]);
 
   const onShortNameChangeRef = useRef(onShortNameChange);
   onShortNameChangeRef.current = onShortNameChange;
