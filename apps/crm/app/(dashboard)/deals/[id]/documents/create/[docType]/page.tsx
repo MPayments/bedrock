@@ -80,8 +80,7 @@ export default function DealDocumentCreatePage() {
         if (!workbenchResponse) {
           setError("Сделка не найдена");
         } else {
-          const data = workbenchResponse as { workbench: ApiCrmDealWorkbenchProjection };
-          setWorkbench(data.workbench);
+          setWorkbench(workbenchResponse as ApiCrmDealWorkbenchProjection);
         }
         setFormOptions(options);
       } catch (err) {
@@ -101,9 +100,9 @@ export default function DealDocumentCreatePage() {
   }, [dealId]);
 
   const initialPayload = useMemo(() => {
-    if (!workbench) return undefined;
-    return buildCrmDealDocumentInitialPayload(workbench, docType);
-  }, [docType, workbench]);
+    if (!workbench || !formOptions) return undefined;
+    return buildCrmDealDocumentInitialPayload(workbench, docType, formOptions);
+  }, [docType, formOptions, workbench]);
 
   if (loading) {
     return (

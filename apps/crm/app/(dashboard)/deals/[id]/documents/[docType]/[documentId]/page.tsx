@@ -3,18 +3,25 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { notFound, useParams, useRouter } from "next/navigation";
 
-import { Loader2 } from "lucide-react";
+import { Download, Loader2 } from "lucide-react";
 
 import { Badge } from "@bedrock/sdk-ui/components/badge";
+import { Button } from "@bedrock/sdk-ui/components/button";
 import {
   Card,
   CardDescription,
   CardHeader,
   CardTitle,
 } from "@bedrock/sdk-ui/components/card";
+import { toast } from "@bedrock/sdk-ui/components/sonner";
 import { DocumentActionButtons } from "@bedrock/sdk-documents-form-ui/components/document-action-buttons";
 import { DocumentWorkbenchCard } from "@bedrock/sdk-documents-form-ui/components/document-workbench-card";
 import type { DocumentFormOptions } from "@bedrock/sdk-documents-form-ui/lib/form-options";
+import type {
+  DocumentMutationResult,
+  DocumentTransitionMutator,
+  DocumentTransitionMutators,
+} from "@bedrock/sdk-documents-form-ui/lib/mutations";
 
 import { DEAL_TYPE_LABELS } from "@/app/(dashboard)/deals/[id]/_components/constants";
 import type { ApiCrmDealWorkbenchProjection } from "@/app/(dashboard)/deals/[id]/_components/types";
@@ -24,6 +31,7 @@ import { getCrmDocumentTypeLabel, isCrmDocType } from "@/features/documents/lib/
 import { fetchCrmDocumentFormOptions } from "@/features/documents/lib/form-options";
 import {
   createDealScopedDocumentDraft,
+  downloadDocumentPrintForm,
   updateDocumentDraft,
 } from "@/features/documents/lib/mutations";
 import { buildCrmDocumentMutators } from "@/features/documents/lib/permissions";
@@ -62,6 +70,8 @@ const LIFECYCLE_LABELS: Record<string, string> = {
   cancelled: "Отменен",
 };
 
+const PRINTABLE_DOC_TYPES = new Set(["acceptance", "application", "invoice"]);
+
 function getStatusBadgeVariant(
   status: string,
 ):
@@ -82,6 +92,24 @@ function getStatusBadgeVariant(
   return "outline";
 }
 
+function applyDocumentMutationResult(
+  current: CrmDocumentDetail | null,
+  result: DocumentMutationResult,
+): CrmDocumentDetail | null {
+  if (!current || !result.ok || result.data.id !== current.id) {
+    return current;
+  }
+
+  return {
+    ...current,
+    allowedActions: result.data.allowedActions ?? current.allowedActions,
+    approvalStatus: result.data.approvalStatus ?? current.approvalStatus,
+    lifecycleStatus: result.data.lifecycleStatus ?? current.lifecycleStatus,
+    postingStatus: result.data.postingStatus ?? current.postingStatus,
+    submissionStatus: result.data.submissionStatus ?? current.submissionStatus,
+  };
+}
+
 export default function DealDocumentDetailPage() {
   const params = useParams<{ id: string; docType: string; documentId: string }>();
   const router = useRouter();
@@ -95,6 +123,9 @@ export default function DealDocumentDetailPage() {
   const [formOptions, setFormOptions] = useState<DocumentFormOptions | null>(
     null,
   );
+  const [downloadingFormat, setDownloadingFormat] = useState<
+    "docx" | "pdf" | null
+  >(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -148,10 +179,7 @@ export default function DealDocumentDetailPage() {
     }
     setFormOptions(options);
     if (workbenchPayload) {
-      const data = workbenchPayload as {
-        workbench: ApiCrmDealWorkbenchProjection;
-      };
-      setWorkbench(data.workbench);
+      setWorkbench(workbenchPayload as ApiCrmDealWorkbenchProjection);
     }
     setLoading(false);
   }, [dealId, docType, documentId]);
@@ -160,7 +188,45 @@ export default function DealDocumentDetailPage() {
     void reload();
   }, [reload]);
 
-  const documentMutators = useMemo(() => buildCrmDocumentMutators(), []);
+  const documentMutators = useMemo<DocumentTransitionMutators>(() => {
+    const baseMutators = buildCrmDocumentMutators();
+    const wrapMutator = (
+      mutator: DocumentTransitionMutator | undefined,
+    ): DocumentTransitionMutator | undefined => {
+      if (!mutator) return undefined;
+      return async (input) => {
+        const result = await mutator(input);
+        setDocument((current) => applyDocumentMutationResult(current, result));
+        return result;
+      };
+    };
+
+    return {
+      cancel: wrapMutator(baseMutators.cancel),
+      post: wrapMutator(baseMutators.post),
+      submit: wrapMutator(baseMutators.submit),
+    };
+  }, []);
+
+  const downloadPrintable = useCallback(
+    async (format: "docx" | "pdf") => {
+      setDownloadingFormat(format);
+      const result = await downloadDocumentPrintForm({
+        docType,
+        documentId,
+        format,
+      });
+      setDownloadingFormat(null);
+
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
+      }
+
+      toast.success("Печатная форма выгружена");
+    },
+    [docType, documentId],
+  );
 
   if (loading) {
     return (
@@ -211,15 +277,49 @@ export default function DealDocumentDetailPage() {
                 </Badge>
               </div>
             </div>
-            <DocumentActionButtons
-              docType={document.docType}
-              documentId={document.id}
-              allowedActions={document.allowedActions}
-              mutators={documentMutators}
-              onPostedSuccess={async () => {
-                router.push(buildCrmDealDocumentsTabHref(dealId));
-              }}
-            />
+            <div className="flex w-full flex-wrap justify-start gap-2 md:w-auto md:justify-end">
+              {PRINTABLE_DOC_TYPES.has(document.docType) ? (
+                <>
+                  <Button
+                    type="button"
+                    size="lg"
+                    variant="outline"
+                    disabled={downloadingFormat !== null}
+                    onClick={() => void downloadPrintable("pdf")}
+                  >
+                    {downloadingFormat === "pdf" ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Download className="h-4 w-4" />
+                    )}
+                    PDF
+                  </Button>
+                  <Button
+                    type="button"
+                    size="lg"
+                    variant="outline"
+                    disabled={downloadingFormat !== null}
+                    onClick={() => void downloadPrintable("docx")}
+                  >
+                    {downloadingFormat === "docx" ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Download className="h-4 w-4" />
+                    )}
+                    DOCX
+                  </Button>
+                </>
+              ) : null}
+              <DocumentActionButtons
+                docType={document.docType}
+                documentId={document.id}
+                allowedActions={document.allowedActions}
+                mutators={documentMutators}
+                onPostedSuccess={async () => {
+                  router.push(buildCrmDealDocumentsTabHref(dealId));
+                }}
+              />
+            </div>
           </div>
         </CardHeader>
       </Card>

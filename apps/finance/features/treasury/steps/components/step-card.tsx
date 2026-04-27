@@ -4,12 +4,12 @@ import { useState } from "react";
 
 import { Button } from "@bedrock/sdk-ui/components/button";
 
-import type {
-  FinanceDealBankInstructionSnapshot,
-  FinanceDealPaymentStep,
-} from "@/features/treasury/deals/lib/queries";
+import type { FinanceDealPaymentStep } from "@/features/treasury/deals/lib/queries";
 
-import type { PartyKindOrSnapshot } from "../lib/party-options";
+import type {
+  PartyKind,
+  PartyKindOrSnapshot,
+} from "../lib/party-options";
 import {
   deriveStepPrimaryAction,
   STEP_KIND_LABELS,
@@ -23,6 +23,15 @@ import { StepRouteEditor } from "./step-route-editor";
 import { StepStateBadge } from "./step-state-badge";
 import { StepSubmitDialog } from "./step-submit-dialog";
 
+function narrowPartyKind(
+  kind: PartyKindOrSnapshot | null | undefined,
+): PartyKind | null {
+  if (kind === "organization" || kind === "counterparty" || kind === "customer") {
+    return kind;
+  }
+  return null;
+}
+
 export interface StepCardProps {
   step: FinanceDealPaymentStep;
   uploadAssetPath?: string;
@@ -33,21 +42,17 @@ export interface StepCardProps {
   toPartyKind?: PartyKindOrSnapshot | null;
   fromPartyDisplayName?: string | null;
   toPartyDisplayName?: string | null;
-  fromBankInstruction?: FinanceDealBankInstructionSnapshot | null;
-  toBankInstruction?: FinanceDealBankInstructionSnapshot | null;
   disabled?: boolean;
 }
 
 export function StepCard({
   adminViewHref,
   disabled,
-  fromBankInstruction = null,
   fromPartyDisplayName = null,
   fromPartyKind = null,
   onChanged,
   step,
   title,
-  toBankInstruction = null,
   toPartyDisplayName = null,
   toPartyKind = null,
   uploadAssetPath,
@@ -96,11 +101,9 @@ export function StepCard({
           step={step}
           disabled={disabled}
           fromPartyDisplayName={fromPartyDisplayName}
-          fromPartyKind={fromPartyKind}
-          fromBankInstruction={fromBankInstruction}
+          fromPartyKind={narrowPartyKind(fromPartyKind)}
           toPartyDisplayName={toPartyDisplayName}
-          toPartyKind={toPartyKind}
-          toBankInstruction={toBankInstruction}
+          toPartyKind={narrowPartyKind(toPartyKind)}
           onAmended={handleSuccess}
         />
 
@@ -113,39 +116,39 @@ export function StepCard({
             <div>{step.failureReason}</div>
           </div>
         ) : null}
-
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          {primaryAction === "submit" ? (
-            <Button
-              onClick={() => setSubmitOpen(true)}
-              disabled={disabled}
-              data-testid={`finance-step-primary-submit-${step.id}`}
-            >
-              {step.state === "failed" ? "Отправить повторно" : "Отправить"}
-            </Button>
-          ) : null}
-
-          {primaryAction === "confirm" ? (
-            <Button
-              onClick={() => openConfirmDialog("settled")}
-              disabled={disabled}
-              data-testid={`finance-step-primary-confirm-${step.id}`}
-            >
-              Подтвердить
-            </Button>
-          ) : null}
-
-          <StepOverflowMenu
-            step={step}
-            adminViewHref={adminViewHref}
-            disabled={disabled}
-            onChanged={handleSuccess}
-            onMarkReturned={() => openConfirmDialog("returned")}
-            onOpenHistory={() => setHistoryOpen(true)}
-            onRetry={() => setSubmitOpen(true)}
-          />
-        </div>
       </div>
+
+      <footer className="flex flex-wrap items-center justify-end gap-2 border-t px-4 py-3">
+        {primaryAction === "submit" ? (
+          <Button
+            onClick={() => setSubmitOpen(true)}
+            disabled={disabled}
+            data-testid={`finance-step-primary-submit-${step.id}`}
+          >
+            {step.state === "failed" ? "Отправить повторно" : "Отправить"}
+          </Button>
+        ) : null}
+
+        {primaryAction === "confirm" ? (
+          <Button
+            onClick={() => openConfirmDialog("settled")}
+            disabled={disabled}
+            data-testid={`finance-step-primary-confirm-${step.id}`}
+          >
+            Подтвердить
+          </Button>
+        ) : null}
+
+        <StepOverflowMenu
+          step={step}
+          adminViewHref={adminViewHref}
+          disabled={disabled}
+          onChanged={handleSuccess}
+          onMarkReturned={() => openConfirmDialog("returned")}
+          onOpenHistory={() => setHistoryOpen(true)}
+          onRetry={() => setSubmitOpen(true)}
+        />
+      </footer>
 
       <StepSubmitDialog
         step={step}

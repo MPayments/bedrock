@@ -37,6 +37,57 @@ export async function requireDeal(ctx: AppContext, dealId: string) {
   return deal;
 }
 
+export async function triggerAutoMaterializeAfterAccept(
+  ctx: AppContext,
+  input: { actorUserId: string; dealId: string; quoteId: string },
+): Promise<void> {
+  try {
+    await ctx.dealExecutionWorkflow.requestExecution({
+      actorUserId: input.actorUserId,
+      comment: null,
+      dealId: input.dealId,
+      idempotencyKey: `auto-materialize:${input.quoteId}`,
+    });
+  } catch (materializeError) {
+    ctx.logger.warn("auto-materialize after accept-quote failed", {
+      dealId: input.dealId,
+      error:
+        materializeError instanceof Error
+          ? materializeError.message
+          : String(materializeError),
+      quoteId: input.quoteId,
+    });
+
+    try {
+      await ctx.dealsModule.deals.commands.appendTimelineEvent({
+        actorUserId: input.actorUserId,
+        dealId: input.dealId,
+        payload: {
+          quoteId: input.quoteId,
+          reason:
+            materializeError instanceof Error
+              ? materializeError.message
+              : String(materializeError),
+        },
+        sourceRef: `materialize:auto:${input.quoteId}`,
+        type: "materialization_failed",
+        visibility: "internal",
+      });
+    } catch (timelineError) {
+      ctx.logger.warn(
+        "failed to append materialization_failed timeline event",
+        {
+          dealId: input.dealId,
+          error:
+            timelineError instanceof Error
+              ? timelineError.message
+              : String(timelineError),
+        },
+      );
+    }
+  }
+}
+
 export function assertDealAllowsCommercialWrite(deal: DealDetails) {
   if (
     !canDealWriteTreasuryOrFormalDocuments({

@@ -129,6 +129,7 @@ export const DEAL_TIMELINE_EVENT_TYPE_VALUES = [
   "document_created",
   "document_status_changed",
   "reconciliation_exception_resolved",
+  "materialization_failed",
 ] as const;
 
 export const DEAL_TIMELINE_VISIBILITY_VALUES = [

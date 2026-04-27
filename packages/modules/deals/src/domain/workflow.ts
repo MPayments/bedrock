@@ -388,12 +388,62 @@ function findStoredLegMatch(
   );
 }
 
+export interface DealLegPaymentStepRef {
+  dealLegIdx: number;
+  state:
+    | "draft"
+    | "scheduled"
+    | "pending"
+    | "processing"
+    | "completed"
+    | "failed"
+    | "returned"
+    | "cancelled"
+    | "skipped";
+}
+
+function deriveLegStateFromSteps(
+  steps: DealLegPaymentStepRef[],
+): DealWorkflowLeg["state"] | null {
+  if (steps.length === 0) {
+    return null;
+  }
+
+  if (steps.some((step) => step.state === "failed")) {
+    return "blocked";
+  }
+
+  const terminalStates = new Set(["completed", "cancelled", "skipped"]);
+  const allTerminal = steps.every((step) => terminalStates.has(step.state));
+  if (allTerminal) {
+    if (steps.some((step) => step.state === "completed")) {
+      return "done";
+    }
+    return "skipped";
+  }
+
+  const inFlightStates = new Set([
+    "scheduled",
+    "pending",
+    "processing",
+    "returned",
+    "completed",
+  ]);
+  if (steps.some((step) => inFlightStates.has(step.state))) {
+    return "in_progress";
+  }
+
+  // All remaining: draft (materialized but no action taken yet)
+  return "ready";
+}
+
 export function buildEffectiveDealExecutionPlan(input: {
   acceptance: DealQuoteAcceptance | null;
   documents: DealRelatedFormalDocument[];
   fundingResolution: DealFundingResolution;
   intake: DealIntakeDraft;
   now: Date;
+  paymentSteps?: DealLegPaymentStepRef[];
   routeSnapshot: PaymentRouteDraft | null;
   storedLegs: DealWorkflowLeg[];
 }): DealWorkflowLeg[] {
@@ -408,6 +458,29 @@ export function buildEffectiveDealExecutionPlan(input: {
       state: match.state,
     };
   });
+  const stepsByLegIdx = new Map<number, DealLegPaymentStepRef[]>();
+  for (const step of input.paymentSteps ?? []) {
+    const bucket = stepsByLegIdx.get(step.dealLegIdx) ?? [];
+    bucket.push(step);
+    stepsByLegIdx.set(step.dealLegIdx, bucket);
+  }
+  const stepDerivedByIdx = new Map<number, DealWorkflowLeg["state"]>();
+  for (const [legIdx, steps] of stepsByLegIdx.entries()) {
+    const derived = deriveLegStateFromSteps(steps);
+    if (derived) {
+      stepDerivedByIdx.set(legIdx, derived);
+    }
+  }
+  const stepAware = merged.map((leg) => {
+    const derived = stepDerivedByIdx.get(leg.idx);
+    if (derived) {
+      return {
+        ...leg,
+        state: derived,
+      };
+    }
+    return leg;
+  });
   const hasExecutableAcceptedQuote = isAcceptedQuoteCurrentAndExecutable({
     acceptance: input.acceptance,
     now: input.now,
@@ -415,7 +488,7 @@ export function buildEffectiveDealExecutionPlan(input: {
   const hasExecutedConvert =
     input.acceptance?.quoteStatus === "used" ||
     hasPostedConvertDocument(input.documents);
-  const downstreamLegs = merged.filter((leg) =>
+  const downstreamLegs = stepAware.filter((leg) =>
     ["payout", "transit_hold", "settle_exporter"].includes(leg.kind),
   );
   const canAutoCompleteSingleDownstreamLeg =
@@ -424,7 +497,7 @@ export function buildEffectiveDealExecutionPlan(input: {
     input.fundingResolution.state === "resolved" &&
     input.fundingResolution.strategy === "existing_inventory";
 
-  return merged.map((leg) => {
+  return stepAware.map((leg) => {
     if (
       leg.kind === "convert" &&
       inventoryFundedRun &&

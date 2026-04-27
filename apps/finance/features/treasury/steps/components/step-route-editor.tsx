@@ -17,10 +17,7 @@ import {
   toMinorAmountString,
 } from "@bedrock/shared/money";
 
-import type {
-  FinanceDealBankInstructionSnapshot,
-  FinanceDealPaymentStep,
-} from "@/features/treasury/deals/lib/queries";
+import type { FinanceDealPaymentStep } from "@/features/treasury/deals/lib/queries";
 import { executeMutation } from "@/lib/resources/http";
 
 import {
@@ -34,9 +31,8 @@ import {
 import {
   listPartyOptions,
   listRequisiteOptions,
-  resolvePartyOption,
+  resolvePartyDisplayName,
   type PartyKind,
-  type PartyKindOrSnapshot,
   type PartyOption,
   type RequisiteOption,
 } from "../lib/party-options";
@@ -53,9 +49,13 @@ function normalizeMajorToMinor(
   raw: string,
   currencyCode: string | null,
 ): string | null {
-  if (!currencyCode) return null;
   const trimmed = raw.trim();
   if (!trimmed) return null;
+  if (!currencyCode) {
+    if (!/^\d+$/.test(trimmed)) return null;
+    if (trimmed === "0") return null;
+    return trimmed.replace(/^0+/, "") || "0";
+  }
   try {
     const minor = toMinorAmountString(trimmed, currencyCode, {
       requirePositive: true,
@@ -70,7 +70,8 @@ function formatMinorForInput(
   minor: string | null,
   currencyCode: string | null,
 ): string {
-  if (!minor || !currencyCode) return "";
+  if (!minor) return "";
+  if (!currencyCode) return minor;
   return minorToAmountString(minor, { currency: currencyCode });
 }
 
@@ -97,12 +98,10 @@ const PARTY_KIND_LABELS: Record<PartyKind, string> = {
 
 export interface StepRouteEditorProps {
   step: FinanceDealPaymentStep;
-  fromPartyKind?: PartyKindOrSnapshot | null;
-  toPartyKind?: PartyKindOrSnapshot | null;
+  fromPartyKind?: PartyKind | null;
+  toPartyKind?: PartyKind | null;
   fromPartyDisplayName?: string | null;
   toPartyDisplayName?: string | null;
-  fromBankInstruction?: FinanceDealBankInstructionSnapshot | null;
-  toBankInstruction?: FinanceDealBankInstructionSnapshot | null;
   debounceMs?: number;
   onAmended?: () => void;
   disabled?: boolean;
@@ -111,21 +110,15 @@ export interface StepRouteEditorProps {
 export function StepRouteEditor({
   debounceMs = 500,
   disabled,
-  fromBankInstruction = null,
   fromPartyDisplayName = null,
   fromPartyKind = null,
   onAmended,
   step,
-  toBankInstruction = null,
   toPartyDisplayName = null,
   toPartyKind = null,
 }: StepRouteEditorProps) {
   const isEditable = MUTABLE_STATES.has(step.state) && !disabled;
 
-  // Currency codes are resolved from the step's own currency IDs through
-  // the global catalog. Avoids leaking implementation details (no "minor"
-  // placeholder) and keeps the editor decoupled from how the parent fetched
-  // the deal's route attachment.
   const [currencyCatalog, setCurrencyCatalog] = useState<CurrencyOption[]>([]);
   useEffect(() => {
     let cancelled = false;
@@ -229,157 +222,81 @@ export function StepRouteEditor({
       data-testid={`finance-step-route-editor-${step.id}`}
     >
       <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-x-3 gap-y-3">
-        {fromPartyKind === "beneficiary_snapshot" ? (
-          <SnapshotBeneficiarySide
-            side="from"
-            displayName={fromPartyDisplayName}
-            bankInstruction={fromBankInstruction}
-          />
-        ) : (
-          <PartySideEditor
-            side="from"
-            stepId={step.id}
-            kind={fromPartyKind ?? null}
-            displayName={fromPartyDisplayName}
-            editable={isEditable}
-            partyId={values.fromPartyId}
-            requisiteId={values.fromRequisiteId}
-            currencyId={values.fromCurrencyId}
-            currencyCode={fromCurrencyCode}
-            // FX conversion steps use settlement accounts that may not match
-            // the leg's nominal currency (provider-side multi-currency
-            // routing). Skip the strict currency-match warning for them.
-            enforceCurrencyMatch={step.kind !== "fx_conversion"}
-            onChangePartyId={(nextPartyId) =>
-              applyChange({
-                ...values,
-                fromPartyId: nextPartyId,
-                fromRequisiteId: null,
-              })
-            }
-            onChangeRequisiteId={(nextRequisiteId) =>
-              updateField("fromRequisiteId", nextRequisiteId)
-            }
-          />
-        )}
+        <PartySideEditor
+          side="from"
+          stepId={step.id}
+          kind={fromPartyKind}
+          displayName={fromPartyDisplayName}
+          editable={isEditable}
+          partyId={values.fromPartyId}
+          requisiteId={values.fromRequisiteId}
+          onChangePartyId={(nextPartyId) =>
+            applyChange({
+              ...values,
+              fromPartyId: nextPartyId,
+              fromRequisiteId: null,
+            })
+          }
+          onChangeRequisiteId={(nextRequisiteId) =>
+            updateField("fromRequisiteId", nextRequisiteId)
+          }
+        />
 
         <ArrowRight className="text-muted-foreground mb-2 h-4 w-4 shrink-0 self-end" />
 
-        {toPartyKind === "beneficiary_snapshot" ? (
-          <SnapshotBeneficiarySide
-            side="to"
-            displayName={toPartyDisplayName}
-            bankInstruction={toBankInstruction}
-          />
-        ) : (
-          <PartySideEditor
-            side="to"
-            stepId={step.id}
-            kind={toPartyKind ?? null}
-            displayName={toPartyDisplayName}
-            editable={isEditable}
-            partyId={values.toPartyId}
-            requisiteId={values.toRequisiteId}
-            currencyId={values.toCurrencyId}
-            currencyCode={toCurrencyCode}
-            enforceCurrencyMatch={step.kind !== "fx_conversion"}
-            onChangePartyId={(nextPartyId) =>
-              applyChange({
-                ...values,
-                toPartyId: nextPartyId,
-                toRequisiteId: null,
-              })
-            }
-            onChangeRequisiteId={(nextRequisiteId) =>
-              updateField("toRequisiteId", nextRequisiteId)
-            }
-          />
-        )}
+        <PartySideEditor
+          side="to"
+          stepId={step.id}
+          kind={toPartyKind}
+          displayName={toPartyDisplayName}
+          editable={isEditable}
+          partyId={values.toPartyId}
+          requisiteId={values.toRequisiteId}
+          onChangePartyId={(nextPartyId) =>
+            applyChange({
+              ...values,
+              toPartyId: nextPartyId,
+              toRequisiteId: null,
+            })
+          }
+          onChangeRequisiteId={(nextRequisiteId) =>
+            updateField("toRequisiteId", nextRequisiteId)
+          }
+        />
       </div>
 
-      {step.kind === "fx_conversion" ? (
-        <>
-          <div className="grid grid-cols-2 gap-x-3 gap-y-3">
-            <AmountInput
-              currencyCode={fromCurrencyCode}
-              disabled={!isEditable}
-              display={fromAmountDisplay}
-              label="Сумма отправителя"
-              onChange={(nextDisplay) => {
-                setFromAmountDisplay(nextDisplay);
-                const minor = normalizeMajorToMinor(
-                  nextDisplay,
-                  fromCurrencyCode,
-                );
-                if (minor !== null) {
-                  applyChange({ ...values, fromAmountMinor: minor });
-                }
-              }}
-              testId={`finance-step-from-amount-${step.id}`}
-              inputId={`step-${step.id}-from-amount`}
-            />
-            <AmountInput
-              currencyCode={toCurrencyCode}
-              disabled={!isEditable}
-              display={toAmountDisplay}
-              label="Сумма получателя"
-              onChange={(nextDisplay) => {
-                setToAmountDisplay(nextDisplay);
-                const minor = normalizeMajorToMinor(
-                  nextDisplay,
-                  toCurrencyCode,
-                );
-                if (minor !== null) {
-                  applyChange({ ...values, toAmountMinor: minor });
-                }
-              }}
-              testId={`finance-step-to-amount-${step.id}`}
-              inputId={`step-${step.id}-to-amount`}
-            />
-          </div>
-          {step.rate ? (
-            <div className="text-muted-foreground flex items-center justify-end gap-2 text-xs">
-              <span>Курс</span>
-              <span
-                className="font-mono text-sm font-medium text-foreground"
-                data-testid={`finance-step-rate-${step.id}`}
-              >
-                1 {fromCurrencyCode ?? "?"} = {step.rate.value}{" "}
-                {toCurrencyCode ?? "?"}
-              </span>
-            </div>
-          ) : null}
-        </>
-      ) : (
-        // Non-FX legs (collect / payout / transit_hold / internal_transfer):
-        // single amount and currency. The receiver shows the same amount —
-        // there's no conversion happening.
-        <div className="grid grid-cols-1 gap-x-3 gap-y-3">
-          <AmountInput
-            currencyCode={fromCurrencyCode}
-            disabled={!isEditable}
-            display={fromAmountDisplay}
-            label="Сумма"
-            onChange={(nextDisplay) => {
-              setFromAmountDisplay(nextDisplay);
-              setToAmountDisplay(nextDisplay);
-              const minor = normalizeMajorToMinor(
-                nextDisplay,
-                fromCurrencyCode,
-              );
-              if (minor !== null) {
-                applyChange({
-                  ...values,
-                  fromAmountMinor: minor,
-                  toAmountMinor: minor,
-                });
-              }
-            }}
-            testId={`finance-step-from-amount-${step.id}`}
-            inputId={`step-${step.id}-from-amount`}
-          />
-        </div>
-      )}
+      <div className="grid grid-cols-2 gap-x-3 gap-y-3">
+        <AmountInput
+          currencyCode={fromCurrencyCode}
+          disabled={!isEditable}
+          display={fromAmountDisplay}
+          label="Сумма отправителя"
+          onChange={(nextDisplay) => {
+            setFromAmountDisplay(nextDisplay);
+            const minor = normalizeMajorToMinor(nextDisplay, fromCurrencyCode);
+            if (minor !== null) {
+              applyChange({ ...values, fromAmountMinor: minor });
+            }
+          }}
+          testId={`finance-step-from-amount-${step.id}`}
+          inputId={`step-${step.id}-from-amount`}
+        />
+        <AmountInput
+          currencyCode={toCurrencyCode}
+          disabled={!isEditable}
+          display={toAmountDisplay}
+          label="Сумма получателя"
+          onChange={(nextDisplay) => {
+            setToAmountDisplay(nextDisplay);
+            const minor = normalizeMajorToMinor(nextDisplay, toCurrencyCode);
+            if (minor !== null) {
+              applyChange({ ...values, toAmountMinor: minor });
+            }
+          }}
+          testId={`finance-step-to-amount-${step.id}`}
+          inputId={`step-${step.id}-to-amount`}
+        />
+      </div>
 
       <div className="flex items-center justify-end gap-2 text-xs">
         {status === "saving" ? (
@@ -419,20 +336,14 @@ interface PartySideEditorProps {
   editable: boolean;
   partyId: string;
   requisiteId: string | null;
-  currencyId: string;
-  currencyCode: string | null;
-  enforceCurrencyMatch: boolean;
   onChangePartyId: (partyId: string) => void;
   onChangeRequisiteId: (requisiteId: string | null) => void;
 }
 
 function PartySideEditor({
-  currencyCode,
-  currencyId,
   displayName,
   editable,
-  enforceCurrencyMatch,
-  kind: kindProp,
+  kind,
   onChangePartyId,
   onChangeRequisiteId,
   partyId,
@@ -441,32 +352,24 @@ function PartySideEditor({
   stepId,
 }: PartySideEditorProps) {
   const [partyOptions, setPartyOptions] = useState<PartyOption[]>([]);
-  const [allRequisiteOptions, setAllRequisiteOptions] = useState<
-    RequisiteOption[]
-  >([]);
-  const [resolved, setResolved] = useState<{
-    kind: PartyKind;
-    label: string;
-  } | null>(null);
+  const [requisiteOptions, setRequisiteOptions] = useState<RequisiteOption[]>(
+    [],
+  );
+  const [resolvedName, setResolvedName] = useState<string | null>(null);
   useEffect(() => {
-    if (!partyId) {
-      setResolved(null);
+    if (displayName || !partyId) {
+      setResolvedName(null);
       return;
     }
     let cancelled = false;
-    resolvePartyOption(partyId).then((entry) => {
-      if (!cancelled) setResolved(entry);
+    resolvePartyDisplayName(partyId).then((name) => {
+      if (!cancelled) setResolvedName(name);
     });
     return () => {
       cancelled = true;
     };
-  }, [partyId]);
-  const effectiveDisplayName = displayName ?? resolved?.label ?? null;
-  // Route attachments may bind participants abstractly (no entityKind), so
-  // workbench can't always supply `kind`. Recover it by probing the party
-  // through the options endpoints — that gives us the right Select to
-  // render and the right requisite endpoint to query.
-  const kind: PartyKind | null = kindProp ?? resolved?.kind ?? null;
+  }, [displayName, partyId]);
+  const effectiveDisplayName = displayName ?? resolvedName ?? null;
 
   useEffect(() => {
     if (!kind || !editable) {
@@ -484,13 +387,13 @@ function PartySideEditor({
 
   useEffect(() => {
     if (!kind || !partyId) {
-      setAllRequisiteOptions([]);
+      setRequisiteOptions([]);
       return;
     }
     let cancelled = false;
     listRequisiteOptions({ ownerType: kind, ownerId: partyId }).then(
       (options) => {
-        if (!cancelled) setAllRequisiteOptions(options);
+        if (!cancelled) setRequisiteOptions(options);
       },
     );
     return () => {
@@ -498,32 +401,12 @@ function PartySideEditor({
     };
   }, [kind, partyId]);
 
-  // Filter to currency-compatible requisites for non-FX legs (where the
-  // leg's currency is unambiguously the requisite's currency). FX legs
-  // skip this filter — settlement accounts at FX providers don't always
-  // line up with the nominal "from"/"to" currency of the leg.
-  const compatibleRequisiteOptions = enforceCurrencyMatch
-    ? allRequisiteOptions.filter((opt) => opt.currencyId === currencyId)
-    : allRequisiteOptions;
-  const requisiteOptions =
-    requisiteId &&
-    !compatibleRequisiteOptions.some((opt) => opt.id === requisiteId)
-      ? [
-          ...compatibleRequisiteOptions,
-          ...allRequisiteOptions.filter((opt) => opt.id === requisiteId),
-        ]
-      : compatibleRequisiteOptions;
-
-  const noRequisitesAtAll = allRequisiteOptions.length === 0;
-  const noCompatibleRequisites =
-    !noRequisitesAtAll && compatibleRequisiteOptions.length === 0;
-
   if (!kind) {
     return (
       <div className="space-y-2">
         <Label>{SIDE_LABELS[side]}</Label>
         <div className="text-sm font-medium">
-          {effectiveDisplayName ?? "Не определено"}
+          {effectiveDisplayName ?? "Не назначен"}
         </div>
         <div className="text-muted-foreground text-xs">
           {requisiteId ? "Реквизит привязан" : "Реквизит не задан"}
@@ -535,21 +418,11 @@ function PartySideEditor({
   const selectedPartyLabel =
     partyOptions.find((opt) => opt.id === partyId)?.label ??
     effectiveDisplayName ??
-    "Выберите контрагента";
-  const selectedRequisite =
-    allRequisiteOptions.find((opt) => opt.id === requisiteId) ?? null;
-  const selectedRequisiteUnknown =
-    requisiteId !== null && selectedRequisite === null;
-  // Never expose raw UUID: if the bound requisite isn't in the fetched owner's
-  // option list, show a clear "unknown binding" message instead of a hex blob.
-  const selectedRequisiteLabel = selectedRequisite?.label ?? undefined;
-  const placeholder = selectedRequisiteUnknown
-    ? "Привязанный реквизит не найден у владельца"
-    : noRequisitesAtAll
-      ? `Нет реквизитов у ${PARTY_KIND_LABELS[kind].toLowerCase()}а`
-      : noCompatibleRequisites
-        ? `Нет реквизитов в ${currencyCode ?? "нужной валюте"}`
-        : "Выберите реквизит";
+    partyId;
+  const selectedRequisiteLabel =
+    requisiteOptions.find((opt) => opt.id === requisiteId)?.label ??
+    requisiteId ??
+    undefined;
 
   return (
     <div className="space-y-2">
@@ -594,7 +467,13 @@ function PartySideEditor({
           data-testid={`finance-step-${side}-requisite-${stepId}`}
           className="w-full"
         >
-          <SelectValue placeholder={placeholder}>
+          <SelectValue
+            placeholder={
+              requisiteOptions.length === 0
+                ? "Нет подходящих реквизитов"
+                : "Выберите реквизит"
+            }
+          >
             {selectedRequisiteLabel ?? undefined}
           </SelectValue>
         </SelectTrigger>
@@ -602,79 +481,10 @@ function PartySideEditor({
           {requisiteOptions.map((opt) => (
             <SelectItem key={opt.id} value={opt.id}>
               {opt.label}
-              {enforceCurrencyMatch &&
-              opt.currencyId !== currencyId &&
-              currencyCode ? (
-                <span className="text-destructive ml-1 text-xs">
-                  (другая валюта)
-                </span>
-              ) : null}
             </SelectItem>
           ))}
         </SelectContent>
       </Select>
-
-      {enforceCurrencyMatch &&
-      selectedRequisite &&
-      selectedRequisite.currencyId !== currencyId ? (
-        <div className="text-destructive text-xs">
-          Реквизит не совпадает с валютой шага ({currencyCode ?? "?"}).
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-interface SnapshotBeneficiarySideProps {
-  side: SideKey;
-  displayName: string | null;
-  bankInstruction: FinanceDealBankInstructionSnapshot | null;
-}
-
-function SnapshotBeneficiarySide({
-  bankInstruction,
-  displayName,
-  side,
-}: SnapshotBeneficiarySideProps) {
-  const rows: Array<{ label: string; value: string }> = [];
-  if (bankInstruction?.bankName) {
-    rows.push({ label: "Банк", value: bankInstruction.bankName });
-  }
-  if (bankInstruction?.accountNo) {
-    rows.push({ label: "Счёт", value: bankInstruction.accountNo });
-  }
-  if (bankInstruction?.iban) {
-    rows.push({ label: "IBAN", value: bankInstruction.iban });
-  }
-  if (bankInstruction?.bic) {
-    rows.push({ label: "BIC", value: bankInstruction.bic });
-  }
-  if (bankInstruction?.swift) {
-    rows.push({ label: "SWIFT", value: bankInstruction.swift });
-  }
-  return (
-    <div className="space-y-2">
-      <Label>
-        {SIDE_LABELS[side]}
-        <span className="text-muted-foreground ml-2 text-xs">· Бенефициар</span>
-      </Label>
-      <div className="text-sm font-medium">{displayName ?? "—"}</div>
-      {rows.length > 0 ? (
-        <dl className="text-muted-foreground space-y-0.5 text-xs">
-          {rows.map((row) => (
-            <div key={row.label} className="flex gap-2">
-              <dt className="shrink-0">{row.label}:</dt>
-              <dd className="text-foreground break-all font-mono">
-                {row.value}
-              </dd>
-            </div>
-          ))}
-        </dl>
-      ) : (
-        <div className="text-muted-foreground text-xs">
-          Банковские реквизиты не указаны
-        </div>
-      )}
     </div>
   );
 }
@@ -698,6 +508,7 @@ function AmountInput({
   onChange,
   testId,
 }: AmountInputProps) {
+  const placeholder = currencyCode ? "0,00" : "0";
   return (
     <div className="space-y-2">
       <Label htmlFor={inputId}>
@@ -706,13 +517,15 @@ function AmountInput({
           <span className="text-muted-foreground ml-2 text-xs">
             · {currencyCode}
           </span>
-        ) : null}
+        ) : (
+          <span className="text-muted-foreground ml-2 text-xs">· minor</span>
+        )}
       </Label>
       <Input
         id={inputId}
         inputMode="decimal"
-        placeholder="0,00"
-        disabled={disabled || !currencyCode}
+        placeholder={placeholder}
+        disabled={disabled}
         value={display}
         onChange={(event) => onChange(event.target.value)}
         data-testid={testId}

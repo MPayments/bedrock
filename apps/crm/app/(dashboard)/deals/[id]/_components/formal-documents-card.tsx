@@ -1,10 +1,24 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
-import { ExternalLink, File, Plus } from "lucide-react";
+
+import { Download, ExternalLink, File, Loader2, Plus } from "lucide-react";
+
 import { Badge } from "@bedrock/sdk-ui/components/badge";
 import { Button } from "@bedrock/sdk-ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/components/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@bedrock/sdk-ui/components/select";
+import { toast } from "@bedrock/sdk-ui/components/sonner";
 
 import { canCreateCrmDocumentType } from "@/features/documents/lib/doc-types";
+import { downloadDocumentPrintForm } from "@/features/documents/lib/mutations";
 import {
   buildCrmDealDocumentCreateHref,
   buildCrmDealDocumentDetailsHref,
@@ -44,6 +58,8 @@ const REQUIREMENT_STATE_LABELS: Record<
   ready: "Готов",
 };
 
+const PRINTABLE_DOC_TYPES = new Set(["acceptance", "application", "invoice"]);
+
 function renderDocumentStatusLabel(
   kind: "submission" | "approval" | "posting",
   value: string,
@@ -57,6 +73,65 @@ function renderDocumentStatusLabel(
   }
 
   return DOCUMENT_POSTING_STATUS_LABELS[value] ?? value;
+}
+
+function QuickPrintExportControl({
+  docType,
+  documentId,
+}: {
+  docType: string;
+  documentId: string;
+}) {
+  const [format, setFormat] = useState<"docx" | "pdf">("pdf");
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  async function handleDownload() {
+    setIsDownloading(true);
+    const result = await downloadDocumentPrintForm({
+      docType,
+      documentId,
+      format,
+    });
+    setIsDownloading(false);
+
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
+    }
+
+    toast.success("Печатная форма выгружена");
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <Select
+        value={format}
+        onValueChange={(value) => setFormat(value as "docx" | "pdf")}
+      >
+        <SelectTrigger className="h-8 w-[92px]">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent align="end">
+          <SelectItem value="pdf">PDF</SelectItem>
+          <SelectItem value="docx">DOCX</SelectItem>
+        </SelectContent>
+      </Select>
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        disabled={isDownloading}
+        onClick={() => void handleDownload()}
+      >
+        {isDownloading ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <Download className="h-4 w-4" />
+        )}
+        Выгрузить
+      </Button>
+    </div>
+  );
 }
 
 export function FormalDocumentsCard({
@@ -117,6 +192,13 @@ export function FormalDocumentsCard({
                     ) : null}
                     {requirement.activeDocumentId &&
                     requirement.openAllowed ? (
+                      <>
+                        {PRINTABLE_DOC_TYPES.has(requirement.docType) ? (
+                          <QuickPrintExportControl
+                            docType={requirement.docType}
+                            documentId={requirement.activeDocumentId}
+                          />
+                        ) : null}
                       <Button
                         size="sm"
                         variant="ghost"
@@ -133,6 +215,7 @@ export function FormalDocumentsCard({
                           </Link>
                         }
                       />
+                      </>
                     ) : null}
                     <Badge variant="outline">
                       {REQUIREMENT_STATE_LABELS[requirement.state]}

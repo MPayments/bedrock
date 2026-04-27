@@ -637,12 +637,13 @@ export function FeeListEditor({
                   aria-label="Название комиссии"
                   placeholder="Название комиссии"
                   value={fee.label ?? ""}
-                  onChange={(event) =>
+                  onChange={(event) => {
+                    const raw = event.target.value;
                     onChange(fee.id, (current) => ({
                       ...current,
-                      label: event.target.value,
-                    }))
-                  }
+                      label: raw.trim() === "" ? undefined : raw,
+                    }));
+                  }}
                 />
                 <Select
                   value={fee.kind}

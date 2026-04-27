@@ -27,7 +27,9 @@ function evidenceArtifact(overrides: Partial<ArtifactRef> = {}): ArtifactRef {
   };
 }
 
-function createStep() {
+function createStep(
+  overrides: Partial<Parameters<typeof PaymentStep.create>[0]> = {},
+) {
   return PaymentStep.create(
     {
       dealId: DEAL_ID,
@@ -48,6 +50,7 @@ function createStep() {
         id: TO_PARTY_ID,
         requisiteId: TO_REQUISITE_ID,
       },
+      ...overrides,
     },
     NOW,
   );
@@ -132,7 +135,7 @@ describe("PaymentStep domain", () => {
     expect(retried.toSnapshot().state).toBe("processing");
   });
 
-  it("requires settlement evidence before completing a step", () => {
+  it("requires settlement evidence before completing a beneficiary payout step", () => {
     const processing = submitFirstAttempt();
 
     expect(() =>
@@ -155,6 +158,28 @@ describe("PaymentStep domain", () => {
     expect(completed.toSnapshot().attempts[0]).toMatchObject({
       outcome: "settled",
       outcomeAt: OUTCOME_AT,
+    });
+  });
+
+  it("allows non-beneficiary steps to complete without settlement evidence", () => {
+    const processing = submitFirstAttempt(
+      createStep({
+        dealId: null,
+        dealLegIdx: null,
+        dealLegRole: null,
+        purpose: "standalone_payment",
+      }),
+    );
+
+    const completed = processing.confirm({
+      outcome: "settled",
+      outcomeAt: OUTCOME_AT,
+    });
+
+    expect(completed.toSnapshot()).toMatchObject({
+      artifacts: [],
+      completedAt: OUTCOME_AT,
+      state: "completed",
     });
   });
 

@@ -10,10 +10,19 @@ import type {
 } from "../contracts/requisites";
 
 export interface RequisiteOptionRecord extends Omit<RequisiteOption, "label"> {
+  accountNo: string | null;
+  accountRef: string | null;
+  address: string | null;
+  assetCode: string | null;
   label: string;
   currencyCode: string;
   beneficiaryName: string | null;
+  contact: string | null;
+  iban: string | null;
+  memoTag: string | null;
+  network: string | null;
   notes: string | null;
+  subaccountRef: string | null;
 }
 
 export interface RequisiteSubjectRecord {

@@ -21,6 +21,7 @@ import {
   resolveSortValue,
   type PaginatedList,
 } from "@bedrock/shared/core/pagination";
+import { paymentSteps } from "@bedrock/treasury/schema";
 
 import {
   dealAttachmentIngestions,
@@ -730,6 +731,31 @@ export class DrizzleDealReads implements DealReads {
     return result;
   }
 
+  private async loadDealPaymentSteps(dealId: string) {
+    const rows = await this.db
+      .select({
+        dealLegIdx: paymentSteps.dealLegIdx,
+        state: paymentSteps.state,
+      })
+      .from(paymentSteps)
+      .where(
+        and(
+          eq(paymentSteps.dealId, dealId),
+          eq(paymentSteps.purpose, "deal_leg"),
+        ),
+      );
+
+    return rows
+      .filter(
+        (row): row is { dealLegIdx: number; state: typeof row.state } =>
+          row.dealLegIdx !== null,
+      )
+      .map((row) => ({
+        dealLegIdx: row.dealLegIdx,
+        state: row.state,
+      }));
+  }
+
   private async loadQuotes(dealId: string) {
     const result = await this.db.execute<RawDealQuoteRow>(sql`
       select
@@ -830,12 +856,14 @@ export class DrizzleDealReads implements DealReads {
 
     const sectionCompleteness = evaluateDealSectionCompleteness(summary.snapshot);
     const now = new Date();
+    const dealPaymentSteps = await this.loadDealPaymentSteps(summary.id);
     const executionPlan = buildEffectiveDealExecutionPlan({
       acceptance: acceptedQuote,
       documents: formalDocuments,
       fundingResolution,
       intake: summary.snapshot,
       now,
+      paymentSteps: dealPaymentSteps,
       routeSnapshot,
       storedLegs,
     });

@@ -91,6 +91,7 @@ describe("parties requisites integration", () => {
       ownerId: organization.id,
     });
     expect(options[0]?.label).toContain("Main");
+    expect(options[0]?.label).toContain("12345");
 
     const labels = await queries.requisites.listLabelsById([created.id]);
     expect(labels.get(created.id)).toBe("Main");

@@ -64,6 +64,7 @@ import {
   minorToDecimalString,
   rationalToDecimalString,
 } from "./format";
+import { RoutePreview } from "./route-preview";
 import type {
   ApiDealAcceptedQuote,
   ApiDealPricingBenchmarks,
@@ -73,7 +74,6 @@ import type {
   ApiDealPricingProfitability,
   ApiDealPricingQuote,
   ApiDealPricingQuoteResult,
-  ApiDealPricingRouteCandidate,
   ApiDealQuoteAcceptanceHistoryItem,
   ApiCurrencyOption,
 } from "./types";
@@ -224,10 +224,6 @@ function extractStoredPricingSnapshot(
       ? (metadata.crmPricingSnapshot as Record<string, unknown>)
       : null;
 
-  // Prefer the metadata-nested snapshot (older quote shape) but fall back to
-  // the top-level quote fields when present — the workflow exposes benchmarks /
-  // formulaTrace / profitability directly on the quote too, and the metadata
-  // copy can be absent on historical rows.
   const benchmarks =
     (nestedSnapshot?.benchmarks as
       | ApiDealPricingBenchmarks
@@ -653,17 +649,11 @@ export function DealPricingTab({
   const [fundingAdjustments, setFundingAdjustments] = useState(() =>
     cloneFundingAdjustments(pricingContext),
   );
-  const [routeCandidates, setRouteCandidates] = useState<
-    ApiDealPricingRouteCandidate[]
-  >([]);
-  const [selectedRouteId, setSelectedRouteId] = useState<string>("");
   const [amountInput, setAmountInput] = useState(initialRequestedAmount);
   const [asOfInput, setAsOfInput] = useState(formatDateTimeInput(new Date()));
-  const [isLoadingRoutes, setIsLoadingRoutes] = useState(false);
   const [isCreatingQuote, setIsCreatingQuote] = useState(false);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [nowTick, setNowTick] = useState(() => Date.now());
-  const [routeSyncNonce, setRouteSyncNonce] = useState(0);
   const [reLockDialogOpen, setReLockDialogOpen] = useState(false);
   const [acceptances, setAcceptances] = useState<
     ApiDealQuoteAcceptanceHistoryItem[]
@@ -706,49 +696,6 @@ export function DealPricingTab({
     };
   }, [dealId, acceptedQuote?.quoteId]);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadRouteCandidates() {
-      try {
-        setIsLoadingRoutes(true);
-        const nextCandidates = await fetchJson<ApiDealPricingRouteCandidate[]>(
-          `${API_BASE_URL}/deals/${dealId}/pricing/routes`,
-        );
-
-        if (!cancelled) {
-          setRouteCandidates(nextCandidates);
-          // Reflect real attachment state only — do NOT pre-select the first
-          // candidate. Pre-selection without an attach call misleads users:
-          // CRM showed a route in the dropdown while finance correctly
-          // reported `routeAttachment: null`. Now an empty selector means
-          // "no route attached" — picking a value triggers handleRouteChange
-          // which POSTs /pricing/route/attach.
-          setSelectedRouteId(serverContext.routeAttachment?.templateId ?? "");
-        }
-      } catch (error) {
-        if (!cancelled) {
-          onError(
-            "Ошибка маршрутов",
-            error instanceof Error
-              ? error.message
-              : "Не удалось загрузить рекомендованные маршруты.",
-          );
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoadingRoutes(false);
-        }
-      }
-    }
-
-    void loadRouteCandidates();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [dealId, onError, serverContext.routeAttachment?.templateId]);
-
   const currencyCodeById = useMemo(
     () =>
       new Map(currencyOptions.map((currency) => [currency.id, currency.code])),
@@ -769,7 +716,6 @@ export function DealPricingTab({
     isAutoSyncing,
     lastSyncedAt,
     preview,
-    requestImmediateSync,
     retrySync,
     setPreview,
   } = useDealPricingAutoSync({
@@ -819,58 +765,6 @@ export function DealPricingTab({
       preview?.pricingFingerprint,
       nowTick,
     ]);
-
-  function applyServerContext(nextContext: ApiDealPricingContext) {
-    setServerContext(nextContext);
-    setCommercialDraft(cloneCommercialDraft(nextContext));
-    setFundingAdjustments(cloneFundingAdjustments(nextContext));
-  }
-
-  const handleRouteChange = async (nextRouteId: string) => {
-    const currentRouteId = serverContext.routeAttachment?.templateId ?? "";
-
-    if (nextRouteId === currentRouteId) {
-      setSelectedRouteId(nextRouteId);
-      return;
-    }
-
-    const previousSelectedRouteId = selectedRouteId;
-    setSelectedRouteId(nextRouteId);
-
-    try {
-      await flushSync().catch(() => null);
-      const nextContext = nextRouteId
-        ? await fetchJson<ApiDealPricingContext>(
-            `${API_BASE_URL}/deals/${dealId}/pricing/route/attach`,
-            {
-              body: JSON.stringify({ routeTemplateId: nextRouteId }),
-              headers: {
-                "Content-Type": "application/json",
-              },
-              method: "POST",
-            },
-          )
-        : await fetchJson<ApiDealPricingContext>(
-            `${API_BASE_URL}/deals/${dealId}/pricing/route`,
-            {
-              method: "DELETE",
-            },
-          );
-
-      applyServerContext(nextContext);
-      setRouteSyncNonce((current) => current + 1);
-    } catch (error) {
-      setSelectedRouteId(previousSelectedRouteId);
-      onError(
-        nextRouteId ? "Ошибка выбора маршрута" : "Ошибка удаления маршрута",
-        error instanceof Error
-          ? error.message
-          : nextRouteId
-            ? "Не удалось выбрать маршрут."
-            : "Не удалось убрать маршрут.",
-      );
-    }
-  };
 
   const handleCommit = async () => {
     if (quoteCreationDisabledReason) {
@@ -1103,12 +997,6 @@ export function DealPricingTab({
       setIsDownloadingPdf(false);
     }
   }, [dealId]);
-
-  useEffect(() => {
-    if (routeSyncNonce > 0) {
-      requestImmediateSync();
-    }
-  }, [requestImmediateSync, routeSyncNonce]);
 
   return (
     <div className="space-y-6">
@@ -1379,36 +1267,10 @@ export function DealPricingTab({
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label>Маршрут</Label>
-              <Select
-                onValueChange={(value) => void handleRouteChange(value ?? "")}
-                value={selectedRouteId}
-              >
-                <SelectTrigger>
-                  <SelectValue
-                    placeholder={
-                      isLoadingRoutes
-                        ? "Загрузка..."
-                        : routeCandidates.length === 0
-                          ? "Нет доступных шаблонов"
-                          : "Без маршрута (auto-cross)"
-                    }
-                  >
-                    {selectedRouteId === ""
-                      ? "Без маршрута (auto-cross)"
-                      : (routeCandidates.find(
-                          (route) => route.id === selectedRouteId,
-                        )?.name ?? "Маршрут не найден")}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">Без маршрута (auto-cross)</SelectItem>
-                  {routeCandidates.map((route) => (
-                    <SelectItem key={route.id} value={route.id}>
-                      {route.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <RoutePreview
+                currencyCodeById={currencyCodeById}
+                routeAttachment={serverContext.routeAttachment}
+              />
             </div>
             <div className="space-y-2">
               <Label>Курс на дату и время</Label>

@@ -32,6 +32,15 @@ export async function requestExecution(
         limit: 1,
         offset: 0,
         purpose: "deal_leg",
+        state: [
+          "draft",
+          "scheduled",
+          "pending",
+          "processing",
+          "completed",
+          "failed",
+          "returned",
+        ],
       });
       if (existingSteps.total > 0) {
         return workflow;

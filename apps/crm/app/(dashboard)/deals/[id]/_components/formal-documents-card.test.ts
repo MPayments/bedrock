@@ -53,6 +53,7 @@ describe("FormalDocumentsCard", () => {
     expect(normalizedMarkup).toContain("Требуемые документы");
     expect(normalizedMarkup).toContain("Созданные документы");
     expect(normalizedMarkup).toContain("Акт / подтверждение исполнения");
+    expect(normalizedMarkup).toContain("Выгрузить");
     expect(normalizedMarkup).not.toContain(">acceptance<");
   });
 
@@ -81,6 +82,9 @@ describe("FormalDocumentsCard", () => {
       }),
     );
 
-    expect(normalizeMarkupWhitespace(markup)).not.toContain("Создать");
+    const normalizedMarkup = normalizeMarkupWhitespace(markup);
+
+    expect(normalizedMarkup).not.toContain("Создать");
+    expect(normalizedMarkup).not.toContain("Выгрузить");
   });
 });

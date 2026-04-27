@@ -456,6 +456,7 @@ function createDeps(overrides?: {
         commands: {
           attachPricingRoute: vi.fn(),
           detachPricingRoute: vi.fn(),
+          swapDealRouteTemplate: vi.fn(async () => workflowRecord),
           updatePricingContext: vi.fn(),
         },
         queries: {
@@ -476,6 +477,19 @@ function createDeps(overrides?: {
             total: listTemplatesResult.length,
           })),
           previewTemplate: vi.fn(async () => routePreview),
+        },
+      },
+      paymentSteps: {
+        commands: {
+          cancelDrafts: vi.fn(async () => ({ cancelledCount: 0 })),
+        },
+        queries: {
+          list: vi.fn(async () => ({
+            data: [],
+            limit: 100,
+            offset: 0,
+            total: 0,
+          })),
         },
       },
       rates: {
@@ -846,5 +860,248 @@ describe("deal pricing workflow", () => {
         }),
       }),
     );
+  });
+
+  describe("initializeDefaultRoute", () => {
+    it("returns context unchanged when route already attached", async () => {
+      const { deps } = createDeps();
+      const workflow = createDealPricingWorkflow(deps as any);
+
+      const result = await workflow.initializeDefaultRoute({
+        dealId: IDS.deal,
+      });
+
+      expect(result.routeAttachment).not.toBeNull();
+      expect(deps.treasury.paymentRoutes.queries.findTemplateById).not.toHaveBeenCalled();
+      expect(deps.deals.deals.commands.attachPricingRoute).not.toHaveBeenCalled();
+    });
+
+    it("returns context unchanged when no route candidates exist", async () => {
+      const contextWithoutAttachment = createPricingContext({
+        routeAttachment: null,
+      });
+      const { deps } = createDeps({
+        context: contextWithoutAttachment,
+        listTemplatesResult: [],
+      });
+      // Re-bind the no-attachment context
+      deps.deals.deals.queries.findPricingContextByDealId = vi.fn(
+        async () => contextWithoutAttachment,
+      );
+      const workflow = createDealPricingWorkflow(deps as any);
+
+      const result = await workflow.initializeDefaultRoute({
+        dealId: IDS.deal,
+      });
+
+      expect(result.routeAttachment).toBeNull();
+      expect(deps.deals.deals.commands.attachPricingRoute).not.toHaveBeenCalled();
+    });
+
+    it("attaches the top candidate when no route is attached yet", async () => {
+      const contextWithoutAttachment = createPricingContext({
+        routeAttachment: null,
+      });
+      const attachedContext = createPricingContext({ revision: 4 });
+      const { deps } = createDeps({
+        context: contextWithoutAttachment,
+        listTemplatesResult: [
+          createRouteListItem({
+            id: "00000000-0000-4000-8000-000000000888",
+            sourceBinding: "bound",
+            sourceEntityId: IDS.customer,
+            updatedAt: "2026-04-19T08:10:00.000Z",
+          }),
+        ],
+      });
+      deps.deals.deals.queries.findPricingContextByDealId = vi.fn(
+        async () => contextWithoutAttachment,
+      );
+      deps.treasury.paymentRoutes.queries.findTemplateById = vi.fn(
+        async () => ({
+          draft: createRouteSnapshot(),
+          id: "00000000-0000-4000-8000-000000000888",
+          name: "Auto",
+          status: "active",
+        }),
+      );
+      deps.deals.deals.commands.attachPricingRoute = vi.fn(
+        async () => attachedContext,
+      );
+      const workflow = createDealPricingWorkflow(deps as any);
+
+      const result = await workflow.initializeDefaultRoute({
+        dealId: IDS.deal,
+      });
+
+      expect(deps.deals.deals.commands.attachPricingRoute).toHaveBeenCalledTimes(1);
+      expect(result.revision).toBe(4);
+    });
+
+    it("retries on revision conflict and returns the now-attached context", async () => {
+      const contextWithoutAttachment = createPricingContext({
+        routeAttachment: null,
+      });
+      const attachedContext = createPricingContext({ revision: 5 });
+      let findContextCallCount = 0;
+      const { deps } = createDeps({
+        listTemplatesResult: [
+          createRouteListItem({
+            id: "00000000-0000-4000-8000-000000000777",
+            sourceBinding: "bound",
+            sourceEntityId: IDS.customer,
+            updatedAt: "2026-04-19T08:10:00.000Z",
+          }),
+        ],
+      });
+      // First call: no attachment (we try and lose the race).
+      // Second call: attachment is present (winner already attached).
+      deps.deals.deals.queries.findPricingContextByDealId = vi.fn(async () => {
+        findContextCallCount += 1;
+        return findContextCallCount === 1
+          ? contextWithoutAttachment
+          : attachedContext;
+      });
+      deps.treasury.paymentRoutes.queries.findTemplateById = vi.fn(
+        async () => ({
+          draft: createRouteSnapshot(),
+          id: "00000000-0000-4000-8000-000000000777",
+          name: "Auto",
+          status: "active",
+        }),
+      );
+      deps.deals.deals.commands.attachPricingRoute = vi.fn(async () => {
+        throw new DealPricingContextRevisionConflictError(IDS.deal, 3);
+      });
+      const workflow = createDealPricingWorkflow(deps as any);
+
+      const result = await workflow.initializeDefaultRoute({
+        dealId: IDS.deal,
+      });
+
+      expect(deps.deals.deals.commands.attachPricingRoute).toHaveBeenCalledTimes(1);
+      expect(result.routeAttachment).not.toBeNull();
+      expect(result.revision).toBe(5);
+    });
+  });
+
+  describe("swapRouteTemplate", () => {
+    function setupSwapDeps(stepsData: Array<{ id: string; state: string }> = []) {
+      const { deps } = createDeps();
+      const swapTemplateId = "00000000-0000-4000-8000-000000000444";
+      deps.treasury.paymentRoutes.queries.findTemplateById = vi.fn(
+        async () => ({
+          draft: createRouteSnapshot(),
+          id: swapTemplateId,
+          name: "Replacement",
+          status: "active",
+        }),
+      );
+      deps.treasury.paymentSteps.queries.list = vi.fn(async () => ({
+        data: stepsData,
+        limit: 100,
+        offset: 0,
+        total: stepsData.length,
+      }));
+      return { deps, swapTemplateId };
+    }
+
+    it("cancels drafts and calls domain swap on happy path", async () => {
+      const { deps, swapTemplateId } = setupSwapDeps([
+        { id: "step-1", state: "draft" },
+      ]);
+      const workflow = createDealPricingWorkflow(deps as any);
+
+      await workflow.swapRouteTemplate({
+        actorUserId: "user-1",
+        dealId: IDS.deal,
+        memo: "test",
+        newRouteTemplateId: swapTemplateId,
+        reasonCode: "market_moved",
+      });
+
+      expect(deps.treasury.paymentSteps.commands.cancelDrafts).toHaveBeenCalledWith({
+        actorUserId: "user-1",
+        dealId: IDS.deal,
+      });
+      expect(deps.deals.deals.commands.swapDealRouteTemplate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          actorUserId: "user-1",
+          dealId: IDS.deal,
+          newRouteTemplateId: swapTemplateId,
+          reasonCode: "market_moved",
+        }),
+      );
+    });
+
+    it("rejects when a non-draft step is in execution and does NOT cancel drafts", async () => {
+      const { deps, swapTemplateId } = setupSwapDeps([
+        { id: "step-1", state: "draft" },
+        { id: "step-2", state: "processing" },
+      ]);
+      const workflow = createDealPricingWorkflow(deps as any);
+
+      await expect(
+        workflow.swapRouteTemplate({
+          actorUserId: "user-1",
+          dealId: IDS.deal,
+          newRouteTemplateId: swapTemplateId,
+          reasonCode: "market_moved",
+        }),
+      ).rejects.toThrow(/payment steps are already in execution/);
+
+      expect(deps.treasury.paymentSteps.commands.cancelDrafts).not.toHaveBeenCalled();
+      expect(deps.deals.deals.commands.swapDealRouteTemplate).not.toHaveBeenCalled();
+    });
+
+    it("rejects bad route template id BEFORE cancelling drafts", async () => {
+      const { deps } = setupSwapDeps([{ id: "step-1", state: "draft" }]);
+      deps.treasury.paymentRoutes.queries.findTemplateById = vi.fn(
+        async () => null,
+      );
+      const workflow = createDealPricingWorkflow(deps as any);
+
+      await expect(
+        workflow.swapRouteTemplate({
+          actorUserId: "user-1",
+          dealId: IDS.deal,
+          newRouteTemplateId: "00000000-0000-4000-8000-000000009999",
+          reasonCode: "market_moved",
+        }),
+      ).rejects.toThrow(/Payment route template not found/);
+
+      expect(deps.treasury.paymentSteps.commands.cancelDrafts).not.toHaveBeenCalled();
+      expect(deps.deals.deals.commands.swapDealRouteTemplate).not.toHaveBeenCalled();
+    });
+
+    it("rejects route template with mismatching currency BEFORE cancelling drafts", async () => {
+      const { deps } = setupSwapDeps([{ id: "step-1", state: "draft" }]);
+      const swapTemplateId = "00000000-0000-4000-8000-000000000555";
+      deps.treasury.paymentRoutes.queries.findTemplateById = vi.fn(
+        async () => ({
+          draft: {
+            ...createRouteSnapshot(),
+            currencyInId: IDS.aed,
+            currencyOutId: IDS.usd,
+          },
+          id: swapTemplateId,
+          name: "Wrong Pair",
+          status: "active",
+        }),
+      );
+      const workflow = createDealPricingWorkflow(deps as any);
+
+      await expect(
+        workflow.swapRouteTemplate({
+          actorUserId: "user-1",
+          dealId: IDS.deal,
+          newRouteTemplateId: swapTemplateId,
+          reasonCode: "market_moved",
+        }),
+      ).rejects.toThrow(/does not match deal currency pair/);
+
+      expect(deps.treasury.paymentSteps.commands.cancelDrafts).not.toHaveBeenCalled();
+      expect(deps.deals.deals.commands.swapDealRouteTemplate).not.toHaveBeenCalled();
+    });
   });
 });

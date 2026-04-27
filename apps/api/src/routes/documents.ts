@@ -27,6 +27,7 @@ import {
   toDocumentDetailsDto,
   toDocumentDto,
 } from "./internal/document-dto";
+import { exportPrintableDocument } from "./internal/document-print-export";
 import { registerIdempotentMutationRoute } from "./internal/register-idempotent-mutation-route";
 
 const DOCUMENT_ACTION_TO_PERMISSION = {
@@ -543,6 +544,40 @@ export function documentsRoutes(ctx: AppContext) {
     respond: (c, result) => jsonOk(c, toDocumentDto(result)),
     handleError: handleRouteError,
   });
+
+  app.get(
+    "/:docType/:id/export",
+    requirePermission({ documents: ["get"] }),
+    async (c): Promise<any> => {
+      try {
+        const user = c.get("user")!;
+        const { docType, id } = c.req.param();
+        const { format, lang } = z
+          .object({
+            format: z.enum(["docx", "pdf"]).default("docx"),
+            lang: z.enum(["ru", "en"]).default("ru"),
+          })
+          .parse(queryObjectFromUrl(c.req.url));
+        const result = await exportPrintableDocument({
+          actorUserId: user.id,
+          ctx,
+          docType,
+          documentId: id,
+          format,
+          lang,
+        });
+
+        c.header("Content-Type", result.mimeType);
+        c.header(
+          "Content-Disposition",
+          `attachment; filename="${result.fileName}"`,
+        );
+        return c.body(result.buffer as unknown as ArrayBuffer);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    },
+  );
 
   app.get(
     "/:docType/:id",

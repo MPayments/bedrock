@@ -167,13 +167,32 @@ export function useDealPricingAutoSync({
   const syncCurrentDraft = useCallback(async (): Promise<SyncResult | null> => {
     const current = latestInputsRef.current;
     let nextContext = current.serverContext;
+
+    if (!nextContext.routeAttachment) {
+      const initialized = await fetchJson<ApiDealPricingContext>(
+        `${API_BASE_URL}/deals/${current.dealId}/pricing/initialize-route`,
+        {
+          method: "POST",
+        },
+      );
+
+      if (initialized.revision !== nextContext.revision) {
+        nextContext = initialized;
+        latestInputsRef.current = {
+          ...latestInputsRef.current,
+          serverContext: nextContext,
+        };
+        onContextSynced(nextContext);
+      }
+    }
+
     const hasCommercialChanges = !areSameJson(
       current.commercialDraft,
-      cloneCommercialDraft(current.serverContext),
+      cloneCommercialDraft(nextContext),
     );
     const hasFundingChanges = !areSameJson(
       current.fundingAdjustments,
-      cloneFundingAdjustments(current.serverContext),
+      cloneFundingAdjustments(nextContext),
     );
 
     if (hasCommercialChanges || hasFundingChanges) {
@@ -182,7 +201,7 @@ export function useDealPricingAutoSync({
         expectedRevision: number;
         fundingAdjustments?: ApiDealFundingAdjustment[];
       } = {
-        expectedRevision: current.serverContext.revision,
+        expectedRevision: nextContext.revision,
       };
 
       if (hasCommercialChanges) {

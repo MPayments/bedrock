@@ -528,3 +528,122 @@ describe("buildEffectiveDealExecutionPlan — per-convert state rules", () => {
     expect(matched?.idx).toBe(2); // re-indexed by new plan, not the stale stored idx
   });
 });
+
+describe("buildEffectiveDealExecutionPlan — step-derived leg state", () => {
+  const baseInput = {
+    acceptance: null,
+    documents: [],
+    fundingResolution: {
+      availableMinor: null,
+      fundingOrganizationId: null,
+      fundingRequisiteId: null,
+      reasonCode: null,
+      requiredAmountMinor: null,
+      state: "not_applicable" as const,
+      strategy: null,
+      targetCurrency: null,
+      targetCurrencyId: null,
+    },
+    now: new Date("2026-04-05T10:00:00.000Z"),
+    storedLegs: [],
+  };
+
+  it("derives every leg as done when each leg has a completed payment step", () => {
+    const snapshot = createFourHopRouteSnapshot();
+    const plan = buildEffectiveDealExecutionPlan({
+      ...baseInput,
+      intake: createPaymentIntake(),
+      paymentSteps: [
+        { dealLegIdx: 1, state: "completed" },
+        { dealLegIdx: 2, state: "completed" },
+        { dealLegIdx: 3, state: "completed" },
+        { dealLegIdx: 4, state: "completed" },
+        { dealLegIdx: 5, state: "completed" },
+        { dealLegIdx: 6, state: "completed" },
+      ],
+      routeSnapshot: snapshot,
+    });
+
+    expect(plan.every((leg) => leg.state === "done")).toBe(true);
+  });
+
+  it("derives leg as in_progress when its step is processing", () => {
+    const snapshot = createFourHopRouteSnapshot();
+    const plan = buildEffectiveDealExecutionPlan({
+      ...baseInput,
+      intake: createPaymentIntake(),
+      paymentSteps: [{ dealLegIdx: 1, state: "processing" }],
+      routeSnapshot: snapshot,
+    });
+
+    const leg = plan.find((entry) => entry.idx === 1);
+    expect(leg?.state).toBe("in_progress");
+  });
+
+  it("derives leg as ready when its step is draft (materialized but no action yet)", () => {
+    const snapshot = createFourHopRouteSnapshot();
+    const plan = buildEffectiveDealExecutionPlan({
+      ...baseInput,
+      intake: createPaymentIntake(),
+      paymentSteps: [{ dealLegIdx: 1, state: "draft" }],
+      routeSnapshot: snapshot,
+    });
+
+    const leg = plan.find((entry) => entry.idx === 1);
+    expect(leg?.state).toBe("ready");
+  });
+
+  it("derives leg as blocked when any step failed", () => {
+    const snapshot = createFourHopRouteSnapshot();
+    const plan = buildEffectiveDealExecutionPlan({
+      ...baseInput,
+      intake: createPaymentIntake(),
+      paymentSteps: [{ dealLegIdx: 1, state: "failed" }],
+      routeSnapshot: snapshot,
+    });
+
+    const leg = plan.find((entry) => entry.idx === 1);
+    expect(leg?.state).toBe("blocked");
+  });
+
+  it("derives leg as skipped when only cancelled/skipped steps exist", () => {
+    const snapshot = createFourHopRouteSnapshot();
+    const plan = buildEffectiveDealExecutionPlan({
+      ...baseInput,
+      intake: createPaymentIntake(),
+      paymentSteps: [{ dealLegIdx: 1, state: "cancelled" }],
+      routeSnapshot: snapshot,
+    });
+
+    const leg = plan.find((entry) => entry.idx === 1);
+    expect(leg?.state).toBe("skipped");
+  });
+
+  it("falls back to existing rules when no payment steps exist for a leg", () => {
+    const snapshot = createFourHopRouteSnapshot();
+    const plan = buildEffectiveDealExecutionPlan({
+      ...baseInput,
+      intake: createPaymentIntake(),
+      paymentSteps: [],
+      routeSnapshot: snapshot,
+    });
+
+    expect(plan.every((leg) => leg.state === "pending")).toBe(true);
+  });
+
+  it("derives leg as in_progress when one step is completed but others are still processing", () => {
+    const snapshot = createFourHopRouteSnapshot();
+    const plan = buildEffectiveDealExecutionPlan({
+      ...baseInput,
+      intake: createPaymentIntake(),
+      paymentSteps: [
+        { dealLegIdx: 1, state: "completed" },
+        { dealLegIdx: 1, state: "processing" },
+      ],
+      routeSnapshot: snapshot,
+    });
+
+    const leg = plan.find((entry) => entry.idx === 1);
+    expect(leg?.state).toBe("in_progress");
+  });
+});

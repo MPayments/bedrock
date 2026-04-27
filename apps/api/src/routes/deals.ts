@@ -80,6 +80,7 @@ import {
   createDealScopedFormalDocument,
   createDealScopedQuote,
   previewDealScopedQuote,
+  triggerAutoMaterializeAfterAccept,
   DealScopedCreateDocumentInputSchema,
   assertDealAllowsCommercialWrite,
   requireDeal,
@@ -1399,6 +1400,37 @@ export function dealsRoutes(ctx: AppContext) {
     },
   });
 
+  const initializeDealPricingRouteRoute = createRoute({
+    middleware: [requirePermission({ deals: ["update"] })],
+    method: "post",
+    path: "/{id}/pricing/initialize-route",
+    tags: ["Deals"],
+    summary:
+      "Auto-attach the default payment route to a deal pricing context (no-op if already attached)",
+    request: {
+      params: IdParamSchema,
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: DealPricingContextSchema,
+          },
+        },
+        description:
+          "Updated deal pricing context (route attached or unchanged when no candidates)",
+      },
+      409: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Revision conflict",
+      },
+    },
+  });
+
   const updateDealPricingContextRoute = createRoute({
     middleware: [requirePermission({ deals: ["update"] })],
     method: "patch",
@@ -2063,10 +2095,17 @@ export function dealsRoutes(ctx: AppContext) {
     .openapi(acceptQuoteRoute, async (c) => {
       try {
         const { id, quoteId } = c.req.valid("param");
+        const actorUserId = c.get("user")!.id;
         const result = await ctx.dealsModule.deals.commands.acceptQuote({
-          actorUserId: c.get("user")!.id,
+          actorUserId,
           dealId: id,
           quoteId,
+        });
+
+        await triggerAutoMaterializeAfterAccept(ctx, {
+          actorUserId,
+          dealId: id,
+          quoteId: result.acceptedQuote?.quoteId ?? quoteId,
         });
 
         return jsonOk(c, result);
@@ -2315,12 +2354,13 @@ export function dealsRoutes(ctx: AppContext) {
       try {
         const { id } = c.req.valid("param");
         const body = c.req.valid("json");
-        const result =
-          await ctx.dealsModule.deals.commands.swapDealRouteTemplate({
-            ...body,
-            actorUserId: c.get("user")!.id,
-            dealId: id,
-          });
+        const result = await ctx.dealPricingWorkflow.swapRouteTemplate({
+          actorUserId: c.get("user")!.id,
+          dealId: id,
+          memo: body.memo ?? null,
+          newRouteTemplateId: body.newRouteTemplateId,
+          reasonCode: body.reasonCode,
+        });
 
         return jsonOk(c, result);
       } catch (error) {
@@ -2434,6 +2474,18 @@ export function dealsRoutes(ctx: AppContext) {
         return handleRouteError(c, error);
       }
     })
+    .openapi(initializeDealPricingRouteRoute, async (c) => {
+      try {
+        const { id } = c.req.valid("param");
+        const result = await ctx.dealPricingWorkflow.initializeDefaultRoute({
+          dealId: id,
+        });
+
+        return jsonOk(c, result);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
     .openapi(updateDealPricingContextRoute, async (c) => {
       try {
         const { id } = c.req.valid("param");
@@ -2535,6 +2587,12 @@ export function dealsRoutes(ctx: AppContext) {
               idempotencyKey: `${idempotencyKey}:calculation`,
               quoteId: quoteResult.quote.id,
             });
+
+          await triggerAutoMaterializeAfterAccept(ctx, {
+            actorUserId,
+            dealId: id,
+            quoteId: quoteResult.quote.id,
+          });
 
           return { quoteResult, calculationId: calculation.id };
         });

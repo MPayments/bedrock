@@ -11,6 +11,7 @@ import type {
   DealPricingFormulaTrace,
   DealPricingProfitability,
   DealPricingRateSnapshot,
+  DealWorkflowProjection as DealWorkflowProjectionRecord,
   UpdateDealPricingContextInput,
 } from "@bedrock/deals/contracts";
 import {
@@ -98,6 +99,9 @@ export interface DealPricingWorkflow {
     quote: QuoteRecord;
   }>;
   detachRoute(input: { dealId: string }): Promise<DealPricingContextRecord>;
+  initializeDefaultRoute(input: {
+    dealId: string;
+  }): Promise<DealPricingContextRecord>;
   listRoutes(input: { dealId: string }): Promise<PaymentRouteTemplateListItem[]>;
   preview(input: {
     amountMinor: string;
@@ -106,6 +110,13 @@ export interface DealPricingWorkflow {
     dealId: string;
     expectedRevision: number;
   }): Promise<DealPricingPreviewRecord>;
+  swapRouteTemplate(input: {
+    actorUserId: string;
+    dealId: string;
+    memo?: string | null;
+    newRouteTemplateId: string;
+    reasonCode: string;
+  }): Promise<DealWorkflowProjectionRecord>;
   updateContext(input: {
     dealId: string;
     patch: UpdateDealPricingContextInput;
@@ -116,7 +127,10 @@ export interface DealPricingWorkflowDeps {
   agreements: Pick<AgreementsModule, "agreements">;
   currencies: Pick<CurrenciesService, "findByCode" | "findById">;
   deals: Pick<DealsModule, "deals">;
-  treasury: Pick<TreasuryModule, "paymentRoutes" | "quotes" | "rates">;
+  treasury: Pick<
+    TreasuryModule,
+    "paymentRoutes" | "paymentSteps" | "quotes" | "rates"
+  >;
 }
 
 const FUNDING_ADJUSTMENT_KIND_LABELS: Record<
@@ -198,6 +212,62 @@ function compareRoutePriority(
   }
 
   return right.updatedAt.localeCompare(left.updatedAt);
+}
+
+async function loadValidatedRouteTemplate(
+  deps: DealPricingWorkflowDeps,
+  input: { dealId: string; routeTemplateId: string },
+) {
+  const [deal, workflow, route] = await Promise.all([
+    requireDealRecord(deps, input.dealId),
+    requireDealWorkflowRecord(deps, input.dealId),
+    deps.treasury.paymentRoutes.queries.findTemplateById(input.routeTemplateId),
+  ]);
+
+  if (!route) {
+    throw new NotFoundError("Payment route template", input.routeTemplateId);
+  }
+
+  if (route.status !== "active") {
+    throw new ValidationError(
+      `Payment route template ${route.id} is not active`,
+    );
+  }
+
+  if (
+    route.draft.currencyInId !== workflow.intake.moneyRequest.sourceCurrencyId ||
+    route.draft.currencyOutId !== workflow.intake.moneyRequest.targetCurrencyId
+  ) {
+    throw new ValidationError(
+      `Payment route template ${route.id} does not match deal currency pair`,
+    );
+  }
+
+  const sourceParticipant = route.draft.participants[0];
+  if (
+    sourceParticipant?.binding === "bound" &&
+    sourceParticipant.entityId !== deal.customerId
+  ) {
+    throw new ValidationError(
+      `Payment route template ${route.id} does not belong to deal customer ${deal.customerId}`,
+    );
+  }
+
+  return { deal, route, workflow };
+}
+
+async function attachRouteByTemplateId(
+  deps: DealPricingWorkflowDeps,
+  input: { dealId: string; routeTemplateId: string },
+): Promise<DealPricingContextRecord> {
+  const { route } = await loadValidatedRouteTemplate(deps, input);
+
+  return deps.deals.deals.commands.attachPricingRoute({
+    dealId: input.dealId,
+    snapshot: route.draft,
+    templateId: route.id,
+    templateName: route.name,
+  });
 }
 
 async function listRecommendedRoutes(
@@ -1419,47 +1489,50 @@ export function createDealPricingWorkflow(
     },
 
     async attachRoute(input) {
-      const [deal, workflow, route] = await Promise.all([
-        requireDealRecord(deps, input.dealId),
-        requireDealWorkflowRecord(deps, input.dealId),
-        deps.treasury.paymentRoutes.queries.findTemplateById(input.routeTemplateId),
-      ]);
+      return attachRouteByTemplateId(deps, input);
+    },
 
-      if (!route) {
-        throw new NotFoundError("Payment route template", input.routeTemplateId);
+    async initializeDefaultRoute(input) {
+      const MAX_ATTEMPTS = 3;
+
+      for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
+        const context = await deps.deals.deals.queries.findPricingContextByDealId({
+          dealId: input.dealId,
+        });
+
+        if (context.routeAttachment) {
+          return context;
+        }
+
+        const [deal, workflow] = await Promise.all([
+          requireDealRecord(deps, input.dealId),
+          requireDealWorkflowRecord(deps, input.dealId),
+        ]);
+        const candidates = await listRecommendedRoutes(deps, { deal, workflow });
+        const [topCandidate] = candidates;
+
+        if (!topCandidate) {
+          return context;
+        }
+
+        try {
+          return await attachRouteByTemplateId(deps, {
+            dealId: input.dealId,
+            routeTemplateId: topCandidate.id,
+          });
+        } catch (error) {
+          if (error instanceof DealPricingContextRevisionConflictError) {
+            continue;
+          }
+          throw error;
+        }
       }
 
-      if (route.status !== "active") {
-        throw new ValidationError(
-          `Payment route template ${route.id} is not active`,
-        );
-      }
-
-      if (
-        route.draft.currencyInId !== workflow.intake.moneyRequest.sourceCurrencyId ||
-        route.draft.currencyOutId !== workflow.intake.moneyRequest.targetCurrencyId
-      ) {
-        throw new ValidationError(
-          `Payment route template ${route.id} does not match deal currency pair`,
-        );
-      }
-
-      const sourceParticipant = route.draft.participants[0];
-      if (
-        sourceParticipant?.binding === "bound" &&
-        sourceParticipant.entityId !== deal.customerId
-      ) {
-        throw new ValidationError(
-          `Payment route template ${route.id} does not belong to deal customer ${deal.customerId}`,
-        );
-      }
-
-      return deps.deals.deals.commands.attachPricingRoute({
-        dealId: input.dealId,
-        snapshot: route.draft,
-        templateId: route.id,
-        templateName: route.name,
-      });
+      throw new ConflictError(
+        "deal_pricing_initialize_route_revision_conflict",
+        "Не удалось привязать маршрут по умолчанию: слишком много конфликтов ревизии.",
+        { dealId: input.dealId },
+      );
     },
 
     async detachRoute(input) {
@@ -1467,6 +1540,51 @@ export function createDealPricingWorkflow(
 
       return deps.deals.deals.commands.detachPricingRoute({
         dealId: input.dealId,
+      });
+    },
+
+    async swapRouteTemplate(input) {
+      // Pre-validate template before mutating anything: existence, active
+      // status, currency-pair match against deal intake, customer-binding
+      // compatibility. Any mismatch throws before we cancel draft steps,
+      // so a bad routeTemplateId can't leave the deal with cancelled drafts.
+      await loadValidatedRouteTemplate(deps, {
+        dealId: input.dealId,
+        routeTemplateId: input.newRouteTemplateId,
+      });
+
+      const steps = await deps.treasury.paymentSteps.queries.list({
+        dealId: input.dealId,
+        limit: 100,
+        offset: 0,
+        purpose: "deal_leg",
+      });
+      const blocking = steps.data.filter(
+        (step) =>
+          !["draft", "cancelled", "skipped"].includes(step.state),
+      );
+      if (blocking.length > 0) {
+        throw new ValidationError(
+          `Cannot swap route — payment steps are already in execution: ${blocking
+            .map((step) => step.state)
+            .join(", ")}`,
+        );
+      }
+
+      await deps.treasury.paymentSteps.commands.cancelDrafts({
+        actorUserId: input.actorUserId,
+        dealId: input.dealId,
+      });
+
+      return deps.deals.deals.commands.swapDealRouteTemplate({
+        actorUserId: input.actorUserId,
+        dealId: input.dealId,
+        memo: input.memo ?? null,
+        newRouteTemplateId: input.newRouteTemplateId,
+        reasonCode:
+          input.reasonCode as Parameters<
+            DealsModule["deals"]["commands"]["swapDealRouteTemplate"]
+          >[0]["reasonCode"],
       });
     },
 

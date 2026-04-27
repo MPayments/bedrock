@@ -185,6 +185,15 @@ export function RouteSwapDialog({
         </DialogHeader>
 
         <div className="space-y-4">
+          {hasExistingRoute ? (
+            <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              Смена маршрута отвяжет текущий маршрут и отзовёт активную
+              котировку. Дилеру нужно будет создать и принять новую котировку
+              на новом маршруте, после чего шаги будут пересозданы автоматически.
+              Сменить маршрут можно только если ни один платёжный шаг не вышел
+              из черновика — иначе сначала отмените или дождитесь его завершения.
+            </div>
+          ) : null}
           <div className="space-y-2">
             <Label>Шаблон маршрута</Label>
             <Select

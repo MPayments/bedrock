@@ -19,7 +19,6 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@bedrock/sdk-ui/components/select";
 import { Textarea } from "@bedrock/sdk-ui/components/textarea";
 import { toast } from "@bedrock/sdk-ui/components/sonner";
@@ -27,7 +26,28 @@ import { toast } from "@bedrock/sdk-ui/components/sonner";
 import type { FinanceDealPaymentStep } from "@/features/treasury/deals/lib/queries";
 import { executeMutation } from "@/lib/resources/http";
 
-import type { StepConfirmOutcome } from "../lib/step-helpers";
+import {
+  requiresSettlementEvidence,
+  type StepConfirmOutcome,
+} from "../lib/step-helpers";
+
+const OUTCOME_OPTIONS: ReadonlyArray<{
+  value: StepConfirmOutcome;
+  label: string;
+}> = [
+  {
+    value: "settled",
+    label: "Исполнено (с подтверждением)",
+  },
+  {
+    value: "failed",
+    label: "Ошибка / не прошло",
+  },
+  {
+    value: "returned",
+    label: "Возврат",
+  },
+];
 
 function createIdempotencyKey() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -89,8 +109,15 @@ export function StepConfirmDialog({
   const [failureReason, setFailureReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const needsEvidence = outcome === "settled";
+  const needsEvidence =
+    outcome === "settled" && requiresSettlementEvidence(step);
   const needsFailureReason = outcome === "failed";
+  const outcomeLabel =
+    OUTCOME_OPTIONS.find((option) => option.value === outcome)?.label ??
+    outcome;
+  const purposeLabel =
+    EVIDENCE_PURPOSE_OPTIONS.find((option) => option.value === purpose)
+      ?.label ?? purpose;
 
   function resetState() {
     setOutcome(initialOutcome);
@@ -204,8 +231,7 @@ export function StepConfirmDialog({
     }
   }
 
-  const canSubmit =
-    (outcome !== "settled" || Boolean(file)) && !isSubmitting;
+  const canSubmit = (!needsEvidence || Boolean(file)) && !isSubmitting;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -214,7 +240,7 @@ export function StepConfirmDialog({
           <DialogTitle>Подтверждение шага</DialogTitle>
           <DialogDescription>
             Зафиксируйте исход после получения ответа банка или контрагента.
-            Для статуса «Выполнен» требуется подтверждающий файл.
+            Файл обязателен только для финального SWIFT/MT103 к бенефициару.
           </DialogDescription>
         </DialogHeader>
 
@@ -228,14 +254,16 @@ export function StepConfirmDialog({
               }}
             >
               <SelectTrigger data-testid={`finance-step-confirm-outcome-${step.id}`}>
-                <SelectValue />
+                <span data-slot="select-value" className="flex flex-1 text-left">
+                  {outcomeLabel}
+                </span>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="settled">
-                  Исполнен (с подтверждением)
-                </SelectItem>
-                <SelectItem value="failed">Ошибка / не прошло</SelectItem>
-                <SelectItem value="returned">Возврат</SelectItem>
+                {OUTCOME_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -253,6 +281,12 @@ export function StepConfirmDialog({
                     </span>
                   )}
                 </Label>
+                <p className="text-muted-foreground text-xs">
+                  Для финальной выплаты бенефициару приложите SWIFT/MT103. Для
+                  остальных шагов файл можно приложить по желанию: выписку
+                  банка, платёжку со статусом исполнено или подтверждение
+                  контрагента.
+                </p>
                 <Input
                   id={`step-${step.id}-evidence-file`}
                   type="file"
@@ -273,7 +307,9 @@ export function StepConfirmDialog({
                     }}
                   >
                     <SelectTrigger>
-                      <SelectValue />
+                      <span data-slot="select-value" className="flex flex-1 text-left">
+                        {purposeLabel}
+                      </span>
                     </SelectTrigger>
                     <SelectContent>
                       {EVIDENCE_PURPOSE_OPTIONS.map((opt) => (

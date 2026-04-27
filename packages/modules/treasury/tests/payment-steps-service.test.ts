@@ -198,6 +198,34 @@ describe("PaymentSteps service", () => {
     ]);
   });
 
+  it("confirms a non-beneficiary step without evidence artifacts", async () => {
+    const { service, setNow } = createHarness();
+
+    await service.commands.create({
+      ...createStepInput(),
+      initialState: "pending",
+    });
+
+    setNow(SUBMITTED_AT);
+    await service.commands.submit({
+      attemptId: ATTEMPT_ID,
+      stepId: STEP_ID,
+    });
+
+    setNow(OUTCOME_AT);
+    const completed = await service.commands.confirm({
+      outcome: "settled",
+      stepId: STEP_ID,
+    });
+
+    expect(completed).toMatchObject({
+      artifacts: [],
+      completedAt: OUTCOME_AT,
+      id: STEP_ID,
+      state: "completed",
+    });
+  });
+
   it("amends, cancels, skips, and lists steps through command/query handlers", async () => {
     const { service } = createHarness();
     await service.commands.create({
@@ -239,5 +267,63 @@ describe("PaymentSteps service", () => {
       STEP_ID,
       SECOND_STEP_ID,
     ]);
+  });
+
+  it("cancelDrafts cancels only draft deal_leg steps and is naturally idempotent", async () => {
+    const dealId = "00000000-0000-4000-8000-000000006001";
+    const otherDealId = "00000000-0000-4000-8000-000000006002";
+    const { service } = createHarness();
+
+    await service.commands.create({
+      ...createStepInput(STEP_ID),
+      dealId,
+      dealLegIdx: 1,
+      dealLegRole: "payout",
+      purpose: "deal_leg",
+    });
+    await service.commands.create({
+      ...createStepInput(SECOND_STEP_ID),
+      dealId,
+      dealLegIdx: 2,
+      dealLegRole: "payout",
+      initialState: "pending",
+      purpose: "deal_leg",
+    });
+    await service.commands.create({
+      ...createStepInput(THIRD_STEP_ID),
+      dealId: otherDealId,
+      dealLegIdx: 1,
+      dealLegRole: "payout",
+      purpose: "deal_leg",
+    });
+
+    const firstResult = await service.commands.cancelDrafts({
+      actorUserId: "user-1",
+      dealId,
+    });
+    expect(firstResult.cancelledCount).toBe(1);
+
+    const targetDealSteps = await service.queries.list({
+      dealId,
+      limit: 10,
+      offset: 0,
+      purpose: "deal_leg",
+    });
+    const stateById = new Map(
+      targetDealSteps.data.map((step) => [step.id, step.state]),
+    );
+    expect(stateById.get(STEP_ID)).toBe("cancelled");
+    expect(stateById.get(SECOND_STEP_ID)).toBe("pending");
+
+    const otherDealStep = await service.queries.findById({
+      stepId: THIRD_STEP_ID,
+    });
+    expect(otherDealStep?.state).toBe("draft");
+
+    const secondResult = await service.commands.cancelDrafts({
+      actorUserId: "user-1",
+      dealId,
+    });
+    expect(secondResult.cancelledCount).toBe(0);
   });
 });

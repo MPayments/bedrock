@@ -6,14 +6,12 @@ import { useMemo, useState } from "react";
 import { Info } from "lucide-react";
 
 import { Button } from "@bedrock/sdk-ui/components/button";
-import { toast } from "@bedrock/sdk-ui/components/sonner";
 
 import {
   getDealLegKindLabel,
   getFinanceDealDisplayTitle,
 } from "@/features/treasury/deals/labels";
 import type {
-  FinanceDealBankInstructionSnapshot,
   FinanceDealPaymentStep,
   FinanceDealWorkbench,
 } from "@/features/treasury/deals/lib/queries";
@@ -114,27 +112,21 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
   );
 
   const {
-    fromBankInstruction,
     fromPartyDisplayName,
     fromPartyKind,
-    toBankInstruction,
     toPartyDisplayName,
     toPartyKind,
   }: {
-    fromBankInstruction: FinanceDealBankInstructionSnapshot | null;
     fromPartyDisplayName: string | null;
     fromPartyKind: PartyKindOrSnapshot | null;
-    toBankInstruction: FinanceDealBankInstructionSnapshot | null;
     toPartyDisplayName: string | null;
     toPartyKind: PartyKindOrSnapshot | null;
   } = useMemo(() => {
     const attachment = deal.pricing.routeAttachment;
     if (!attachment || !selectedLeg) {
       return {
-        fromBankInstruction: null,
         fromPartyDisplayName: null,
         fromPartyKind: null,
-        toBankInstruction: null,
         toPartyDisplayName: null,
         toPartyKind: null,
       };
@@ -164,12 +156,8 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
       beneficiarySnapshotName !== null;
 
     return {
-      fromBankInstruction: null,
       fromPartyDisplayName: source?.displayName ?? null,
       fromPartyKind: pickKind(source?.entityKind ?? null),
-      toBankInstruction: useSnapshotForDestination
-        ? (externalBeneficiary?.bankInstructionSnapshot ?? null)
-        : null,
       toPartyDisplayName: useSnapshotForDestination
         ? beneficiarySnapshotName
         : (destination?.displayName ?? null),
@@ -224,34 +212,6 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
     router.refresh();
   }
 
-  const [isRequestingExecution, setIsRequestingExecution] = useState(false);
-  async function requestExecution() {
-    setIsRequestingExecution(true);
-    const result = await executeMutation({
-      fallbackMessage: "Не удалось создать платёжные шаги",
-      request: () =>
-        fetch(
-          `/v1/deals/${encodeURIComponent(deal.summary.id)}/execution/request`,
-          {
-            method: "POST",
-            credentials: "include",
-            headers: {
-              "Content-Type": "application/json",
-              "Idempotency-Key": createIdempotencyKey(),
-            },
-            body: JSON.stringify({}),
-          },
-        ),
-    });
-    setIsRequestingExecution(false);
-    if (!result.ok) {
-      toast.error(result.message);
-      return;
-    }
-    toast.success("Платёжные шаги созданы");
-    router.refresh();
-  }
-
   return (
     <>
       <FinanceDealWorkspaceLayout title={title}>
@@ -285,10 +245,8 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
                   )}/attachments`}
                   fromPartyDisplayName={fromPartyDisplayName}
                   fromPartyKind={fromPartyKind}
-                  fromBankInstruction={fromBankInstruction}
                   toPartyDisplayName={toPartyDisplayName}
                   toPartyKind={toPartyKind}
-                  toBankInstruction={toBankInstruction}
                   disabled={!canWrite}
                   onChanged={handleStepChanged}
                 />
@@ -296,19 +254,10 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
                 <div className="bg-card space-y-3 rounded-lg border p-6 text-sm">
                   <div className="font-medium">Маршрут собран</div>
                   <div className="text-muted-foreground">
-                    Создайте платёжные шаги, чтобы начать отправлять платежи и
-                    прикреплять подтверждения.
+                    Платёжные шаги создаются автоматически после принятия
+                    котировки дилером. Если шагов нет, дождитесь принятия или
+                    проверьте таймлайн на наличие ошибок материализации.
                   </div>
-                  <Button
-                    size="sm"
-                    disabled={isRequestingExecution}
-                    onClick={requestExecution}
-                    data-testid="finance-deal-request-execution"
-                  >
-                    {isRequestingExecution
-                      ? "Создаём..."
-                      : "Создать платёжные шаги"}
-                  </Button>
                 </div>
               ) : (
                 <div className="bg-card text-muted-foreground rounded-lg border p-6 text-sm">

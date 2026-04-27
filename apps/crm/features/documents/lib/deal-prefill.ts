@@ -1,7 +1,11 @@
+import type { DocumentFormOptions } from "@bedrock/sdk-documents-form-ui/lib/form-options";
+import { minorToAmountString } from "@bedrock/shared/money";
+
 import type { ApiCrmDealWorkbenchProjection } from "@/app/(dashboard)/deals/[id]/_components/types";
 
 function buildInvoicePrefill(
   workbench: ApiCrmDealWorkbenchProjection,
+  options: Pick<DocumentFormOptions, "currencies">,
 ): Record<string, unknown> {
   const counterpartyId =
     workbench.context.applicant?.id ??
@@ -11,14 +15,24 @@ function buildInvoicePrefill(
   const organizationId = workbench.context.internalEntity?.id ?? null;
   const organizationRequisiteId =
     workbench.context.internalEntityRequisite?.id ?? null;
+  const calculation = workbench.pricing.currentCalculation?.currentSnapshot ?? null;
+  const currency = calculation
+    ? (options.currencies.find(
+        (option) => option.id === calculation.calculationCurrencyId,
+      )?.code ?? null)
+    : null;
+  const amount =
+    calculation && currency
+      ? minorToAmountString(calculation.totalAmountMinor, { currency })
+      : null;
 
   return {
+    ...(amount && currency ? { amount, currency } : {}),
     counterpartyId,
     customerId,
     organizationId,
     organizationRequisiteId,
     occurredAt: new Date().toISOString().slice(0, 16),
-    financialLines: [],
   };
 }
 
@@ -48,10 +62,11 @@ function buildExchangePrefill(
 export function buildCrmDealDocumentInitialPayload(
   workbench: ApiCrmDealWorkbenchProjection,
   docType: string,
+  options: Pick<DocumentFormOptions, "currencies">,
 ): Record<string, unknown> | undefined {
   switch (docType) {
     case "invoice":
-      return buildInvoicePrefill(workbench);
+      return buildInvoicePrefill(workbench, options);
     case "acceptance":
       return buildAcceptancePrefill(workbench);
     case "exchange":

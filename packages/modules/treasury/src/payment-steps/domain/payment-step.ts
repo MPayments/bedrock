@@ -142,6 +142,14 @@ function hasSettlementEvidence(artifacts: ArtifactRef[]): boolean {
   );
 }
 
+function requiresSettlementEvidence(snapshot: PaymentStepSnapshot): boolean {
+  return (
+    snapshot.purpose === "deal_leg" &&
+    snapshot.dealLegRole === "payout" &&
+    snapshot.kind === "payout"
+  );
+}
+
 function cloneAttemptRecord(
   attempt: PaymentStepAttemptRecord,
 ): PaymentStepAttemptRecord {
@@ -283,14 +291,16 @@ function normalizeSnapshot(snapshot: PaymentStepSnapshot): PaymentStepSnapshot {
         meta: { stepId: normalized.id },
       },
     );
-    invariant(
-      hasSettlementEvidence(normalized.artifacts),
-      "Completed payment steps require settlement evidence",
-      {
-        code: "treasury.payment_step.evidence_required",
-        meta: { stepId: normalized.id },
-      },
-    );
+    if (requiresSettlementEvidence(normalized)) {
+      invariant(
+        hasSettlementEvidence(normalized.artifacts),
+        "Completed beneficiary payout steps require settlement evidence",
+        {
+          code: "treasury.payment_step.evidence_required",
+          meta: { stepId: normalized.id },
+        },
+      );
+    }
   }
   if (normalized.state === "returned") {
     invariant(
@@ -513,14 +523,23 @@ export class PaymentStep extends AggregateRoot<string> {
       ...(input.artifacts ?? []).map(cloneArtifact),
     ];
     invariant(
-      attempts.some((candidate) => candidate.outcome === "settled") &&
-        hasSettlementEvidence(artifacts),
-      "Completed payment steps require settlement evidence",
+      attempts.some((candidate) => candidate.outcome === "settled"),
+      "Completed payment steps require a settled attempt",
       {
-        code: "treasury.payment_step.evidence_required",
+        code: "treasury.payment_step.completed_attempt_required",
         meta: { stepId: this.id },
       },
     );
+    if (requiresSettlementEvidence(this.snapshot)) {
+      invariant(
+        hasSettlementEvidence(artifacts),
+        "Completed beneficiary payout steps require settlement evidence",
+        {
+          code: "treasury.payment_step.evidence_required",
+          meta: { stepId: this.id },
+        },
+      );
+    }
 
     return new PaymentStep(
       normalizeSnapshot({

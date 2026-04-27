@@ -4,6 +4,7 @@ import {
   buildAmendRouteBody,
   deriveStepPrimaryAction,
   latestStepAttempt,
+  requiresSettlementEvidence,
   stepBadgeVariant,
   STEP_STATE_LABELS,
 } from "@/features/treasury/steps/lib/step-helpers";
@@ -226,5 +227,64 @@ describe("latestStepAttempt", () => {
       makeAttempt(2, "voided"),
     ]);
     expect(latestStepAttempt(step)?.attemptNo).toBe(3);
+  });
+});
+
+describe("requiresSettlementEvidence", () => {
+  function makeStep(
+    overrides: Partial<FinanceDealPaymentStep> = {},
+  ): FinanceDealPaymentStep {
+    return {
+      artifacts: [],
+      attempts: [],
+      completedAt: null,
+      createdAt: "2026-04-01T00:00:00.000Z",
+      dealId: "00000000-0000-4000-8000-000000000011",
+      dealLegIdx: 2,
+      dealLegRole: "payout",
+      failureReason: null,
+      fromAmountMinor: null,
+      fromCurrencyId: "00000000-0000-4000-8000-000000000001",
+      fromParty: {
+        id: "00000000-0000-4000-8000-000000000002",
+        requisiteId: null,
+      },
+      id: "00000000-0000-4000-8000-000000000010",
+      kind: "payout",
+      postings: [],
+      purpose: "deal_leg",
+      rate: null,
+      scheduledAt: null,
+      state: "processing",
+      submittedAt: null,
+      toAmountMinor: null,
+      toCurrencyId: "00000000-0000-4000-8000-000000000001",
+      toParty: {
+        id: "00000000-0000-4000-8000-000000000003",
+        requisiteId: null,
+      },
+      treasuryBatchId: null,
+      updatedAt: "2026-04-01T00:00:00.000Z",
+      ...overrides,
+    };
+  }
+
+  it("requires evidence only for deal beneficiary payout steps", () => {
+    expect(requiresSettlementEvidence(makeStep())).toBe(true);
+    expect(
+      requiresSettlementEvidence(
+        makeStep({ dealLegRole: "collect", kind: "payin" }),
+      ),
+    ).toBe(false);
+    expect(
+      requiresSettlementEvidence(
+        makeStep({
+          dealId: null,
+          dealLegIdx: null,
+          dealLegRole: null,
+          purpose: "standalone_payment",
+        }),
+      ),
+    ).toBe(false);
   });
 });

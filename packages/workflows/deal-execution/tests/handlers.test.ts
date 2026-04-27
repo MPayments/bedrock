@@ -175,7 +175,13 @@ function createHarness(input: {
     }),
     createDealsModule: () => ({
       deals: {
-        queries: { findWorkflowById },
+        queries: {
+          findPricingContextByDealId: vi.fn(async () => ({
+            routeAttachment: null,
+            revision: 1,
+          })),
+          findWorkflowById,
+        },
       },
     } as any),
     createReconciliationService: () => ({}) as any,
@@ -204,7 +210,7 @@ function createHarness(input: {
 }
 
 describe("requestExecution payment-steps idempotency", () => {
-  it("returns early without materializing when a step already exists", async () => {
+  it("returns early without materializing when an active step already exists", async () => {
     const harness = createHarness({
       paymentStepsListResult: {
         data: [{ id: "step-1" }],
@@ -224,6 +230,15 @@ describe("requestExecution payment-steps idempotency", () => {
       limit: 1,
       offset: 0,
       purpose: "deal_leg",
+      state: [
+        "draft",
+        "scheduled",
+        "pending",
+        "processing",
+        "completed",
+        "failed",
+        "returned",
+      ],
     });
     expect(harness.createOrGetPlanned).not.toHaveBeenCalled();
     expect(harness.createPaymentStep).not.toHaveBeenCalled();
@@ -241,6 +256,39 @@ describe("requestExecution payment-steps idempotency", () => {
       idempotencyKey: "idem-1",
     });
 
+    expect(harness.createPaymentStep).toHaveBeenCalled();
+  });
+
+  it("ignores cancelled and skipped steps so a swap+rematerialize cycle creates new drafts", async () => {
+    const harness = createHarness({
+      // Repository is expected to apply the state filter; with the active-only
+      // filter we emulate the post-swap state: zero active rows even though
+      // cancelled drafts from the prior route still exist in the table.
+      paymentStepsListResult: { data: [], total: 0 },
+      workflow: createWorkflowProjection(),
+    });
+
+    await harness.workflow.requestExecution({
+      actorUserId: "user-1",
+      dealId: "deal-1",
+      idempotencyKey: "idem-after-swap",
+    });
+
+    expect(harness.listPaymentSteps).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: expect.arrayContaining(["draft", "scheduled", "processing"]),
+      }),
+    );
+    expect(harness.listPaymentSteps).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: expect.not.arrayContaining(["cancelled"]),
+      }),
+    );
+    expect(harness.listPaymentSteps).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: expect.not.arrayContaining(["skipped"]),
+      }),
+    );
     expect(harness.createPaymentStep).toHaveBeenCalled();
   });
 });

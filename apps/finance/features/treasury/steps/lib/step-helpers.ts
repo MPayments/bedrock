@@ -52,6 +52,14 @@ export const STEP_CONFIRM_OUTCOME_LABELS: Record<StepConfirmOutcome, string> = {
   returned: "Подтвердить возврат",
 };
 
+export function requiresSettlementEvidence(step: FinanceDealPaymentStep): boolean {
+  return (
+    step.purpose === "deal_leg" &&
+    step.dealLegRole === "payout" &&
+    step.kind === "payout"
+  );
+}
+
 export type StepPrimaryAction = "submit" | "confirm" | null;
 
 export function deriveStepPrimaryAction(

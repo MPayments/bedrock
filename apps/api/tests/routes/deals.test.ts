@@ -745,8 +745,10 @@ function createTestApp() {
     attachRoute: vi.fn(),
     createQuote: vi.fn(),
     detachRoute: vi.fn(),
+    initializeDefaultRoute: vi.fn(),
     listRoutes: vi.fn(),
     preview: vi.fn(),
+    swapRouteTemplate: vi.fn(),
     updateContext: vi.fn(),
   };
   const dealExecutionWorkflow = {
@@ -813,6 +815,12 @@ function createTestApp() {
       execute: vi.fn(async () => ({ rows: [] })),
     },
   };
+  const logger = {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+  };
   const app = new OpenAPIHono();
 
   app.use("*", async (c, next) => {
@@ -844,6 +852,7 @@ function createTestApp() {
       reconciliationService,
       documentsService,
       documentDraftWorkflow,
+      logger,
       persistence,
     } as any),
   );
@@ -858,6 +867,7 @@ function createTestApp() {
     agreementsModule,
     treasuryModule,
     calculationsModule,
+    logger,
     iamService,
     partiesModule,
     currenciesService,
@@ -1343,6 +1353,113 @@ describe("deals routes", () => {
     });
   });
 
+  it("attaches the default route via the initialize-route endpoint", async () => {
+    const { app, dealPricingWorkflow } = createTestApp();
+    const updatedContext = {
+      commercialDraft: {
+        fixedFeeAmount: null,
+        fixedFeeCurrency: null,
+        quoteMarkupBps: 0,
+      },
+      fundingAdjustments: [],
+      revision: 4,
+      routeAttachment: {
+        attachedAt: new Date("2026-04-19T09:00:00.000Z"),
+        snapshot: createDealPricingPreview().routePreview,
+        templateId: "00000000-0000-4000-8000-000000000301",
+        templateName: "Default route",
+      },
+    };
+    dealPricingWorkflow.initializeDefaultRoute.mockResolvedValue(updatedContext);
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/pricing/initialize-route",
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(200);
+    expect(dealPricingWorkflow.initializeDefaultRoute).toHaveBeenCalledWith({
+      dealId: "00000000-0000-4000-8000-000000000010",
+    });
+  });
+
+  it("commits pricing and triggers auto-materialize after acceptance", async () => {
+    const {
+      app,
+      dealsModule,
+      dealPricingWorkflow,
+      dealQuoteWorkflow,
+      dealExecutionWorkflow,
+    } = createTestApp();
+    const quoteResult = createDealPricingQuoteResult();
+    dealPricingWorkflow.createQuote.mockResolvedValue(quoteResult);
+    dealsModule.deals.commands.acceptQuote.mockResolvedValue({
+      acceptedQuote: { quoteId: quoteResult.quote.id },
+      summary: { id: "00000000-0000-4000-8000-000000000010" },
+    });
+    dealQuoteWorkflow.createCalculationFromAcceptedQuote.mockResolvedValue({
+      id: "00000000-0000-4000-8000-000000000701",
+    });
+    dealExecutionWorkflow.requestExecution.mockResolvedValue({});
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/pricing/commit",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "idempotency-key": "commit-1",
+        },
+        body: JSON.stringify({
+          amountMinor: "79005226",
+          amountSide: "source",
+          asOf: "2026-04-19T09:58:00.000Z",
+          expectedRevision: 3,
+        }),
+      },
+    );
+
+    expect(response.status).toBe(201);
+    expect(dealsModule.deals.commands.acceptQuote).toHaveBeenCalled();
+    expect(dealExecutionWorkflow.requestExecution).toHaveBeenCalledWith({
+      actorUserId: "user-1",
+      comment: null,
+      dealId: "00000000-0000-4000-8000-000000000010",
+      idempotencyKey: `auto-materialize:${quoteResult.quote.id}`,
+    });
+  });
+
+  it("delegates route swap to dealPricingWorkflow.swapRouteTemplate", async () => {
+    const { app, dealPricingWorkflow } = createTestApp();
+    dealPricingWorkflow.swapRouteTemplate.mockResolvedValue({
+      summary: { id: "00000000-0000-4000-8000-000000000010" },
+    });
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/pricing/route/swap",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          newRouteTemplateId: "00000000-0000-4000-8000-000000000444",
+          reasonCode: "market_moved",
+          memo: "Test swap",
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(dealPricingWorkflow.swapRouteTemplate).toHaveBeenCalledWith({
+      actorUserId: "user-1",
+      dealId: "00000000-0000-4000-8000-000000000010",
+      memo: "Test swap",
+      newRouteTemplateId: "00000000-0000-4000-8000-000000000444",
+      reasonCode: "market_moved",
+    });
+  });
+
   it("rejects deal-scoped formal document creation in draft", async () => {
     const { app, dealsModule, documentDraftWorkflow } = createTestApp();
     dealsModule.deals.queries.findById.mockResolvedValue({
@@ -1679,12 +1796,14 @@ describe("deals routes", () => {
     ).toHaveBeenCalledWith(detail.id);
   });
 
-  it("accepts a quote for a deal", async () => {
-    const { app, dealsModule } = createTestApp();
+  it("accepts a quote for a deal and triggers auto-materialize", async () => {
+    const { app, dealsModule, dealExecutionWorkflow } = createTestApp();
     const projection = {
+      acceptedQuote: { quoteId: "00000000-0000-4000-8000-000000000210" },
       summary: { id: "00000000-0000-4000-8000-000000000010" },
     };
     dealsModule.deals.commands.acceptQuote.mockResolvedValue(projection);
+    dealExecutionWorkflow.requestExecution.mockResolvedValue(projection);
 
     const response = await app.request(
       "http://localhost/deals/00000000-0000-4000-8000-000000000010/quotes/00000000-0000-4000-8000-000000000210/accept",
@@ -1699,6 +1818,48 @@ describe("deals routes", () => {
       dealId: "00000000-0000-4000-8000-000000000010",
       quoteId: "00000000-0000-4000-8000-000000000210",
     });
+    expect(dealExecutionWorkflow.requestExecution).toHaveBeenCalledWith({
+      actorUserId: "user-1",
+      comment: null,
+      dealId: "00000000-0000-4000-8000-000000000010",
+      idempotencyKey:
+        "auto-materialize:00000000-0000-4000-8000-000000000210",
+    });
+  });
+
+  it("appends a materialization_failed timeline event when auto-materialize throws", async () => {
+    const { app, dealsModule, dealExecutionWorkflow } = createTestApp();
+    const projection = {
+      acceptedQuote: { quoteId: "00000000-0000-4000-8000-000000000210" },
+      summary: { id: "00000000-0000-4000-8000-000000000010" },
+    };
+    dealsModule.deals.commands.acceptQuote.mockResolvedValue(projection);
+    dealExecutionWorkflow.requestExecution.mockRejectedValue(
+      new Error("intake not ready"),
+    );
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/quotes/00000000-0000-4000-8000-000000000210/accept",
+      {
+        method: "POST",
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(dealsModule.deals.commands.appendTimelineEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorUserId: "user-1",
+        dealId: "00000000-0000-4000-8000-000000000010",
+        payload: expect.objectContaining({
+          quoteId: "00000000-0000-4000-8000-000000000210",
+          reason: "intake not ready",
+        }),
+        sourceRef:
+          "materialize:auto:00000000-0000-4000-8000-000000000210",
+        type: "materialization_failed",
+        visibility: "internal",
+      }),
+    );
   });
 
   it("updates the draft agreement on the workbench", async () => {
