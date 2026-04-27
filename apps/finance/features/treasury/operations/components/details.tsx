@@ -11,6 +11,7 @@ import { formatCompactId } from "@bedrock/shared/core/uuid";
 import { EntityWorkspaceLayout } from "@/components/entities/workspace-layout";
 import { StepAttemptsDrawer } from "@/features/treasury/steps/components/step-attempts-drawer";
 import { StepCard } from "@/features/treasury/steps/components/step-card";
+import { QuoteExecutionCard } from "@/features/treasury/quote-executions/components/quote-execution-card";
 import { STEP_KIND_LABELS } from "@/features/treasury/steps/lib/step-helpers";
 
 import type { TreasuryOperationDetails } from "../lib/queries";
@@ -29,6 +30,11 @@ const PURPOSE_SUBTITLES: Record<
     "Отдельная казначейская операция без привязки к сделке.",
 };
 
+const OPERATION_KIND_LABELS: Record<TreasuryOperationDetails["kind"], string> = {
+  ...STEP_KIND_LABELS,
+  quote_execution: "Конверсия",
+};
+
 export function TreasuryOperationDetailsView({
   operation,
 }: TreasuryOperationDetailsProps) {
@@ -40,7 +46,14 @@ export function TreasuryOperationDetailsView({
   const dealHref = hasDealContext
     ? `/treasury/deals/${encodeURIComponent(operation.dealId!)}`
     : null;
-  const uploadAssetPath = `/v1/treasury/steps/${encodeURIComponent(operation.id)}/attachments`;
+  const uploadAssetPath =
+    operation.runtimeType === "payment_step"
+      ? `/v1/treasury/steps/${encodeURIComponent(operation.id)}/attachments`
+      : null;
+  const cardTitle =
+    hasDealContext && operation.origin.sequence !== null
+      ? `Шаг ${operation.origin.sequence} · ${OPERATION_KIND_LABELS[operation.kind]}`
+      : OPERATION_KIND_LABELS[operation.kind];
 
   return (
     <EntityWorkspaceLayout
@@ -60,7 +73,8 @@ export function TreasuryOperationDetailsView({
               Перейти к сделке
             </Button>
           ) : null}
-          {operation.attempts.length > 0 ? (
+          {operation.runtimeType === "payment_step" &&
+          operation.attempts.length > 0 ? (
             <Button
               variant="outline"
               size="sm"
@@ -73,23 +87,29 @@ export function TreasuryOperationDetailsView({
       }
     >
       <div className="max-w-3xl">
-        <StepCard
-          step={operation}
-          title={
-            hasDealContext && operation.origin.sequence !== null
-              ? `Шаг ${operation.origin.sequence} · ${STEP_KIND_LABELS[operation.kind]}`
-              : STEP_KIND_LABELS[operation.kind]
-          }
-          uploadAssetPath={uploadAssetPath}
-          onChanged={() => router.refresh()}
-        />
+        {operation.runtimeType === "quote_execution" ? (
+          <QuoteExecutionCard
+            execution={operation}
+            title={cardTitle}
+            onChanged={() => router.refresh()}
+          />
+        ) : (
+          <StepCard
+            step={operation}
+            title={cardTitle}
+            uploadAssetPath={uploadAssetPath ?? undefined}
+            onChanged={() => router.refresh()}
+          />
+        )}
       </div>
 
-      <StepAttemptsDrawer
-        step={operation}
-        open={attemptsOpen}
-        onOpenChange={setAttemptsOpen}
-      />
+      {operation.runtimeType === "payment_step" ? (
+        <StepAttemptsDrawer
+          step={operation}
+          open={attemptsOpen}
+          onOpenChange={setAttemptsOpen}
+        />
+      ) : null}
     </EntityWorkspaceLayout>
   );
 }

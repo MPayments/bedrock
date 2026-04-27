@@ -87,6 +87,7 @@ export {
   paymentStepAttempts,
   paymentStepReturns,
   paymentSteps,
+  quoteExecutions,
   treasuryOrders,
   treasuryOrderSteps,
 } from "@bedrock/treasury/schema";

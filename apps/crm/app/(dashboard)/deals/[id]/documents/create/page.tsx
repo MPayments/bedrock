@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { notFound, useParams } from "next/navigation";
+import { notFound, useParams, useSearchParams } from "next/navigation";
 
 import { Loader2 } from "lucide-react";
 import type { DocumentFormOptions } from "@bedrock/sdk-documents-form-ui/lib/form-options";
@@ -25,9 +25,10 @@ import {
 import { API_BASE_URL } from "@/lib/constants";
 
 export default function DealDocumentCreatePage() {
-  const params = useParams<{ id: string; docType: string }>();
+  const params = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
   const dealId = params?.id ?? "";
-  const docType = params?.docType ?? "";
+  const docType = searchParams.get("docType") ?? "";
 
   const [workbench, setWorkbench] =
     useState<ApiCrmDealWorkbenchProjection | null>(null);

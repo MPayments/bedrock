@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
 import type {
   DealParticipantRole,
@@ -37,6 +37,19 @@ async function resolveAmountRef(input: {
     return {
       amountMinor: null,
       currencyId: null,
+    };
+  }
+
+  if (input.amountRef === "accepted_quote_customer_debit") {
+    if (!input.acceptedQuote) {
+      throw new ValidationError("Accepted quote details are required");
+    }
+    const customerDebitMinor = extractAcceptedQuoteCustomerDebitMinor(
+      input.acceptedQuote,
+    );
+    return {
+      amountMinor: customerDebitMinor,
+      currencyId: input.acceptedQuote.quote.fromCurrencyId,
     };
   }
 
@@ -122,6 +135,78 @@ async function resolveAmountRef(input: {
   };
 }
 
+function deterministicUuid(seed: string): string {
+  const bytes = createHash("sha256").update(seed).digest();
+  bytes[6] = (bytes[6]! & 0x0f) | 0x50;
+  bytes[8] = (bytes[8]! & 0x3f) | 0x80;
+  const hex = bytes.subarray(0, 16).toString("hex");
+  return [
+    hex.slice(0, 8),
+    hex.slice(8, 12),
+    hex.slice(12, 16),
+    hex.slice(16, 20),
+    hex.slice(20),
+  ].join("-");
+}
+
+function routeParticipantPartyRef(
+  participant:
+    | DealPricingRouteAttachment["snapshot"]["participants"][number]
+    | null,
+): PaymentStepPartyRef | null {
+  if (!participant?.entityId) {
+    return null;
+  }
+
+  return {
+    displayName: participant.displayName,
+    entityKind: participant.entityKind,
+    id: participant.entityId,
+    requisiteId: participant.requisiteId ?? null,
+  };
+}
+
+function partyRef(id: string | null): PaymentStepPartyRef | null {
+  return id ? { id, requisiteId: null } : null;
+}
+
+function externalBeneficiarySnapshotPartyRef(
+  workflow: DealWorkflowProjection,
+): PaymentStepPartyRef | null {
+  const beneficiary = workflow.intake.externalBeneficiary;
+
+  if (beneficiary.beneficiaryCounterpartyId) {
+    return null;
+  }
+
+  if (
+    !beneficiary.beneficiarySnapshot &&
+    !beneficiary.bankInstructionSnapshot
+  ) {
+    return null;
+  }
+
+  const displayName =
+    beneficiary.beneficiarySnapshot?.displayName ??
+    beneficiary.beneficiarySnapshot?.legalName ??
+    beneficiary.bankInstructionSnapshot?.beneficiaryName ??
+    beneficiary.bankInstructionSnapshot?.label ??
+    "External beneficiary";
+
+  return {
+    displayName,
+    entityKind: "external_beneficiary_snapshot",
+    id: deterministicUuid(
+      `deal:${workflow.summary.id}:external-beneficiary-snapshot`,
+    ),
+    requisiteId: null,
+    snapshot: {
+      bankInstructionSnapshot: beneficiary.bankInstructionSnapshot,
+      beneficiarySnapshot: beneficiary.beneficiarySnapshot,
+    },
+  };
+}
+
 export function resolveLegPartyRefs(input: {
   agreementOrganizationId: string | null;
   compiled: CompiledDealExecutionOperation;
@@ -146,63 +231,105 @@ export function resolveLegPartyRefs(input: {
   const internal =
     input.internalEntityOrganizationId ?? pickEntityId("internal_entity");
   const customer = pickEntityId("customer") ?? pickEntityId("external_payer");
-  const beneficiary =
-    pickEntityId("external_beneficiary") ?? pickEntityId("applicant");
+  const applicant = pickEntityId("applicant");
+  const beneficiary = pickEntityId("external_beneficiary");
+  const beneficiarySnapshotParty = externalBeneficiarySnapshotPartyRef(
+    input.workflow,
+  );
 
   const routeParticipants = input.routeAttachment?.snapshot.participants ?? [];
-  const sourceParticipant = routeParticipants[input.compiled.legIdx - 1] ?? null;
+  const sourceParticipant =
+    routeParticipants[input.compiled.legIdx - 1] ?? null;
   const destParticipant = routeParticipants[input.compiled.legIdx] ?? null;
 
-  let fromPartyId: string | null;
-  let toPartyId: string | null;
+  let fromParty: PaymentStepPartyRef | null;
+  let toParty: PaymentStepPartyRef | null;
 
   switch (input.compiled.legKind) {
     case "collect":
-      fromPartyId = sourceParticipant?.entityId ?? customer;
-      toPartyId = destParticipant?.entityId ?? internal;
+      fromParty =
+        routeParticipantPartyRef(sourceParticipant) ?? partyRef(customer);
+      toParty = routeParticipantPartyRef(destParticipant) ?? partyRef(internal);
       break;
     case "convert":
-      fromPartyId = sourceParticipant?.entityId ?? internal;
-      toPartyId = destParticipant?.entityId ?? internal;
+      fromParty =
+        routeParticipantPartyRef(sourceParticipant) ?? partyRef(internal);
+      toParty = routeParticipantPartyRef(destParticipant) ?? partyRef(internal);
       break;
     case "payout":
-      fromPartyId = sourceParticipant?.entityId ?? internal;
-      toPartyId = destParticipant?.entityId ?? beneficiary;
+      fromParty =
+        routeParticipantPartyRef(sourceParticipant) ?? partyRef(internal);
+      toParty =
+        routeParticipantPartyRef(destParticipant) ??
+        partyRef(beneficiary) ??
+        beneficiarySnapshotParty ??
+        partyRef(applicant);
       break;
     case "transit_hold":
-      fromPartyId = sourceParticipant?.entityId ?? internal;
-      toPartyId =
-        destParticipant?.entityId ??
-        (input.compiled.operationKind === "intercompany_funding"
-          ? (input.agreementOrganizationId ?? internal)
-          : internal);
+      fromParty =
+        routeParticipantPartyRef(sourceParticipant) ?? partyRef(internal);
+      toParty =
+        routeParticipantPartyRef(destParticipant) ??
+        partyRef(
+          input.compiled.operationKind === "intercompany_funding"
+            ? (input.agreementOrganizationId ?? internal)
+            : internal,
+        );
       break;
     case "settle_exporter":
-      fromPartyId = sourceParticipant?.entityId ?? internal;
-      toPartyId =
-        destParticipant?.entityId ??
-        (input.compiled.operationKind === "intercompany_funding"
-          ? (input.agreementOrganizationId ?? internal)
-          : (beneficiary ?? internal));
+      fromParty =
+        routeParticipantPartyRef(sourceParticipant) ?? partyRef(internal);
+      toParty =
+        routeParticipantPartyRef(destParticipant) ??
+        partyRef(
+          input.compiled.operationKind === "intercompany_funding"
+            ? (input.agreementOrganizationId ?? internal)
+            : beneficiary,
+        ) ??
+        beneficiarySnapshotParty ??
+        partyRef(internal);
       break;
     default:
       return null;
   }
 
-  if (!fromPartyId || !toPartyId) {
+  if (!fromParty || !toParty) {
     return null;
   }
 
   return {
-    fromParty: {
-      id: fromPartyId,
-      requisiteId: sourceParticipant?.requisiteId ?? null,
-    },
-    toParty: {
-      id: toPartyId,
-      requisiteId: destParticipant?.requisiteId ?? null,
-    },
+    fromParty,
+    toParty,
   };
+}
+
+function extractAcceptedQuoteCustomerDebitMinor(
+  acceptedQuote: QuoteDetailsRecord,
+): bigint {
+  const metadata = acceptedQuote.quote.pricingTrace?.metadata;
+  const snapshot =
+    metadata && typeof metadata === "object" && !Array.isArray(metadata)
+      ? (metadata as Record<string, unknown>).crmPricingSnapshot
+      : null;
+  const amounts =
+    snapshot && typeof snapshot === "object" && !Array.isArray(snapshot)
+      ? (snapshot as Record<string, unknown>).amounts
+      : null;
+  const customerDebitMinor =
+    amounts && typeof amounts === "object" && !Array.isArray(amounts)
+      ? (amounts as Record<string, unknown>).customerDebitMinor
+      : null;
+
+  if (
+    typeof customerDebitMinor !== "string" ||
+    !/^[1-9]\d*$/u.test(customerDebitMinor)
+  ) {
+    throw new ValidationError(
+      `Accepted quote ${acceptedQuote.quote.id} is missing customer debit pricing snapshot`,
+    );
+  }
+
+  return BigInt(customerDebitMinor);
 }
 
 function resolveStepRate(input: {
@@ -235,6 +362,25 @@ function resolveStepRate(input: {
     ? `${integerPart.toString()}.${fractionStr}`
     : integerPart.toString();
   return { value, lockedSide: "in" };
+}
+
+function resolveQuoteRateParts(input: {
+  acceptedQuote: QuoteDetailsRecord | null;
+  compiled: CompiledDealExecutionOperation;
+}): { rateDen: bigint; rateNum: bigint } {
+  if (!input.acceptedQuote) {
+    throw new ValidationError("Accepted quote details are required");
+  }
+  const quoteLeg =
+    input.compiled.quoteLegIdx !== null
+      ? input.acceptedQuote.legs.find(
+          (leg) => leg.idx === input.compiled.quoteLegIdx,
+        )
+      : null;
+  return {
+    rateDen: quoteLeg?.rateDen ?? input.acceptedQuote.quote.rateDen,
+    rateNum: quoteLeg?.rateNum ?? input.acceptedQuote.quote.rateNum,
+  };
 }
 
 export async function materializeCompiledOperation(input: {
@@ -287,6 +433,55 @@ export async function materializeCompiledOperation(input: {
   });
 
   const id = randomUUID();
+  const routeSnapshotLegId =
+    input.workflow.executionPlan.find((leg) => leg.id === input.compiled.legId)
+      ?.routeSnapshotLegId ?? null;
+
+  if (input.compiled.operationKind === "quote_execution") {
+    if (!input.compiled.quoteId) {
+      throw new ValidationError(
+        `Deal ${input.workflow.summary.id} convert leg ${input.compiled.legId} requires a quote`,
+      );
+    }
+    if (amount.amountMinor === null || counterAmount.amountMinor === null) {
+      throw new ValidationError(
+        `Deal ${input.workflow.summary.id} convert leg ${input.compiled.legId} requires both quote amounts`,
+      );
+    }
+    await input.treasuryModule.quoteExecutions.commands.create({
+      dealId: input.workflow.summary.id,
+      fromAmountMinor: amount.amountMinor,
+      fromCurrencyId,
+      id,
+      initialState: "pending",
+      origin: {
+        dealId: input.workflow.summary.id,
+        planLegId: input.compiled.legId,
+        routeSnapshotLegId,
+        sequence: input.compiled.legIdx,
+        treasuryOrderId: null,
+        type: "deal_execution_leg",
+      },
+      quoteId: input.compiled.quoteId,
+      quoteLegIdx: input.compiled.quoteLegIdx,
+      quoteSnapshot: null,
+      ...resolveQuoteRateParts({
+        acceptedQuote: input.acceptedQuote,
+        compiled: input.compiled,
+      }),
+      settlementRoute: {
+        creditParty: partyRefs.toParty,
+        debitParty: partyRefs.fromParty,
+      },
+      sourceRef: input.compiled.sourceRef,
+      toAmountMinor: counterAmount.amountMinor,
+      toCurrencyId,
+      treasuryOrderId: null,
+    });
+
+    return { id };
+  }
+
   await input.treasuryModule.paymentSteps.commands.create({
     dealId: input.workflow.summary.id,
     fromAmountMinor: amount.amountMinor,
@@ -298,9 +493,7 @@ export async function materializeCompiledOperation(input: {
     origin: {
       dealId: input.workflow.summary.id,
       planLegId: input.compiled.legId,
-      routeSnapshotLegId:
-        input.workflow.executionPlan.find((leg) => leg.id === input.compiled.legId)
-          ?.routeSnapshotLegId ?? null,
+      routeSnapshotLegId,
       sequence: input.compiled.legIdx,
       treasuryOrderId: null,
       type: "deal_execution_leg",
@@ -309,9 +502,7 @@ export async function materializeCompiledOperation(input: {
     purpose: "deal_leg",
     quoteId: input.compiled.quoteId,
     rate,
-    routeSnapshotLegId: input.workflow.executionPlan.find(
-      (leg) => leg.id === input.compiled.legId,
-    )?.routeSnapshotLegId ?? null,
+    routeSnapshotLegId,
     sequence: input.compiled.legIdx,
     sourceRef: input.compiled.sourceRef,
     toAmountMinor: counterAmount.amountMinor ?? amount.amountMinor,
@@ -326,7 +517,15 @@ export async function materializeCompiledOperation(input: {
 
 export async function resolveRecipeContext(
   deps: DealExecutionWorkflowDeps,
-  dealsModule: { deals: { queries: { findPricingContextByDealId: (input: { dealId: string }) => Promise<{ routeAttachment: DealPricingRouteAttachment | null }> } } },
+  dealsModule: {
+    deals: {
+      queries: {
+        findPricingContextByDealId: (input: {
+          dealId: string;
+        }) => Promise<{ routeAttachment: DealPricingRouteAttachment | null }>;
+      };
+    };
+  },
   treasuryModule: DealExecutionTreasuryModule,
   workflow: DealWorkflowProjection,
 ) {

@@ -9,6 +9,7 @@ import {
   sortInMemory,
   type SortInput,
 } from "@bedrock/shared/core/pagination";
+import { PaymentStepPartyRefSchema } from "@bedrock/treasury/contracts";
 
 import {
   FinanceDealPaymentStepSchema,
@@ -357,6 +358,57 @@ const FinanceDealWorkspaceQuoteSchema = z.object({
   status: z.string(),
 });
 
+const QuoteExecutionStateSchema = z.enum([
+  "draft",
+  "pending",
+  "processing",
+  "completed",
+  "failed",
+  "cancelled",
+  "expired",
+]);
+
+export const FinanceDealQuoteExecutionSchema = z.object({
+  completedAt: NullableApiDateTimeStringSchema,
+  createdAt: ApiDateTimeStringSchema,
+  dealId: z.string().uuid().nullable(),
+  failureReason: z.string().nullable(),
+  fromAmountMinor: z.string(),
+  fromCurrencyId: z.string().uuid(),
+  id: z.string().uuid(),
+  origin: z.object({
+    dealId: z.string().uuid().nullable(),
+    planLegId: z.string().nullable(),
+    routeSnapshotLegId: z.string().nullable(),
+    sequence: z.number().int().nonnegative().nullable(),
+    treasuryOrderId: z.string().uuid().nullable(),
+    type: z.enum(["deal_execution_leg", "treasury_order_step", "manual"]),
+  }),
+  postingDocumentRefs: z.array(
+    z.object({
+      documentId: z.string().uuid(),
+      kind: z.string(),
+    }),
+  ),
+  providerRef: z.string().nullable(),
+  providerSnapshot: z.unknown(),
+  quoteId: z.string().uuid(),
+  quoteLegIdx: z.number().int().positive().nullable(),
+  rateDen: z.string(),
+  rateNum: z.string(),
+  settlementRoute: z.object({
+    creditParty: PaymentStepPartyRefSchema,
+    debitParty: PaymentStepPartyRefSchema,
+  }),
+  sourceRef: z.string(),
+  state: QuoteExecutionStateSchema,
+  submittedAt: NullableApiDateTimeStringSchema,
+  toAmountMinor: z.string(),
+  toCurrencyId: z.string().uuid(),
+  treasuryOrderId: z.string().uuid().nullable(),
+  updatedAt: ApiDateTimeStringSchema,
+});
+
 const FinanceDealQuoteItemSchema = z.object({
   createdAt: z.iso.datetime(),
   dealDirection: z.string().nullable(),
@@ -603,6 +655,7 @@ const FinanceDealWorkspaceSchema = z.object({
     attachments: z.array(FinanceDealAttachmentSchema),
     formalDocuments: z.array(FinanceDealFormalDocumentSchema),
     paymentSteps: z.array(FinanceDealPaymentStepSchema).default([]),
+    quoteExecutions: z.array(FinanceDealQuoteExecutionSchema).default([]),
     quotes: z.array(FinanceDealWorkspaceQuoteSchema),
     reconciliationExceptions: z.array(FinanceDealReconciliationExceptionSchema),
   }),
@@ -757,6 +810,9 @@ export type FinanceDealBankInstructionSnapshot = NonNullable<
 // shared module themselves.
 export type FinanceDealPaymentStep = FinanceDealPaymentStepFromSchema;
 export type FinanceDealPaymentStepAttempt = FinanceDealPaymentStepAttemptFromSchema;
+export type FinanceDealQuoteExecution = z.infer<
+  typeof FinanceDealQuoteExecutionSchema
+>;
 export type FinanceDealCalculationHistoryItem = z.infer<
   typeof FinanceDealCalculationHistoryItemSchema
 >;
@@ -787,6 +843,7 @@ export type FinanceDealWorkbench = FinanceDealWorkspace & {
    * plan descriptor.
    */
   executionSteps: FinanceDealPaymentStep[];
+  quoteExecutions: FinanceDealQuoteExecution[];
   quoteHistory: FinanceDealQuoteItem[];
 };
 
@@ -901,6 +958,10 @@ const getFinanceDealWorkbenchByIdUncached = async (
       right.createdAt.localeCompare(left.createdAt),
     ),
     executionSteps: [...workspace.relatedResources.paymentSteps].sort(
+      (left, right) =>
+        (left.origin.sequence ?? 0) - (right.origin.sequence ?? 0),
+    ),
+    quoteExecutions: [...workspace.relatedResources.quoteExecutions].sort(
       (left, right) =>
         (left.origin.sequence ?? 0) - (right.origin.sequence ?? 0),
     ),

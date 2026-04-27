@@ -23,7 +23,7 @@ export function TreasuryOperationsTable({
   const router = useRouter();
   const result = React.use(promise);
 
-  const handleRowDoubleClick = React.useCallback(
+  const handleRowOpen = React.useCallback(
     (row: TanstackRow<TreasuryOperationRow>) => {
       router.push(`/treasury/operations/${row.original.id}`);
     },
@@ -38,7 +38,8 @@ export function TreasuryOperationsTable({
       initialState={{
         sorting: [{ id: "createdAt", desc: true }],
       }}
-      onRowDoubleClick={handleRowDoubleClick}
+      onRowClick={handleRowOpen}
+      onRowDoubleClick={handleRowOpen}
     />
   );
 }

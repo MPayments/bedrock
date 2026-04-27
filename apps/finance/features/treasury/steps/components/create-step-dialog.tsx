@@ -70,7 +70,7 @@ function normalizeMajorToMinor(
 
 type StepKind =
   | "payin"
-  | "fx_conversion"
+  | "quote_execution"
   | "payout"
   | "intracompany_transfer"
   | "intercompany_funding"
@@ -78,7 +78,7 @@ type StepKind =
 
 const STEP_KIND_OPTIONS: ReadonlyArray<{ value: StepKind; label: string }> = [
   { value: "internal_transfer", label: "Собственный перевод" },
-  { value: "fx_conversion", label: "Конверсия" },
+  { value: "quote_execution", label: "Конверсия" },
   { value: "payin", label: "Входящий платёж" },
   { value: "payout", label: "Выплата" },
   { value: "intracompany_transfer", label: "Внутренний перевод" },
@@ -86,7 +86,7 @@ const STEP_KIND_OPTIONS: ReadonlyArray<{ value: StepKind; label: string }> = [
 ];
 
 function resolveOrderType(kind: StepKind) {
-  if (kind === "fx_conversion") return "fx_exchange";
+  if (kind === "quote_execution") return "fx_exchange";
   if (
     kind === "internal_transfer" ||
     kind === "intracompany_transfer" ||
@@ -109,6 +109,11 @@ interface SideState {
   partyId: string;
   partyKind: PartyKind;
   requisiteId: string;
+}
+
+interface QuoteOption {
+  id: string;
+  label: string;
 }
 
 const INITIAL_SIDE: SideState = {
@@ -135,6 +140,7 @@ export function CreateStepDialog({
   const [from, setFrom] = useState<SideState>(INITIAL_SIDE);
   const [to, setTo] = useState<SideState>(INITIAL_SIDE);
   const [quoteId, setQuoteId] = useState("");
+  const [quoteOptions, setQuoteOptions] = useState<QuoteOption[]>([]);
   const [currencyOptions, setCurrencyOptions] = useState<CurrencyOption[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -149,11 +155,48 @@ export function CreateStepDialog({
     };
   }, [open]);
 
+  useEffect(() => {
+    if (!open || kind !== "quote_execution") return;
+    let cancelled = false;
+    async function loadQuotes() {
+      const response = await fetch(
+        "/v1/treasury/quotes?status=active&limit=50&offset=0",
+        {
+          credentials: "include",
+        },
+      );
+      if (!response.ok) return;
+      const payload = (await response.json()) as {
+        data?: Array<{
+          fromAmount?: string;
+          fromCurrency?: string;
+          id: string;
+          toAmount?: string;
+          toCurrency?: string;
+        }>;
+      };
+      if (cancelled) return;
+      setQuoteOptions(
+        (payload.data ?? []).map((quote) => ({
+          id: quote.id,
+          label: `${quote.fromAmount ?? ""} ${quote.fromCurrency ?? ""} → ${
+            quote.toAmount ?? ""
+          } ${quote.toCurrency ?? ""}`.trim(),
+        })),
+      );
+    }
+    void loadQuotes();
+    return () => {
+      cancelled = true;
+    };
+  }, [kind, open]);
+
   function reset() {
     setKind("internal_transfer");
     setFrom(INITIAL_SIDE);
     setTo(INITIAL_SIDE);
     setQuoteId("");
+    setQuoteOptions([]);
   }
 
   function handleOpenChange(next: boolean) {
@@ -170,7 +213,7 @@ export function CreateStepDialog({
       toast.error("Выберите валюты отправителя и получателя");
       return;
     }
-    if (kind === "fx_conversion" && !quoteId.trim()) {
+    if (kind === "quote_execution" && !quoteId.trim()) {
       toast.error("Укажите котировку для конверсии");
       return;
     }
@@ -207,7 +250,7 @@ export function CreateStepDialog({
                   requisiteId: from.requisiteId || null,
                 },
                 kind,
-                quoteId: kind === "fx_conversion" ? quoteId.trim() : null,
+                quoteId: kind === "quote_execution" ? quoteId.trim() : null,
                 toAmountMinor: toAmount,
                 toCurrencyId: to.currencyId,
                 toParty: {
@@ -252,12 +295,21 @@ export function CreateStepDialog({
     }
 
     const created = result.data as
-      | { id?: string; steps?: Array<{ paymentStepId?: string | null }> }
+      | {
+          id?: string;
+          steps?: Array<{
+            paymentStepId?: string | null;
+            quoteExecutionId?: string | null;
+          }>;
+        }
       | null;
     toast.success("Операция создана");
     reset();
     onOpenChange(false);
-    const createdStepId = created?.steps?.[0]?.paymentStepId ?? created?.id;
+    const createdStepId =
+      created?.steps?.[0]?.paymentStepId ??
+      created?.steps?.[0]?.quoteExecutionId ??
+      created?.id;
     if (onSuccess && createdStepId) {
       onSuccess(createdStepId);
     } else {
@@ -269,11 +321,11 @@ export function CreateStepDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle>Создать операцию</DialogTitle>
+          <DialogTitle>Создать казначейский ордер</DialogTitle>
           <DialogDescription>
             Казначейская операция, не привязанная к конкретной сделке. Она
-            появится в общем списке операций и проходит тот же жизненный
-            цикл, что и шаг сделки.
+            появится в общем списке исполнения; платёжные шаги и FX-исполнения
+            создаются после активации ордера.
           </DialogDescription>
         </DialogHeader>
 
@@ -303,17 +355,31 @@ export function CreateStepDialog({
             </Select>
           </div>
 
-          {kind === "fx_conversion" ? (
+          {kind === "quote_execution" ? (
             <div className="space-y-2">
-              <Label htmlFor="create-step-quote">Котировка</Label>
-              <Input
-                id="create-step-quote"
-                placeholder="Quote ID"
-                value={quoteId}
+              <Label htmlFor="create-step-quote">Активная котировка</Label>
+              <Select
+                value={quoteId || "__none"}
+                onValueChange={(value) =>
+                  setQuoteId(value && value !== "__none" ? value : "")
+                }
                 disabled={isSubmitting}
-                onChange={(event) => setQuoteId(event.target.value)}
-                data-testid="finance-create-step-quote-id"
-              />
+              >
+                <SelectTrigger
+                  id="create-step-quote"
+                  data-testid="finance-create-step-quote-id"
+                >
+                  <SelectValue placeholder="Выберите котировку" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none">Не выбрана</SelectItem>
+                  {quoteOptions.map((quote) => (
+                    <SelectItem key={quote.id} value={quote.id}>
+                      {quote.label || quote.id}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           ) : null}
 

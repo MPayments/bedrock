@@ -22,7 +22,6 @@ export const STEP_STATE_LABELS: Record<StepState, string> = {
 
 export const STEP_KIND_LABELS: Record<StepKind, string> = {
   payin: "Входящий платёж",
-  fx_conversion: "Конверсия",
   payout: "Выплата",
   intracompany_transfer: "Внутренний перевод",
   intercompany_funding: "Межкомпанейское фондирование",

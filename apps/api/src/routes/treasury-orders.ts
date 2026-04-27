@@ -5,11 +5,11 @@ import { ActionReceiptConflictError } from "@bedrock/platform/idempotency-postgr
 import type { Transaction } from "@bedrock/platform/persistence";
 import type { TreasuryModule } from "@bedrock/treasury";
 import {
-  PaymentStepKindSchema,
   PaymentStepPartyRefSchema,
   PaymentStepRateLockedSideSchema,
   PaymentStepRateSchema,
   TreasuryOrderStateSchema,
+  TreasuryOrderStepKindSchema,
   TreasuryOrderTypeSchema,
 } from "@bedrock/treasury/contracts";
 
@@ -40,7 +40,7 @@ const TreasuryOrderStepBodySchema = z.object({
   fromAmountMinor: OptionalMinorStringSchema,
   fromCurrencyId: z.uuid(),
   fromParty: PaymentStepPartyRefSchema,
-  kind: PaymentStepKindSchema,
+  kind: TreasuryOrderStepKindSchema,
   quoteId: z.uuid().nullable().optional().default(null),
   rate: PaymentStepRateSchema.nullable().optional().default(null),
   toAmountMinor: OptionalMinorStringSchema,
@@ -68,8 +68,9 @@ const TreasuryOrderStepResponseSchema = z.object({
   fromCurrencyId: z.uuid(),
   fromParty: PaymentStepPartyRefSchema,
   id: z.uuid(),
-  kind: PaymentStepKindSchema,
+  kind: TreasuryOrderStepKindSchema,
   paymentStepId: z.uuid().nullable(),
+  quoteExecutionId: z.uuid().nullable(),
   quoteId: z.uuid().nullable(),
   rate: z
     .object({
@@ -131,8 +132,9 @@ function serializeTreasuryOrder(order: {
     fromCurrencyId: string;
     fromParty: z.infer<typeof PaymentStepPartyRefSchema>;
     id: string;
-    kind: z.infer<typeof PaymentStepKindSchema>;
+    kind: z.infer<typeof TreasuryOrderStepKindSchema>;
     paymentStepId: string | null;
+    quoteExecutionId: string | null;
     quoteId: string | null;
     rate: z.infer<typeof PaymentStepRateSchema> | null;
     sequence: number;

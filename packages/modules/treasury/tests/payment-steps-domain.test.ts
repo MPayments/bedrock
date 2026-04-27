@@ -100,22 +100,10 @@ describe("PaymentStep domain", () => {
     ).toThrow(/deal context/u);
   });
 
-  it("requires quote reference for FX conversion steps", () => {
-    expect(() =>
-      createStep({
-        kind: "fx_conversion",
-        quoteId: null,
-      }),
-    ).toThrow(/quote reference/u);
-
-    expect(
-      createStep({
-        kind: "fx_conversion",
-        quoteId: "00000000-0000-4000-8000-000000000701",
-      }).toSnapshot(),
-    ).toMatchObject({
-      kind: "fx_conversion",
-      quoteId: "00000000-0000-4000-8000-000000000701",
+  it("keeps FX outside the payment-step kind vocabulary", () => {
+    expect(createStep().toSnapshot()).toMatchObject({
+      kind: "payout",
+      quoteId: null,
     });
   });
 

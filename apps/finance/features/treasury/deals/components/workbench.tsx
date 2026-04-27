@@ -15,11 +15,9 @@ import type {
   FinanceDealPaymentStep,
   FinanceDealWorkbench,
 } from "@/features/treasury/deals/lib/queries";
+import { QuoteExecutionCard } from "@/features/treasury/quote-executions/components/quote-execution-card";
 import { StepCard } from "@/features/treasury/steps/components/step-card";
-import type {
-  PartyKind,
-  PartyKindOrSnapshot,
-} from "@/features/treasury/steps/lib/party-options";
+import type { PartyKindOrSnapshot } from "@/features/treasury/steps/lib/party-options";
 import { executeMutation } from "@/lib/resources/http";
 
 import { DealAttachmentsCard } from "./deal-attachments-card";
@@ -41,8 +39,6 @@ function expectedPostingDocTypes(
   switch (kind) {
     case "payin":
       return ["invoice"];
-    case "fx_conversion":
-      return ["exchange", "fx_execute"];
     case "intracompany_transfer":
       return ["transfer_intra"];
     case "intercompany_funding":
@@ -113,6 +109,18 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
     [deal.executionSteps, selectedLeg],
   );
 
+  const selectedQuoteExecution = useMemo(
+    () =>
+      selectedLeg
+        ? (deal.quoteExecutions.find(
+            (execution) =>
+              execution.origin.type === "deal_execution_leg" &&
+              execution.origin.planLegId === selectedLeg.id,
+          ) ?? null)
+        : null,
+    [deal.quoteExecutions, selectedLeg],
+  );
+
   const {
     fromPartyDisplayName,
     fromPartyKind,
@@ -125,7 +133,7 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
     toPartyKind: PartyKindOrSnapshot | null;
   } = useMemo(() => {
     const attachment = deal.pricing.routeAttachment;
-    if (!attachment || !selectedLeg) {
+    if (!selectedLeg) {
       return {
         fromPartyDisplayName: null,
         fromPartyKind: null,
@@ -133,14 +141,23 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
         toPartyKind: null,
       };
     }
-    const source = attachment.participants[selectedLeg.idx - 1] ?? null;
-    const destination = attachment.participants[selectedLeg.idx] ?? null;
-    const pickKind = (entityKind: string | null): PartyKind | null =>
-      entityKind === "organization" ||
-      entityKind === "counterparty" ||
-      entityKind === "customer"
-        ? entityKind
-        : null;
+    const source = attachment?.participants[selectedLeg.idx - 1] ?? null;
+    const destination = attachment?.participants[selectedLeg.idx] ?? null;
+    const pickKind = (
+      entityKind: string | null,
+    ): PartyKindOrSnapshot | null => {
+      if (
+        entityKind === "organization" ||
+        entityKind === "counterparty" ||
+        entityKind === "customer"
+      ) {
+        return entityKind;
+      }
+      if (entityKind === "external_beneficiary_snapshot") {
+        return "beneficiary_snapshot";
+      }
+      return null;
+    };
 
     const isFinalLeg =
       selectedLeg.idx === deal.executionPlan.length &&
@@ -158,20 +175,28 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
       beneficiarySnapshotName !== null;
 
     return {
-      fromPartyDisplayName: source?.displayName ?? null,
-      fromPartyKind: pickKind(source?.entityKind ?? null),
+      fromPartyDisplayName:
+        source?.displayName ?? selectedStep?.fromParty.displayName ?? null,
+      fromPartyKind: pickKind(
+        source?.entityKind ?? selectedStep?.fromParty.entityKind ?? null,
+      ),
       toPartyDisplayName: useSnapshotForDestination
         ? beneficiarySnapshotName
-        : (destination?.displayName ?? null),
+        : (destination?.displayName ??
+          selectedStep?.toParty.displayName ??
+          null),
       toPartyKind: useSnapshotForDestination
         ? ("beneficiary_snapshot" as const)
-        : pickKind(destination?.entityKind ?? null),
+        : pickKind(
+            destination?.entityKind ?? selectedStep?.toParty.entityKind ?? null,
+          ),
     };
   }, [
     deal.executionPlan.length,
     deal.pricing.routeAttachment,
     deal.workflow,
     selectedLeg,
+    selectedStep,
   ]);
 
   async function autoLinkPostingsForStep(step: FinanceDealPaymentStep) {
@@ -190,27 +215,28 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
       await executeMutation({
         fallbackMessage: "Не удалось связать документ со шагом",
         request: () =>
-          fetch(
-            `/v1/treasury/steps/${encodeURIComponent(step.id)}/postings`,
-            {
-              method: "POST",
-              credentials: "include",
-              headers: {
-                "Content-Type": "application/json",
-                "Idempotency-Key": createIdempotencyKey(),
-              },
-              body: JSON.stringify({
-                documentId: doc.id,
-                kind: doc.docType,
-              }),
+          fetch(`/v1/treasury/steps/${encodeURIComponent(step.id)}/postings`, {
+            method: "POST",
+            credentials: "include",
+            headers: {
+              "Content-Type": "application/json",
+              "Idempotency-Key": createIdempotencyKey(),
             },
-          ),
+            body: JSON.stringify({
+              documentId: doc.id,
+              kind: doc.docType,
+            }),
+          }),
       });
     }
   }
 
   async function handleStepChanged(step: FinanceDealPaymentStep) {
     await autoLinkPostingsForStep(step);
+    router.refresh();
+  }
+
+  async function handleQuoteExecutionChanged() {
     router.refresh();
   }
 
@@ -236,7 +262,16 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
                 </div>
               ) : null}
 
-              {selectedStep && selectedLeg ? (
+              {selectedQuoteExecution && selectedLeg ? (
+                <QuoteExecutionCard
+                  disabled={!canWrite}
+                  execution={selectedQuoteExecution}
+                  title={`Шаг ${selectedLeg.idx} · ${getDealLegKindLabel(
+                    selectedLeg.kind,
+                  )}`}
+                  onChanged={handleQuoteExecutionChanged}
+                />
+              ) : selectedStep && selectedLeg ? (
                 <StepCard
                   step={selectedStep}
                   title={`Шаг ${selectedLeg.idx} · ${getDealLegKindLabel(

@@ -6,6 +6,7 @@ import type {
 } from "@bedrock/treasury/contracts";
 
 export type DealExecutionAmountRef =
+  | "accepted_quote_customer_debit"
   | "accepted_quote_from"
   | "accepted_quote_to"
   | "incoming_receipt_expected"
@@ -19,7 +20,7 @@ export interface CompiledDealExecutionOperation {
   legId: string;
   legIdx: number;
   legKind: DealWorkflowProjection["executionPlan"][number]["kind"];
-  operationKind: PaymentStepKind;
+  operationKind: PaymentStepKind | "quote_execution";
   quoteId: string | null;
   quoteLegIdx: number | null;
   sourceRef: string;
@@ -43,6 +44,10 @@ function resolveFundingOperationKind(input: {
 function resolvePayoutAmountRef(
   workflow: DealWorkflowProjection,
 ): DealExecutionAmountRef {
+  if (workflow.summary.type === "payment") {
+    return "incoming_receipt_expected";
+  }
+
   const hasConvert = workflow.executionPlan.some(
     (leg) => leg.kind === "convert",
   );
@@ -93,7 +98,7 @@ export function compileDealExecutionRecipe(input: {
 
       let amountRef: DealExecutionAmountRef | null = null;
       let counterAmountRef: DealExecutionAmountRef | null = null;
-      let operationKind: PaymentStepKind;
+      let operationKind: PaymentStepKind | "quote_execution";
       let quoteId: string | null = null;
       let quoteLegIdx: number | null = null;
 
@@ -112,14 +117,18 @@ export function compileDealExecutionRecipe(input: {
         case "collect":
           operationKind = "payin";
           amountRef =
-            input.workflow.summary.type === "exporter_settlement"
+            input.workflow.summary.type === "payment"
+              ? hasConvert && input.acceptedQuote
+                ? "accepted_quote_customer_debit"
+                : "incoming_receipt_expected"
+              : input.workflow.summary.type === "exporter_settlement"
               ? "incoming_receipt_expected"
               : hasConvert && input.acceptedQuote
                 ? "accepted_quote_from"
                 : "money_request_source";
           break;
         case "convert":
-          operationKind = "fx_conversion";
+          operationKind = "quote_execution";
           quoteId = input.acceptedQuote?.quote.id ?? null;
           if (isRouteDerived) {
             amountRef = "quote_leg_from";

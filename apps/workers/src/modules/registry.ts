@@ -40,6 +40,7 @@ import { createTreasuryModule } from "@bedrock/treasury";
 import {
   DrizzlePaymentRouteTemplatesRepository,
   DrizzlePaymentStepsRepository,
+  DrizzleQuoteExecutionsRepository,
   DrizzleTreasuryFeeRulesRepository,
   DrizzleTreasuryOrdersRepository,
   DrizzleTreasuryQuoteFeeComponentsRepository,
@@ -261,6 +262,7 @@ export function createWorkerImplementations(
     paymentRouteTemplatesRepository:
       new DrizzlePaymentRouteTemplatesRepository(deps.db),
     paymentStepsRepository: new DrizzlePaymentStepsRepository(deps.db),
+    quoteExecutionsRepository: new DrizzleQuoteExecutionsRepository(deps.db),
     treasuryOrdersRepository: new DrizzleTreasuryOrdersRepository(deps.db),
     unitOfWork: new DrizzleTreasuryUnitOfWork({
       persistence: createPersistenceContext(deps.db),

@@ -2,7 +2,7 @@ export function buildCrmDealDocumentCreateHref(
   dealId: string,
   docType: string,
 ): string {
-  return `/deals/${encodeURIComponent(dealId)}/documents/create/${encodeURIComponent(docType)}`;
+  return `/deals/${encodeURIComponent(dealId)}/documents/create?docType=${encodeURIComponent(docType)}`;
 }
 
 export function buildCrmDealDocumentDetailsHref(

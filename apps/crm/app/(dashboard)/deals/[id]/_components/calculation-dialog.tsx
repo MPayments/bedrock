@@ -110,9 +110,11 @@ export function CalculationDialog({
   loadingLabel = "Сохраняем...",
 }: CalculationDialogProps) {
   const amountLabel =
-    amountSide === "target" ? "Сумма оплаты" : "Сумма списания";
+    amountSide === "target"
+      ? "Сумма к выплате бенефициару"
+      : "Сумма списания";
   const toCurrencyLabel =
-    amountSide === "target" ? "Валюта оплаты" : "Валюта назначения";
+    amountSide === "target" ? "Валюта выплаты" : "Валюта назначения";
   const formatCurrencyLabel = (code: string | null | undefined) => {
     if (!code) {
       return "—";
@@ -287,7 +289,11 @@ export function CalculationDialog({
         <div className="grid min-h-0 gap-6 overflow-y-auto py-2 pr-1 md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
           <div className="grid content-start gap-4">
             <div className="grid gap-2 rounded-md border bg-muted/20 p-3">
-              <Label>Валюта списания</Label>
+              <Label>
+                {amountSide === "target"
+                  ? "Валюта списания / фондирования"
+                  : "Валюта списания"}
+              </Label>
               <Input
                 disabled
                 value={formatCurrencyLabel(sourceCurrency?.code)}

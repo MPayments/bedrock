@@ -270,7 +270,6 @@ function createCloseDealHarness(input?: {
     id: string;
     kind:
       | "payin"
-      | "fx_conversion"
       | "payout"
       | "intracompany_transfer"
       | "intercompany_funding"
@@ -441,6 +440,16 @@ function createCloseDealHarness(input?: {
           }),
         },
       },
+      quoteExecutions: {
+        queries: {
+          list: vi.fn(async () => ({
+            data: [],
+            limit: 100,
+            offset: 0,
+            total: 0,
+          })),
+        },
+      },
       quotes: {
         queries: {
           getQuoteDetails: vi.fn(async () => null),
@@ -492,7 +501,7 @@ describe("deal execution workflow", () => {
       }).map((item) => [item.legKind, item.operationKind, item.sourceRef]),
     ).toEqual([
       ["collect", "payin", "deal:deal-1:plan-leg:leg-1:payin:1"],
-      ["convert", "fx_conversion", "deal:deal-1:plan-leg:leg-2:fx_conversion:1"],
+      ["convert", "quote_execution", "deal:deal-1:plan-leg:leg-2:quote_execution:1"],
       ["payout", "payout", "deal:deal-1:plan-leg:leg-3:payout:1"],
     ]);
   });
@@ -513,7 +522,7 @@ describe("deal execution workflow", () => {
       }).map((item) => [item.legKind, item.operationKind, item.sourceRef]),
     ).toEqual([
       ["collect", "payin", "deal:deal-1:plan-leg:leg-1:payin:1"],
-      ["convert", "fx_conversion", "deal:deal-1:plan-leg:leg-2:fx_conversion:1"],
+      ["convert", "quote_execution", "deal:deal-1:plan-leg:leg-2:quote_execution:1"],
       [
         "transit_hold",
         "intracompany_transfer",
@@ -703,12 +712,12 @@ describe("deal execution workflow", () => {
         item.quoteLegIdx,
       ]),
     ).toEqual([
-      ["collect", "accepted_quote_from", null, null],
+      ["collect", "accepted_quote_customer_debit", null, null],
       ["transit_hold", "quote_leg_to", null, 1],
       ["convert", "quote_leg_from", "quote_leg_to", 2],
       ["transit_hold", "quote_leg_to", null, 3],
       ["convert", "quote_leg_from", "quote_leg_to", 4],
-      ["payout", "accepted_quote_to", null, null],
+      ["payout", "incoming_receipt_expected", null, null],
     ]);
 
     // Every route-derived leg carries its own unique quoteLegIdx so the
@@ -788,7 +797,7 @@ describe("deal execution workflow", () => {
     ).toEqual([
       ["payout", "payout", "deal:deal-1:plan-leg:leg-1:payout:1"],
       ["collect", "payin", "deal:deal-1:plan-leg:leg-2:payin:1"],
-      ["convert", "fx_conversion", "deal:deal-1:plan-leg:leg-3:fx_conversion:1"],
+      ["convert", "quote_execution", "deal:deal-1:plan-leg:leg-3:quote_execution:1"],
       [
         "settle_exporter",
         "intercompany_funding",
@@ -809,7 +818,7 @@ describe("deal execution workflow", () => {
       withConvert: true,
       operationRefs: [
         [{ kind: "payin", operationId: "op-1", sourceRef: "deal:deal-1:plan-leg:leg-1:payin:1" }],
-        [{ kind: "fx_conversion", operationId: "op-2", sourceRef: "deal:deal-1:plan-leg:leg-2:fx_conversion:1" }],
+        [{ kind: "quote_execution", operationId: "op-2", sourceRef: "deal:deal-1:plan-leg:leg-2:quote_execution:1" }],
         [{ kind: "payout", operationId: "op-3", sourceRef: "deal:deal-1:plan-leg:leg-3:payout:1" }],
       ],
       status: "awaiting_funds",
@@ -835,7 +844,12 @@ describe("deal execution workflow", () => {
         offset: 0,
         total: 1,
       });
+    const listQuoteExecutions = vi
+      .fn()
+      .mockResolvedValueOnce({ data: [], limit: 1, offset: 0, total: 0 })
+      .mockResolvedValue({ data: [], limit: 1, offset: 0, total: 0 });
     const createPaymentStep = vi.fn(async () => undefined);
+    const createQuoteExecution = vi.fn(async () => undefined);
     const workflow = createDealExecutionWorkflow({
       agreements: {
         agreements: {
@@ -887,6 +901,14 @@ describe("deal execution workflow", () => {
           },
           queries: {
             list: listPaymentSteps,
+          },
+        },
+        quoteExecutions: {
+          commands: {
+            create: createQuoteExecution,
+          },
+          queries: {
+            list: listQuoteExecutions,
           },
         },
         quotes: {

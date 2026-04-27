@@ -13,13 +13,12 @@ import {
 
 import { currencies } from "@bedrock/currencies/schema";
 
-import type {
-  PaymentStepKind,
-  PaymentStepRate,
-} from "../../../payment-steps/domain/types";
+import type { PaymentStepRate } from "../../../payment-steps/domain/types";
 import { paymentSteps } from "../../../payment-steps/infra/drizzle/schema";
+import { quoteExecutions } from "../../../quote-executions/infra/drizzle/schema";
 import type {
   TreasuryOrderState,
+  TreasuryOrderStepKind,
   TreasuryOrderType,
 } from "../../domain/types";
 
@@ -55,9 +54,12 @@ export const treasuryOrderSteps = pgTable(
       .notNull()
       .references(() => treasuryOrders.id, { onDelete: "cascade" }),
     sequence: integer("sequence").notNull(),
-    kind: text("kind").$type<PaymentStepKind>().notNull(),
+    kind: text("kind").$type<TreasuryOrderStepKind>().notNull(),
     sourceRef: text("source_ref").notNull(),
     paymentStepId: uuid("payment_step_id").references(() => paymentSteps.id),
+    quoteExecutionId: uuid("quote_execution_id").references(
+      () => quoteExecutions.id,
+    ),
     quoteId: uuid("quote_id"),
     fromPartyId: uuid("from_party_id").notNull(),
     fromRequisiteId: uuid("from_requisite_id"),
@@ -88,5 +90,8 @@ export const treasuryOrderSteps = pgTable(
     uniqueIndex("treasury_order_steps_source_ref_uq").on(table.sourceRef),
     index("treasury_order_steps_order_idx").on(table.orderId),
     index("treasury_order_steps_payment_step_idx").on(table.paymentStepId),
+    index("treasury_order_steps_quote_execution_idx").on(
+      table.quoteExecutionId,
+    ),
   ],
 );

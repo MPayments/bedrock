@@ -2,7 +2,10 @@ import type {
   DealOperationalPosition,
   DealWorkflowProjection,
 } from "@bedrock/deals/contracts";
-import type { PaymentStep } from "@bedrock/treasury/contracts";
+import type {
+  PaymentStep,
+  QuoteExecution,
+} from "@bedrock/treasury/contracts";
 
 import type { FinanceDealQueue } from "../contracts";
 import { collectBlockingReasons } from "../shared/workflow-helpers";
@@ -75,17 +78,28 @@ export function buildFinanceQuoteRequestContext(
 
 export function summarizeExecutionPlan(input: {
   paymentStepByPlanLegId: ReadonlyMap<string, PaymentStep>;
+  quoteExecutionByPlanLegId?: ReadonlyMap<string, QuoteExecution>;
   workflow: DealWorkflowProjection;
 }) {
+  const quoteExecutionByPlanLegId =
+    input.quoteExecutionByPlanLegId ?? new Map<string, QuoteExecution>();
   const linkedSteps = input.workflow.executionPlan
-    .map((leg) =>
-      leg.id ? input.paymentStepByPlanLegId.get(leg.id) : undefined,
-    )
-    .filter((step): step is PaymentStep => Boolean(step));
+    .map((leg) => {
+      if (!leg.id) return undefined;
+      return leg.kind === "convert"
+        ? (quoteExecutionByPlanLegId.get(leg.id) ??
+            input.paymentStepByPlanLegId.get(leg.id))
+        : (input.paymentStepByPlanLegId.get(leg.id) ??
+            quoteExecutionByPlanLegId.get(leg.id));
+    })
+    .filter((step): step is PaymentStep | QuoteExecution => Boolean(step));
 
   return {
     blockedLegCount: linkedSteps.filter(
-      (step) => step.state === "failed" || step.state === "returned",
+      (step) =>
+        step.state === "failed" ||
+        step.state === "returned" ||
+        step.state === "expired",
     ).length,
     doneLegCount: linkedSteps.filter((step) => step.state === "completed")
       .length,

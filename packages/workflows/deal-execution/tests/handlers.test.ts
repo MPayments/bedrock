@@ -35,7 +35,7 @@ function createWorkflowProjection(input?: {
       state: "not_applicable" as const,
       strategy: null,
       targetCurrency: null,
-      targetCurrencyId: null,
+      targetCurrencyId: "cur-usd",
     },
     intake: {
       common: {
@@ -60,7 +60,7 @@ function createWorkflowProjection(input?: {
         purpose: "Test",
         sourceAmount: "100.00",
         sourceCurrencyId: "cur-usd",
-        targetCurrencyId: null,
+        targetCurrencyId: "cur-usd",
       },
       settlementDestination: {
         bankInstructionSnapshot: null,
@@ -120,6 +120,7 @@ function createWorkflowProjection(input?: {
 
 function createHarness(input: {
   paymentStepsListResult?: { data: unknown[]; total: number };
+  quoteExecutionsListResult?: { data: unknown[]; total: number };
   workflow: Workflow;
 }) {
   const findWorkflowById = vi.fn(async () => input.workflow);
@@ -128,6 +129,12 @@ function createHarness(input: {
     limit: 100,
     offset: 0,
     total: input.paymentStepsListResult?.total ?? 0,
+  }));
+  const listQuoteExecutions = vi.fn(async () => ({
+    data: input.quoteExecutionsListResult?.data ?? [],
+    limit: 100,
+    offset: 0,
+    total: input.quoteExecutionsListResult?.total ?? 0,
   }));
   const createOrGetPlanned = vi.fn(async (req: any) => ({
     amountMinor: req.amountMinor ?? null,
@@ -194,6 +201,10 @@ function createHarness(input: {
         commands: { create: createPaymentStep },
         queries: { list: listPaymentSteps },
       },
+      quoteExecutions: {
+        commands: { create: vi.fn(async () => undefined) },
+        queries: { list: listQuoteExecutions },
+      },
       quotes: {
         queries: { getQuoteDetails: vi.fn(async () => null) },
       },
@@ -204,6 +215,7 @@ function createHarness(input: {
     createDealLegOperationLinks,
     createOrGetPlanned,
     createPaymentStep,
+    listQuoteExecutions,
     listPaymentSteps,
     workflow: workflowService,
   };

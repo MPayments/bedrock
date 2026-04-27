@@ -258,8 +258,14 @@ export function buildCrmBreadcrumbs(
             label: "Документы",
           });
 
-          if (pathSegments[3] === "create" && pathSegments[4]) {
-            const createHref = `${dealHref}/documents/create/${pathSegments[4]}`;
+          if (pathSegments[3] === "create") {
+            const createDocType =
+              pathSegments[4] ?? normalizedSearchParams.get("docType");
+            const createHref = `${dealHref}/documents/create${
+              createDocType
+                ? `?docType=${encodeURIComponent(createDocType)}`
+                : ""
+            }`;
             breadcrumbs.push({
               href: createHref,
               icon: "documents",

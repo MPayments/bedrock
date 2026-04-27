@@ -1,8 +1,7 @@
 import {
-  TreasuryOrderConflictError,
-  TreasuryOrderNotFoundError,
-} from "../../errors";
-import { TreasuryOrder } from "../domain/treasury-order";
+  createTreasuryOrdersServiceContext,
+  type TreasuryOrdersServiceDeps,
+} from "./context";
 import {
   CreateTreasuryOrderInputSchema,
   GetTreasuryOrderByIdInputSchema,
@@ -13,9 +12,11 @@ import {
   type ListTreasuryOrdersQuery,
 } from "./contracts";
 import {
-  createTreasuryOrdersServiceContext,
-  type TreasuryOrdersServiceDeps,
-} from "./context";
+  TreasuryOrderConflictError,
+  TreasuryOrderNotFoundError,
+  ValidationError,
+} from "../../errors";
+import { TreasuryOrder } from "../domain/treasury-order";
 
 export function createTreasuryOrdersService(deps: TreasuryOrdersServiceDeps) {
   const context = createTreasuryOrdersServiceContext(deps);
@@ -52,7 +53,50 @@ export function createTreasuryOrdersService(deps: TreasuryOrdersServiceDeps) {
     const purpose = activated.type === "pre_fund" ? "pre_fund" : "standalone_payment";
 
     for (const step of activated.steps) {
-      if (step.paymentStepId) continue;
+      if (step.paymentStepId || step.quoteExecutionId) continue;
+      if (step.kind === "quote_execution") {
+        if (!step.quoteId) {
+          throw new ValidationError(
+            `Treasury order step ${step.id} requires quoteId`,
+          );
+        }
+        if (!step.fromAmountMinor || !step.toAmountMinor) {
+          throw new ValidationError(
+            `Treasury order FX step ${step.id} requires amounts`,
+          );
+        }
+        const created = await context.quoteExecutions.commands.create({
+          dealId: null,
+          fromAmountMinor: step.fromAmountMinor,
+          fromCurrencyId: step.fromCurrencyId,
+          initialState: "pending",
+          origin: {
+            dealId: null,
+            planLegId: step.id,
+            routeSnapshotLegId: null,
+            sequence: step.sequence,
+            treasuryOrderId: activated.id,
+            type: "treasury_order_step",
+          },
+          quoteId: step.quoteId,
+          quoteLegIdx: null,
+          quoteSnapshot: null,
+          settlementRoute: {
+            creditParty: step.toParty,
+            debitParty: step.fromParty,
+          },
+          sourceRef: step.sourceRef,
+          toAmountMinor: step.toAmountMinor,
+          toCurrencyId: step.toCurrencyId,
+          treasuryOrderId: activated.id,
+        });
+        order = order.linkQuoteExecution(
+          step.id,
+          created.id,
+          context.runtime.now(),
+        );
+        continue;
+      }
       const created = await context.paymentSteps.commands.create({
         dealId: null,
         fromAmountMinor: step.fromAmountMinor,

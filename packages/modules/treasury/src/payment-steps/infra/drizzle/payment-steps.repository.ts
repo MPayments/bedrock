@@ -72,9 +72,7 @@ function deserializeRouteSnapshot(value: unknown): PaymentStepRouteSnapshot {
   };
 }
 
-function serializeAmendments(
-  records: PaymentStepAmendmentRecord[],
-): unknown {
+function serializeAmendments(records: PaymentStepAmendmentRecord[]): unknown {
   return records.map((record) => ({
     ...record,
     after: serializeRouteSnapshot(record.after),
@@ -104,25 +102,28 @@ function toStepRecord(
   artifacts: ArtifactRef[] = [],
   returns: PaymentStepReturnRecord[] = [],
 ): PaymentStepRecord {
+  const currentRoute = deserializeRouteSnapshot(row.currentRoute);
+  const plannedRoute = deserializeRouteSnapshot(row.plannedRoute);
+
   return {
     amendments: deserializeAmendments(row.amendments),
     artifacts,
     attempts,
     completedAt: row.completedAt,
-    currentRoute: deserializeRouteSnapshot(row.currentRoute),
+    currentRoute,
     createdAt: row.createdAt,
     dealId: row.dealId,
     failureReason: row.failureReason,
     fromAmountMinor: row.fromAmountMinor,
     fromCurrencyId: row.fromCurrencyId,
-    fromParty: {
+    fromParty: currentRoute.fromParty ?? {
       id: row.fromPartyId,
       requisiteId: row.fromRequisiteId,
     },
     id: row.id,
     kind: row.kind,
     origin: row.origin,
-    plannedRoute: deserializeRouteSnapshot(row.plannedRoute),
+    plannedRoute,
     postingDocumentRefs: row.postingDocumentRefs,
     purpose: row.purpose,
     quoteId: row.quoteId,
@@ -130,7 +131,7 @@ function toStepRecord(
       ? {
           lockedSide: row.rateLockedSide ?? "in",
           value: row.rateValue,
-      }
+        }
       : null,
     returns,
     scheduledAt: row.scheduledAt,
@@ -139,7 +140,7 @@ function toStepRecord(
     submittedAt: row.submittedAt,
     toAmountMinor: row.toAmountMinor,
     toCurrencyId: row.toCurrencyId,
-    toParty: {
+    toParty: currentRoute.toParty ?? {
       id: row.toPartyId,
       requisiteId: row.toRequisiteId,
     },
@@ -450,7 +451,10 @@ export class DrizzlePaymentStepsRepository implements PaymentStepsRepository {
       .select()
       .from(paymentStepAttempts)
       .where(inArray(paymentStepAttempts.paymentStepId, stepIds))
-      .orderBy(paymentStepAttempts.paymentStepId, paymentStepAttempts.attemptNo);
+      .orderBy(
+        paymentStepAttempts.paymentStepId,
+        paymentStepAttempts.attemptNo,
+      );
     const byStepId = new Map<string, PaymentStepAttemptRecord[]>();
 
     for (const row of rows) {

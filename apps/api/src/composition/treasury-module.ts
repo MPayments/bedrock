@@ -14,6 +14,7 @@ import {
 import {
   DrizzlePaymentRouteTemplatesRepository,
   DrizzlePaymentStepsRepository,
+  DrizzleQuoteExecutionsRepository,
   DrizzleTreasuryFeeRulesRepository,
   DrizzleTreasuryOrdersRepository,
   DrizzleTreasuryQuoteFeeComponentsRepository,
@@ -49,6 +50,7 @@ export function createApiTreasuryModule(input: {
     paymentRouteTemplatesRepository:
       new DrizzlePaymentRouteTemplatesRepository(input.db),
     paymentStepsRepository: new DrizzlePaymentStepsRepository(input.db),
+    quoteExecutionsRepository: new DrizzleQuoteExecutionsRepository(input.db),
     treasuryOrdersRepository: new DrizzleTreasuryOrdersRepository(input.db),
     unitOfWork: new DrizzleTreasuryUnitOfWork({ persistence }),
     rateSourceProviders: createDefaultRateSourceProviders(),

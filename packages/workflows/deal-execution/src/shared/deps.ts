@@ -29,7 +29,7 @@ export interface DealExecutionStore {
 
 export type DealExecutionTreasuryModule = Pick<
   TreasuryModule,
-  "paymentSteps" | "quotes"
+  "paymentSteps" | "quoteExecutions" | "quotes"
 >;
 
 export interface DealExecutionTxDeps {

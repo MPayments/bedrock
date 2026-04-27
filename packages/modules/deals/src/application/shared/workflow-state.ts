@@ -21,6 +21,22 @@ import type {
   DealReferencesPort,
 } from "../ports/references.port";
 
+export function normalizeDealIntakeDraft(
+  intake: DealIntakeDraft,
+): DealIntakeDraft {
+  if (intake.type !== "payment") {
+    return intake;
+  }
+
+  return {
+    ...intake,
+    moneyRequest: {
+      ...intake.moneyRequest,
+      sourceAmount: null,
+    },
+  };
+}
+
 export async function deriveDealRootState(input: {
   acceptance: DealQuoteAcceptance | null;
   calculationId: string | null;
@@ -28,28 +44,31 @@ export async function deriveDealRootState(input: {
   references: DealReferencesPort;
   status: DealStatus;
 }) {
-  const sourceCurrency = input.intake.moneyRequest.sourceCurrencyId
+  const intake = normalizeDealIntakeDraft(input.intake);
+  const sourceCurrency = intake.moneyRequest.sourceCurrencyId
     ? await input.references.findCurrencyById(
-        input.intake.moneyRequest.sourceCurrencyId,
+        intake.moneyRequest.sourceCurrencyId,
       )
     : null;
 
   const sourceAmountMinor =
-    input.intake.moneyRequest.sourceAmount && sourceCurrency
+    intake.type !== "payment" &&
+    intake.moneyRequest.sourceAmount &&
+    sourceCurrency
       ? BigInt(
           toMinorAmountString(
-            input.intake.moneyRequest.sourceAmount,
+            intake.moneyRequest.sourceAmount,
             sourceCurrency.code,
           ),
         )
       : null;
 
-  const sectionCompleteness = evaluateDealSectionCompleteness(input.intake);
+  const sectionCompleteness = evaluateDealSectionCompleteness(intake);
   const nextAction = deriveDealNextAction({
     acceptance: input.acceptance,
     calculationId: input.calculationId,
     completeness: sectionCompleteness,
-    intake: input.intake,
+    intake,
     status: input.status,
   });
 
@@ -57,8 +76,8 @@ export async function deriveDealRootState(input: {
     nextAction,
     sectionCompleteness,
     sourceAmountMinor,
-    sourceCurrencyId: input.intake.moneyRequest.sourceCurrencyId ?? null,
-    targetCurrencyId: input.intake.moneyRequest.targetCurrencyId ?? null,
+    sourceCurrencyId: intake.moneyRequest.sourceCurrencyId ?? null,
+    targetCurrencyId: intake.moneyRequest.targetCurrencyId ?? null,
   };
 }
 

@@ -186,6 +186,7 @@ function createDeal(): FinanceDealWorkbenchData {
     },
     calculationHistory: [],
     executionSteps: [],
+    quoteExecutions: [],
     executionPlan: [
       {
         actions: {
@@ -254,6 +255,7 @@ function createDeal(): FinanceDealWorkbenchData {
       attachments: [],
       formalDocuments: [],
       paymentSteps: [],
+      quoteExecutions: [],
       quotes: [],
       reconciliationExceptions: [],
     },

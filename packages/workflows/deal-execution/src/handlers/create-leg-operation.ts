@@ -43,18 +43,31 @@ export async function createLegOperation(
         );
       }
 
-      const existingSteps = await treasuryModule.paymentSteps.queries.list({
-        dealId: input.dealId,
-        limit: 100,
-        offset: 0,
-        purpose: "deal_leg",
-      });
+      const [existingSteps, existingQuoteExecutions] = await Promise.all([
+        treasuryModule.paymentSteps.queries.list({
+          dealId: input.dealId,
+          limit: 100,
+          offset: 0,
+          purpose: "deal_leg",
+        }),
+        treasuryModule.quoteExecutions.queries.list({
+          dealId: input.dealId,
+          limit: 100,
+          offset: 0,
+        }),
+      ]);
       if (
         existingSteps.data.some(
           (step) =>
             step.origin.type === "deal_execution_leg" &&
             step.origin.planLegId === leg.id &&
             !["cancelled", "skipped"].includes(step.state),
+        ) ||
+        existingQuoteExecutions.data.some(
+          (execution) =>
+            execution.origin.type === "deal_execution_leg" &&
+            execution.origin.planLegId === leg.id &&
+            !["cancelled"].includes(execution.state),
         )
       ) {
         return workflow;

@@ -60,6 +60,22 @@ export class PaymentStepConflictError extends TreasuryError {
   }
 }
 
+export class QuoteExecutionNotFoundError extends TreasuryError {
+  name = "QuoteExecutionNotFoundError";
+
+  constructor(executionId: string) {
+    super(`Quote execution not found: ${executionId}`);
+  }
+}
+
+export class QuoteExecutionConflictError extends TreasuryError {
+  name = "QuoteExecutionConflictError";
+
+  constructor(sourceRef: string) {
+    super(`Quote execution already exists for source reference: ${sourceRef}`);
+  }
+}
+
 export class TreasuryOrderNotFoundError extends TreasuryError {
   name = "TreasuryOrderNotFoundError";
 

@@ -19,8 +19,8 @@ import {
 } from "@/features/treasury/steps/lib/step-helpers";
 
 const KIND_LABELS: Record<TreasuryOperationRow["kind"], string> = {
+  quote_execution: "Конверсия",
   payin: "Входящий платёж",
-  fx_conversion: "Конверсия",
   payout: "Выплата",
   intracompany_transfer: "Внутренний перевод",
   intercompany_funding: "Межкомпанейское фондирование",
@@ -47,8 +47,20 @@ const STATE_FILTER_OPTIONS: Array<{
     "returned",
     "cancelled",
     "skipped",
+    "expired",
   ] as const
-).map((state) => ({ label: STEP_STATE_LABELS[state], value: state }));
+).map((state) => ({
+  label: state === "expired" ? "Истекла" : STEP_STATE_LABELS[state],
+  value: state,
+}));
+
+function getStateLabel(state: TreasuryOperationRow["state"]) {
+  return state === "expired" ? "Истекла" : STEP_STATE_LABELS[state];
+}
+
+function getBadgeVariant(state: TreasuryOperationRow["state"]) {
+  return state === "expired" ? "destructive" : stepBadgeVariant(state);
+}
 
 const PURPOSE_FILTER_OPTIONS: Array<{
   label: string;
@@ -102,8 +114,8 @@ export const columns: ColumnDef<TreasuryOperationRow>[] = [
       <DataTableColumnHeader column={column} label="Статус" />
     ),
     cell: ({ row }) => (
-      <Badge variant={stepBadgeVariant(row.original.state)}>
-        {STEP_STATE_LABELS[row.original.state]}
+      <Badge variant={getBadgeVariant(row.original.state)}>
+        {getStateLabel(row.original.state)}
       </Badge>
     ),
     meta: {
@@ -177,7 +189,9 @@ export const columns: ColumnDef<TreasuryOperationRow>[] = [
     ),
     cell: ({ row }) => (
       <span className="text-sm tabular-nums">
-        {row.original.attempts.length}
+        {row.original.runtimeType === "payment_step"
+          ? row.original.attempts.length
+          : "—"}
       </span>
     ),
     enableSorting: false,

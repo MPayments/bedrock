@@ -27,22 +27,29 @@ export async function requestExecution(
     handler: async ({ dealStore, dealsModule, treasuryModule }) => {
       const workflow = await requireWorkflow(dealsModule, input.dealId);
 
-      const existingSteps = await treasuryModule.paymentSteps.queries.list({
-        dealId: input.dealId,
-        limit: 1,
-        offset: 0,
-        purpose: "deal_leg",
-        state: [
-          "draft",
-          "scheduled",
-          "pending",
-          "processing",
-          "completed",
-          "failed",
-          "returned",
-        ],
-      });
-      if (existingSteps.total > 0) {
+      const [existingSteps, existingQuoteExecutions] = await Promise.all([
+        treasuryModule.paymentSteps.queries.list({
+          dealId: input.dealId,
+          limit: 1,
+          offset: 0,
+          purpose: "deal_leg",
+          state: [
+            "draft",
+            "scheduled",
+            "pending",
+            "processing",
+            "completed",
+            "failed",
+            "returned",
+          ],
+        }),
+        treasuryModule.quoteExecutions.queries.list({
+          dealId: input.dealId,
+          limit: 1,
+          offset: 0,
+        }),
+      ]);
+      if (existingSteps.total > 0 || existingQuoteExecutions.total > 0) {
         return workflow;
       }
 

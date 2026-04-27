@@ -61,6 +61,16 @@ interface PricingArtifacts {
   profitability: DealPricingProfitability | null;
 }
 
+interface DealPricingAmountSnapshot {
+  amountSide: "source" | "target";
+  commercialRevenueMinor: string;
+  customerDebitMinor: string;
+  customerReceivesMinor: string;
+  fxPrincipalFromAmountMinor: string;
+  passThroughMinor: string;
+  requestedAmountMinor: string;
+}
+
 interface CurrencyPairRequirement {
   fromCurrency: string;
   toCurrency: string;
@@ -937,7 +947,9 @@ async function buildProfitability(input: {
     ? BigInt(input.routePreview.costPriceInMinor)
     : input.quotePreview.fromAmountMinor;
   const customerTotalMinor =
-    customerPrincipalMinor + financialSummary.passThroughMinor;
+    customerPrincipalMinor +
+    financialSummary.commercialRevenueMinor +
+    financialSummary.passThroughMinor;
   const profitMinor =
     customerPrincipalMinor -
     costPriceMinor +
@@ -977,6 +989,25 @@ function formatBpsPercent(bps: bigint | string) {
   return `${formatFractionDecimal(bps, 100n, { scale: 2 })}%`;
 }
 
+function buildAmountSnapshot(input: {
+  amountSide: "source" | "target";
+  profitability: DealPricingProfitability | null;
+  quotePreview: QuotePreviewRecord;
+  requestedAmountMinor: string;
+}): DealPricingAmountSnapshot {
+  return {
+    amountSide: input.amountSide,
+    commercialRevenueMinor: input.profitability?.commercialRevenueMinor ?? "0",
+    customerDebitMinor:
+      input.profitability?.customerTotalMinor ??
+      input.quotePreview.fromAmountMinor.toString(),
+    customerReceivesMinor: input.quotePreview.toAmountMinor.toString(),
+    fxPrincipalFromAmountMinor: input.quotePreview.fromAmountMinor.toString(),
+    passThroughMinor: input.profitability?.passThroughMinor ?? "0",
+    requestedAmountMinor: input.requestedAmountMinor,
+  };
+}
+
 function normalizeRateSourceLabel(rateSource: string) {
   switch (rateSource) {
     case "market":
@@ -1012,23 +1043,59 @@ function buildClientPricingLines(input: {
     input.quotePreview.toAmountMinor,
     input.quotePreview.toCurrency,
   );
+  const customerDebit = input.profitability
+    ? formatAmountLabel(
+        input.profitability.customerTotalMinor,
+        input.profitability.currency,
+      )
+    : fromAmount;
+  const commercialRevenueMinor = input.profitability
+    ? BigInt(input.profitability.commercialRevenueMinor)
+    : 0n;
+  const passThroughMinor = input.profitability
+    ? BigInt(input.profitability.passThroughMinor)
+    : 0n;
+  const extraChargesMinor = commercialRevenueMinor + passThroughMinor;
 
-  lines.push({
-    currency:
-      input.amountSide === "source"
-        ? input.quotePreview.toCurrency
-        : input.quotePreview.fromCurrency,
-    expression:
-      input.amountSide === "source"
-        ? `${fromAmount} / ${reverseRate} = ${toAmount}`
-        : `${toAmount} × ${reverseRate} = ${fromAmount}`,
-    kind: "equation",
-    label: "Цена клиенту",
-    metadata: {
-      pricingBase: input.benchmarks.pricingBase,
-    },
-    result: input.amountSide === "source" ? toAmount : fromAmount,
-  });
+  if (input.amountSide === "target") {
+    lines.push({
+      currency: input.quotePreview.toCurrency,
+      expression: toAmount,
+      kind: "note",
+      label: "Бенефициар получит",
+      metadata: {
+        pricingBase: input.benchmarks.pricingBase,
+      },
+      result: toAmount,
+    });
+    lines.push({
+      currency: input.quotePreview.fromCurrency,
+      expression:
+        extraChargesMinor > 0n
+          ? `${fromAmount} + ${formatAmountLabel(
+              extraChargesMinor,
+              input.quotePreview.fromCurrency,
+            )} = ${customerDebit}`
+          : `${toAmount} × ${reverseRate} = ${customerDebit}`,
+      kind: "equation",
+      label: "Ожидаемое списание клиента",
+      metadata: {
+        pricingBase: input.benchmarks.pricingBase,
+      },
+      result: customerDebit,
+    });
+  } else {
+    lines.push({
+      currency: input.quotePreview.toCurrency,
+      expression: `${fromAmount} / ${reverseRate} = ${toAmount}`,
+      kind: "equation",
+      label: "Расчёт получения",
+      metadata: {
+        pricingBase: input.benchmarks.pricingBase,
+      },
+      result: toAmount,
+    });
+  }
 
   const pricingBaseRate =
     input.benchmarks.routeBase ?? input.benchmarks.market;
@@ -1073,18 +1140,15 @@ function buildClientPricingLines(input: {
     });
   }
 
-  if (
-    input.profitability &&
-    BigInt(input.profitability.passThroughMinor) > 0n
-  ) {
+  if (input.profitability && extraChargesMinor > 0n) {
     lines.push({
       currency: input.profitability.currency,
       expression: formatAmountLabel(
-        input.profitability.passThroughMinor,
+        extraChargesMinor,
         input.profitability.currency,
       ),
       kind: "note",
-      label: "Перевыставляемые расходы сверху",
+      label: "Комиссии и маржа",
       metadata: {},
       result: formatAmountLabel(
         input.profitability.customerTotalMinor,
@@ -1365,10 +1429,13 @@ async function buildPricingArtifacts(input: {
 }
 
 function withCrmPricingSnapshot(input: {
+  amountSide: "source" | "target";
   benchmarks: DealPricingBenchmarks;
   formulaTrace: DealPricingFormulaTrace;
   profitability: DealPricingProfitability | null;
   quoteInput: PreviewQuoteInput;
+  quotePreview: QuotePreviewRecord;
+  requestedAmountMinor: string;
 }) {
   const pricingTrace = structuredClone(input.quoteInput.pricingTrace ?? {});
   const metadata =
@@ -1379,6 +1446,12 @@ function withCrmPricingSnapshot(input: {
       : {};
 
   metadata.crmPricingSnapshot = {
+    amounts: buildAmountSnapshot({
+      amountSide: input.amountSide,
+      profitability: input.profitability,
+      quotePreview: input.quotePreview,
+      requestedAmountMinor: input.requestedAmountMinor,
+    }),
     benchmarks: input.benchmarks,
     formulaTrace: input.formulaTrace,
     profitability: input.profitability,
@@ -1673,10 +1746,13 @@ export function createDealPricingWorkflow(
 
       const createQuoteInput = {
         ...withCrmPricingSnapshot({
+          amountSide: input.amountSide,
           benchmarks: previewResult.benchmarks,
           formulaTrace: previewResult.formulaTrace,
           profitability: previewResult.profitability,
           quoteInput: previewResult.quoteInput,
+          quotePreview: previewResult.quotePreview,
+          requestedAmountMinor: input.amountMinor,
         }),
         dealId: input.dealId,
         idempotencyKey: input.idempotencyKey,

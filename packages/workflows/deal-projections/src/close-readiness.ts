@@ -4,7 +4,10 @@ import type {
   DealWorkflowProjection,
 } from "@bedrock/deals/contracts";
 import type { ReconciliationOperationLinkDto } from "@bedrock/reconciliation/contracts";
-import type { PaymentStep } from "@bedrock/treasury/contracts";
+import type {
+  PaymentStep,
+  QuoteExecution,
+} from "@bedrock/treasury/contracts";
 
 import type {
   FinanceDealCloseReadiness,
@@ -19,6 +22,11 @@ const TERMINAL_STEP_STATES = new Set<PaymentStep["state"]>([
   "returned",
   "cancelled",
   "skipped",
+]);
+const TERMINAL_QUOTE_EXECUTION_STATES = new Set<QuoteExecution["state"]>([
+  "completed",
+  "cancelled",
+  "expired",
 ]);
 
 const RECONCILIATION_REQUIRED_STEP_STATES = new Set<PaymentStep["state"]>([
@@ -129,9 +137,31 @@ function findStepForPlanLeg(
   return leg.id ? steps.get(leg.id) : undefined;
 }
 
-function doLegStepsSatisfyStates(input: {
-  allowedStates: ReadonlySet<PaymentStep["state"]>;
+function findRuntimeForPlanLeg(
+  input: {
+    paymentStepByPlanLegId: ReadonlyMap<string, PaymentStep>;
+    quoteExecutionByPlanLegId: ReadonlyMap<string, QuoteExecution>;
+  },
+  leg: DealWorkflowProjection["executionPlan"][number],
+): PaymentStep | QuoteExecution | undefined {
+  if (!leg.id) return undefined;
+  return leg.kind === "convert"
+    ? (input.quoteExecutionByPlanLegId.get(leg.id) ??
+        input.paymentStepByPlanLegId.get(leg.id))
+    : (input.paymentStepByPlanLegId.get(leg.id) ??
+        input.quoteExecutionByPlanLegId.get(leg.id));
+}
+
+function isRuntimeTerminal(runtime: PaymentStep | QuoteExecution): boolean {
+  return "kind" in runtime
+    ? TERMINAL_STEP_STATES.has(runtime.state)
+    : TERMINAL_QUOTE_EXECUTION_STATES.has(runtime.state);
+}
+
+function doLegRuntimesSatisfyStates(input: {
+  allowedStates: ReadonlySet<string>;
   paymentStepByPlanLegId: ReadonlyMap<string, PaymentStep>;
+  quoteExecutionByPlanLegId: ReadonlyMap<string, QuoteExecution>;
   workflow: DealWorkflowProjection;
   legKinds: string[];
 }) {
@@ -144,12 +174,12 @@ function doLegStepsSatisfyStates(input: {
   }
 
   return legs.every((leg) => {
-    const step = findStepForPlanLeg(input.paymentStepByPlanLegId, leg);
-    if (!step) {
+    const runtime = findRuntimeForPlanLeg(input, leg);
+    if (!runtime) {
       return false;
     }
 
-    return input.allowedStates.has(step.state);
+    return input.allowedStates.has(runtime.state);
   });
 }
 
@@ -268,13 +298,23 @@ function buildReconciliationState(input: {
 function createCriteria(input: {
   executionUnblocked: boolean;
   paymentStepByPlanLegId: ReadonlyMap<string, PaymentStep>;
+  quoteExecutionByPlanLegId: ReadonlyMap<string, QuoteExecution>;
   reconciliationSummary: FinanceDealReconciliationSummary;
   workflow: DealWorkflowProjection;
 }) {
   const criteria: FinanceDealCloseReadinessCriterion[] = [];
   const operationsMaterialized = input.workflow.executionPlan.every(
     (leg) =>
-      leg.id !== null && input.paymentStepByPlanLegId.has(leg.id),
+      leg.id !== null &&
+      Boolean(
+        findRuntimeForPlanLeg(
+          {
+            paymentStepByPlanLegId: input.paymentStepByPlanLegId,
+            quoteExecutionByPlanLegId: input.quoteExecutionByPlanLegId,
+          },
+          leg,
+        ),
+      ),
   );
 
   criteria.push(
@@ -306,9 +346,10 @@ function createCriteria(input: {
         createCriterion(
           "payment_payout_settled",
           "Выплата исполнена",
-          doLegStepsSatisfyStates({
-            allowedStates: new Set<PaymentStep["state"]>(["completed"]),
+          doLegRuntimesSatisfyStates({
+            allowedStates: new Set(["completed"]),
             paymentStepByPlanLegId: input.paymentStepByPlanLegId,
+            quoteExecutionByPlanLegId: input.quoteExecutionByPlanLegId,
             workflow: input.workflow,
             legKinds: ["payout"],
           }),
@@ -327,9 +368,10 @@ function createCriteria(input: {
         createCriterion(
           "currency_exchange_conversion_settled",
           "Конвертация исполнена",
-          doLegStepsSatisfyStates({
-            allowedStates: new Set<PaymentStep["state"]>(["completed"]),
+          doLegRuntimesSatisfyStates({
+            allowedStates: new Set(["completed"]),
             paymentStepByPlanLegId: input.paymentStepByPlanLegId,
+            quoteExecutionByPlanLegId: input.quoteExecutionByPlanLegId,
             workflow: input.workflow,
             legKinds: ["convert"],
           }),
@@ -339,12 +381,10 @@ function createCriteria(input: {
         createCriterion(
           "currency_exchange_payout_or_returned",
           "Выплата или возврат завершены",
-          doLegStepsSatisfyStates({
-            allowedStates: new Set<PaymentStep["state"]>([
-              "completed",
-              "returned",
-            ]),
+          doLegRuntimesSatisfyStates({
+            allowedStates: new Set(["completed", "returned"]),
             paymentStepByPlanLegId: input.paymentStepByPlanLegId,
+            quoteExecutionByPlanLegId: input.quoteExecutionByPlanLegId,
             workflow: input.workflow,
             legKinds: ["payout"],
           }),
@@ -356,9 +396,10 @@ function createCriteria(input: {
         createCriterion(
           "currency_transit_collect_settled",
           "Поступление подтверждено",
-          doLegStepsSatisfyStates({
-            allowedStates: new Set<PaymentStep["state"]>(["completed"]),
+          doLegRuntimesSatisfyStates({
+            allowedStates: new Set(["completed"]),
             paymentStepByPlanLegId: input.paymentStepByPlanLegId,
+            quoteExecutionByPlanLegId: input.quoteExecutionByPlanLegId,
             workflow: input.workflow,
             legKinds: ["collect"],
           }),
@@ -368,9 +409,10 @@ function createCriteria(input: {
         createCriterion(
           "currency_transit_payout_settled",
           "Выплата исполнена",
-          doLegStepsSatisfyStates({
-            allowedStates: new Set<PaymentStep["state"]>(["completed"]),
+          doLegRuntimesSatisfyStates({
+            allowedStates: new Set(["completed"]),
             paymentStepByPlanLegId: input.paymentStepByPlanLegId,
+            quoteExecutionByPlanLegId: input.quoteExecutionByPlanLegId,
             workflow: input.workflow,
             legKinds: ["payout"],
           }),
@@ -391,9 +433,10 @@ function createCriteria(input: {
         createCriterion(
           "exporter_settlement_payout_settled",
           "Выплата исполнена",
-          doLegStepsSatisfyStates({
-            allowedStates: new Set<PaymentStep["state"]>(["completed"]),
+          doLegRuntimesSatisfyStates({
+            allowedStates: new Set(["completed"]),
             paymentStepByPlanLegId: input.paymentStepByPlanLegId,
+            quoteExecutionByPlanLegId: input.quoteExecutionByPlanLegId,
             workflow: input.workflow,
             legKinds: ["payout"],
           }),
@@ -417,6 +460,7 @@ function createCriteria(input: {
 
 export function deriveFinanceDealReadiness(input: {
   paymentStepByPlanLegId: ReadonlyMap<string, PaymentStep>;
+  quoteExecutionByPlanLegId?: ReadonlyMap<string, QuoteExecution>;
   reconciliationLinksByStepId: ReadonlyMap<
     string,
     ReconciliationOperationLinkDto
@@ -445,10 +489,16 @@ export function deriveFinanceDealReadiness(input: {
         message.includes("Operational position is blocked"),
     );
 
-  const totalStepCount = input.paymentStepByPlanLegId.size;
+  const quoteExecutionByPlanLegId =
+    input.quoteExecutionByPlanLegId ?? new Map<string, QuoteExecution>();
+  const linkedRuntimes = [
+    ...input.paymentStepByPlanLegId.values(),
+    ...quoteExecutionByPlanLegId.values(),
+  ];
+  const totalStepCount = linkedRuntimes.length;
   let terminalStepCount = 0;
-  for (const step of input.paymentStepByPlanLegId.values()) {
-    if (TERMINAL_STEP_STATES.has(step.state)) {
+  for (const runtime of linkedRuntimes) {
+    if (isRuntimeTerminal(runtime)) {
       terminalStepCount += 1;
     }
   }
@@ -458,6 +508,7 @@ export function deriveFinanceDealReadiness(input: {
   const criteria = createCriteria({
     executionUnblocked: !executionBlocked,
     paymentStepByPlanLegId: input.paymentStepByPlanLegId,
+    quoteExecutionByPlanLegId,
     reconciliationSummary,
     workflow: input.workflow,
   });
@@ -508,12 +559,13 @@ function resolveFundingStage(input: {
 
 function findPrimaryOpenLeg(input: {
   paymentStepByPlanLegId: ReadonlyMap<string, PaymentStep>;
+  quoteExecutionByPlanLegId: ReadonlyMap<string, QuoteExecution>;
   workflow: DealWorkflowProjection;
 }) {
   return input.workflow.executionPlan.find(
     (leg) => {
-      const step = findStepForPlanLeg(input.paymentStepByPlanLegId, leg);
-      return !step || !TERMINAL_STEP_STATES.has(step.state);
+      const runtime = findRuntimeForPlanLeg(input, leg);
+      return !runtime || !isRuntimeTerminal(runtime);
     },
   );
 }
@@ -573,6 +625,7 @@ export function deriveFinanceDealStage(input: {
   closeReadiness: FinanceDealCloseReadiness;
   internalEntityOrganizationId: string | null;
   paymentStepByPlanLegId: ReadonlyMap<string, PaymentStep>;
+  quoteExecutionByPlanLegId?: ReadonlyMap<string, QuoteExecution>;
   reconciliationSummary: FinanceDealReconciliationSummary;
   workflow: DealWorkflowProjection;
 }): { stage: FinanceDealStage; stageReason: string } {
@@ -583,10 +636,15 @@ export function deriveFinanceDealStage(input: {
     };
   }
 
-  const linkedSteps = Array.from(input.paymentStepByPlanLegId.values());
+  const quoteExecutionByPlanLegId =
+    input.quoteExecutionByPlanLegId ?? new Map<string, QuoteExecution>();
+  const linkedSteps = [
+    ...input.paymentStepByPlanLegId.values(),
+    ...quoteExecutionByPlanLegId.values(),
+  ];
   const allLinkedStepsTerminal =
     linkedSteps.length > 0 &&
-    linkedSteps.every((step) => TERMINAL_STEP_STATES.has(step.state));
+    linkedSteps.every((step) => isRuntimeTerminal(step));
 
   if (
     allLinkedStepsTerminal &&
@@ -600,6 +658,7 @@ export function deriveFinanceDealStage(input: {
 
   const primaryOpenLeg = findPrimaryOpenLeg({
     paymentStepByPlanLegId: input.paymentStepByPlanLegId,
+    quoteExecutionByPlanLegId,
     workflow: input.workflow,
   });
 

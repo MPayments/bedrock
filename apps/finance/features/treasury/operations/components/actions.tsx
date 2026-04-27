@@ -18,7 +18,7 @@ export function TreasuryOperationsActions() {
         data-testid="finance-treasury-operations-create"
       >
         <Plus className="mr-1 size-3" />
-        Создать операцию
+        Создать ордер
       </Button>
 
       <CreateStepDialog open={open} onOpenChange={setOpen} />

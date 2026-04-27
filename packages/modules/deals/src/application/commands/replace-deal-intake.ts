@@ -16,6 +16,7 @@ import {
   buildDealParticipantRows,
   createTimelinePayloadEvent,
   deriveDealRootState,
+  normalizeDealIntakeDraft,
 } from "../shared/workflow-state";
 
 const ReplaceDealIntakeCommandInputSchema = ReplaceDealIntakeInputSchema.extend(
@@ -59,7 +60,10 @@ export class ReplaceDealIntakeCommand {
   async execute(
     raw: ReplaceDealIntakeCommandInput,
   ): Promise<DealWorkflowProjection> {
-    const validated = ReplaceDealIntakeCommandInputSchema.parse(raw);
+    const validated = {
+      ...ReplaceDealIntakeCommandInputSchema.parse(raw),
+    };
+    validated.intake = normalizeDealIntakeDraft(validated.intake);
 
     return this.commandUow.run(async (tx) => {
       const existing = await tx.dealReads.findWorkflowById(validated.dealId);

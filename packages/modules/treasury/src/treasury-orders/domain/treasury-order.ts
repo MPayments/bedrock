@@ -31,8 +31,11 @@ function normalizeRequiredText(value: string, field: string): string {
 
 function normalizeParty(party: PaymentStepPartyRef, field: string) {
   return {
+    displayName: normalizeOptionalText(party.displayName),
+    entityKind: normalizeOptionalText(party.entityKind),
     id: normalizeRequiredText(party.id, `${field}.id`),
     requisiteId: normalizeOptionalText(party.requisiteId),
+    snapshot: party.snapshot ? { ...party.snapshot } : null,
   };
 }
 
@@ -47,7 +50,7 @@ function normalizeAmount(amount: bigint | null | undefined, field: string) {
 
 function cloneStep(step: TreasuryOrderStepPlanRecord): TreasuryOrderStepPlanRecord {
   const quoteId = normalizeOptionalText(step.quoteId);
-  if (step.kind === "fx_conversion") {
+  if (step.kind === "quote_execution") {
     invariant(
       quoteId !== null,
       "FX exchange order steps require a quote reference",
@@ -65,6 +68,7 @@ function cloneStep(step: TreasuryOrderStepPlanRecord): TreasuryOrderStepPlanReco
     fromCurrencyId: normalizeRequiredText(step.fromCurrencyId, "fromCurrencyId"),
     fromParty: normalizeParty(step.fromParty, "fromParty"),
     paymentStepId: normalizeOptionalText(step.paymentStepId),
+    quoteExecutionId: normalizeOptionalText(step.quoteExecutionId),
     quoteId,
     rate: step.rate
       ? {
@@ -129,6 +133,7 @@ export class TreasuryOrder extends AggregateRoot<string> {
           id: generateUuid(),
           kind: step.kind,
           paymentStepId: null,
+          quoteExecutionId: null,
           quoteId: step.quoteId ?? null,
           rate: step.rate ?? null,
           sequence: index + 1,
@@ -171,6 +176,24 @@ export class TreasuryOrder extends AggregateRoot<string> {
         steps: this.snapshot.steps.map((step) =>
           step.id === planStepId
             ? { ...step, paymentStepId, updatedAt: now }
+            : cloneStep(step),
+        ),
+        updatedAt: now,
+      }),
+    );
+  }
+
+  linkQuoteExecution(
+    planStepId: string,
+    quoteExecutionId: string,
+    now: Date,
+  ): TreasuryOrder {
+    return new TreasuryOrder(
+      normalizeSnapshot({
+        ...this.snapshot,
+        steps: this.snapshot.steps.map((step) =>
+          step.id === planStepId
+            ? { ...step, quoteExecutionId, updatedAt: now }
             : cloneStep(step),
         ),
         updatedAt: now,

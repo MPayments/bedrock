@@ -27,6 +27,7 @@ import {
   buildDealParticipantRows,
   createTimelinePayloadEvent,
   deriveDealRootState,
+  normalizeDealIntakeDraft,
 } from "../shared/workflow-state";
 
 const CreateDealDraftCommandInputSchema = CreateDealDraftInputSchema.extend({
@@ -140,7 +141,10 @@ export class CreateDealDraftCommand {
   async execute(
     raw: CreateDealDraftCommandInput,
   ): Promise<DealWorkflowProjection> {
-    const validated = CreateDealDraftCommandInputSchema.parse(raw);
+    const validated = {
+      ...CreateDealDraftCommandInputSchema.parse(raw),
+    };
+    validated.intake = normalizeDealIntakeDraft(validated.intake);
     const { agreement } = await validateDraftReferences(
       validated,
       this.references,

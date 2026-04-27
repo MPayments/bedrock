@@ -1,6 +1,5 @@
 export const PAYMENT_STEP_KIND_VALUES = [
   "payin",
-  "fx_conversion",
   "payout",
   "intracompany_transfer",
   "intercompany_funding",
@@ -60,8 +59,11 @@ export type PaymentStepSettlementEvidencePurpose =
   (typeof PAYMENT_STEP_SETTLEMENT_EVIDENCE_PURPOSE_VALUES)[number];
 
 export interface PaymentStepPartyRef {
+  displayName?: string | null;
+  entityKind?: string | null;
   id: string;
   requisiteId: string | null;
+  snapshot?: Record<string, unknown> | null;
 }
 
 export interface PaymentStepRate {

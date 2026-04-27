@@ -42,6 +42,7 @@ import {
   treasuryOrganizationBalancesRoutes,
   treasuryOrdersRoutes,
   treasuryQueueRoutes,
+  treasuryQuoteExecutionsRoutes,
   treasuryQuotesRoutes,
   treasuryRatesRoutes,
   treasuryStepsRoutes,
@@ -228,6 +229,7 @@ function createV1Routes(ctx: AppContext) {
     )
     .route("/treasury/orders", treasuryOrdersRoutes(ctx))
     .route("/treasury/queue", treasuryQueueRoutes(ctx))
+    .route("/treasury/quote-executions", treasuryQuoteExecutionsRoutes(ctx))
     .route("/treasury/quotes", treasuryQuotesRoutes(ctx))
     .route("/treasury/rates", treasuryRatesRoutes(ctx))
     .route("/treasury/steps", treasuryStepsRoutes(ctx))

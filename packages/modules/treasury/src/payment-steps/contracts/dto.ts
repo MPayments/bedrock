@@ -27,8 +27,11 @@ export const PaymentStepSettlementEvidencePurposeSchema = z.enum(
 );
 
 export const PaymentStepPartyRefSchema = z.object({
+  displayName: z.string().trim().min(1).max(255).nullable().optional(),
+  entityKind: z.string().trim().min(1).max(64).nullable().optional(),
   id: z.uuid(),
   requisiteId: z.uuid().nullable(),
+  snapshot: z.record(z.string(), z.unknown()).nullable().optional(),
 });
 
 export const PaymentStepRateSchema = z.object({

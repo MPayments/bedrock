@@ -944,7 +944,9 @@ export function DealPricingTab({
             <div className="space-y-1">
               <CardTitle>Котировка</CardTitle>
               <CardDescription>
-                Пересчитывается при каждом изменении
+                {quoteAmountSide === "target"
+                  ? "Фиксируется сумма выплаты бенефициару"
+                  : "Фиксируется исходная сумма списания"}
               </CardDescription>
             </div>
             <div className="flex shrink-0 flex-col items-end gap-2">
@@ -1031,15 +1033,27 @@ export function DealPricingTab({
               return (
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                   <PricingMetricTile
-                    label="Сумма сделки"
-                    sublabel="клиент платит"
+                    label={
+                      quoteAmountSide === "target"
+                        ? "Ожидаемое списание клиента"
+                        : "Сумма сделки"
+                    }
+                    sublabel={
+                      quoteAmountSide === "target"
+                        ? "расчётная сумма"
+                        : "клиент платит"
+                    }
                     value={formatMinorAmount(
                       profit.customerTotalMinor,
                       profit.currency,
                     )}
                   />
                   <PricingMetricTile
-                    label="Сумма получения"
+                    label={
+                      quoteAmountSide === "target"
+                        ? "Бенефициар получит"
+                        : "Сумма получения"
+                    }
                     sublabel="бенефициар получит"
                     value={
                       preview?.quotePreview
@@ -1049,6 +1063,14 @@ export function DealPricingTab({
                           )
                         : "—"
                     }
+                  />
+                  <PricingMetricTile
+                    label="FX principal / cost base"
+                    sublabel="себестоимость маршрута"
+                    value={formatMinorAmount(
+                      profit.costPriceMinor,
+                      profit.currency,
+                    )}
                   />
                   <PricingMetricTile
                     label={

@@ -26,7 +26,11 @@ import { DEAL_TYPE_LABELS } from "@/app/(dashboard)/deals/[id]/_components/const
 import type { ApiCrmDealWorkbenchProjection } from "@/app/(dashboard)/deals/[id]/_components/types";
 import { formatDealBreadcrumbLabel } from "@/components/app/breadcrumbs";
 import { useCrmBreadcrumbs } from "@/components/app/breadcrumbs-provider";
-import { getCrmDocumentTypeLabel, isCrmDocType } from "@/features/documents/lib/doc-types";
+import {
+  canCreateCrmDocumentType,
+  getCrmDocumentTypeLabel,
+  isCrmDocType,
+} from "@/features/documents/lib/doc-types";
 import { fetchCrmDocumentFormOptions } from "@/features/documents/lib/form-options";
 import {
   createDealScopedDocumentDraft,
@@ -38,6 +42,7 @@ import {
   type CrmDocumentDetail,
 } from "@/features/documents/lib/queries";
 import {
+  buildCrmDealDocumentCreateHref,
   buildCrmDealDocumentDetailsHref,
   buildCrmDealDocumentsTabHref,
 } from "@/features/documents/lib/routes";
@@ -112,6 +117,8 @@ export default function DealDocumentDetailPage() {
   const dealId = params?.id ?? "";
   const docType = params?.docType ?? "";
   const documentId = params?.documentId ?? "";
+  const isLegacyCreateRoute =
+    docType === "create" && canCreateCrmDocumentType(documentId);
 
   const [document, setDocument] = useState<CrmDocumentDetail | null>(null);
   const [workbench, setWorkbench] =
@@ -148,11 +155,16 @@ export default function DealDocumentDetailPage() {
       : [],
   );
 
-  if (!docType || !isCrmDocType(docType)) {
+  if (!isLegacyCreateRoute && (!docType || !isCrmDocType(docType))) {
     notFound();
   }
 
   const reload = useCallback(async () => {
+    if (isLegacyCreateRoute) {
+      setLoading(false);
+      return;
+    }
+
     setError(null);
     setLoading(true);
     const [result, options, workbenchPayload] = await Promise.all([
@@ -175,11 +187,16 @@ export default function DealDocumentDetailPage() {
       setWorkbench(workbenchPayload as ApiCrmDealWorkbenchProjection);
     }
     setLoading(false);
-  }, [dealId, docType, documentId]);
+  }, [dealId, docType, documentId, isLegacyCreateRoute]);
 
   useEffect(() => {
+    if (isLegacyCreateRoute) {
+      router.replace(buildCrmDealDocumentCreateHref(dealId, documentId));
+      return;
+    }
+
     void reload();
-  }, [reload]);
+  }, [dealId, documentId, isLegacyCreateRoute, reload, router]);
 
   const documentMutators = useMemo<DocumentTransitionMutators>(() => {
     const baseMutators = buildCrmDocumentMutators();
@@ -200,6 +217,14 @@ export default function DealDocumentDetailPage() {
       submit: wrapMutator(baseMutators.submit),
     };
   }, []);
+
+  if (isLegacyCreateRoute) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   if (loading) {
     return (

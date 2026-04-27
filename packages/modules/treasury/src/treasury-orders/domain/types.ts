@@ -21,12 +21,14 @@ export const TREASURY_ORDER_STATE_VALUES = [
 
 export type TreasuryOrderType = (typeof TREASURY_ORDER_TYPE_VALUES)[number];
 export type TreasuryOrderState = (typeof TREASURY_ORDER_STATE_VALUES)[number];
+export type TreasuryOrderStepKind = PaymentStepKind | "quote_execution";
 
 export interface TreasuryOrderStepPlanRecord extends PaymentStepRouteSnapshot {
   createdAt: Date;
   id: string;
-  kind: PaymentStepKind;
+  kind: TreasuryOrderStepKind;
   paymentStepId: string | null;
+  quoteExecutionId: string | null;
   quoteId: string | null;
   sequence: number;
   sourceRef: string;
@@ -49,7 +51,7 @@ export interface CreateTreasuryOrderStepPlanProps {
   fromAmountMinor?: bigint | null;
   fromCurrencyId: string;
   fromParty: PaymentStepRouteSnapshot["fromParty"];
-  kind: PaymentStepKind;
+  kind: TreasuryOrderStepKind;
   quoteId?: string | null;
   rate?: PaymentStepRate | null;
   toAmountMinor?: bigint | null;

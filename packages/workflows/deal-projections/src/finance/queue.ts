@@ -1,6 +1,9 @@
 import type { ReconciliationOperationLinkDto } from "@bedrock/reconciliation/contracts";
 import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
-import type { PaymentStep } from "@bedrock/treasury/contracts";
+import type {
+  PaymentStep,
+  QuoteExecution,
+} from "@bedrock/treasury/contracts";
 
 import {
   deriveFinanceDealReadiness,
@@ -83,17 +86,23 @@ export async function listFinanceDealQueues(
           return null;
         }
 
-        const [agreement, paymentStepsResult] = await Promise.all([
-          deps.agreements.agreements.queries.findById(
-            workflow.summary.agreementId,
-          ),
-          deps.treasury.paymentSteps.queries.list({
-            dealId: deal.id,
-            limit: 100,
-            offset: 0,
-            purpose: "deal_leg",
-          }),
-        ]);
+        const [agreement, paymentStepsResult, quoteExecutionsResult] =
+          await Promise.all([
+            deps.agreements.agreements.queries.findById(
+              workflow.summary.agreementId,
+            ),
+            deps.treasury.paymentSteps.queries.list({
+              dealId: deal.id,
+              limit: 100,
+              offset: 0,
+              purpose: "deal_leg",
+            }),
+            deps.treasury.quoteExecutions.queries.list({
+              dealId: deal.id,
+              limit: 100,
+              offset: 0,
+            }),
+          ]);
         const queueContext = classifyFinanceQueue(workflow);
         const paymentStepByPlanLegId = new Map<string, PaymentStep>();
         for (const step of paymentStepsResult.data) {
@@ -102,6 +111,18 @@ export async function listFinanceDealQueues(
             step.origin.planLegId !== null
           ) {
             paymentStepByPlanLegId.set(step.origin.planLegId, step);
+          }
+        }
+        const quoteExecutionByPlanLegId = new Map<string, QuoteExecution>();
+        for (const execution of quoteExecutionsResult.data) {
+          if (
+            execution.origin.type === "deal_execution_leg" &&
+            execution.origin.planLegId !== null
+          ) {
+            quoteExecutionByPlanLegId.set(
+              execution.origin.planLegId,
+              execution,
+            );
           }
         }
         const reconciliationLinks =
@@ -121,6 +142,7 @@ export async function listFinanceDealQueues(
         const { closeReadiness, reconciliationSummary } =
           deriveFinanceDealReadiness({
             paymentStepByPlanLegId,
+            quoteExecutionByPlanLegId,
             reconciliationLinksByStepId,
             workflow,
           });
@@ -130,6 +152,7 @@ export async function listFinanceDealQueues(
           internalEntityOrganizationId:
             getInternalEntityParticipant(workflow)?.organizationId ?? null,
           paymentStepByPlanLegId,
+          quoteExecutionByPlanLegId,
           reconciliationSummary,
           workflow,
         });
@@ -161,6 +184,7 @@ export async function listFinanceDealQueues(
           },
           executionSummary: summarizeExecutionPlan({
             paymentStepByPlanLegId,
+            quoteExecutionByPlanLegId,
             workflow,
           }),
           internalEntityName,

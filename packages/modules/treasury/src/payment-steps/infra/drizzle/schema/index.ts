@@ -21,7 +21,6 @@ import type {
   PaymentStepOrigin,
   PaymentStepPurpose,
   PaymentStepRateLockedSide,
-  PaymentStepReturnRecord,
   PaymentStepRouteSnapshot,
   PaymentStepState,
   PostingDocumentRef,

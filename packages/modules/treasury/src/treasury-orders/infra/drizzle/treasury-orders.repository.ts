@@ -37,6 +37,7 @@ function toStepRecord(row: StepRow): TreasuryOrderStepPlanRecord {
     id: row.id,
     kind: row.kind,
     paymentStepId: row.paymentStepId,
+    quoteExecutionId: row.quoteExecutionId,
     quoteId: row.quoteId,
     rate: row.rate,
     sequence: row.sequence,
@@ -92,6 +93,7 @@ function toStepInsertRow(
     kind: record.kind,
     orderId,
     paymentStepId: record.paymentStepId,
+    quoteExecutionId: record.quoteExecutionId,
     quoteId: record.quoteId,
     rate: record.rate,
     sequence: record.sequence,
@@ -199,6 +201,7 @@ export class DrizzleTreasuryOrdersRepository
             target: treasuryOrderSteps.id,
             set: {
               paymentStepId: sql`excluded.payment_step_id`,
+              quoteExecutionId: sql`excluded.quote_execution_id`,
               updatedAt: sql`excluded.updated_at`,
             },
           });

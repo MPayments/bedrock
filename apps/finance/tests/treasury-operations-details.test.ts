@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 import { TreasuryOperationDetailsView } from "@/features/treasury/operations/components/details";
-import type { TreasuryOperationDetails } from "@/features/treasury/operations/lib/queries";
+import type { TreasuryPaymentStepOperation } from "@/features/treasury/operations/lib/queries";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -79,7 +79,7 @@ vi.mock("@/components/entities/workspace-layout", () => ({
     ),
 }));
 
-function createDealLegStep(): TreasuryOperationDetails {
+function createDealLegStep(): TreasuryPaymentStepOperation {
   return {
     amendments: [],
     artifacts: [],
@@ -139,6 +139,7 @@ function createDealLegStep(): TreasuryOperationDetails {
     quoteId: null,
     rate: null,
     returns: [],
+    runtimeType: "payment_step",
     scheduledAt: null,
     sourceRef: "deal:614fb6eb-a1bd-429e-9628-e97d0f2efa0b:plan-leg:plan-leg-1:payout:1",
     state: "pending",
@@ -185,7 +186,7 @@ describe("treasury operations details", () => {
       }
     ).React = React;
 
-    const step: TreasuryOperationDetails = {
+    const step: TreasuryPaymentStepOperation = {
       ...createDealLegStep(),
       dealId: null,
       origin: {

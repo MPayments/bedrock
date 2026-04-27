@@ -6,6 +6,7 @@ import {
   paymentStepReturns,
   paymentSteps,
 } from "./payment-steps/infra/drizzle/schema";
+import { quoteExecutions } from "./quote-executions/infra/drizzle/schema";
 import {
   fxQuoteFeeComponents,
   fxQuoteFinancialLines,
@@ -31,6 +32,7 @@ export {
   paymentStepAttempts,
   paymentStepReturns,
   paymentSteps,
+  quoteExecutions,
   treasuryOrders,
   treasuryOrderSteps,
 };
@@ -48,6 +50,7 @@ export const schema = {
   paymentStepAttempts,
   paymentStepReturns,
   paymentSteps,
+  quoteExecutions,
   treasuryOrders,
   treasuryOrderSteps,
 };

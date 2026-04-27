@@ -21,7 +21,7 @@ export default async function TreasuryOperationsPage({
     <EntityListPageShell
       icon={Workflow}
       title="Операции"
-      description="Список платёжных шагов: как связанных со сделками, так и отдельных казначейских операций."
+      description="Список платёжных шагов и FX-исполнений: как связанных со сделками, так и отдельных казначейских ордеров."
       actions={<TreasuryOperationsActions />}
       fallback={<DataTableSkeleton columnCount={6} rowCount={10} filterCount={1} />}
     >

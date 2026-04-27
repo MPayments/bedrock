@@ -46,6 +46,7 @@ function createWorkflow(input?: { participants?: Participant[] }): any {
       externalBeneficiary: {
         beneficiaryCounterpartyId: null,
         beneficiarySnapshot: null,
+        bankInstructionSnapshot: null,
       },
       incomingReceipt: {
         contractNumber: null,
@@ -139,7 +140,10 @@ describe("resolveLegPartyRefs", () => {
   it("resolves convert leg as internal → internal", () => {
     const refs = resolveLegPartyRefs({
       agreementOrganizationId: null,
-      compiled: compiled({ legKind: "convert", operationKind: "fx_conversion" }),
+      compiled: compiled({
+        legKind: "convert",
+        operationKind: "quote_execution",
+      }),
       internalEntityOrganizationId: "org-1",
       routeAttachment: null,
       workflow: createWorkflow(),
@@ -223,6 +227,48 @@ describe("resolveLegPartyRefs", () => {
       fromParty: { id: "payer-1", requisiteId: null },
       toParty: { id: "org-1", requisiteId: null },
     });
+  });
+
+  it("resolves payout to a snapshot beneficiary when no beneficiary counterparty exists", () => {
+    const workflow = createWorkflow({ participants: [] });
+    workflow.intake.externalBeneficiary = {
+      bankInstructionSnapshot: {
+        accountNo: "123",
+        bankAddress: null,
+        bankCountry: "AE",
+        bankName: "Emirates NBD",
+        beneficiaryName: "Almutlag Trading LLC",
+        bic: null,
+        iban: null,
+        label: null,
+        swift: "EBILAEAD",
+      },
+      beneficiaryCounterpartyId: null,
+      beneficiarySnapshot: {
+        country: "AE",
+        displayName: "Almutlag Trading LLC",
+        inn: null,
+        legalName: "Almutlag Trading LLC",
+      },
+    };
+
+    const refs = resolveLegPartyRefs({
+      agreementOrganizationId: null,
+      compiled: compiled({ legKind: "payout", operationKind: "payout" }),
+      internalEntityOrganizationId: "org-1",
+      routeAttachment: null,
+      workflow,
+    });
+
+    expect(refs?.fromParty).toEqual({ id: "org-1", requisiteId: null });
+    expect(refs?.toParty).toMatchObject({
+      displayName: "Almutlag Trading LLC",
+      entityKind: "external_beneficiary_snapshot",
+      requisiteId: null,
+    });
+    expect(refs?.toParty.id).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u,
+    );
   });
 });
 

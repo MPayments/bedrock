@@ -1,10 +1,14 @@
 import type { ReconciliationOperationLinkDto } from "@bedrock/reconciliation/contracts";
 import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
-import { type PaymentStep } from "@bedrock/treasury/contracts";
+import type {
+  PaymentStep,
+  QuoteExecution,
+} from "@bedrock/treasury/contracts";
 
 import { deriveFinanceDealReadiness } from "../close-readiness";
 import type {
   FinanceDealPaymentStep,
+  FinanceDealQuoteExecution,
   FinanceDealWorkspaceProjection,
 } from "../contracts";
 import { isExecutionRequestAllowed } from "./instructions";
@@ -32,16 +36,17 @@ import {
 } from "../shared/workflow-helpers";
 
 function deriveLegStateFromStep(
-  step: PaymentStep | undefined,
+  runtime: PaymentStep | QuoteExecution | undefined,
 ): "blocked" | "completed" | "not_materialized" | "processing" | "ready" | "skipped" {
-  if (!step) return "not_materialized";
+  if (!runtime) return "not_materialized";
 
-  switch (step.state) {
+  switch (runtime.state) {
     case "completed":
       return "completed";
     case "cancelled":
     case "skipped":
       return "skipped";
+    case "expired":
     case "failed":
     case "returned":
       return "blocked";
@@ -137,6 +142,40 @@ function serializeFinanceDealPaymentStep(
   };
 }
 
+function serializeFinanceDealQuoteExecution(
+  execution: QuoteExecution,
+): FinanceDealQuoteExecution {
+  return {
+    completedAt: execution.completedAt
+      ? execution.completedAt.toISOString()
+      : null,
+    createdAt: execution.createdAt.toISOString(),
+    dealId: execution.dealId,
+    failureReason: execution.failureReason,
+    fromAmountMinor: execution.fromAmountMinor.toString(),
+    fromCurrencyId: execution.fromCurrencyId,
+    id: execution.id,
+    origin: execution.origin,
+    postingDocumentRefs: execution.postingDocumentRefs,
+    providerRef: execution.providerRef,
+    providerSnapshot: execution.providerSnapshot,
+    quoteId: execution.quoteId,
+    quoteLegIdx: execution.quoteLegIdx,
+    rateDen: execution.rateDen.toString(),
+    rateNum: execution.rateNum.toString(),
+    settlementRoute: execution.settlementRoute,
+    sourceRef: execution.sourceRef,
+    state: execution.state,
+    submittedAt: execution.submittedAt
+      ? execution.submittedAt.toISOString()
+      : null,
+    toAmountMinor: execution.toAmountMinor.toString(),
+    toCurrencyId: execution.toCurrencyId,
+    treasuryOrderId: execution.treasuryOrderId,
+    updatedAt: execution.updatedAt.toISOString(),
+  };
+}
+
 export async function getFinanceDealWorkspaceProjection(
   deps: FinanceWorkspaceDeps,
   dealId: string,
@@ -151,6 +190,7 @@ export async function getFinanceDealWorkspaceProjection(
     attachments,
     currentCalculation,
     paymentStepsResult,
+    quoteExecutionsResult,
     quotesResult,
     pricingContext,
   ] = await Promise.all([
@@ -165,6 +205,11 @@ export async function getFinanceDealWorkspaceProjection(
       limit: 100,
       offset: 0,
       purpose: "deal_leg",
+    }),
+    deps.treasury.quoteExecutions.queries.list({
+      dealId,
+      limit: 100,
+      offset: 0,
     }),
     deps.treasury.quotes.queries.listQuotes({
       dealId,
@@ -220,6 +265,15 @@ export async function getFinanceDealWorkspaceProjection(
       paymentStepByPlanLegId.set(step.origin.planLegId, step);
     }
   }
+  const quoteExecutionByPlanLegId = new Map<string, QuoteExecution>();
+  for (const execution of quoteExecutionsResult.data) {
+    if (
+      execution.origin.type === "deal_execution_leg" &&
+      execution.origin.planLegId !== null
+    ) {
+      quoteExecutionByPlanLegId.set(execution.origin.planLegId, execution);
+    }
+  }
   const reconciliationLinks =
     paymentStepsResult.data.length > 0
       ? await deps.reconciliation.links.listOperationLinks({
@@ -242,6 +296,7 @@ export async function getFinanceDealWorkspaceProjection(
     totalStepCount,
   } = deriveFinanceDealReadiness({
     paymentStepByPlanLegId,
+    quoteExecutionByPlanLegId,
     reconciliationLinksByStepId,
     workflow,
   });
@@ -255,6 +310,8 @@ export async function getFinanceDealWorkspaceProjection(
     }),
   );
   const hasAnyMaterializedSteps = paymentStepsResult.data.length > 0;
+  const hasAnyMaterializedRuntime =
+    hasAnyMaterializedSteps || quoteExecutionsResult.data.length > 0;
   const acceptedQuoteDetails = workflow.acceptedQuote
     ? (quotesResult.data
         .map(serializeCrmPricingQuote)
@@ -274,7 +331,7 @@ export async function getFinanceDealWorkspaceProjection(
       canCreateCalculation: false,
       canCreateQuote: false,
       canRequestExecution:
-        !hasAnyMaterializedSteps && isExecutionRequestAllowed(workflow),
+        !hasAnyMaterializedRuntime && isExecutionRequestAllowed(workflow),
       canRunReconciliation:
         totalStepCount > 0 &&
         terminalStepCount === totalStepCount &&
@@ -290,7 +347,14 @@ export async function getFinanceDealWorkspaceProjection(
     closeReadiness,
     executionPlan: workflow.executionPlan.map((leg) => {
       const step = leg.id ? paymentStepByPlanLegId.get(leg.id) : undefined;
-      const runtimeState = deriveLegStateFromStep(step);
+      const quoteExecution = leg.id
+        ? quoteExecutionByPlanLegId.get(leg.id)
+        : undefined;
+      const runtimeState = deriveLegStateFromStep(
+        leg.kind === "convert"
+          ? (quoteExecution ?? step)
+          : (step ?? quoteExecution),
+      );
       return {
         fromCurrencyId: leg.fromCurrencyId,
         id: leg.id,
@@ -301,8 +365,9 @@ export async function getFinanceDealWorkspaceProjection(
         toCurrencyId: leg.toCurrencyId,
         actions: {
           canCreateLegOperation:
-            hasAnyMaterializedSteps &&
+            hasAnyMaterializedRuntime &&
             !step &&
+            !quoteExecution &&
             !isDealInTerminalStatus(workflow),
           exchangeDocument:
             leg.kind === "convert" &&
@@ -344,6 +409,9 @@ export async function getFinanceDealWorkspaceProjection(
       formalDocuments: workflow.relatedResources.formalDocuments,
       paymentSteps: paymentStepsResult.data.map(
         serializeFinanceDealPaymentStep,
+      ),
+      quoteExecutions: quoteExecutionsResult.data.map(
+        serializeFinanceDealQuoteExecution,
       ),
       quotes: workflow.relatedResources.quotes,
       reconciliationExceptions,

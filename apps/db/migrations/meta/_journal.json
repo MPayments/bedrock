@@ -85,6 +85,13 @@
       "when": 1777290405633,
       "tag": "0011_tiny_arachne",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1777293143188,
+      "tag": "0012_minor_plazm",
+      "breakpoints": true
     }
   ]
 }

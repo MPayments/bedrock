@@ -24,6 +24,8 @@ import {
 import {
   PaymentStepNotFoundError,
   PaymentStepConflictError,
+  QuoteExecutionConflictError,
+  QuoteExecutionNotFoundError,
   RateNotFoundError,
   RateSourceStaleError,
   RateSourceSyncError,
@@ -39,6 +41,7 @@ const ROUTE_ERROR_STATUS_GROUPS = [
     status: 404,
     errors: [
       PaymentStepNotFoundError,
+      QuoteExecutionNotFoundError,
       TreasuryOrderNotFoundError,
       RateNotFoundError,
       DocumentNotFoundError,
@@ -60,6 +63,7 @@ const ROUTE_ERROR_STATUS_GROUPS = [
       InvalidStateError,
       ConflictError,
       PaymentStepConflictError,
+      QuoteExecutionConflictError,
       TreasuryOrderConflictError,
       DocumentPostingNotRequiredError,
       ActionReceiptConflictError,

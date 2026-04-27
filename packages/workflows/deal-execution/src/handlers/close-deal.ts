@@ -1,7 +1,10 @@
 import { DealTransitionBlockedError } from "@bedrock/deals";
 import type { DealWorkflowProjection } from "@bedrock/deals/contracts";
 import type { ReconciliationOperationLinkDto } from "@bedrock/reconciliation/contracts";
-import type { PaymentStep } from "@bedrock/treasury/contracts";
+import type {
+  PaymentStep,
+  QuoteExecution,
+} from "@bedrock/treasury/contracts";
 import { deriveFinanceDealReadiness } from "@bedrock/workflow-deal-projections";
 
 import { DEAL_EXECUTION_CLOSE_SCOPE } from "../shared/constants";
@@ -33,14 +36,19 @@ export async function closeDeal(
         return workflow;
       }
 
-      const paymentStepsResult = await treasuryModule.paymentSteps.queries.list(
-        {
+      const [paymentStepsResult, quoteExecutionsResult] = await Promise.all([
+        treasuryModule.paymentSteps.queries.list({
           dealId: input.dealId,
           limit: 100,
           offset: 0,
           purpose: "deal_leg",
-        },
-      );
+        }),
+        treasuryModule.quoteExecutions.queries.list({
+          dealId: input.dealId,
+          limit: 100,
+          offset: 0,
+        }),
+      ]);
       const paymentStepByPlanLegId = new Map<string, PaymentStep>();
       for (const step of paymentStepsResult.data) {
         if (
@@ -48,6 +56,18 @@ export async function closeDeal(
           step.origin.planLegId !== null
         ) {
           paymentStepByPlanLegId.set(step.origin.planLegId, step);
+        }
+      }
+      const quoteExecutionByPlanLegId = new Map<string, QuoteExecution>();
+      for (const execution of quoteExecutionsResult.data) {
+        if (
+          execution.origin.type === "deal_execution_leg" &&
+          execution.origin.planLegId !== null
+        ) {
+          quoteExecutionByPlanLegId.set(
+            execution.origin.planLegId,
+            execution,
+          );
         }
       }
       const reconciliationLinks =
@@ -66,6 +86,7 @@ export async function closeDeal(
       );
       const { closeReadiness } = deriveFinanceDealReadiness({
         paymentStepByPlanLegId,
+        quoteExecutionByPlanLegId,
         reconciliationLinksByStepId,
         workflow,
       });
@@ -93,7 +114,8 @@ export async function closeDeal(
           dealId: input.dealId,
           payload: {
             comment: input.comment ?? null,
-            stepCount: paymentStepsResult.data.length,
+            stepCount:
+              paymentStepsResult.data.length + quoteExecutionsResult.data.length,
           },
           sourceRef: `execution:${input.dealId}:close:${input.idempotencyKey}`,
           type: "deal_closed",

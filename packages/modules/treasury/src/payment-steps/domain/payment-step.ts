@@ -89,13 +89,19 @@ function cloneNullableDate(value: Date | null): Date | null {
 }
 
 function assertValidDate(value: Date, field: string): void {
-  invariant(value instanceof Date && !Number.isNaN(value.getTime()), `${field} is invalid`, {
-    code: "treasury.payment_step.invalid_date",
-    meta: { field },
-  });
+  invariant(
+    value instanceof Date && !Number.isNaN(value.getTime()),
+    `${field} is invalid`,
+    {
+      code: "treasury.payment_step.invalid_date",
+      meta: { field },
+    },
+  );
 }
 
-function normalizeOptionalText(value: string | null | undefined): string | null {
+function normalizeOptionalText(
+  value: string | null | undefined,
+): string | null {
   const normalized = value?.trim();
   return normalized ? normalized : null;
 }
@@ -109,10 +115,23 @@ function normalizeRequiredText(value: string, field: string): string {
   return normalized;
 }
 
-function normalizeParty(party: PaymentStepPartyRef, field: string): PaymentStepPartyRef {
+function normalizeParty(
+  party: PaymentStepPartyRef,
+  field: string,
+): PaymentStepPartyRef {
+  const displayName = normalizeOptionalText(party.displayName);
+  const entityKind = normalizeOptionalText(party.entityKind);
+  const snapshot =
+    party.snapshot && typeof party.snapshot === "object"
+      ? { ...party.snapshot }
+      : null;
+
   return {
+    ...(displayName ? { displayName } : {}),
+    ...(entityKind ? { entityKind } : {}),
     id: normalizeRequiredText(party.id, `${field}.id`),
     requisiteId: normalizeOptionalText(party.requisiteId),
+    ...(snapshot ? { snapshot } : {}),
   };
 }
 
@@ -153,7 +172,10 @@ function cloneArtifact(artifact: ArtifactRef): ArtifactRef {
 function cloneRoute(route: PaymentStepRouteSnapshot): PaymentStepRouteSnapshot {
   return {
     fromAmountMinor: normalizeAmount(route.fromAmountMinor, "fromAmountMinor"),
-    fromCurrencyId: normalizeRequiredText(route.fromCurrencyId, "fromCurrencyId"),
+    fromCurrencyId: normalizeRequiredText(
+      route.fromCurrencyId,
+      "fromCurrencyId",
+    ),
     fromParty: normalizeParty(route.fromParty, "fromParty"),
     rate: normalizeRate(route.rate),
     toAmountMinor: normalizeAmount(route.toAmountMinor, "toAmountMinor"),
@@ -192,7 +214,10 @@ function cloneReturnRecord(
     createdAt: cloneDate(record.createdAt),
     currencyId: normalizeOptionalText(record.currencyId),
     id: normalizeRequiredText(record.id, "return.id"),
-    paymentStepId: normalizeRequiredText(record.paymentStepId, "return.paymentStepId"),
+    paymentStepId: normalizeRequiredText(
+      record.paymentStepId,
+      "return.paymentStepId",
+    ),
     providerRef: normalizeOptionalText(record.providerRef),
     reason: normalizeOptionalText(record.reason),
     returnedAt: cloneDate(record.returnedAt),
@@ -370,21 +395,12 @@ function normalizeSnapshot(snapshot: PaymentStepSnapshot): PaymentStepSnapshot {
 
   if (normalized.origin.sequence !== null) {
     invariant(
-      Number.isInteger(normalized.origin.sequence) && normalized.origin.sequence >= 0,
+      Number.isInteger(normalized.origin.sequence) &&
+        normalized.origin.sequence >= 0,
       "Payment step origin sequence must be non-negative",
       {
         code: "treasury.payment_step.origin_sequence_invalid",
         meta: { sequence: normalized.origin.sequence, stepId: normalized.id },
-      },
-    );
-  }
-  if (normalized.kind === "fx_conversion") {
-    invariant(
-      normalized.quoteId !== null,
-      "FX conversion payment steps require a quote reference",
-      {
-        code: "treasury.payment_step.fx_quote_required",
-        meta: { stepId: normalized.id },
       },
     );
   }
@@ -528,12 +544,17 @@ export class PaymentStep extends AggregateRoot<string> {
         input.fromCurrencyId !== undefined
           ? input.fromCurrencyId
           : before.fromCurrencyId,
-      fromParty: input.fromParty !== undefined ? input.fromParty : before.fromParty,
+      fromParty:
+        input.fromParty !== undefined ? input.fromParty : before.fromParty,
       rate: input.rate !== undefined ? input.rate : before.rate,
       toAmountMinor:
-        input.toAmountMinor !== undefined ? input.toAmountMinor : before.toAmountMinor,
+        input.toAmountMinor !== undefined
+          ? input.toAmountMinor
+          : before.toAmountMinor,
       toCurrencyId:
-        input.toCurrencyId !== undefined ? input.toCurrencyId : before.toCurrencyId,
+        input.toCurrencyId !== undefined
+          ? input.toCurrencyId
+          : before.toCurrencyId,
       toParty: input.toParty !== undefined ? input.toParty : before.toParty,
     });
 
@@ -749,7 +770,8 @@ export class PaymentStep extends AggregateRoot<string> {
     const documentId = normalizeRequiredText(input.documentId, "documentId");
     const kind = normalizeRequiredText(input.kind, "kind");
     const alreadyLinked = this.snapshot.postingDocumentRefs.some(
-      (existing) => existing.documentId === documentId && existing.kind === kind,
+      (existing) =>
+        existing.documentId === documentId && existing.kind === kind,
     );
     if (alreadyLinked) {
       return new PaymentStep(cloneSnapshot(this.snapshot));
@@ -853,9 +875,13 @@ export class PaymentStep extends AggregateRoot<string> {
     });
   }
 
-  private replaceAttempt(attempt: PaymentStepAttempt): PaymentStepAttemptRecord[] {
+  private replaceAttempt(
+    attempt: PaymentStepAttempt,
+  ): PaymentStepAttemptRecord[] {
     return this.snapshot.attempts.map((candidate) =>
-      candidate.id === attempt.id ? attempt.toSnapshot() : cloneAttemptRecord(candidate),
+      candidate.id === attempt.id
+        ? attempt.toSnapshot()
+        : cloneAttemptRecord(candidate),
     );
   }
 

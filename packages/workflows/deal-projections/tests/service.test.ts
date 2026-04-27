@@ -559,6 +559,16 @@ function createWorkflow(overrides?: {
           }),
         },
       },
+      quoteExecutions: {
+        queries: {
+          list: vi.fn(async () => ({
+            data: [],
+            limit: 100,
+            offset: 0,
+            total: 0,
+          })),
+        },
+      },
       quotes: {
         queries: {
           getQuoteDetails: vi.fn(async () => null),

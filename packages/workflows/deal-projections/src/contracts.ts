@@ -44,6 +44,7 @@ import {
   PaymentStepRateLockedSideSchema,
   PaymentStepStateSchema,
   PostingDocumentRefSchema,
+  QuoteExecutionStateSchema,
   QuoteListItemSchema,
   QuoteSchema,
 } from "@bedrock/treasury/contracts";
@@ -730,6 +731,39 @@ export type FinanceDealPaymentStep = z.infer<
   typeof FinanceDealPaymentStepSchema
 >;
 
+export const FinanceDealQuoteExecutionSchema = z.object({
+  completedAt: z.iso.datetime().nullable(),
+  createdAt: z.iso.datetime(),
+  dealId: z.uuid().nullable(),
+  failureReason: z.string().nullable(),
+  fromAmountMinor: z.string(),
+  fromCurrencyId: z.uuid(),
+  id: z.uuid(),
+  origin: PaymentStepOriginSchema,
+  postingDocumentRefs: z.array(PostingDocumentRefSchema),
+  providerRef: z.string().nullable(),
+  providerSnapshot: z.unknown(),
+  quoteId: z.uuid(),
+  quoteLegIdx: z.number().int().positive().nullable(),
+  rateDen: z.string(),
+  rateNum: z.string(),
+  settlementRoute: z.object({
+    creditParty: PaymentStepPartyRefSchema,
+    debitParty: PaymentStepPartyRefSchema,
+  }),
+  sourceRef: z.string(),
+  state: QuoteExecutionStateSchema,
+  submittedAt: z.iso.datetime().nullable(),
+  toAmountMinor: z.string(),
+  toCurrencyId: z.uuid(),
+  treasuryOrderId: z.uuid().nullable(),
+  updatedAt: z.iso.datetime(),
+});
+
+export type FinanceDealQuoteExecution = z.infer<
+  typeof FinanceDealQuoteExecutionSchema
+>;
+
 export const FinanceDealReconciliationStateSchema = z.enum([
   "not_started",
   "pending",
@@ -957,6 +991,7 @@ export const FinanceDealWorkspaceProjectionSchema = z.object({
     attachments: z.array(FileAttachmentSchema),
     formalDocuments: z.array(DealRelatedFormalDocumentSchema),
     paymentSteps: z.array(FinanceDealPaymentStepSchema).default([]),
+    quoteExecutions: z.array(FinanceDealQuoteExecutionSchema).default([]),
     quotes: z.array(DealRelatedQuoteSchema),
     reconciliationExceptions: z.array(
       FinanceDealReconciliationExceptionSchema,

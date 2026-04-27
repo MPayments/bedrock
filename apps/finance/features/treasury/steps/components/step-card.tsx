@@ -6,10 +6,7 @@ import { Button } from "@bedrock/sdk-ui/components/button";
 
 import type { FinanceDealPaymentStep } from "@/features/treasury/deals/lib/queries";
 
-import type {
-  PartyKind,
-  PartyKindOrSnapshot,
-} from "../lib/party-options";
+import type { PartyKind, PartyKindOrSnapshot } from "../lib/party-options";
 import {
   deriveStepPrimaryAction,
   STEP_KIND_LABELS,
@@ -26,8 +23,28 @@ import { StepSubmitDialog } from "./step-submit-dialog";
 function narrowPartyKind(
   kind: PartyKindOrSnapshot | null | undefined,
 ): PartyKind | null {
-  if (kind === "organization" || kind === "counterparty" || kind === "customer") {
+  if (
+    kind === "organization" ||
+    kind === "counterparty" ||
+    kind === "customer"
+  ) {
     return kind;
+  }
+  return null;
+}
+
+function partyKindFromEntityKind(
+  entityKind: string | null | undefined,
+): PartyKindOrSnapshot | null {
+  if (
+    entityKind === "organization" ||
+    entityKind === "counterparty" ||
+    entityKind === "customer"
+  ) {
+    return entityKind;
+  }
+  if (entityKind === "external_beneficiary_snapshot") {
+    return "beneficiary_snapshot";
   }
   return null;
 }
@@ -64,6 +81,14 @@ export function StepCard({
   const [historyOpen, setHistoryOpen] = useState(false);
 
   const primaryAction = deriveStepPrimaryAction(step.state);
+  const effectiveFromPartyKind =
+    fromPartyKind ?? partyKindFromEntityKind(step.fromParty.entityKind);
+  const effectiveToPartyKind =
+    toPartyKind ?? partyKindFromEntityKind(step.toParty.entityKind);
+  const effectiveFromPartyDisplayName =
+    fromPartyDisplayName ?? step.fromParty.displayName ?? null;
+  const effectiveToPartyDisplayName =
+    toPartyDisplayName ?? step.toParty.displayName ?? null;
 
   function handleSuccess() {
     if (onChanged) onChanged(step);
@@ -86,7 +111,8 @@ export function StepCard({
               <div className="text-sm font-semibold">{title}</div>
             ) : null}
             <div className="text-muted-foreground text-xs">
-              {STEP_KIND_LABELS[step.kind]} · {STEP_PURPOSE_LABELS[step.purpose]}
+              {STEP_KIND_LABELS[step.kind]} ·{" "}
+              {STEP_PURPOSE_LABELS[step.purpose]}
             </div>
           </div>
           <StepStateBadge
@@ -100,10 +126,10 @@ export function StepCard({
         <StepRouteEditor
           step={step}
           disabled={disabled}
-          fromPartyDisplayName={fromPartyDisplayName}
-          fromPartyKind={narrowPartyKind(fromPartyKind)}
-          toPartyDisplayName={toPartyDisplayName}
-          toPartyKind={narrowPartyKind(toPartyKind)}
+          fromPartyDisplayName={effectiveFromPartyDisplayName}
+          fromPartyKind={narrowPartyKind(effectiveFromPartyKind)}
+          toPartyDisplayName={effectiveToPartyDisplayName}
+          toPartyKind={narrowPartyKind(effectiveToPartyKind)}
           onAmended={handleSuccess}
         />
 

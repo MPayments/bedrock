@@ -6,6 +6,8 @@ const TREASURY_OPERATION_KIND_LABELS = {
   intracompany_transfer: "Внутренний перевод",
   payin: "Поступление",
   payout: "Выплата",
+  quote_execution: "Конверсия",
+  internal_transfer: "Собственный перевод",
 } as const;
 
 function getTreasuryOperationKindLabel(value: string | null | undefined) {
