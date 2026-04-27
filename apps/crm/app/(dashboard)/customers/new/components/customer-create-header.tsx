@@ -1,45 +1,56 @@
 "use client";
 
-import { Loader2, Save } from "lucide-react";
+import { Loader2, Plus, Save } from "lucide-react";
 
 import { Button } from "@bedrock/sdk-ui/components/button";
 
+import {
+  EntityPageHeader,
+  getEntityInitials,
+} from "@/components/app/entity-page-header";
+
 type CustomerCreateHeaderProps = {
+  customerName?: string;
   onCancel: () => void;
   saving: boolean;
 };
 
 export function CustomerCreateHeader({
+  customerName,
   onCancel,
   saving,
 }: CustomerCreateHeaderProps) {
-  return (
-    <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-bold">Новый клиент</h1>
-        <p className="text-sm text-muted-foreground">
-          Создание клиента в CRM, первого контрагента и расчетных данных
-        </p>
-      </div>
+  const trimmedName = customerName?.trim() ?? "";
+  const title = trimmedName || "Новый клиент";
+  const avatar = trimmedName
+    ? { initials: getEntityInitials(trimmedName) }
+    : { icon: <Plus className="size-4" /> };
 
-      <div className="flex w-full flex-col gap-2 sm:flex-row sm:justify-end lg:w-auto">
-        <Button
-          variant="outline"
-          type="button"
-          onClick={onCancel}
-          disabled={saving}
-        >
-          Отмена
-        </Button>
-        <Button type="submit" form="customer-create-form" disabled={saving}>
-          {saving ? (
-            <Loader2 className="size-4 animate-spin" />
-          ) : (
-            <Save className="size-4" />
-          )}
-          Создать клиента
-        </Button>
-      </div>
-    </div>
+  return (
+    <EntityPageHeader
+      avatar={avatar}
+      title={title}
+      infoItems={["Новый клиент", "Создание клиента, контрагента и реквизитов"]}
+      actions={
+        <div className="flex w-full flex-col gap-2 sm:flex-row sm:justify-end lg:w-auto">
+          <Button
+            variant="outline"
+            type="button"
+            onClick={onCancel}
+            disabled={saving}
+          >
+            Отмена
+          </Button>
+          <Button type="submit" form="customer-create-form" disabled={saving}>
+            {saving ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Save className="size-4" />
+            )}
+            Создать клиента
+          </Button>
+        </div>
+      }
+    />
   );
 }
