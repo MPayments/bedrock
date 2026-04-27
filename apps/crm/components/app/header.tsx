@@ -246,14 +246,6 @@ export function AppHeader({ session }: { session: UserSessionSnapshot }) {
                 </NavigationMenuLink>
               </NavigationMenuItem>
               <NavigationMenuItem>
-                <NavigationMenuLink
-                  asChild
-                  className={navigationMenuTriggerStyle()}
-                >
-                  <Link href="/documents">Документы</Link>
-                </NavigationMenuLink>
-              </NavigationMenuItem>
-              <NavigationMenuItem>
                 <DropdownMenu>
                   <DropdownMenuTrigger
                     render={

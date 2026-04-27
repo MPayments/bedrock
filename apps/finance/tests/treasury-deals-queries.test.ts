@@ -145,6 +145,10 @@ function createFinanceWorkspacePayload(): SerializedDates<FinanceDealWorkspace> 
       sourceCurrencyId: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
       targetCurrencyId: "0f9d972c-b95b-4544-95d8-8ccdc7496ed8",
     },
+    printForms: {
+      calculation: [],
+      deal: [],
+    },
     profitabilitySnapshot: null,
     queueContext: {
       blockers: ["Required intake sections are incomplete"],
@@ -602,6 +606,11 @@ describe("treasury deals queries", () => {
       .mockResolvedValueOnce({
         ok: true,
         status: 200,
+        json: async () => [],
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
         json: async () => [
           {
             createdAt: "2026-04-02T08:20:00.000Z",
@@ -715,7 +724,7 @@ describe("treasury deals queries", () => {
     );
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
-      "http://localhost:3000/v1/deals/614fb6eb-a1bd-429e-9628-e97d0f2efa0b/quotes",
+      "http://localhost:3000/v1/deals/614fb6eb-a1bd-429e-9628-e97d0f2efa0b/print-forms",
       {
         cache: "no-store",
         headers: {
@@ -726,6 +735,17 @@ describe("treasury deals queries", () => {
     );
     expect(fetchMock).toHaveBeenNthCalledWith(
       3,
+      "http://localhost:3000/v1/deals/614fb6eb-a1bd-429e-9628-e97d0f2efa0b/quotes",
+      {
+        cache: "no-store",
+        headers: {
+          cookie: "session=token",
+          "x-bedrock-app-audience": "finance",
+        },
+      },
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      4,
       "http://localhost:3000/v1/deals/614fb6eb-a1bd-429e-9628-e97d0f2efa0b/calculations",
       {
         cache: "no-store",

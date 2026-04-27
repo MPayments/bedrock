@@ -162,6 +162,7 @@ export class UploadFileAttachmentCommand {
           id: linkId,
           fileAssetId,
           linkKind: this.options.linkKind,
+          agreementVersionId: null,
           dealId: this.options.ownerType === "deal" ? validated.ownerId : null,
           counterpartyId:
             this.options.ownerType === "counterparty" ? validated.ownerId : null,

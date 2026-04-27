@@ -10,6 +10,7 @@ import {
   Wallet,
 } from "lucide-react";
 
+import { downloadPrintForm } from "@bedrock/sdk-print-forms-ui/lib/client";
 import { Button } from "@bedrock/sdk-ui/components/button";
 import {
   Card,
@@ -82,6 +83,7 @@ import { useDealPricingAutoSync } from "./use-deal-pricing-auto-sync";
 type DealPricingTabProps = {
   acceptedQuote: ApiDealAcceptedQuote;
   amountCurrencyPrecision: number;
+  currentCalculationId: string | null;
   dealId: string;
   fundingDeadline: string | null;
   initialRequestedAmount: string;
@@ -630,6 +632,7 @@ function FeeBreakdownCard({
 export function DealPricingTab({
   acceptedQuote,
   amountCurrencyPrecision,
+  currentCalculationId,
   dealId,
   fundingDeadline,
   initialRequestedAmount,
@@ -659,9 +662,8 @@ export function DealPricingTab({
     ApiDealQuoteAcceptanceHistoryItem[]
   >([]);
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [downloadingHistoryQuoteId, setDownloadingHistoryQuoteId] = useState<
-    string | null
-  >(null);
+  const [downloadingHistoryCalculationId, setDownloadingHistoryCalculationId] =
+    useState<string | null>(null);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -836,7 +838,7 @@ export function DealPricingTab({
 
   const formulaTrace = previewOrAcceptedSnapshot?.formulaTrace ?? null;
   const canCopyCalculation = Boolean(formulaTrace?.sections?.length);
-  const canDownloadPdf = Boolean(acceptedQuote);
+  const canDownloadPdf = Boolean(acceptedQuote && currentCalculationId);
 
   const handleCopyCalculation = useCallback(() => {
     const text = serializeFormulaTrace(formulaTrace);
@@ -857,63 +859,33 @@ export function DealPricingTab({
     );
   }, [formulaTrace]);
 
-  const downloadPricingPdf = useCallback(
-    async (quoteId: string | null) => {
-      const qs = quoteId
-        ? `format=pdf&quoteId=${encodeURIComponent(quoteId)}`
-        : "format=pdf";
-      const response = await fetch(
-        `${API_BASE_URL}/deals/${dealId}/pricing/export?${qs}`,
-        {
-          cache: "no-store",
-          credentials: "include",
-        },
-      );
-      if (!response.ok) {
-        let message = `Ошибка запроса: ${response.status}`;
-        try {
-          const payload = (await response.json()) as {
-            error?: string;
-            message?: string;
-          };
-          message = payload.message ?? payload.error ?? message;
-        } catch {
-          // Ignore JSON parsing issues.
-        }
-        throw new Error(message);
-      }
-      const blob = await response.blob();
-      const disposition = response.headers.get("Content-Disposition");
-      let filename = "calculation.pdf";
-      if (disposition) {
-        const match = disposition.match(/filename="?([^"]+)"?/u);
-        if (match?.[1]) {
-          filename = decodeURIComponent(match[1]);
-        }
-      }
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = filename;
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-      URL.revokeObjectURL(url);
-    },
-    [dealId],
-  );
+  const downloadPricingPdf = useCallback(async (calculationId: string) => {
+    await downloadPrintForm({
+      client: { baseUrl: API_BASE_URL, credentials: "include" },
+      fallbackFileName: `calculation-${calculationId}.pdf`,
+      form: {
+        id: "calculation.calculation-ru",
+        title: "Расчет",
+      },
+      format: "pdf",
+      owner: {
+        type: "calculation",
+        calculationId,
+      },
+    });
+  }, []);
 
   const handleDownloadHistoryPdf = useCallback(
-    async (quoteId: string) => {
-      setDownloadingHistoryQuoteId(quoteId);
+    async (calculationId: string) => {
+      setDownloadingHistoryCalculationId(calculationId);
       try {
-        await downloadPricingPdf(quoteId);
+        await downloadPricingPdf(calculationId);
       } catch (error) {
         toast.error(
           error instanceof Error ? error.message : "Не удалось скачать PDF",
         );
       } finally {
-        setDownloadingHistoryQuoteId(null);
+        setDownloadingHistoryCalculationId(null);
       }
     },
     [downloadPricingPdf],
@@ -947,48 +919,14 @@ export function DealPricingTab({
   );
 
   const handleDownloadPdf = useCallback(async () => {
+    if (!currentCalculationId) {
+      toast.error("Расчет недоступен для выгрузки");
+      return;
+    }
+
     setIsDownloadingPdf(true);
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/deals/${dealId}/pricing/export?format=pdf`,
-        {
-          cache: "no-store",
-          credentials: "include",
-        },
-      );
-
-      if (!response.ok) {
-        let message = `Ошибка запроса: ${response.status}`;
-        try {
-          const payload = (await response.json()) as {
-            error?: string;
-            message?: string;
-          };
-          message = payload.message ?? payload.error ?? message;
-        } catch {
-          // Ignore JSON parsing issues.
-        }
-        throw new Error(message);
-      }
-
-      const blob = await response.blob();
-      const disposition = response.headers.get("Content-Disposition");
-      let filename = "calculation.pdf";
-      if (disposition) {
-        const match = disposition.match(/filename="?([^"]+)"?/u);
-        if (match?.[1]) {
-          filename = decodeURIComponent(match[1]);
-        }
-      }
-
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = filename;
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-      URL.revokeObjectURL(url);
+      await downloadPricingPdf(currentCalculationId);
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Не удалось скачать PDF",
@@ -996,7 +934,7 @@ export function DealPricingTab({
     } finally {
       setIsDownloadingPdf(false);
     }
-  }, [dealId]);
+  }, [currentCalculationId, downloadPricingPdf]);
 
   return (
     <div className="space-y-6">
@@ -1489,15 +1427,22 @@ export function DealPricingTab({
                             </Button>
                             <Button
                               disabled={
-                                downloadingHistoryQuoteId === row.quoteId
+                                !row.calculationId ||
+                                downloadingHistoryCalculationId ===
+                                  row.calculationId
                               }
                               onClick={() =>
-                                void handleDownloadHistoryPdf(row.quoteId)
+                                row.calculationId
+                                  ? void handleDownloadHistoryPdf(
+                                      row.calculationId,
+                                    )
+                                  : undefined
                               }
                               size="sm"
                               variant="ghost"
                             >
-                              {downloadingHistoryQuoteId === row.quoteId ? (
+                              {downloadingHistoryCalculationId ===
+                              row.calculationId ? (
                                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
                               ) : (
                                 <Download className="h-3.5 w-3.5" />

@@ -457,6 +457,7 @@ function mapRelatedDocumentsToFormalDocuments(
     id: document.id,
     lifecycleStatus: document.lifecycleStatus ?? "unknown",
     postingStatus: document.postingStatus ?? "unknown",
+    printForms: document.printForms ?? [],
     submissionStatus: document.submissionStatus ?? "unknown",
     title: null,
   }));
@@ -1981,6 +1982,7 @@ export default function DealDetailPage() {
                     : data.currency?.precision ?? 2
                 }
                 currencyOptions={data.currencyOptions}
+                currentCalculationId={data.deal.calculationId}
                 dealId={dealId}
                 fundingDeadline={
                   data.workbench.intake.incomingReceipt.expectedAt

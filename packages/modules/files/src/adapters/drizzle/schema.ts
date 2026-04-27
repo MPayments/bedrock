@@ -14,6 +14,7 @@ import {
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 
+import { agreementVersions } from "@bedrock/agreements/schema";
 import { deals } from "@bedrock/deals/schema";
 import { user } from "@bedrock/iam/schema";
 import { counterparties } from "@bedrock/parties/schema";
@@ -125,6 +126,10 @@ export const fileLinks = pgTable(
     counterpartyId: uuid("counterparty_id").references(() => counterparties.id, {
       onDelete: "cascade",
     }),
+    agreementVersionId: uuid("agreement_version_id").references(
+      () => agreementVersions.id,
+      { onDelete: "cascade" },
+    ),
     paymentStepId: uuid("payment_step_id"),
     linkKind: fileLinkKindEnum("link_kind").notNull(),
     attachmentPurpose: fileAttachmentPurposeEnum("attachment_purpose"),
@@ -143,13 +148,15 @@ export const fileLinks = pgTable(
     uniqueIndex("file_links_asset_uq").on(table.fileAssetId),
     index("file_links_deal_idx").on(table.dealId),
     index("file_links_counterparty_idx").on(table.counterpartyId),
+    index("file_links_agreement_version_idx").on(table.agreementVersionId),
     index("file_links_payment_step_idx").on(table.paymentStepId),
     check(
       "file_links_exactly_one_owner_chk",
       sql`(
-        (${table.dealId} is not null and ${table.counterpartyId} is null and ${table.paymentStepId} is null)
-        or (${table.dealId} is null and ${table.counterpartyId} is not null and ${table.paymentStepId} is null)
-        or (${table.dealId} is null and ${table.counterpartyId} is null and ${table.paymentStepId} is not null)
+        (${table.dealId} is not null and ${table.counterpartyId} is null and ${table.agreementVersionId} is null and ${table.paymentStepId} is null)
+        or (${table.dealId} is null and ${table.counterpartyId} is not null and ${table.agreementVersionId} is null and ${table.paymentStepId} is null)
+        or (${table.dealId} is null and ${table.counterpartyId} is null and ${table.agreementVersionId} is not null and ${table.paymentStepId} is null)
+        or (${table.dealId} is null and ${table.counterpartyId} is null and ${table.agreementVersionId} is null and ${table.paymentStepId} is not null)
       )`,
     ),
     check(
@@ -161,32 +168,17 @@ export const fileLinks = pgTable(
         and ${table.generatedFormat} is null
         and ${table.generatedLang} is null
       ) or (
-        ${table.linkKind} in ('deal_application', 'deal_invoice', 'deal_acceptance', 'legal_entity_contract')
+        ${table.linkKind} = 'agreement_signed_contract'
         and ${table.attachmentPurpose} is null
         and ${table.attachmentVisibility} is null
-        and ${table.generatedFormat} is not null
-        and ${table.generatedLang} is not null
+        and ${table.generatedFormat} is null
+        and ${table.generatedLang} is null
       )`,
     ),
-    uniqueIndex("file_links_generated_deal_variant_uq")
-      .on(
-        table.dealId,
-        table.linkKind,
-        table.generatedFormat,
-        table.generatedLang,
-      )
+    uniqueIndex("file_links_agreement_signed_contract_uq")
+      .on(table.agreementVersionId, table.linkKind)
       .where(
-        sql`${table.dealId} is not null and ${table.linkKind} in ('deal_application', 'deal_invoice', 'deal_acceptance')`,
-      ),
-    uniqueIndex("file_links_generated_counterparty_variant_uq")
-      .on(
-        table.counterpartyId,
-        table.linkKind,
-        table.generatedFormat,
-        table.generatedLang,
-      )
-      .where(
-        sql`${table.counterpartyId} is not null and ${table.linkKind} = 'legal_entity_contract'`,
+        sql`${table.agreementVersionId} is not null and ${table.linkKind} = 'agreement_signed_contract'`,
       ),
   ],
 );

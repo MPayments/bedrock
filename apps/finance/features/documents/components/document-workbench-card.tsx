@@ -1,5 +1,7 @@
 "use client";
 
+import type { ReactNode } from "react";
+
 import { DocumentWorkbenchCard as SharedDocumentWorkbenchCard } from "@bedrock/sdk-documents-form-ui/components/document-workbench-card";
 import type { DocumentFormOptions } from "@bedrock/sdk-documents-form-ui/lib/form-options";
 
@@ -18,12 +20,14 @@ type DocumentWorkbenchCardProps = {
   allowedActions: string[];
   userRole: UserRole;
   options: DocumentFormOptions;
+  headerActions?: ReactNode;
 };
 
 export function DocumentWorkbenchCard({
   allowedActions,
   docType,
   documentId,
+  headerActions,
   options,
   payload,
   userRole,
@@ -37,6 +41,7 @@ export function DocumentWorkbenchCard({
       allowedActions={allowedActions}
       isAdmin={userRole === "admin"}
       options={options}
+      headerActions={headerActions}
       createMutator={async ({ docType: type, dealId, payload: input }) => {
         if (dealId) {
           return createDealScopedDocumentDraft({

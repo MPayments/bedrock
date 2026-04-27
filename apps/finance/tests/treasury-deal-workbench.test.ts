@@ -227,6 +227,10 @@ function createDeal(): FinanceDealWorkbenchData {
       sourceCurrencyId: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
       targetCurrencyId: "0f9d972c-b95b-4544-95d8-8ccdc7496ed8",
     },
+    printForms: {
+      calculation: [],
+      deal: [],
+    },
     profitabilitySnapshot: null,
     quoteHistory: [],
     queueContext: {

@@ -26,6 +26,7 @@
     "@bedrock/sdk-documents-form-ui": "workspace:*",
     "@bedrock/sdk-organizations-ui": "workspace:*",
     "@bedrock/sdk-parties-ui": "workspace:*",
+    "@bedrock/sdk-print-forms-ui": "workspace:*",
     "@bedrock/sdk-tables-ui": "workspace:*",
     "@bedrock/sdk-ui": "workspace:*",
     "@bedrock/sdk-users-ui": "workspace:*",

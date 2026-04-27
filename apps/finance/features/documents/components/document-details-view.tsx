@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import type { DocumentFormOptions } from "@bedrock/sdk-documents-form-ui/lib/form-options";
+import { PrintFormActions } from "@bedrock/sdk-print-forms-ui/components/print-form-actions";
 import { Badge } from "@bedrock/sdk-ui/components/badge";
 import {
   Card,
@@ -10,21 +12,20 @@ import {
 } from "@bedrock/sdk-ui/components/card";
 import { Separator } from "@bedrock/sdk-ui/components/separator";
 
-import type { UserRole } from "@/lib/auth/types";
-import type { DocumentFormOptions } from "@bedrock/sdk-documents-form-ui/lib/form-options";
 import { getDocumentTypeLabel } from "@/features/documents/lib/doc-types";
-import { OperationDetailsCards } from "@/features/operations/journal/components/operation-details-cards";
 import {
   getApprovalStatusLabel,
   getLifecycleStatusLabel,
   getPostingStatusLabel,
   getSubmissionStatusLabel,
 } from "@/features/documents/lib/status-labels";
-import { formatAmountByCurrency, formatDate } from "@/lib/format";
 import {
   type DocumentDetailsDto,
   type DocumentDto,
 } from "@/features/operations/documents/lib/schemas";
+import { OperationDetailsCards } from "@/features/operations/journal/components/operation-details-cards";
+import { formatAmountByCurrency, formatDate } from "@/lib/format";
+import type { UserRole } from "@/lib/auth/types";
 
 import { DocumentActionButtons } from "./document-action-buttons";
 import { DocumentWorkbenchCard } from "./document-workbench-card";
@@ -170,6 +171,18 @@ export function DocumentDetailsView({
 
   const shouldAutoReturnToDeal =
     isDealReturnHref(returnToHref) && !reconciliationAdjustmentExceptionId;
+  const printFormActions = (
+    <PrintFormActions
+      client={{ baseUrl: "/v1", credentials: "include" }}
+      forms={document.printForms}
+      owner={{
+        type: "document",
+        docType: document.docType,
+        documentId: document.id,
+      }}
+      size="sm"
+    />
+  );
 
   return (
     <div className="space-y-6">
@@ -200,23 +213,26 @@ export function DocumentDetailsView({
                 lifecycleStatus={document.lifecycleStatus}
               />
             </div>
-            <DocumentActionButtons
-              docType={document.docType}
-              documentId={document.id}
-              allowedActions={document.allowedActions}
-              reconciliationAdjustment={
-                dealId && reconciliationAdjustmentExceptionId
-                  ? {
-                      dealId,
-                      exceptionId: reconciliationAdjustmentExceptionId,
-                      returnToHref,
-                    }
-                  : undefined
-              }
-              returnOnPostedHref={
-                shouldAutoReturnToDeal ? returnToHref : undefined
-              }
-            />
+            <div className="flex flex-wrap justify-end gap-2">
+              {printFormActions}
+              <DocumentActionButtons
+                docType={document.docType}
+                documentId={document.id}
+                allowedActions={document.allowedActions}
+                reconciliationAdjustment={
+                  dealId && reconciliationAdjustmentExceptionId
+                    ? {
+                        dealId,
+                        exceptionId: reconciliationAdjustmentExceptionId,
+                        returnToHref,
+                      }
+                    : undefined
+                }
+                returnOnPostedHref={
+                  shouldAutoReturnToDeal ? returnToHref : undefined
+                }
+              />
+            </div>
           </div>
         </CardHeader>
         <CardContent className="grid gap-6 py-6 md:grid-cols-2">

@@ -27,6 +27,7 @@ export interface CreateFileVersionStoredInput {
 }
 
 export interface CreateFileLinkStoredInput {
+  agreementVersionId: string | null;
   attachmentPurpose: FileAttachmentPurpose | null;
   attachmentVisibility: FileAttachmentVisibility | null;
   counterpartyId: string | null;

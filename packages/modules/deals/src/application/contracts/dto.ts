@@ -626,6 +626,7 @@ export const DealQuoteAcceptanceHistoryItemSchema = z.object({
   acceptanceId: z.uuid(),
   acceptedAt: z.iso.datetime(),
   acceptedByUserId: z.string(),
+  calculationId: z.uuid().nullable(),
   commercialRevenueMinor: z.string().nullable(),
   customerTotalMinor: z.string().nullable(),
   expiresAt: z.iso.datetime().nullable(),

@@ -33,6 +33,7 @@ import {
   formatFractionDecimal,
   parseDecimalToFraction,
 } from "@bedrock/shared/money";
+import { downloadPrintForm } from "@bedrock/sdk-print-forms-ui/lib/client";
 
 import { API_BASE_URL } from "@/lib/constants";
 import {
@@ -269,26 +270,19 @@ export default function PortalDealDetailPage() {
       setDownloadingFormat(format);
       setCalculationError(null);
 
-      const response = await fetch(
-        `${API_BASE_URL}/calculations/${data.calculationSummary.id}/export?format=${format}`,
-        {
-          credentials: "include",
+      await downloadPrintForm({
+        client: { baseUrl: API_BASE_URL, credentials: "include" },
+        fallbackFileName: `deal-calculation-${data.calculationSummary.id}.${format}`,
+        form: {
+          id: "calculation.calculation-ru",
+          title: "Расчет",
         },
-      );
-
-      if (!response.ok) {
-        throw new Error("Ошибка загрузки документа");
-      }
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = `deal-calculation-${data.calculationSummary.id}.${format}`;
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-      window.URL.revokeObjectURL(url);
+        format,
+        owner: {
+          type: "calculation",
+          calculationId: data.calculationSummary.id,
+        },
+      });
     } catch (downloadError) {
       setCalculationError(
         downloadError instanceof Error

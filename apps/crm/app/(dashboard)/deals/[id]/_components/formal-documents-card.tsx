@@ -1,28 +1,25 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 
-import { Download, ExternalLink, File, Loader2, Plus } from "lucide-react";
+import { ExternalLink, File, Plus } from "lucide-react";
 
+import { PrintFormActions } from "@bedrock/sdk-print-forms-ui/components/print-form-actions";
 import { Badge } from "@bedrock/sdk-ui/components/badge";
 import { Button } from "@bedrock/sdk-ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/components/card";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@bedrock/sdk-ui/components/select";
-import { toast } from "@bedrock/sdk-ui/components/sonner";
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@bedrock/sdk-ui/components/card";
 
 import { canCreateCrmDocumentType } from "@/features/documents/lib/doc-types";
-import { downloadDocumentPrintForm } from "@/features/documents/lib/mutations";
 import {
   buildCrmDealDocumentCreateHref,
   buildCrmDealDocumentDetailsHref,
 } from "@/features/documents/lib/routes";
+import { API_BASE_URL } from "@/lib/constants";
 
 import {
   DOCUMENT_APPROVAL_STATUS_LABELS,
@@ -58,8 +55,6 @@ const REQUIREMENT_STATE_LABELS: Record<
   ready: "Готов",
 };
 
-const PRINTABLE_DOC_TYPES = new Set(["acceptance", "application", "invoice"]);
-
 function renderDocumentStatusLabel(
   kind: "submission" | "approval" | "posting",
   value: string,
@@ -73,65 +68,6 @@ function renderDocumentStatusLabel(
   }
 
   return DOCUMENT_POSTING_STATUS_LABELS[value] ?? value;
-}
-
-function QuickPrintExportControl({
-  docType,
-  documentId,
-}: {
-  docType: string;
-  documentId: string;
-}) {
-  const [format, setFormat] = useState<"docx" | "pdf">("pdf");
-  const [isDownloading, setIsDownloading] = useState(false);
-
-  async function handleDownload() {
-    setIsDownloading(true);
-    const result = await downloadDocumentPrintForm({
-      docType,
-      documentId,
-      format,
-    });
-    setIsDownloading(false);
-
-    if (!result.ok) {
-      toast.error(result.message);
-      return;
-    }
-
-    toast.success("Печатная форма выгружена");
-  }
-
-  return (
-    <div className="flex items-center gap-2">
-      <Select
-        value={format}
-        onValueChange={(value) => setFormat(value as "docx" | "pdf")}
-      >
-        <SelectTrigger className="h-8 w-[92px]">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent align="end">
-          <SelectItem value="pdf">PDF</SelectItem>
-          <SelectItem value="docx">DOCX</SelectItem>
-        </SelectContent>
-      </Select>
-      <Button
-        type="button"
-        size="sm"
-        variant="outline"
-        disabled={isDownloading}
-        onClick={() => void handleDownload()}
-      >
-        {isDownloading ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
-        ) : (
-          <Download className="h-4 w-4" />
-        )}
-        Выгрузить
-      </Button>
-    </div>
-  );
 }
 
 export function FormalDocumentsCard({
@@ -156,81 +92,101 @@ export function FormalDocumentsCard({
             <div className="text-sm font-medium text-muted-foreground">
               Требуемые документы
             </div>
-            {requirements.map((requirement) => (
-              <div key={`${requirement.stage}:${requirement.docType}`} className="rounded-lg border p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <div className="font-medium">
-                      {FORMAL_DOCUMENT_LABELS[requirement.docType] ||
-                        requirement.docType}
+            {requirements.map((requirement) => {
+              const activeDocument = requirement.activeDocumentId
+                ? documents.find(
+                    (document) => document.id === requirement.activeDocumentId,
+                  )
+                : null;
+
+              return (
+                <div
+                  key={`${requirement.stage}:${requirement.docType}`}
+                  className="rounded-lg border p-4"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="font-medium">
+                        {FORMAL_DOCUMENT_LABELS[requirement.docType] ||
+                          requirement.docType}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {requirement.stage === "opening"
+                          ? "Открывающий документ"
+                          : "Закрывающий документ"}
+                      </div>
                     </div>
-                    <div className="text-sm text-muted-foreground">
-                      {requirement.stage === "opening"
-                        ? "Открывающий документ"
-                        : "Закрывающий документ"}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {requirement.state === "missing" &&
-                    requirement.createAllowed &&
-                    canCreateCrmDocumentType(requirement.docType) ? (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        nativeButton={false}
-                        render={
-                          <Link
-                            href={buildCrmDealDocumentCreateHref(
-                              dealId,
-                              requirement.docType,
-                            )}
-                          >
-                            <Plus className="h-4 w-4" /> Создать
-                          </Link>
-                        }
-                      />
-                    ) : null}
-                    {requirement.activeDocumentId &&
-                    requirement.openAllowed ? (
-                      <>
-                        {PRINTABLE_DOC_TYPES.has(requirement.docType) ? (
-                          <QuickPrintExportControl
-                            docType={requirement.docType}
-                            documentId={requirement.activeDocumentId}
+                    <div className="flex items-center gap-2">
+                      {requirement.state === "missing" &&
+                      requirement.createAllowed &&
+                      canCreateCrmDocumentType(requirement.docType) ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          nativeButton={false}
+                          render={
+                            <Link
+                              href={buildCrmDealDocumentCreateHref(
+                                dealId,
+                                requirement.docType,
+                              )}
+                            >
+                              <Plus className="h-4 w-4" /> Создать
+                            </Link>
+                          }
+                        />
+                      ) : null}
+                      {requirement.activeDocumentId &&
+                      requirement.openAllowed ? (
+                        <>
+                          {activeDocument ? (
+                            <PrintFormActions
+                              client={{
+                                baseUrl: API_BASE_URL,
+                                credentials: "include",
+                              }}
+                              forms={activeDocument.printForms}
+                              owner={{
+                                type: "document",
+                                docType: activeDocument.docType,
+                                documentId: activeDocument.id,
+                              }}
+                              size="sm"
+                            />
+                          ) : null}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            nativeButton={false}
+                            render={
+                              <Link
+                                href={buildCrmDealDocumentDetailsHref(
+                                  dealId,
+                                  requirement.docType,
+                                  requirement.activeDocumentId,
+                                )}
+                              >
+                                <ExternalLink className="h-4 w-4" /> Открыть
+                              </Link>
+                            }
                           />
-                        ) : null}
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        nativeButton={false}
-                        render={
-                          <Link
-                            href={buildCrmDealDocumentDetailsHref(
-                              dealId,
-                              requirement.docType,
-                              requirement.activeDocumentId,
-                            )}
-                          >
-                            <ExternalLink className="h-4 w-4" /> Открыть
-                          </Link>
-                        }
-                      />
-                      </>
-                    ) : null}
-                    <Badge variant="outline">
-                      {REQUIREMENT_STATE_LABELS[requirement.state]}
-                    </Badge>
+                        </>
+                      ) : null}
+                      <Badge variant="outline">
+                        {REQUIREMENT_STATE_LABELS[requirement.state]}
+                      </Badge>
+                    </div>
                   </div>
+                  {requirement.blockingReasons.length > 0 ? (
+                    <div className="mt-2 text-sm text-muted-foreground">
+                      {requirement.blockingReasons
+                        .map((reason) => formatDealWorkflowMessage(reason))
+                        .join(" ")}
+                    </div>
+                  ) : null}
                 </div>
-                {requirement.blockingReasons.length > 0 ? (
-                  <div className="mt-2 text-sm text-muted-foreground">
-                    {requirement.blockingReasons
-                      .map((reason) => formatDealWorkflowMessage(reason))
-                      .join(" ")}
-                  </div>
-                ) : null}
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : null}
         {!hasDocuments ? (
@@ -265,7 +221,17 @@ export function FormalDocumentsCard({
                       </div>
                     )}
                   </div>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    <PrintFormActions
+                      client={{ baseUrl: API_BASE_URL, credentials: "include" }}
+                      forms={document.printForms}
+                      owner={{
+                        type: "document",
+                        docType: document.docType,
+                        documentId: document.id,
+                      }}
+                      size="sm"
+                    />
                     <Badge variant="outline">
                       Отправка:{" "}
                       {renderDocumentStatusLabel(

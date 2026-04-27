@@ -26,8 +26,6 @@ import {
 } from "./customer-agreements";
 import {
   CustomerFileAttachmentSchema,
-  GeneratedDocumentFormatSchema,
-  GeneratedDocumentLangSchema,
   serializeCustomerFileAttachment,
 } from "./customer-files";
 import { DeletedSchema, ErrorSchema } from "../common";
@@ -389,28 +387,6 @@ export function customersRoutes(ctx: AppContext) {
     tags: ["Customers"],
   });
 
-  const generateCounterpartyContractRoute = createRoute({
-    middleware: [requirePermission({ agreements: ["list"] })],
-    method: "get",
-    path: "/{customerId}/counterparties/{counterpartyId}/contract",
-    request: {
-      params: CustomerCounterpartyParamsSchema,
-      query: z.object({
-        format: GeneratedDocumentFormatSchema,
-        lang: GeneratedDocumentLangSchema,
-      }),
-    },
-    responses: {
-      200: { description: "Contract document" },
-      404: {
-        content: { "application/json": { schema: ErrorSchema } },
-        description: "Counterparty or contract not found",
-      },
-    },
-    summary: "Generate contract for a customer-owned counterparty",
-    tags: ["Customers"],
-  });
-
   const upsertCounterpartyContractRoute = createRoute({
     middleware: [requirePermission({ agreements: ["create", "update"] })],
     method: "post",
@@ -637,39 +613,6 @@ export function customersRoutes(ctx: AppContext) {
           ownerId: counterpartyId,
         });
         return c.json({ deleted: true }, 200);
-      } catch (error) {
-        return handleRouteError(c, error);
-      }
-    })
-    .openapi(generateCounterpartyContractRoute, async (c) => {
-      try {
-        const { counterpartyId, customerId } = c.req.valid("param");
-        const { format, lang } = c.req.valid("query");
-        const result =
-          await ctx.documentGenerationWorkflow.generateCustomerContract({
-            counterpartyId,
-            customerId,
-            format,
-            lang,
-          });
-        await ctx.filesModule.files.commands.persistGeneratedCounterpartyFile({
-          buffer: result.buffer,
-          createdBy: c.get("user")?.id ?? null,
-          fileName: result.fileName,
-          fileSize: result.buffer.byteLength,
-          generatedFormat: format,
-          generatedLang: lang,
-          linkKind: "legal_entity_contract",
-          mimeType: result.mimeType,
-          ownerId: counterpartyId,
-        });
-
-        c.header("Content-Type", result.mimeType);
-        c.header(
-          "Content-Disposition",
-          `attachment; filename="${result.fileName}"`,
-        );
-        return c.body(result.buffer as unknown as ArrayBuffer);
       } catch (error) {
         return handleRouteError(c, error);
       }

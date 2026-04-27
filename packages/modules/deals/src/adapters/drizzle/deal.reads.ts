@@ -1284,6 +1284,7 @@ export class DrizzleDealReads implements DealReads {
       acceptanceId: string;
       acceptedAt: Date | string;
       acceptedByUserId: string;
+      calculationId: string | null;
       commercialRevenueMinor: string | null;
       customerTotalMinor: string | null;
       expiresAt: Date | string | null;
@@ -1303,6 +1304,7 @@ export class DrizzleDealReads implements DealReads {
         a.id as "acceptanceId",
         a.accepted_at as "acceptedAt",
         a.accepted_by_user_id as "acceptedByUserId",
+        dcl.calculation_id as "calculationId",
         q.pricing_trace #>> '{metadata,crmPricingSnapshot,profitability,commercialRevenueMinor}' as "commercialRevenueMinor",
         q.pricing_trace #>> '{metadata,crmPricingSnapshot,profitability,customerTotalMinor}' as "customerTotalMinor",
         q.expires_at as "expiresAt",
@@ -1319,6 +1321,13 @@ export class DrizzleDealReads implements DealReads {
         tc.code as "toCurrency"
       from deal_quote_acceptances a
       inner join fx_quotes q on q.id = a.quote_id
+      left join lateral (
+        select calculation_id
+        from deal_calculation_links
+        where deal_id = a.deal_id and source_quote_id = a.quote_id
+        order by created_at desc
+        limit 1
+      ) dcl on true
       left join currencies fc on fc.id = q.from_currency_id
       left join currencies tc on tc.id = q.to_currency_id
       where a.deal_id = ${dealId}
@@ -1329,6 +1338,7 @@ export class DrizzleDealReads implements DealReads {
       acceptanceId: row.acceptanceId,
       acceptedAt: toDate(row.acceptedAt).toISOString(),
       acceptedByUserId: row.acceptedByUserId,
+      calculationId: row.calculationId,
       commercialRevenueMinor: row.commercialRevenueMinor,
       customerTotalMinor: row.customerTotalMinor,
       expiresAt: toDateOrNull(row.expiresAt)?.toISOString() ?? null,

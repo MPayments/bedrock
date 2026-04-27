@@ -5,6 +5,23 @@ import { describe, expect, it } from "vitest";
 import { FinanceDealWorkspaceView } from "@/features/treasury/deals/components/workspace-view";
 import type { FinanceDealWorkspace } from "@/features/treasury/deals/lib/queries";
 
+function createPrintForm(
+  id: string,
+  ownerType: "calculation" | "deal",
+  title: string,
+): FinanceDealWorkspace["printForms"]["deal"][number] {
+  return {
+    formats: ["docx" as const, "pdf" as const],
+    id,
+    languageMode: "single" as const,
+    languages: ["ru" as const],
+    ownerType,
+    quality: "ready" as const,
+    title,
+    warnings: [],
+  };
+}
+
 function createDeal(): FinanceDealWorkspace {
   const fundingResolution = {
     availableMinor: null,
@@ -141,6 +158,10 @@ function createDeal(): FinanceDealWorkspace {
       sourceCurrencyId: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
       targetCurrencyId: "0f9d972c-b95b-4544-95d8-8ccdc7496ed8",
     },
+    printForms: {
+      calculation: [],
+      deal: [createPrintForm("deal.application", "deal", "Заявка")],
+    },
     profitabilitySnapshot: null,
     queueContext: {
       blockers: [
@@ -259,6 +280,7 @@ describe("treasury deal workspace view", () => {
     expect(normalizedMarkup).toContain("Критерии закрытия");
     expect(normalizedMarkup).toContain("Сверка");
     expect(normalizedMarkup).toContain("Последнее исключение");
+    expect(normalizedMarkup).toContain("Печатная форма");
   });
 
   it("formats profitability snapshot amounts from minor units", () => {
@@ -269,8 +291,16 @@ describe("treasury deal workspace view", () => {
     ).React = React;
 
     const deal = createDeal();
+    deal.summary.calculationId = "7f6491b3-5226-4e34-a019-92a41315d642";
+    deal.printForms.calculation = [
+      createPrintForm(
+        "calculation.calculation-ru",
+        "calculation",
+        "Расчет",
+      ),
+    ];
     deal.profitabilitySnapshot = {
-      calculationId: "calc-1",
+      calculationId: "7f6491b3-5226-4e34-a019-92a41315d642",
       feeRevenue: [
         {
           amountMinor: "2551338",

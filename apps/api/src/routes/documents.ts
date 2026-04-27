@@ -27,7 +27,12 @@ import {
   toDocumentDetailsDto,
   toDocumentDto,
 } from "./internal/document-dto";
-import { exportPrintableDocument } from "./internal/document-print-export";
+import {
+  generateDocumentPrintForm,
+  listDocumentPrintForms,
+  PrintFormFormatQuerySchema,
+  writeGeneratedDocumentResponse,
+} from "./internal/print-forms";
 import { registerIdempotentMutationRoute } from "./internal/register-idempotent-mutation-route";
 
 const DOCUMENT_ACTION_TO_PERMISSION = {
@@ -72,91 +77,6 @@ type PublicDocumentMutationAction =
 const OperationParamSchema = z.object({
   operationId: z.uuid(),
 });
-
-const FIELD_METADATA: Record<string, { label: string; category: string }> = {
-  acceptanceNumber: { label: "Номер акта", category: "Документ" },
-  account: { label: "Расчётный счёт", category: "Клиент" },
-  address: { label: "Адрес", category: "Клиент" },
-  agentAddress: { label: "Адрес агента", category: "Агент" },
-  agentBankAccount: { label: "Счёт банка агента", category: "Агент" },
-  agentBankBic: { label: "БИК банка агента", category: "Агент" },
-  agentBankSwiftCode: { label: "SWIFT банка агента", category: "Агент" },
-  agentDirectorName: { label: "ФИО директора агента", category: "Агент" },
-  agentFee: { label: "Комиссия агента (%)", category: "Договор" },
-  agentName: { label: "Название организации агента", category: "Агент" },
-  agentTaxId: { label: "Tax ID агента", category: "Агент" },
-  applicationNumber: { label: "Номер заявки", category: "Документ" },
-  bankName: { label: "Название банка", category: "Клиент" },
-  baseCurrencyCode: { label: "Базовая валюта", category: "Расчёт" },
-  bic: { label: "БИК", category: "Клиент" },
-  calculationDate: { label: "Дата расчёта", category: "Документ" },
-  calculationNumber: { label: "Номер расчёта", category: "Документ" },
-  companyName: { label: "Компания-получатель", category: "Сделка" },
-  contractDate: { label: "Дата договора", category: "Договор" },
-  contractNumber: { label: "Номер договора", category: "Договор" },
-  corrAccount: { label: "Корр. счёт", category: "Клиент" },
-  createdAt: { label: "Дата создания", category: "Документ" },
-  currencyCode: { label: "Валюта перевода", category: "Расчёт" },
-  date: { label: "Дата", category: "Документ" },
-  directorBasis: { label: "Основание действий директора", category: "Клиент" },
-  directorInitials: { label: "Инициалы директора", category: "Клиент" },
-  directorName: { label: "ФИО директора", category: "Клиент" },
-  agreementFeeAmount: {
-    label: "Договорная комиссия",
-    category: "Расчёт",
-  },
-  agreementFeePercentage: {
-    label: "Договорная комиссия (%)",
-    category: "Расчёт",
-  },
-  finalRate: { label: "Финальный курс клиента", category: "Расчёт" },
-  fixedFee: { label: "Фикс. комиссия", category: "Договор" },
-  fixedFeeAmount: { label: "Фиксированная комиссия", category: "Расчёт" },
-  fixedFeeCurrencyCode: {
-    label: "Валюта фиксированной комиссии",
-    category: "Расчёт",
-  },
-  inn: { label: "ИНН", category: "Клиент" },
-  invoiceNumber: { label: "Номер счёта", category: "Документ" },
-  kpp: { label: "КПП", category: "Клиент" },
-  ogrn: { label: "ОГРН", category: "Клиент" },
-  orgName: { label: "Название организации", category: "Клиент" },
-  orgType: { label: "Тип организации", category: "Клиент" },
-  originalAmount: { label: "Сумма в валюте", category: "Расчёт" },
-  quoteMarkupAmount: { label: "Надбавка к котировке", category: "Расчёт" },
-  quoteMarkupPercentage: {
-    label: "Надбавка к котировке (%)",
-    category: "Расчёт",
-  },
-  rate: { label: "Финальный курс клиента", category: "Расчёт" },
-  swiftCode: { label: "SWIFT-код получателя", category: "Сделка" },
-  totalFeeAmount: { label: "Суммарная комиссия", category: "Расчёт" },
-  totalFeeAmountInBase: {
-    label: "Суммарная комиссия (в базовой валюте)",
-    category: "Расчёт",
-  },
-  totalFeeAmountInBaseWords: {
-    label: "Суммарная комиссия прописью",
-    category: "Расчёт",
-  },
-  totalFeePercentage: {
-    label: "Суммарная комиссия (%)",
-    category: "Расчёт",
-  },
-  totalAmount: { label: "Итого с комиссией", category: "Расчёт" },
-  totalWithExpensesInBase: {
-    label: "Итого с расходами (в базовой валюте)",
-    category: "Расчёт",
-  },
-};
-
-const TEMPLATE_LABELS: Record<string, string> = {
-  "acceptance.docx": "Акт оказанных услуг",
-  "application.docx": "Заявка на перевод",
-  "calculation.docx": "Расчёт",
-  "contract.docx": "Агентский договор",
-  "invoice.docx": "Счёт на оплату",
-};
 
 const JournalOperationsQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(MAX_QUERY_LIST_LIMIT).default(20),
@@ -546,33 +466,46 @@ export function documentsRoutes(ctx: AppContext) {
   });
 
   app.get(
-    "/:docType/:id/export",
-    requirePermission({ documents: ["get"] }),
-    async (c): Promise<any> => {
+    "/:docType/:id/print-forms",
+    requirePermission({ documents: ["list"] }),
+    async (c) => {
       try {
         const user = c.get("user")!;
         const { docType, id } = c.req.param();
-        const { format, lang } = z
-          .object({
-            format: z.enum(["docx", "pdf"]).default("docx"),
-            lang: z.enum(["ru", "en"]).default("ru"),
-          })
-          .parse(queryObjectFromUrl(c.req.url));
-        const result = await exportPrintableDocument({
+        const result = await listDocumentPrintForms({
           actorUserId: user.id,
           ctx,
           docType,
           documentId: id,
-          format,
-          lang,
         });
 
-        c.header("Content-Type", result.mimeType);
-        c.header(
-          "Content-Disposition",
-          `attachment; filename="${result.fileName}"`,
+        return c.json(result, 200);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    },
+  );
+
+  app.get(
+    "/:docType/:id/print-forms/:formId",
+    requirePermission({ documents: ["list"] }),
+    async (c): Promise<any> => {
+      try {
+        const user = c.get("user")!;
+        const { docType, formId, id } = c.req.param();
+        const { format } = PrintFormFormatQuerySchema.parse(
+          queryObjectFromUrl(c.req.url),
         );
-        return c.body(result.buffer as unknown as ArrayBuffer);
+        const result = await generateDocumentPrintForm({
+          actorUserId: user.id,
+          ctx,
+          docType,
+          documentId: id,
+          formId,
+          format,
+        });
+
+        return writeGeneratedDocumentResponse(c, result);
       } catch (error) {
         return handleRouteError(c, error);
       }
@@ -592,15 +525,24 @@ export function documentsRoutes(ctx: AppContext) {
           c.get("audience"),
         );
         const result = await ctx.documentsService.get(docType, id, user.id);
+        const printForms = await listDocumentPrintForms({
+          actorUserId: user.id,
+          ctx,
+          docType,
+          documentId: id,
+        });
 
         return c.json(
-          toDocumentDto(
-            withPublicAllowedActions({
-              resource: result,
-              role: user.role,
-              actionPermissions,
-            }),
-          ),
+          {
+            ...toDocumentDto(
+              withPublicAllowedActions({
+                resource: result,
+                role: user.role,
+                actionPermissions,
+              }),
+            ),
+            printForms,
+          },
         );
       } catch (error) {
         return handleRouteError(c, error);
@@ -652,6 +594,12 @@ export function documentsRoutes(ctx: AppContext) {
             }),
             {
               ledgerOperations,
+              printForms: await listDocumentPrintForms({
+                actorUserId: user.id,
+                ctx,
+                docType,
+                documentId: id,
+              }),
             },
           ),
         );
@@ -691,81 +639,6 @@ export function documentsRoutes(ctx: AppContext) {
     permission: "post",
     action: "repost",
   });
-
-  app.get(
-    "/templates",
-    requirePermission({ documents: ["list"] }),
-    async (c): Promise<any> => {
-      const { organizationId } = z
-        .object({
-          organizationId: z.string().uuid().optional(),
-        })
-        .parse(queryObjectFromUrl(c.req.url));
-      const templates =
-        await ctx.documentGenerationWorkflow.listTemplates(organizationId);
-
-      return c.json(
-        templates.map((name) => ({
-          label: TEMPLATE_LABELS[name] ?? null,
-          name,
-        })),
-        200,
-      );
-    },
-  );
-
-  app.get(
-    "/templates/:name/fields",
-    requirePermission({ documents: ["list"] }),
-    async (c): Promise<any> => {
-      const { organizationId } = z
-        .object({
-          organizationId: z.string().uuid().optional(),
-        })
-        .parse(queryObjectFromUrl(c.req.url));
-      const { name } = c.req.param();
-      const fields = await ctx.documentGenerationWorkflow.getTemplateFields(
-        name,
-        organizationId,
-      );
-
-      return c.json(
-        fields.map((fieldName) => {
-          const meta = FIELD_METADATA[fieldName];
-          return {
-            category: meta?.category ?? "Другое",
-            label: meta?.label ?? fieldName,
-            name: fieldName,
-          };
-        }),
-        200,
-      );
-    },
-  );
-
-  app.post(
-    "/generate",
-    requirePermission({ documents: ["create"] }),
-    async (c): Promise<any> => {
-      const input = z
-        .object({
-          data: z.record(z.string(), z.string()),
-          format: z.enum(["docx", "pdf"]).default("docx"),
-          organizationId: z.string().uuid().optional(),
-          templateName: z.string().min(1),
-        })
-        .parse(await c.req.json());
-      const result =
-        await ctx.documentGenerationWorkflow.generateFromRawData(input);
-
-      c.header("Content-Type", result.mimeType);
-      c.header(
-        "Content-Disposition",
-        `attachment; filename="${result.fileName}"`,
-      );
-      return c.body(result.buffer as unknown as ArrayBuffer);
-    },
-  );
 
   return app;
 }

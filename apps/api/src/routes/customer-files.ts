@@ -13,12 +13,6 @@ export const CustomerFileAttachmentSchema = z.object({
   updatedAt: z.string(),
 });
 
-export const GeneratedDocumentFormatSchema = z
-  .enum(["docx", "pdf"])
-  .default("docx");
-
-export const GeneratedDocumentLangSchema = z.enum(["ru", "en"]).default("ru");
-
 export function serializeCustomerFileAttachment(
   file: FileAttachment,
 ): z.infer<typeof CustomerFileAttachmentSchema> {

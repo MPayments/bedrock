@@ -2,18 +2,19 @@ import { cache } from "react";
 import { headers } from "next/headers";
 import { z } from "zod";
 
-import {
-  FinanceDealPaymentStepSchema,
-  type FinanceDealPaymentStep as FinanceDealPaymentStepFromSchema,
-  type FinanceDealPaymentStepAttempt as FinanceDealPaymentStepAttemptFromSchema,
-} from "@/features/treasury/steps/lib/schemas";
+import { PrintFormDescriptorSchema } from "@bedrock/sdk-print-forms-ui/lib/schemas";
+import type { EntityListResult } from "@bedrock/sdk-tables-ui/components/entity-table-shell";
 import {
   paginateInMemory,
   sortInMemory,
   type SortInput,
 } from "@bedrock/shared/core/pagination";
 
-import type { EntityListResult } from "@bedrock/sdk-tables-ui/components/entity-table-shell";
+import {
+  FinanceDealPaymentStepSchema,
+  type FinanceDealPaymentStep as FinanceDealPaymentStepFromSchema,
+  type FinanceDealPaymentStepAttempt as FinanceDealPaymentStepAttemptFromSchema,
+} from "@/features/treasury/steps/lib/schemas";
 import { deriveFinanceDealBlockerState } from "@/features/treasury/deals/lib/execution-summary";
 import { readJsonWithSchema, requestOk } from "@/lib/api/response";
 import {
@@ -521,6 +522,16 @@ const FinanceDealCloseReadinessSchema = z.object({
   ready: z.boolean(),
 });
 
+const FinanceDealPrintFormsSchema = z
+  .object({
+    calculation: z.array(PrintFormDescriptorSchema),
+    deal: z.array(PrintFormDescriptorSchema),
+  })
+  .default({
+    calculation: [],
+    deal: [],
+  });
+
 const FinanceDealWorkspaceSchema = z.object({
   acceptedQuote: z
     .object({
@@ -571,6 +582,7 @@ const FinanceDealWorkspaceSchema = z.object({
     ),
   }),
   pricing: FinanceDealPricingContextSchema,
+  printForms: FinanceDealPrintFormsSchema,
   profitabilitySnapshot: z
     .object({
       calculationId: z.string().uuid(),
@@ -822,7 +834,27 @@ const getFinanceDealWorkspaceByIdUncached = async (
   }
 
   await requestOk(response, "Не удалось загрузить рабочий стол сделки");
-  return readJsonWithSchema(response, FinanceDealWorkspaceSchema);
+  const workspace = await readJsonWithSchema(response, FinanceDealWorkspaceSchema);
+  const [dealPrintForms, calculationPrintForms] = await Promise.all([
+    readOptionalSupplementalResource(
+      `/v1/deals/${encodeURIComponent(id)}/print-forms`,
+      z.array(PrintFormDescriptorSchema),
+    ),
+    workspace.summary.calculationId
+      ? readOptionalSupplementalResource(
+          `/v1/calculations/${encodeURIComponent(workspace.summary.calculationId)}/print-forms`,
+          z.array(PrintFormDescriptorSchema),
+        )
+      : Promise.resolve([]),
+  ]);
+
+  return {
+    ...workspace,
+    printForms: {
+      calculation: calculationPrintForms,
+      deal: dealPrintForms,
+    },
+  };
 };
 
 const getFinanceDealBreadcrumbByIdUncached = async (

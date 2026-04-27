@@ -286,11 +286,6 @@ export function buildCrmBreadcrumbs(
 
       return breadcrumbs;
     }
-    case "documents":
-      return [
-        ...breadcrumbs,
-        { href: "/documents", icon: "documents", label: "Документы" },
-      ];
     case "customers": {
       const customersHref = "/customers";
       breadcrumbs.push({

@@ -167,6 +167,7 @@ describe("DealPricingTab", () => {
           usedDocumentId: null,
         },
         amountCurrencyPrecision: 2,
+        currentCalculationId: "calculation-1",
         currencyOptions: [
           { code: "RUB", id: "rub", label: "RUB", name: "Russian Ruble" },
           { code: "USD", id: "usd", label: "USD", name: "US Dollar" },

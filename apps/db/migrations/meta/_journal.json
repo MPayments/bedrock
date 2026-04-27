@@ -57,6 +57,20 @@
       "when": 1777140644789,
       "tag": "0007_oval_mauler",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1777282990137,
+      "tag": "0008_shocking_brother_voodoo",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1777283682066,
+      "tag": "0009_material_shadow_king",
+      "breakpoints": true
     }
   ]
 }

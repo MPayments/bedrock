@@ -83,6 +83,7 @@ export function toDocumentDetailsDto(
   details: DocumentDetailsResult,
   input?: {
     ledgerOperations?: unknown[];
+    printForms?: unknown[];
   },
 ) {
   const normalized = normalizeMoneyFields({
@@ -177,6 +178,9 @@ export function toDocumentDetailsDto(
   }) as Record<string, unknown>;
 
   restoreRawPayload(normalized.document, details.document.payload);
+  if (input?.printForms && normalized.document && typeof normalized.document === "object") {
+    (normalized.document as Record<string, unknown>).printForms = input.printForms;
+  }
   restoreRawPayload(normalized.parent, details.parent?.payload ?? {});
 
   const children = Array.isArray(normalized.children) ? normalized.children : [];

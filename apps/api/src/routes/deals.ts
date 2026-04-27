@@ -64,6 +64,7 @@ import {
   FinanceDealReconciliationExceptionSchema,
   FinanceDealWorkspaceProjectionSchema,
 } from "@bedrock/workflow-deal-projections/contracts";
+import { PrintFormDescriptorSchema } from "@bedrock/workflow-document-generation";
 
 import { DeletedSchema, ErrorSchema, IdParamSchema } from "../common";
 import { handleRouteError } from "../common/errors";
@@ -85,8 +86,14 @@ import {
   assertDealAllowsCommercialWrite,
   requireDeal,
 } from "./internal/deal-linked-resources";
-import { exportDealPricingDocument } from "./internal/deal-pricing-export";
 import { toDocumentDto } from "./internal/document-dto";
+import {
+  generateDealPrintForm,
+  listDealPrintForms,
+  listDocumentPrintForms,
+  PrintFormFormatQuerySchema,
+  writeGeneratedDocumentResponse,
+} from "./internal/print-forms";
 import {
   serializeQuote,
   serializeQuoteListItem,
@@ -1580,19 +1587,46 @@ export function dealsRoutes(ctx: AppContext) {
     },
   });
 
-  const exportDealPricingRoute = createRoute({
+  const listPrintFormsRoute = createRoute({
     middleware: [requirePermission({ deals: ["list"] })],
     method: "get",
-    path: "/{id}/pricing/export",
+    path: "/{id}/print-forms",
     tags: ["Deals"],
-    summary: "Export the accepted deal calculation as DOCX/PDF",
+    summary: "List deal print forms",
     request: {
       params: IdParamSchema,
-      query: z.object({
-        format: z.enum(["docx", "pdf"]).default("pdf"),
-        lang: z.enum(["ru", "en"]).default("ru"),
-        quoteId: z.uuid().optional(),
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: z.array(PrintFormDescriptorSchema),
+          },
+        },
+        description: "Deal print forms",
+      },
+      404: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Deal not found",
+      },
+    },
+  });
+
+  const downloadPrintFormRoute = createRoute({
+    middleware: [requirePermission({ deals: ["list"] })],
+    method: "get",
+    path: "/{id}/print-forms/{formId}",
+    tags: ["Deals"],
+    summary: "Download a deal print form as DOCX/PDF",
+    request: {
+      params: IdParamSchema.extend({
+        formId: z.string().min(1),
       }),
+      query: PrintFormFormatQuerySchema,
     },
     responses: {
       200: { description: "Generated file" },
@@ -1602,7 +1636,7 @@ export function dealsRoutes(ctx: AppContext) {
             schema: ErrorSchema,
           },
         },
-        description: "Deal or accepted quote not found",
+        description: "Deal or print form not found",
       },
     },
   });
@@ -2613,24 +2647,28 @@ export function dealsRoutes(ctx: AppContext) {
         return handleRouteError(c, error);
       }
     })
-    .openapi(exportDealPricingRoute, async (c): Promise<any> => {
+    .openapi(listPrintFormsRoute, async (c) => {
       try {
         const { id } = c.req.valid("param");
-        const { format, lang, quoteId } = c.req.valid("query");
-        const result = await exportDealPricingDocument({
+        const result = await listDealPrintForms({ ctx, dealId: id });
+
+        return jsonOk(c, result);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(downloadPrintFormRoute, async (c): Promise<any> => {
+      try {
+        const { formId, id } = c.req.valid("param");
+        const { format } = c.req.valid("query");
+        const result = await generateDealPrintForm({
           ctx,
           dealId: id,
+          formId,
           format,
-          lang,
-          quoteId,
         });
 
-        c.header("Content-Type", result.mimeType);
-        c.header(
-          "Content-Disposition",
-          `attachment; filename="${result.fileName}"`,
-        );
-        return c.body(result.buffer as unknown as ArrayBuffer);
+        return writeGeneratedDocumentResponse(c, result);
       } catch (error) {
         return handleRouteError(c, error);
       }
@@ -2661,10 +2699,19 @@ export function dealsRoutes(ctx: AppContext) {
           c.get("user")!.id,
         );
 
-        return jsonOk(
-          c,
-          result.data.map((document) => toDocumentDto(document)),
+        const rows = await Promise.all(
+          result.data.map(async (document) => ({
+            ...toDocumentDto(document),
+            printForms: await listDocumentPrintForms({
+              actorUserId: c.get("user")!.id,
+              ctx,
+              docType: document.document.docType,
+              documentId: document.document.id,
+            }),
+          })),
         );
+
+        return jsonOk(c, rows);
       } catch (error) {
         return handleRouteError(c, error);
       }

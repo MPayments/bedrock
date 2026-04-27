@@ -33,13 +33,7 @@ const FILE_DATES = {
 } as const;
 
 function createTestApp() {
-  const documentGenerationWorkflow = {
-    generateCustomerContract: vi.fn(async () => ({
-      buffer: Buffer.from("contract-pdf"),
-      fileName: "contract.pdf",
-      mimeType: "application/pdf",
-    })),
-  };
+  const documentGenerationWorkflow = {};
   const uploadedAttachment = {
     id: "00000000-0000-4000-8000-000000000501",
     fileName: "kyc.pdf",
@@ -52,7 +46,6 @@ function createTestApp() {
   const filesModule = {
     files: {
       commands: {
-        persistGeneratedCounterpartyFile: vi.fn(async () => undefined),
         uploadCounterpartyAttachment: vi.fn(async () => uploadedAttachment),
       },
       queries: {
@@ -108,90 +101,6 @@ describe("customers routes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     userHasPermission.mockResolvedValue({ success: true });
-  });
-
-  it("delegates legal entity contract generation to the workflow and persists the generated file", async () => {
-    const { app, documentGenerationWorkflow, filesModule } = createTestApp();
-
-    const response = await app.request(
-      `http://localhost/customers/${IDS.customer}/counterparties/${IDS.counterparty}/contract?format=pdf&lang=en`,
-    );
-
-    expect(response.status).toBe(200);
-    expect(await response.text()).toBe("contract-pdf");
-    expect(response.headers.get("content-type")).toBe("application/pdf");
-    expect(response.headers.get("content-disposition")).toBe(
-      'attachment; filename="contract.pdf"',
-    );
-
-    expect(
-      documentGenerationWorkflow.generateCustomerContract,
-    ).toHaveBeenCalledWith({
-      counterpartyId: IDS.counterparty,
-      customerId: IDS.customer,
-      format: "pdf",
-      lang: "en",
-    });
-    expect(
-      filesModule.files.commands.persistGeneratedCounterpartyFile,
-    ).toHaveBeenCalledWith({
-      buffer: Buffer.from("contract-pdf"),
-      createdBy: "user-1",
-      fileName: "contract.pdf",
-      fileSize: Buffer.byteLength("contract-pdf"),
-      generatedFormat: "pdf",
-      generatedLang: "en",
-      linkKind: "legal_entity_contract",
-      mimeType: "application/pdf",
-      ownerId: IDS.counterparty,
-    });
-  });
-
-  it("returns DOCX contracts and persists the generated DOCX file", async () => {
-    const { app, documentGenerationWorkflow, filesModule } = createTestApp();
-
-    documentGenerationWorkflow.generateCustomerContract.mockResolvedValueOnce({
-      buffer: Buffer.from("contract-docx"),
-      fileName: "contract.docx",
-      mimeType:
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    });
-
-    const response = await app.request(
-      `http://localhost/customers/${IDS.customer}/counterparties/${IDS.counterparty}/contract?format=docx&lang=ru`,
-    );
-
-    expect(response.status).toBe(200);
-    expect(await response.text()).toBe("contract-docx");
-    expect(response.headers.get("content-type")).toBe(
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    );
-    expect(response.headers.get("content-disposition")).toBe(
-      'attachment; filename="contract.docx"',
-    );
-
-    expect(
-      documentGenerationWorkflow.generateCustomerContract,
-    ).toHaveBeenCalledWith({
-      counterpartyId: IDS.counterparty,
-      customerId: IDS.customer,
-      format: "docx",
-      lang: "ru",
-    });
-    expect(
-      filesModule.files.commands.persistGeneratedCounterpartyFile,
-    ).toHaveBeenCalledWith({
-      buffer: Buffer.from("contract-docx"),
-      createdBy: "user-1",
-      fileName: "contract.docx",
-      fileSize: Buffer.byteLength("contract-docx"),
-      generatedFormat: "docx",
-      generatedLang: "ru",
-      linkKind: "legal_entity_contract",
-      mimeType:
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      ownerId: IDS.counterparty,
-    });
   });
 
   it("uploads customer counterparty documents through the files module", async () => {

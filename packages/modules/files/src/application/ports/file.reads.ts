@@ -8,7 +8,11 @@ import type {
   FileOrigin,
 } from "../contracts/zod";
 
-export type FileOwnerType = "counterparty" | "deal" | "payment_step";
+export type FileOwnerType =
+  | "agreement_version"
+  | "counterparty"
+  | "deal"
+  | "payment_step";
 
 export interface StoredFileRecord {
   id: string;
@@ -31,6 +35,7 @@ export interface StoredFileRecord {
   attachmentVisibility: FileAttachmentVisibility | null;
   linkId: string;
   linkKind: FileLinkKind;
+  agreementVersionId: string | null;
   dealId: string | null;
   counterpartyId: string | null;
   paymentStepId: string | null;
@@ -51,9 +56,7 @@ export interface FileReads {
     ownerId: string;
     ownerType: FileOwnerType;
   }): Promise<StoredFileRecord | null>;
-  findGeneratedByOwner(input: {
-    generatedFormat: FileGeneratedFormat;
-    generatedLang: FileGeneratedLang;
+  findLatestByOwnerAndKind(input: {
     linkKind: FileLinkKind;
     ownerId: string;
     ownerType: FileOwnerType;

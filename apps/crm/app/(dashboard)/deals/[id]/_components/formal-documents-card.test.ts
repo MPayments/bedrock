@@ -30,6 +30,18 @@ describe("FormalDocumentsCard", () => {
             id: "document-1",
             lifecycleStatus: "active",
             postingStatus: "not_required",
+            printForms: [
+              {
+                formats: ["docx", "pdf"],
+                id: "document.acceptance-bilingual",
+                languageMode: "bilingual",
+                languages: ["ru", "en"],
+                ownerType: "document",
+                quality: "ready",
+                title: "Acceptance / Акт",
+                warnings: [],
+              },
+            ],
             submissionStatus: "submitted",
             title: null,
           },
@@ -53,7 +65,7 @@ describe("FormalDocumentsCard", () => {
     expect(normalizedMarkup).toContain("Требуемые документы");
     expect(normalizedMarkup).toContain("Созданные документы");
     expect(normalizedMarkup).toContain("Акт / подтверждение исполнения");
-    expect(normalizedMarkup).toContain("Выгрузить");
+    expect(normalizedMarkup).toContain("Печатная форма");
     expect(normalizedMarkup).not.toContain(">acceptance<");
   });
 

@@ -1,8 +1,8 @@
 import type { ModuleRuntime } from "@bedrock/shared/core";
 
 import { DeleteFileAttachmentCommand } from "./commands/delete-file-attachment";
-import { PersistGeneratedFileCommand } from "./commands/persist-generated-file";
 import { UploadFileAttachmentCommand } from "./commands/upload-file-attachment";
+import { UpsertAgreementVersionSignedContractCommand } from "./commands/upsert-agreement-version-signed-contract";
 import type { FileReads } from "./ports/file.reads";
 import type { FilesCommandUnitOfWork } from "./ports/files.uow";
 import type { ObjectStoragePort } from "./ports/object-storage.port";
@@ -43,6 +43,12 @@ export function createFilesService(deps: FilesServiceDeps) {
     deps.objectStorage,
     "counterparty",
   );
+  const getAgreementVersionSignedContractDownloadUrl =
+    new GetFileDownloadUrlQuery(
+      deps.reads,
+      deps.objectStorage,
+      "agreement_version",
+    );
   const uploadDealAttachment = new UploadFileAttachmentCommand(
     deps.runtime,
     deps.commandUow,
@@ -80,30 +86,18 @@ export function createFilesService(deps: FilesServiceDeps) {
     deps.objectStorage,
     "counterparty",
   );
-  const persistGeneratedDealFile = new PersistGeneratedFileCommand(
-    deps.runtime,
-    deps.commandUow,
-    deps.objectStorage,
-    "deal",
-  );
-  const persistGeneratedCounterpartyFile = new PersistGeneratedFileCommand(
-    deps.runtime,
-    deps.commandUow,
-    deps.objectStorage,
-    "counterparty",
-  );
+  const upsertAgreementVersionSignedContract =
+    new UpsertAgreementVersionSignedContractCommand(
+      deps.runtime,
+      deps.commandUow,
+      deps.objectStorage,
+    );
 
   return {
     commands: {
       deleteDealAttachment: deleteDealAttachment.execute.bind(deleteDealAttachment),
       deleteCounterpartyAttachment:
         deleteCounterpartyAttachment.execute.bind(deleteCounterpartyAttachment),
-      persistGeneratedDealFile:
-        persistGeneratedDealFile.execute.bind(persistGeneratedDealFile),
-      persistGeneratedCounterpartyFile:
-        persistGeneratedCounterpartyFile.execute.bind(
-          persistGeneratedCounterpartyFile,
-        ),
       uploadDealAttachment:
         uploadDealAttachment.execute.bind(uploadDealAttachment),
       uploadCounterpartyAttachment:
@@ -111,6 +105,10 @@ export function createFilesService(deps: FilesServiceDeps) {
       uploadPaymentStepAttachment: uploadPaymentStepAttachment.execute.bind(
         uploadPaymentStepAttachment,
       ),
+      upsertAgreementVersionSignedContract:
+        upsertAgreementVersionSignedContract.execute.bind(
+          upsertAgreementVersionSignedContract,
+        ),
     },
     queries: {
       getCounterpartyAttachmentDownloadUrl:
@@ -128,6 +126,20 @@ export function createFilesService(deps: FilesServiceDeps) {
       listCurrentFileVersionsByAssetIds: (assetIds: string[]) =>
         deps.reads.listCurrentFileVersionsByAssetIds(assetIds),
       listDealAttachments: listDealAttachments.execute.bind(listDealAttachments),
+      findAgreementVersionSignedContract: (versionId: string) =>
+        deps.reads.findLatestByOwnerAndKind({
+          linkKind: "agreement_signed_contract",
+          ownerId: versionId,
+          ownerType: "agreement_version",
+        }),
+      getAgreementVersionSignedContractDownloadUrl: (input: {
+        fileAssetId: string;
+        versionId: string;
+      }) =>
+        getAgreementVersionSignedContractDownloadUrl.execute({
+          fileAssetId: input.fileAssetId,
+          ownerId: input.versionId,
+        }),
     },
   };
 }

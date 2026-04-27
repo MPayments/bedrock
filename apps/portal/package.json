@@ -13,6 +13,7 @@
   "dependencies": {
     "@bedrock/iam": "workspace:*",
     "@bedrock/sdk-parties-ui": "workspace:*",
+    "@bedrock/sdk-print-forms-ui": "workspace:*",
     "@bedrock/sdk-ui": "workspace:*",
     "@bedrock/shared": "workspace:*",
     "@hookform/resolvers": "^5.2.2",

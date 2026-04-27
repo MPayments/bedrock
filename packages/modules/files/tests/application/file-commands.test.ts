@@ -5,8 +5,8 @@ import { sha256Hex } from "@bedrock/shared/core/crypto";
 import { createTestLogger } from "@bedrock/test-utils";
 
 import { DeleteFileAttachmentCommand } from "../../src/application/commands/delete-file-attachment";
-import { PersistGeneratedFileCommand } from "../../src/application/commands/persist-generated-file";
 import { UploadFileAttachmentCommand } from "../../src/application/commands/upload-file-attachment";
+import { UpsertAgreementVersionSignedContractCommand } from "../../src/application/commands/upsert-agreement-version-signed-contract";
 
 function createRuntime(service: string, uuids: string[]) {
   return createModuleRuntime({
@@ -38,10 +38,13 @@ function createStoredFile(overrides: Partial<Record<string, unknown>> = {}) {
     versionCreatedAt: new Date("2026-03-30T12:00:00.000Z"),
     versionUpdatedAt: new Date("2026-03-30T12:00:00.000Z"),
     attachmentPurpose: "other" as const,
+    attachmentVisibility: "internal" as const,
     linkId: "00000000-0000-4000-8000-000000000012",
     linkKind: "deal_attachment" as const,
+    agreementVersionId: null,
     dealId: "deal-1",
     counterpartyId: null,
+    paymentStepId: null,
     generatedFormat: null,
     generatedLang: null,
     ...overrides,
@@ -59,7 +62,7 @@ describe("files commands", () => {
     };
     const fileReads = {
       findAttachmentByOwnerAndId: vi.fn(async () => createStoredFile()),
-      findGeneratedByOwner: vi.fn(),
+      findLatestByOwnerAndKind: vi.fn(),
       findById: vi.fn(),
       listAttachmentsByOwner: vi.fn(),
     };
@@ -119,9 +122,12 @@ describe("files commands", () => {
       id: "00000000-0000-4000-8000-000000000012",
       fileAssetId: "00000000-0000-4000-8000-000000000010",
       attachmentPurpose: "other",
+      attachmentVisibility: "internal",
+      agreementVersionId: null,
       linkKind: "deal_attachment",
       dealId: "deal-1",
       counterpartyId: null,
+      paymentStepId: null,
       generatedFormat: null,
       generatedLang: null,
     });
@@ -135,6 +141,7 @@ describe("files commands", () => {
       fileSize: 42,
       mimeType: "application/pdf",
       purpose: "other",
+      visibility: "internal",
       uploadedBy: "user-1",
       description: "Uploaded attachment",
       createdAt: new Date("2026-03-30T12:00:00.000Z"),
@@ -142,9 +149,8 @@ describe("files commands", () => {
     });
   });
 
-  it("does not create a new generated version when the checksum is unchanged", async () => {
-    const buffer = Buffer.from("generated-doc");
-    const checksum = sha256Hex(buffer.toString("base64"));
+  it("creates a new version when replacing an agreement signed contract", async () => {
+    const buffer = Buffer.from("signed-contract-v2");
     const fileStore = {
       createFileAssetRoot: vi.fn(),
       createFileVersion: vi.fn(),
@@ -154,16 +160,36 @@ describe("files commands", () => {
     };
     const fileReads = {
       findAttachmentByOwnerAndId: vi.fn(),
-      findGeneratedByOwner: vi.fn(async () =>
-        createStoredFile({
-          checksum,
-          currentVersionNumber: 3,
-          id: "00000000-0000-4000-8000-000000000020",
-          linkKind: "deal_invoice",
-          generatedFormat: "pdf",
-          generatedLang: "ru",
-        }),
-      ),
+      findLatestByOwnerAndKind: vi
+        .fn()
+        .mockResolvedValueOnce(
+          createStoredFile({
+            agreementVersionId: "version-1",
+            attachmentPurpose: null,
+            attachmentVisibility: null,
+            checksum: "old-checksum",
+            currentVersionNumber: 1,
+            dealId: null,
+            id: "00000000-0000-4000-8000-000000000020",
+            linkKind: "agreement_signed_contract",
+            storageKey:
+              "files/uploaded/agreement_signed_contract/version-1/00000000-0000-4000-8000-000000000020/v1/contract.pdf",
+          }),
+        )
+        .mockResolvedValueOnce(
+          createStoredFile({
+            agreementVersionId: "version-1",
+            attachmentPurpose: null,
+            attachmentVisibility: null,
+            checksum: sha256Hex(buffer.toString("base64")),
+            currentVersionNumber: 2,
+            dealId: null,
+            fileName: "signed.pdf",
+            fileSize: buffer.byteLength,
+            id: "00000000-0000-4000-8000-000000000020",
+            linkKind: "agreement_signed_contract",
+          }),
+        ),
       findById: vi.fn(),
       listAttachmentsByOwner: vi.fn(),
     };
@@ -173,36 +199,50 @@ describe("files commands", () => {
     };
     const objectStorage = {
       download: vi.fn(),
-      upload: vi.fn(),
+      upload: vi.fn(async () => "stored-key"),
       getSignedUrl: vi.fn(),
       queueForDeletion: vi.fn(),
     };
-    const command = new PersistGeneratedFileCommand(
-      createRuntime("files", []),
+    const command = new UpsertAgreementVersionSignedContractCommand(
+      createRuntime("files", ["00000000-0000-4000-8000-000000000021"]),
       commandUow as any,
       objectStorage,
-      "deal",
     );
 
     const result = await command.execute({
       buffer,
-      createdBy: "user-1",
-      fileName: "invoice.pdf",
+      fileName: "signed.pdf",
       fileSize: buffer.byteLength,
-      generatedFormat: "pdf",
-      generatedLang: "ru",
-      linkKind: "deal_invoice",
       mimeType: "application/pdf",
-      ownerId: "deal-1",
+      uploadedBy: "user-1",
+      versionId: "version-1",
     });
 
-    expect(result).toEqual({
-      createdNewVersion: false,
+    expect(fileStore.createFileAssetRoot).not.toHaveBeenCalled();
+    expect(fileStore.createFileLink).not.toHaveBeenCalled();
+    expect(fileStore.createFileVersion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fileAssetId: "00000000-0000-4000-8000-000000000020",
+        id: "00000000-0000-4000-8000-000000000021",
+        versionNumber: 2,
+      }),
+    );
+    expect(fileStore.setCurrentVersion).toHaveBeenCalledWith({
       fileAssetId: "00000000-0000-4000-8000-000000000020",
+      currentVersionId: "00000000-0000-4000-8000-000000000021",
     });
-    expect(objectStorage.upload).not.toHaveBeenCalled();
-    expect(fileStore.createFileVersion).not.toHaveBeenCalled();
-    expect(fileStore.setCurrentVersion).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      id: "00000000-0000-4000-8000-000000000020",
+      fileName: "signed.pdf",
+      fileSize: buffer.byteLength,
+      mimeType: "application/pdf",
+      purpose: null,
+      visibility: null,
+      uploadedBy: "user-1",
+      description: "Uploaded attachment",
+      createdAt: new Date("2026-03-30T12:00:00.000Z"),
+      updatedAt: new Date("2026-03-30T12:00:00.000Z"),
+    });
   });
 
   it("deletes uploaded attachments and queues blob cleanup", async () => {
@@ -214,8 +254,12 @@ describe("files commands", () => {
       setCurrentVersion: vi.fn(),
     };
     const fileReads = {
-      findAttachmentByOwnerAndId: vi.fn(async () => createStoredFile()),
-      findGeneratedByOwner: vi.fn(),
+      findAttachmentByOwnerAndId: vi.fn(async () =>
+        createStoredFile({
+          attachmentVisibility: "internal",
+        }),
+      ),
+      findLatestByOwnerAndKind: vi.fn(),
       findById: vi.fn(),
       listAttachmentsByOwner: vi.fn(),
     };

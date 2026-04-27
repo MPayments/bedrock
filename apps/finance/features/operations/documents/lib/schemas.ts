@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { PrintFormDescriptorSchema } from "@bedrock/sdk-print-forms-ui/lib/schemas";
+
 import { createPaginatedResponseSchema } from "@/lib/api/schemas";
 import { OperationDetailsSchema } from "@/features/operations/journal/lib/queries";
 
@@ -49,6 +51,7 @@ const DocumentSchema = z.object({
   updatedAt: z.iso.datetime(),
   version: z.number().int(),
   postingOperationId: z.string().nullable(),
+  printForms: z.array(PrintFormDescriptorSchema).default([]),
 });
 
 const DocumentLinkSchema = z.object({

@@ -3,17 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { notFound, useParams, useRouter } from "next/navigation";
 
-import { Download, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
-import { Badge } from "@bedrock/sdk-ui/components/badge";
-import { Button } from "@bedrock/sdk-ui/components/button";
-import {
-  Card,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@bedrock/sdk-ui/components/card";
-import { toast } from "@bedrock/sdk-ui/components/sonner";
 import { DocumentActionButtons } from "@bedrock/sdk-documents-form-ui/components/document-action-buttons";
 import { DocumentWorkbenchCard } from "@bedrock/sdk-documents-form-ui/components/document-workbench-card";
 import type { DocumentFormOptions } from "@bedrock/sdk-documents-form-ui/lib/form-options";
@@ -22,6 +13,14 @@ import type {
   DocumentTransitionMutator,
   DocumentTransitionMutators,
 } from "@bedrock/sdk-documents-form-ui/lib/mutations";
+import { PrintFormActions } from "@bedrock/sdk-print-forms-ui/components/print-form-actions";
+import { Badge } from "@bedrock/sdk-ui/components/badge";
+import {
+  Card,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@bedrock/sdk-ui/components/card";
 
 import { DEAL_TYPE_LABELS } from "@/app/(dashboard)/deals/[id]/_components/constants";
 import type { ApiCrmDealWorkbenchProjection } from "@/app/(dashboard)/deals/[id]/_components/types";
@@ -31,7 +30,6 @@ import { getCrmDocumentTypeLabel, isCrmDocType } from "@/features/documents/lib/
 import { fetchCrmDocumentFormOptions } from "@/features/documents/lib/form-options";
 import {
   createDealScopedDocumentDraft,
-  downloadDocumentPrintForm,
   updateDocumentDraft,
 } from "@/features/documents/lib/mutations";
 import { buildCrmDocumentMutators } from "@/features/documents/lib/permissions";
@@ -69,8 +67,6 @@ const LIFECYCLE_LABELS: Record<string, string> = {
   active: "Активен",
   cancelled: "Отменен",
 };
-
-const PRINTABLE_DOC_TYPES = new Set(["acceptance", "application", "invoice"]);
 
 function getStatusBadgeVariant(
   status: string,
@@ -123,9 +119,6 @@ export default function DealDocumentDetailPage() {
   const [formOptions, setFormOptions] = useState<DocumentFormOptions | null>(
     null,
   );
-  const [downloadingFormat, setDownloadingFormat] = useState<
-    "docx" | "pdf" | null
-  >(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -208,26 +201,6 @@ export default function DealDocumentDetailPage() {
     };
   }, []);
 
-  const downloadPrintable = useCallback(
-    async (format: "docx" | "pdf") => {
-      setDownloadingFormat(format);
-      const result = await downloadDocumentPrintForm({
-        docType,
-        documentId,
-        format,
-      });
-      setDownloadingFormat(null);
-
-      if (!result.ok) {
-        toast.error(result.message);
-        return;
-      }
-
-      toast.success("Печатная форма выгружена");
-    },
-    [docType, documentId],
-  );
-
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16">
@@ -278,38 +251,15 @@ export default function DealDocumentDetailPage() {
               </div>
             </div>
             <div className="flex w-full flex-wrap justify-start gap-2 md:w-auto md:justify-end">
-              {PRINTABLE_DOC_TYPES.has(document.docType) ? (
-                <>
-                  <Button
-                    type="button"
-                    size="lg"
-                    variant="outline"
-                    disabled={downloadingFormat !== null}
-                    onClick={() => void downloadPrintable("pdf")}
-                  >
-                    {downloadingFormat === "pdf" ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Download className="h-4 w-4" />
-                    )}
-                    PDF
-                  </Button>
-                  <Button
-                    type="button"
-                    size="lg"
-                    variant="outline"
-                    disabled={downloadingFormat !== null}
-                    onClick={() => void downloadPrintable("docx")}
-                  >
-                    {downloadingFormat === "docx" ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Download className="h-4 w-4" />
-                    )}
-                    DOCX
-                  </Button>
-                </>
-              ) : null}
+              <PrintFormActions
+                client={{ baseUrl: API_BASE_URL, credentials: "include" }}
+                forms={document.printForms}
+                owner={{
+                  type: "document",
+                  docType: document.docType,
+                  documentId: document.id,
+                }}
+              />
               <DocumentActionButtons
                 docType={document.docType}
                 documentId={document.id}

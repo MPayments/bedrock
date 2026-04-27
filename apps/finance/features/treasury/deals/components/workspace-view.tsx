@@ -6,6 +6,7 @@ import {
   Wallet,
 } from "lucide-react";
 
+import { PrintFormActions } from "@bedrock/sdk-print-forms-ui/components/print-form-actions";
 import { Badge } from "@bedrock/sdk-ui/components/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/components/card";
 
@@ -52,6 +53,7 @@ export function FinanceDealWorkspaceView({
 }: FinanceDealWorkspaceViewProps) {
   const blockers = collectFinanceDealTopBlockers(deal);
   const executionProgress = getFinanceDealExecutionProgress(deal);
+  const printFormClient = { baseUrl: "/v1" };
   const closeReadinessBlockers = deal.closeReadiness.blockers.map((blocker) =>
     formatDealWorkflowMessage(blocker),
   );
@@ -77,13 +79,21 @@ export function FinanceDealWorkspaceView({
     <div className="space-y-6">
       <Card className="border-muted-foreground/10 bg-gradient-to-br from-background via-background to-muted/30">
         <CardContent className="space-y-5 pt-6">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant={getFinanceDealStatusVariant(deal.summary.status)}>
-              {getFinanceDealStatusLabel(deal.summary.status)}
-            </Badge>
-            <Badge variant={getFinanceDealQueueVariant(deal.queueContext.queue)}>
-              {getFinanceDealQueueLabel(deal.queueContext.queue)}
-            </Badge>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant={getFinanceDealStatusVariant(deal.summary.status)}>
+                {getFinanceDealStatusLabel(deal.summary.status)}
+              </Badge>
+              <Badge variant={getFinanceDealQueueVariant(deal.queueContext.queue)}>
+                {getFinanceDealQueueLabel(deal.queueContext.queue)}
+              </Badge>
+            </div>
+            <PrintFormActions
+              client={printFormClient}
+              forms={deal.printForms.deal}
+              owner={{ type: "deal", dealId: deal.summary.id }}
+              size="sm"
+            />
           </div>
 
           <div className="space-y-2">
@@ -296,11 +306,22 @@ export function FinanceDealWorkspaceView({
         </Card>
 
         <Card>
-          <CardHeader className="border-b">
+          <CardHeader className="flex flex-row items-center justify-between gap-3 border-b">
             <CardTitle className="flex items-center gap-2 text-base">
               <Wallet className="h-4 w-4 text-muted-foreground" />
               Котировки и расчет
             </CardTitle>
+            {deal.summary.calculationId ? (
+              <PrintFormActions
+                client={printFormClient}
+                forms={deal.printForms.calculation}
+                owner={{
+                  type: "calculation",
+                  calculationId: deal.summary.calculationId,
+                }}
+                size="sm"
+              />
+            ) : null}
           </CardHeader>
           <CardContent className="space-y-3 pt-6 text-sm">
             <div className="flex items-center justify-between gap-3">

@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { PrintFormDescriptorSchema } from "@bedrock/sdk-print-forms-ui/lib/schemas";
+
 import { API_BASE_URL } from "@/lib/constants";
 
 export const CrmDocumentDetailSchema = z.object({
@@ -21,6 +23,7 @@ export const CrmDocumentDetailSchema = z.object({
   createdAt: z.string().nullable().optional(),
   amount: z.string().nullable().optional(),
   currency: z.string().nullable().optional(),
+  printForms: z.array(PrintFormDescriptorSchema).default([]),
 });
 
 export type CrmDocumentDetail = z.infer<typeof CrmDocumentDetailSchema>;

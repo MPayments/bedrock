@@ -17,6 +17,7 @@
     "test": "vitest run --config vitest.config.ts"
   },
   "dependencies": {
+    "@bedrock/agreements": "workspace:*",
     "@bedrock/deals": "workspace:*",
     "@bedrock/iam": "workspace:*",
     "@bedrock/parties": "workspace:*",

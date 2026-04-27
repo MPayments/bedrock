@@ -330,7 +330,7 @@ describe("calculations routes", () => {
     });
   });
 
-  it("exports calculation using canonical document data", async () => {
+  it("exports calculation print form using canonical document data", async () => {
     const { app, calculationsModule, currenciesService, documentGenerationWorkflow } =
       createTestApp();
     const detail = createCalculationDetail();
@@ -361,7 +361,7 @@ describe("calculations routes", () => {
     });
 
     const response = await app.request(
-      `http://localhost/calculations/${detail.id}/export?format=pdf&lang=ru`,
+      `http://localhost/calculations/${detail.id}/print-forms/calculation.calculation-ru?format=pdf`,
     );
 
     expect(response.status).toBe(200);

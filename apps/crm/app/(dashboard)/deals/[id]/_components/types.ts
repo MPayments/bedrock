@@ -1,3 +1,5 @@
+import type { PrintFormDescriptor } from "@bedrock/sdk-print-forms-ui/lib/schemas";
+
 export type DealStatus =
   | "draft"
   | "submitted"
@@ -286,6 +288,7 @@ export type ApiDealWorkflowProjection = {
       lifecycleStatus: string | null;
       occurredAt: string | null;
       postingStatus: string | null;
+      printForms: PrintFormDescriptor[];
       submissionStatus: string | null;
     }[];
     quotes: {
@@ -517,6 +520,7 @@ export type ApiFormalDocument = {
   id: string;
   lifecycleStatus: string;
   postingStatus: string;
+  printForms: PrintFormDescriptor[];
   submissionStatus: string;
   title: string | null;
 };
@@ -842,6 +846,7 @@ export type ApiDealQuoteAcceptanceHistoryItem = {
   acceptanceId: string;
   acceptedAt: string;
   acceptedByUserId: string;
+  calculationId: string | null;
   commercialRevenueMinor: string | null;
   customerTotalMinor: string | null;
   expiresAt: string | null;

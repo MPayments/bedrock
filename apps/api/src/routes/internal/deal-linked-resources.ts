@@ -1,5 +1,4 @@
 import { z } from "@hono/zod-openapi";
-import { and, eq, inArray } from "drizzle-orm";
 
 import {
   canDealCreateFormalDocuments,
@@ -7,7 +6,6 @@ import {
 } from "@bedrock/deals";
 import type { DealDetails, DealTrace } from "@bedrock/deals/contracts";
 import { DealTraceSchema } from "@bedrock/deals/contracts";
-import { fileLinks } from "@bedrock/files/schema";
 import { NotFoundError, ValidationError } from "@bedrock/shared/core/errors";
 import type { QuotePreviewRecord } from "@bedrock/treasury/contracts";
 
@@ -16,7 +14,6 @@ import {
   normalizeOptionalDecimalString,
 } from "../../composition/commercial-pricing";
 import type { AppContext } from "../../context";
-import { db } from "../../db/client";
 
 export const DealScopedCreateDocumentInputSchema = z.object({
   dealId: z.string().uuid().optional(),
@@ -232,7 +229,7 @@ export async function buildDealTrace(
   dealId: string,
 ): Promise<DealTrace> {
   const deal = await requireDeal(ctx, dealId);
-  const [quotesResult, documentRows, generatedFileRows] = await Promise.all([
+  const [quotesResult, documentRows] = await Promise.all([
     ctx.treasuryModule.quotes.queries.listQuotes({
       dealId,
       limit: 500,
@@ -241,22 +238,6 @@ export async function buildDealTrace(
       sortOrder: "desc",
     }),
     ctx.documentsReadModel.listDealTraceRowsByDealId(dealId),
-    db
-      .select({
-        fileAssetId: fileLinks.fileAssetId,
-        linkKind: fileLinks.linkKind,
-      })
-      .from(fileLinks)
-      .where(
-        and(
-          eq(fileLinks.dealId, dealId),
-          inArray(fileLinks.linkKind, [
-            "deal_application",
-            "deal_invoice",
-            "deal_acceptance",
-          ]),
-        ),
-      ),
   ]);
 
   const formalDocuments = documentRows.map((row) => ({
@@ -277,10 +258,7 @@ export async function buildDealTrace(
     calculationId: deal.calculationId,
     dealId: deal.id,
     formalDocuments,
-    generatedFiles: generatedFileRows.map((row) => ({
-      fileAssetId: row.fileAssetId,
-      linkKind: row.linkKind,
-    })),
+    generatedFiles: [],
     ledgerOperationIds,
     quotes: quotesResult.data.map((quote) => ({
       createdAt: quote.createdAt,

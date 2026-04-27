@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 
 import {
   Card,
@@ -36,6 +36,7 @@ type DocumentWorkbenchCardProps = {
   isAdmin: boolean;
   options: DocumentFormOptions;
   createMutator: DocumentFormCreateMutator;
+  headerActions?: ReactNode;
   updateMutator: DocumentFormUpdateMutator;
 };
 
@@ -45,6 +46,7 @@ export function DocumentWorkbenchCard({
   docType,
   docTypeLabel,
   documentId,
+  headerActions,
   isAdmin,
   options,
   payload,
@@ -80,9 +82,12 @@ export function DocumentWorkbenchCard({
             </div>
             {activeDefinition && canEditDraft ? (
               <div className="flex items-center gap-2">
+                {headerActions}
                 <DocumentTypedFormSubmitButton />
                 <DocumentTypedFormResetButton />
               </div>
+            ) : headerActions ? (
+              <div className="flex items-center gap-2">{headerActions}</div>
             ) : null}
           </div>
         </CardHeader>
@@ -112,11 +117,16 @@ export function DocumentWorkbenchCard({
       ) : (
         <Card className="rounded-sm">
           <CardHeader className="border-b">
-            <div className="space-y-1">
-              <CardTitle>Поля документа</CardTitle>
-              <CardDescription>
-                Для этого типа документа типизированная форма недоступна.
-              </CardDescription>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="space-y-1">
+                <CardTitle>Поля документа</CardTitle>
+                <CardDescription>
+                  Для этого типа документа типизированная форма недоступна.
+                </CardDescription>
+              </div>
+              {headerActions ? (
+                <div className="flex items-center gap-2">{headerActions}</div>
+              ) : null}
             </div>
           </CardHeader>
           <CardContent className="space-y-6 py-6">
