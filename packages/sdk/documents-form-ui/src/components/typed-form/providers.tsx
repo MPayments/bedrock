@@ -4,10 +4,13 @@ import { FormProvider, useForm } from "react-hook-form";
 import { useCallback, useEffect, useId, useMemo } from "react";
 import type { ReactNode } from "react";
 
-import type { DocumentFormField } from "../../lib/document-form-registry";
-import type { DocumentFormValues } from "../../lib/document-form-registry";
-import type { DocumentFormOptions } from "../../lib/form-options";
 import { getDocumentFormDefinitionForRole } from "../../lib/document-form-registry";
+import type {
+  DocumentFormDefinitions,
+  DocumentFormField,
+  DocumentFormValues,
+} from "../../lib/document-form-registry";
+import type { DocumentFormOptions } from "../../lib/form-options";
 import type { DocumentMutationDto } from "../../lib/mutations";
 
 import {
@@ -35,6 +38,7 @@ type DocumentTypedFormProviderProps = {
   docType: string;
   isAdmin: boolean;
   options: DocumentFormOptions;
+  formDefinitions: DocumentFormDefinitions;
   disabled?: boolean;
   onSuccess?: (result: DocumentMutationDto) => void;
   documentId?: string;
@@ -50,6 +54,7 @@ export type CreateDocumentTypedFormProviderProps = {
   docType: string;
   isAdmin: boolean;
   options: DocumentFormOptions;
+  formDefinitions: DocumentFormDefinitions;
   disabled?: boolean;
   initialPayload?: Record<string, unknown>;
   onSuccess?: (result: DocumentMutationDto) => void;
@@ -62,6 +67,7 @@ export type EditDocumentTypedFormProviderProps = {
   docType: string;
   isAdmin: boolean;
   options: DocumentFormOptions;
+  formDefinitions: DocumentFormDefinitions;
   initialPayload: Record<string, unknown>;
   documentId: string;
   disabled?: boolean;
@@ -75,6 +81,7 @@ function DocumentTypedFormProvider({
   createDealId,
   createMutator,
   docType,
+  formDefinitions,
   isAdmin,
   options,
   disabled = false,
@@ -86,8 +93,13 @@ function DocumentTypedFormProvider({
 }: DocumentTypedFormProviderProps) {
   const formId = useId();
   const definition = useMemo(
-    () => getDocumentFormDefinitionForRole({ docType, isAdmin }),
-    [docType, isAdmin],
+    () =>
+      getDocumentFormDefinitionForRole({
+        definitions: formDefinitions,
+        docType,
+        isAdmin,
+      }),
+    [docType, formDefinitions, isAdmin],
   );
   const defaultValues = useMemo(
     () =>

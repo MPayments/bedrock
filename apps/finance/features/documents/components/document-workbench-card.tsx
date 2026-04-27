@@ -6,6 +6,7 @@ import { DocumentWorkbenchCard as SharedDocumentWorkbenchCard } from "@bedrock/s
 import type { DocumentFormOptions } from "@bedrock/sdk-documents-form-ui/lib/form-options";
 
 import { getDocumentTypeLabel } from "@/features/documents/lib/doc-types";
+import { DOCUMENT_FORM_DEFINITIONS } from "@/features/documents/lib/form-definitions";
 import {
   createDealScopedDocumentDraft,
   createDocumentDraft,
@@ -41,6 +42,7 @@ export function DocumentWorkbenchCard({
       allowedActions={allowedActions}
       isAdmin={userRole === "admin"}
       options={options}
+      formDefinitions={DOCUMENT_FORM_DEFINITIONS}
       headerActions={headerActions}
       createMutator={async ({ docType: type, dealId, payload: input }) => {
         if (dealId) {

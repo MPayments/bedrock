@@ -161,8 +161,9 @@ export class DrizzleQuoteExecutionsRepository implements QuoteExecutionsReposito
     const database = (tx as Transaction | undefined) ?? this.db;
     const conditions: SQL[] = [];
     if (input.dealId) conditions.push(eq(quoteExecutions.dealId, input.dealId));
-    if (input.quoteId)
+    if (input.quoteId) {
       conditions.push(eq(quoteExecutions.quoteId, input.quoteId));
+    }
     if (input.state) conditions.push(eq(quoteExecutions.state, input.state));
     if (input.treasuryOrderId) {
       conditions.push(

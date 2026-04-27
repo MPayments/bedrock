@@ -12,7 +12,6 @@ import {
 } from "@bedrock/sdk-ui/components/card";
 import { Field } from "@bedrock/sdk-ui/components/field";
 import { Spinner } from "@bedrock/sdk-ui/components/spinner";
-import type { QuotePreviewResponse } from "@bedrock/treasury/contracts";
 
 import type { DocumentFormValues } from "../../../lib/document-form-registry";
 import {
@@ -21,6 +20,7 @@ import {
   formatFxQuotePreviewMinorAmount,
   formatFxQuotePreviewTimestamp,
   getFinancialLineBucketLabel,
+  type QuotePreviewResponse,
 } from "../../../lib/fx-quote-preview";
 import { formatRate } from "../../../lib/format";
 

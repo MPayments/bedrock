@@ -13,6 +13,7 @@ import { formatDealBreadcrumbLabel } from "@/components/app/breadcrumbs";
 import { useCrmBreadcrumbs } from "@/components/app/breadcrumbs-provider";
 import { buildCrmDealDocumentInitialPayload } from "@/features/documents/lib/deal-prefill";
 import { canCreateCrmDocumentType, getCrmDocumentTypeLabel } from "@/features/documents/lib/doc-types";
+import { CRM_DOCUMENT_FORM_DEFINITIONS } from "@/features/documents/lib/form-definitions";
 import { fetchCrmDocumentFormOptions } from "@/features/documents/lib/form-options";
 import {
   createDealScopedDocumentDraft,
@@ -132,6 +133,7 @@ export default function DealDocumentCreatePage() {
         initialPayload={initialPayload}
         isAdmin={false}
         options={formOptions}
+        formDefinitions={CRM_DOCUMENT_FORM_DEFINITIONS}
         createMutator={async ({ docType: type, dealId: targetDealId, payload }) => {
           if (!targetDealId) {
             return {

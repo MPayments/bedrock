@@ -1,12 +1,68 @@
-import {
-  FINANCIAL_LINE_BUCKET_OPTIONS,
-} from "@bedrock/documents/contracts";
-import {
-  QuotePreviewResponseSchema,
-  PreviewQuoteInputSchema,
-  type QuotePreviewResponse,
-} from "@bedrock/treasury/contracts";
+import { z } from "zod";
+
 import { minorToAmountString, toMinorAmountString } from "@bedrock/shared/money";
+
+const FINANCIAL_LINE_BUCKET_OPTIONS = [
+  { value: "fee_revenue", label: "Комиссионный доход" },
+  { value: "spread_revenue", label: "Спред" },
+  { value: "provider_fee_expense", label: "Расход провайдера" },
+  { value: "pass_through", label: "Транзитная комиссия" },
+  { value: "adjustment", label: "Корректировка" },
+] as const;
+
+const QuotePreviewLegSchema = z.object({
+  idx: z.number().int(),
+  fromCurrency: z.string(),
+  toCurrency: z.string(),
+  fromAmountMinor: z.string(),
+  toAmountMinor: z.string(),
+  rateNum: z.string(),
+  rateDen: z.string(),
+});
+
+const QuoteFeeComponentSchema = z.object({
+  id: z.string(),
+  kind: z.string(),
+  currency: z.string(),
+  amountMinor: z.string(),
+  source: z.string(),
+  accountingTreatment: z.string().optional(),
+  memo: z.string().optional(),
+});
+
+const QuoteFinancialLineSchema = z.object({
+  id: z.string(),
+  bucket: z.string(),
+  currency: z.string(),
+  amountMinor: z.string(),
+  source: z.enum(["rule", "manual"]),
+  settlementMode: z.string().optional(),
+  accountingTreatment: z.string().optional(),
+  memo: z.string().optional(),
+  metadata: z.record(z.string(), z.string()).optional(),
+});
+
+const QuotePreviewResponseSchema = z.object({
+  fromCurrency: z.string(),
+  toCurrency: z.string(),
+  fromAmountMinor: z.string(),
+  toAmountMinor: z.string(),
+  fromAmount: z.string(),
+  toAmount: z.string(),
+  pricingMode: z.string(),
+  pricingTrace: z.record(z.string(), z.unknown()),
+  commercialTerms: z.unknown().nullable(),
+  dealDirection: z.string().nullable(),
+  dealForm: z.string().nullable(),
+  rateNum: z.string(),
+  rateDen: z.string(),
+  expiresAt: z.iso.datetime(),
+  legs: z.array(QuotePreviewLegSchema),
+  feeComponents: z.array(QuoteFeeComponentSchema),
+  financialLines: z.array(QuoteFinancialLineSchema),
+});
+
+export type QuotePreviewResponse = z.infer<typeof QuotePreviewResponseSchema>;
 
 const financialLineBucketLabelByValue = new Map<string, string>(
   FINANCIAL_LINE_BUCKET_OPTIONS.map((option) => [option.value, option.label] as const),
@@ -59,15 +115,14 @@ export async function fetchFxQuotePreview(input: {
   request: FxQuotePreviewRequest;
   signal?: AbortSignal;
 }): Promise<QuotePreviewResponse> {
-  const request = PreviewQuoteInputSchema.parse({
+  const request = {
     mode: "auto_cross",
     fromCurrency: input.request.fromCurrency,
     toCurrency: input.request.toCurrency,
     fromAmountMinor: input.request.fromAmountMinor,
     asOf: new Date(),
-  });
-  const fromAmountMinor =
-    "fromAmountMinor" in request ? request.fromAmountMinor : null;
+  };
+  const fromAmountMinor = request.fromAmountMinor;
 
   if (!fromAmountMinor) {
     throw new Error("Не удалось подготовить сумму для preview-котировки");

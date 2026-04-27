@@ -31,6 +31,7 @@ import {
   getCrmDocumentTypeLabel,
   isCrmDocType,
 } from "@/features/documents/lib/doc-types";
+import { CRM_DOCUMENT_FORM_DEFINITIONS } from "@/features/documents/lib/form-definitions";
 import { fetchCrmDocumentFormOptions } from "@/features/documents/lib/form-options";
 import {
   createDealScopedDocumentDraft,
@@ -308,6 +309,7 @@ export default function DealDocumentDetailPage() {
           allowedActions={document.allowedActions}
           isAdmin={false}
           options={formOptions}
+          formDefinitions={CRM_DOCUMENT_FORM_DEFINITIONS}
           createMutator={async ({ docType: type, dealId: targetDealId, payload }) => {
             if (!targetDealId) {
               return {

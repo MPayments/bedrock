@@ -10,7 +10,7 @@ import { GetFileAttachmentContentQuery } from "./queries/get-file-attachment-con
 import { GetFileDownloadUrlQuery } from "./queries/get-file-download-url";
 import { ListFileAttachmentsQuery } from "./queries/list-file-attachments";
 
-export interface FilesServiceDeps {
+interface FilesServiceDeps {
   commandUow: FilesCommandUnitOfWork;
   objectStorage?: ObjectStoragePort;
   reads: FileReads;

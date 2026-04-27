@@ -1,6 +1,3 @@
-import { COMMERCIAL_DOCUMENT_DEFINITIONS } from "@bedrock/plugin-documents-commercial/contracts";
-import { IFRS_DOCUMENT_DEFINITIONS } from "@bedrock/plugin-documents-ifrs/contracts";
-
 import type { DocumentFormDefinition } from "./document-form-registry/types";
 
 export type {
@@ -18,25 +15,24 @@ export type {
   DocumentFormValues,
 } from "./document-form-registry/types";
 
-const DOCUMENT_FORM_DEFINITION_BY_TYPE = new Map<string, DocumentFormDefinition>(
-  [...IFRS_DOCUMENT_DEFINITIONS, ...COMMERCIAL_DOCUMENT_DEFINITIONS].flatMap((definition) =>
-    definition.formDefinition
-      ? [[definition.docType, definition.formDefinition] as const]
-      : [],
-  ),
-);
+export type DocumentFormDefinitions = readonly DocumentFormDefinition[];
 
 export function getDocumentFormDefinition(
   docType: string,
+  definitions: DocumentFormDefinitions = [],
 ): DocumentFormDefinition | null {
-  return DOCUMENT_FORM_DEFINITION_BY_TYPE.get(docType) ?? null;
+  return definitions.find((definition) => definition.docType === docType) ?? null;
 }
 
 export function getDocumentFormDefinitionForRole(input: {
+  definitions?: DocumentFormDefinitions;
   docType: string;
   isAdmin: boolean;
 }): DocumentFormDefinition | null {
-  const definition = getDocumentFormDefinition(input.docType);
+  const definition = getDocumentFormDefinition(
+    input.docType,
+    input.definitions,
+  );
   if (!definition) {
     return null;
   }

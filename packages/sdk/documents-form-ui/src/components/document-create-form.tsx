@@ -9,6 +9,7 @@ import {
   CardTitle,
 } from "@bedrock/sdk-ui/components/card";
 
+import type { DocumentFormDefinitions } from "../lib/document-form-registry";
 import type { DocumentFormOptions } from "../lib/form-options";
 import type {
   DocumentFormCreateMutator,
@@ -31,6 +32,7 @@ type DocumentCreateFormProps = {
   initialPayload?: Record<string, unknown>;
   isAdmin: boolean;
   options: DocumentFormOptions;
+  formDefinitions: DocumentFormDefinitions;
   buildSuccessHref: (input: { docType: string; documentId: string }) => string;
   createMutator: DocumentFormCreateMutator;
   updateMutator: DocumentFormUpdateMutator;
@@ -69,6 +71,7 @@ export function DocumentCreateForm({
   dealId,
   docType,
   docTypeLabel,
+  formDefinitions,
   initialPayload,
   isAdmin,
   options,
@@ -81,6 +84,7 @@ export function DocumentCreateForm({
       createDealId={dealId}
       createMutator={createMutator}
       docType={docType}
+      formDefinitions={formDefinitions}
       initialPayload={initialPayload}
       isAdmin={isAdmin}
       options={options}

@@ -21,7 +21,6 @@ import {
   resolveSortValue,
   type PaginatedList,
 } from "@bedrock/shared/core/pagination";
-import { paymentSteps } from "@bedrock/treasury/schema";
 
 import {
   dealAttachmentIngestions,
@@ -64,6 +63,7 @@ import { listDealTransitionReadiness } from "../../domain/transition-policy";
 import {
   buildEffectiveDealExecutionPlan,
   dealIntakeHasConvertLeg,
+  type DealLegPaymentStepRef,
   deriveDealNextAction,
   evaluateDealSectionCompleteness,
   filterTimelineForPortal,
@@ -732,20 +732,19 @@ export class DrizzleDealReads implements DealReads {
   }
 
   private async loadDealPaymentSteps(dealId: string) {
-    const rows = await this.db
-      .select({
-        planLegId: sql<string>`${paymentSteps.origin}->>'planLegId'`,
-        state: paymentSteps.state,
-      })
-      .from(paymentSteps)
-      .where(
-        and(
-          eq(paymentSteps.dealId, dealId),
-          eq(paymentSteps.purpose, "deal_leg"),
-        ),
-      );
+    const result = await this.db.execute<{
+      planLegId: string | null;
+      state: DealLegPaymentStepRef["state"];
+    }>(sql`
+      select
+        origin->>'planLegId' as "planLegId",
+        state
+      from payment_steps
+      where deal_id = ${dealId}
+        and purpose = 'deal_leg'
+    `);
 
-    return rows
+    return result.rows
       .filter(
         (row): row is { planLegId: string; state: typeof row.state } =>
           typeof row.planLegId === "string" && row.planLegId.length > 0,

@@ -1,20 +1,21 @@
-import { basename, extname } from "node:path";
+import { basename } from "node:path";
 
 import { trimToNull } from "@bedrock/shared/core";
 import type { ModuleRuntime } from "@bedrock/shared/core";
 import { sha256Hex } from "@bedrock/shared/core/crypto";
 import { ValidationError } from "@bedrock/shared/core/errors";
 
+import {
+  buildUploadedFileStorageKey,
+  mapStoredFileRecordToAttachment,
+} from "./uploaded-file-artifacts";
 import type { FileAttachment } from "../contracts/dto";
 import type {
   FileAttachmentPurpose,
   FileAttachmentVisibility,
   FileLinkKind,
 } from "../contracts/zod";
-import type {
-  FileOwnerType,
-  StoredFileRecord,
-} from "../ports/file.reads";
+import type { FileOwnerType } from "../ports/file.reads";
 import type { FilesCommandUnitOfWork } from "../ports/files.uow";
 import type { ObjectStoragePort } from "../ports/object-storage.port";
 
@@ -56,47 +57,6 @@ const UploadedAttachmentMetadataSchema = {
   },
 };
 
-function sanitizeFileStem(input: string): string {
-  const ext = extname(input);
-  const stem = basename(input, ext)
-    .replace(/[^a-zA-Z0-9._-]+/g, "_")
-    .replace(/^_+|_+$/g, "");
-
-  return `${stem || "file"}${ext.replace(/[^a-zA-Z0-9.]+/g, "")}`;
-}
-
-function buildStorageKey(input: {
-  fileAssetId: string;
-  fileName: string;
-  linkKind: FileLinkKind;
-  ownerId: string;
-}) {
-  return [
-    "files",
-    "uploaded",
-    input.linkKind,
-    input.ownerId,
-    input.fileAssetId,
-    "v1",
-    sanitizeFileStem(input.fileName),
-  ].join("/");
-}
-
-function mapFileRecordToAttachment(file: StoredFileRecord): FileAttachment {
-  return {
-    id: file.id,
-    fileName: file.fileName,
-    fileSize: file.fileSize,
-    mimeType: file.mimeType,
-    purpose: file.attachmentPurpose,
-    visibility: file.attachmentVisibility,
-    uploadedBy: file.versionCreatedBy,
-    description: file.description,
-    createdAt: file.createdAt,
-    updatedAt: file.updatedAt,
-  };
-}
-
 export class UploadFileAttachmentCommand {
   constructor(
     private readonly runtime: ModuleRuntime,
@@ -128,11 +88,13 @@ export class UploadFileAttachmentCommand {
     const versionId = this.runtime.generateUuid();
     const linkId = this.runtime.generateUuid();
     const checksum = sha256Hex(input.buffer.toString("base64"));
-    const storageKey = buildStorageKey({
+    const storageKey = buildUploadedFileStorageKey({
+      fallbackFileStem: "file",
       fileAssetId,
       fileName: validated.fileName,
       linkKind: this.options.linkKind,
       ownerId: validated.ownerId,
+      versionNumber: 1,
     });
 
     await this.objectStorage.upload(storageKey, input.buffer, validated.mimeType);
@@ -190,7 +152,7 @@ export class UploadFileAttachmentCommand {
           );
         }
 
-        return mapFileRecordToAttachment(created);
+        return mapStoredFileRecordToAttachment(created);
       });
     } catch (error) {
       await this.objectStorage.queueForDeletion(storageKey);

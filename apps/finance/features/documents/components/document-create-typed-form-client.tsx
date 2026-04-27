@@ -4,6 +4,7 @@ import { DocumentCreateForm } from "@bedrock/sdk-documents-form-ui/components/do
 import type { DocumentFormOptions } from "@bedrock/sdk-documents-form-ui/lib/form-options";
 
 import { getDocumentTypeLabel } from "@/features/documents/lib/doc-types";
+import { DOCUMENT_FORM_DEFINITIONS } from "@/features/documents/lib/form-definitions";
 import { buildDocumentDetailsHref } from "@/features/documents/lib/routes";
 import {
   createDealScopedDocumentDraft,
@@ -39,6 +40,7 @@ export function DocumentCreateTypedFormClient({
       initialPayload={initialPayload}
       isAdmin={userRole === "admin"}
       options={options}
+      formDefinitions={DOCUMENT_FORM_DEFINITIONS}
       createMutator={async ({ docType: type, dealId: targetDealId, payload }) => {
         if (targetDealId) {
           return createDealScopedDocumentDraft({

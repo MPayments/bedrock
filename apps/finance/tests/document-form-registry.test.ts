@@ -1,13 +1,19 @@
-import {
-  COMMERCIAL_DOCUMENT_DEFINITIONS,
-} from "@bedrock/plugin-documents-commercial/contracts";
+import { describe, expect, it } from "vitest";
+
+import { COMMERCIAL_DOCUMENT_DEFINITIONS } from "@bedrock/plugin-documents-commercial/contracts";
 import {
   IFRS_DOCUMENT_DEFINITIONS,
   IFRS_DOCUMENT_TYPE_ORDER,
 } from "@bedrock/plugin-documents-ifrs/contracts";
-import { describe, expect, it } from "vitest";
-
 import { getDocumentFormDefinitionForRole } from "@bedrock/sdk-documents-form-ui/lib/document-form-registry";
+import type { DocumentFormDefinitions } from "@bedrock/sdk-documents-form-ui/lib/document-form-registry";
+
+const DOCUMENT_FORM_DEFINITIONS = [
+  ...COMMERCIAL_DOCUMENT_DEFINITIONS,
+  ...IFRS_DOCUMENT_DEFINITIONS,
+].flatMap((definition) =>
+  definition.formDefinition ? [definition.formDefinition] : [],
+) satisfies DocumentFormDefinitions;
 
 describe("document form registry", () => {
   it("provides definitions for all typed IFRS doc types", () => {
@@ -21,6 +27,7 @@ describe("document form registry", () => {
 
       expect(
         getDocumentFormDefinitionForRole({
+          definitions: DOCUMENT_FORM_DEFINITIONS,
           docType,
           isAdmin: true,
         }),
@@ -31,6 +38,7 @@ describe("document form registry", () => {
   it("keeps admin-only and non-typed behavior", () => {
     expect(
       getDocumentFormDefinitionForRole({
+        definitions: DOCUMENT_FORM_DEFINITIONS,
         docType: "fx_execute",
         isAdmin: false,
       }),
@@ -38,6 +46,7 @@ describe("document form registry", () => {
 
     expect(
       getDocumentFormDefinitionForRole({
+        definitions: DOCUMENT_FORM_DEFINITIONS,
         docType: "fx_resolution",
         isAdmin: true,
       }),
@@ -45,6 +54,7 @@ describe("document form registry", () => {
 
     expect(
       getDocumentFormDefinitionForRole({
+        definitions: DOCUMENT_FORM_DEFINITIONS,
         docType: "period_reopen",
         isAdmin: true,
       }),
@@ -52,6 +62,7 @@ describe("document form registry", () => {
 
     expect(
       getDocumentFormDefinitionForRole({
+        definitions: DOCUMENT_FORM_DEFINITIONS,
         docType: "period_reopen",
         isAdmin: false,
       }),
@@ -59,6 +70,7 @@ describe("document form registry", () => {
 
     expect(
       getDocumentFormDefinitionForRole({
+        definitions: DOCUMENT_FORM_DEFINITIONS,
         docType: "period_close",
         isAdmin: true,
       }),
@@ -67,6 +79,7 @@ describe("document form registry", () => {
 
   it("exposes an auto-cross quote preview field for fx_execute", () => {
     const definition = getDocumentFormDefinitionForRole({
+      definitions: DOCUMENT_FORM_DEFINITIONS,
       docType: "fx_execute",
       isAdmin: true,
     });
@@ -90,8 +103,9 @@ describe("document form registry", () => {
       ...IFRS_DOCUMENT_DEFINITIONS,
     ];
 
-    const definition = definitions.find((item) => item.docType === "fx_execute")
-      ?.formDefinition;
+    const definition = definitions.find(
+      (item) => item.docType === "fx_execute",
+    )?.formDefinition;
     const financialLinesField = definition?.sections
       .flatMap((section) => section.fields)
       .find((field) => field.name === "financialLines");

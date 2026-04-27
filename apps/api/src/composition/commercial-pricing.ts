@@ -1,6 +1,5 @@
 import type { AgreementDetails } from "@bedrock/agreements/contracts";
 import { ValidationError } from "@bedrock/shared/core/errors";
-import { BPS_SCALE, mulDivRoundHalfUp } from "@bedrock/shared/money";
 
 export function normalizeOptionalDecimalString(
   value: string | null | undefined,
@@ -58,17 +57,6 @@ function decimalStringToRoundedInteger(
   const denominator = 10n ** BigInt(parts.scale);
 
   return (parts.digits + denominator / 2n) / denominator;
-}
-
-export function calculatePercentAmountMinorHalfUp(
-  amountMinor: bigint,
-  bps: bigint,
-): bigint {
-  if (amountMinor === 0n || bps === 0n) {
-    return 0n;
-  }
-
-  return mulDivRoundHalfUp(amountMinor, bps, BPS_SCALE);
 }
 
 export function extractAgreementCommercialDefaults(input: {

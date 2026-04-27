@@ -8,12 +8,12 @@ import {
   type DealsModule,
 } from "@bedrock/deals";
 import { ValidationError } from "@bedrock/shared/core/errors";
-import { mulDivRoundHalfUp } from "@bedrock/shared/money";
+import {
+  calculateBpsAmountMinorHalfUp,
+  mulDivRoundHalfUp,
+} from "@bedrock/shared/money";
 import type { TreasuryModule } from "@bedrock/treasury";
 
-import {
-  calculatePercentAmountMinorHalfUp,
-} from "./commercial-pricing";
 import { serializeQuoteDetails } from "../routes/internal/treasury-quote-dto";
 
 type CanonicalCalculation = Awaited<
@@ -258,11 +258,11 @@ export function createDealQuoteWorkflow(deps: DealQuoteWorkflowDeps) {
 
       const agreementVersionId =
         acceptedAgreementVersionId ?? commercialTerms.agreementVersionId ?? null;
-      const agreementFeeAmountMinor = calculatePercentAmountMinorHalfUp(
+      const agreementFeeAmountMinor = calculateBpsAmountMinorHalfUp(
         originalAmountMinor,
         commercialTerms.agreementFeeBps,
       );
-      const quoteMarkupAmountMinor = calculatePercentAmountMinorHalfUp(
+      const quoteMarkupAmountMinor = calculateBpsAmountMinorHalfUp(
         originalAmountMinor,
         commercialTerms.quoteMarkupBps,
       );

@@ -126,7 +126,7 @@ function serializeTreasuryOrder(order: {
   description: string | null;
   id: string;
   state: z.infer<typeof TreasuryOrderStateSchema>;
-  steps: Array<{
+  steps: {
     createdAt: Date | string;
     fromAmountMinor: bigint | string | null;
     fromCurrencyId: string;
@@ -143,7 +143,7 @@ function serializeTreasuryOrder(order: {
     toCurrencyId: string;
     toParty: z.infer<typeof PaymentStepPartyRefSchema>;
     updatedAt: Date | string;
-  }>;
+  }[];
   type: z.infer<typeof TreasuryOrderTypeSchema>;
   updatedAt: Date | string;
 }): TreasuryOrderResponse {

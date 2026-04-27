@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const getServerApiClient = vi.fn();
 const readPaginatedList = vi.fn();
 const stepsGet = vi.fn();
+const quoteExecutionsGet = vi.fn();
 
 vi.mock("@/lib/api/server-client", () => ({
   getServerApiClient,
@@ -21,6 +22,9 @@ describe("treasury operations queries", () => {
     getServerApiClient.mockResolvedValue({
       v1: {
         treasury: {
+          "quote-executions": {
+            $get: quoteExecutionsGet,
+          },
           steps: {
             $get: stepsGet,
           },
@@ -32,7 +36,7 @@ describe("treasury operations queries", () => {
       return {
         data: {
           data: [],
-          limit: 20,
+          limit: 100,
           offset: 0,
           total: 0,
         },
@@ -50,7 +54,16 @@ describe("treasury operations queries", () => {
     expect(stepsGet).toHaveBeenCalledWith(
       {
         query: {
-          limit: "10",
+          limit: "100",
+          offset: "0",
+        },
+      },
+      { init: { cache: "no-store" } },
+    );
+    expect(quoteExecutionsGet).toHaveBeenCalledWith(
+      {
+        query: {
+          limit: "100",
           offset: "0",
         },
       },
@@ -75,10 +88,20 @@ describe("treasury operations queries", () => {
       {
         query: {
           dealId: "00000000-0000-4000-8000-000000000010",
-          limit: "25",
-          offset: "25",
+          limit: "100",
+          offset: "0",
           purpose: "standalone_payment",
           state: ["pending", "processing"],
+        },
+      },
+      { init: { cache: "no-store" } },
+    );
+    expect(quoteExecutionsGet).toHaveBeenCalledWith(
+      {
+        query: {
+          dealId: "00000000-0000-4000-8000-000000000010",
+          limit: "100",
+          offset: "0",
         },
       },
       { init: { cache: "no-store" } },
@@ -98,9 +121,19 @@ describe("treasury operations queries", () => {
     expect(stepsGet).toHaveBeenCalledWith(
       {
         query: {
-          limit: "10",
+          limit: "100",
           offset: "0",
           state: ["pending"],
+        },
+      },
+      { init: { cache: "no-store" } },
+    );
+    expect(quoteExecutionsGet).toHaveBeenCalledWith(
+      {
+        query: {
+          limit: "100",
+          offset: "0",
+          state: "pending",
         },
       },
       { init: { cache: "no-store" } },
@@ -121,7 +154,16 @@ describe("treasury operations queries", () => {
         query: {
           createdFrom: "2026-04-01T00:00:00.000Z",
           createdTo: "2026-04-24T00:00:00.000Z",
-          limit: "10",
+          limit: "100",
+          offset: "0",
+        },
+      },
+      { init: { cache: "no-store" } },
+    );
+    expect(quoteExecutionsGet).toHaveBeenCalledWith(
+      {
+        query: {
+          limit: "100",
           offset: "0",
         },
       },
@@ -141,7 +183,16 @@ describe("treasury operations queries", () => {
     expect(stepsGet).toHaveBeenCalledWith(
       {
         query: {
-          limit: "10",
+          limit: "100",
+          offset: "0",
+        },
+      },
+      { init: { cache: "no-store" } },
+    );
+    expect(quoteExecutionsGet).toHaveBeenCalledWith(
+      {
+        query: {
+          limit: "100",
           offset: "0",
         },
       },

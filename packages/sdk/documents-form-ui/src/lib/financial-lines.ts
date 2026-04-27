@@ -1,8 +1,11 @@
 import {
+  minorToAmountString,
+  toMinorAmountString,
+} from "@bedrock/shared/money";
+import {
   calculatePercentAmountMinor,
   parseSignedPercentToBps,
-} from "@bedrock/plugin-documents-sdk/financial-lines";
-import { minorToAmountString, toMinorAmountString } from "@bedrock/shared/money";
+} from "@bedrock/shared/money/percent";
 
 import type {
   DocumentFormField,
@@ -25,10 +28,7 @@ export function resolveFinancialLineCalcMethod(input: {
   const value =
     typeof input.calcMethod === "string" ? input.calcMethod.trim() : "";
 
-  if (
-    value === "percent" &&
-    input.supportedCalcMethods.includes("percent")
-  ) {
+  if (value === "percent" && input.supportedCalcMethods.includes("percent")) {
     return "percent";
   }
 
@@ -74,10 +74,13 @@ export function getFinancialLinePercentAmountPreview(input: {
     typeof input.baseCurrency === "string"
       ? input.baseCurrency.trim().toUpperCase()
       : "";
-  const percent =
-    typeof input.percent === "string" ? input.percent.trim() : "";
+  const percent = typeof input.percent === "string" ? input.percent.trim() : "";
 
-  if (baseAmount.length === 0 || baseCurrency.length === 0 || percent.length === 0) {
+  if (
+    baseAmount.length === 0 ||
+    baseCurrency.length === 0 ||
+    percent.length === 0
+  ) {
     return null;
   }
 

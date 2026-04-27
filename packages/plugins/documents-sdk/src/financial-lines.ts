@@ -1,7 +1,9 @@
 import {
+  calculatePercentAmountMinor,
+  formatPercentFromBps,
   minorToAmountString,
-  mulDivRoundHalfUp,
   parseMinorAmount,
+  parseSignedPercentToBps,
   toMinorAmountString,
 } from "@bedrock/shared/money";
 
@@ -36,105 +38,14 @@ export interface ManualFinancialLinePayload {
   percentBps?: number;
 }
 
-const MAX_PERCENT_BPS = 1_000_000;
-const PERCENT_BPS_SCALE = 10_000n;
+export {
+  calculatePercentAmountMinor,
+  formatPercentFromBps,
+  parseSignedPercentToBps,
+};
 
 function resolveSettlementMode(bucket: string) {
   return bucket === "pass_through" ? "separate_payment_order" : "in_ledger";
-}
-
-function isAsciiDigits(value: string): boolean {
-  for (const character of value) {
-    if (character < "0" || character > "9") {
-      return false;
-    }
-  }
-
-  return value.length > 0;
-}
-
-export function parseSignedPercentToBps(percent: string): number {
-  const normalized = percent.trim().replace(",", ".");
-  if (normalized.length === 0) {
-    throw new Error("percent must be a number, e.g. 1.25");
-  }
-
-  const signCharacter = normalized[0];
-  const sign = signCharacter === "-" ? -1 : 1;
-  const unsigned =
-    signCharacter === "-" || signCharacter === "+"
-      ? normalized.slice(1)
-      : normalized;
-
-  if (unsigned.length === 0) {
-    throw new Error("percent must be a number, e.g. 1.25");
-  }
-
-  const dotIndex = unsigned.indexOf(".");
-  const hasDot = dotIndex !== -1;
-  const hasMultipleDots = hasDot && unsigned.indexOf(".", dotIndex + 1) !== -1;
-  if (hasMultipleDots) {
-    throw new Error("percent must be a number, e.g. 1.25");
-  }
-
-  const integerPart = hasDot ? unsigned.slice(0, dotIndex) : unsigned;
-  const fractionSource = hasDot ? unsigned.slice(dotIndex + 1) : "";
-  if (
-    !isAsciiDigits(integerPart) ||
-    fractionSource.length > 2 ||
-    (fractionSource.length > 0 && !isAsciiDigits(fractionSource))
-  ) {
-    throw new Error("percent must be a number, e.g. 1.25");
-  }
-
-  const fractionPart = fractionSource.padEnd(2, "0");
-  const bps = Number(integerPart) * 100 + Number(fractionPart);
-
-  if (!Number.isInteger(bps) || bps > MAX_PERCENT_BPS) {
-    throw new Error("percent is too large");
-  }
-
-  return sign * bps;
-}
-
-export function formatPercentFromBps(bps: number): string {
-  if (!Number.isInteger(bps)) {
-    throw new Error("percent bps must be an integer");
-  }
-
-  const sign = bps < 0 ? "-" : "";
-  const absoluteBps = Math.abs(bps);
-  const integerPart = Math.trunc(absoluteBps / 100);
-  const fractionPart = absoluteBps % 100;
-
-  if (fractionPart === 0) {
-    return `${sign}${integerPart}`;
-  }
-
-  const normalizedFraction = fractionPart.toString().padStart(2, "0").replace(/0+$/, "");
-  return `${sign}${integerPart}.${normalizedFraction}`;
-}
-
-export function calculatePercentAmountMinor(
-  baseAmountMinor: bigint,
-  percentBps: number,
-): bigint {
-  if (baseAmountMinor <= 0n) {
-    throw new Error("baseAmountMinor must be positive");
-  }
-
-  if (!Number.isInteger(percentBps)) {
-    throw new Error("percentBps must be an integer");
-  }
-
-  const sign = percentBps < 0 ? -1n : 1n;
-  const absoluteBps = BigInt(Math.abs(percentBps));
-  const amountMinor = mulDivRoundHalfUp(
-    baseAmountMinor,
-    absoluteBps,
-    PERCENT_BPS_SCALE,
-  );
-  return sign * amountMinor;
 }
 
 export function compileManualFinancialLine(input: {
@@ -151,10 +62,14 @@ export function compileManualFinancialLine(input: {
 
   const baseCurrency = input.baseCurrency.trim().toUpperCase();
 
-  const id = input.lineId ?? input.createId?.() ?? `manual:${crypto.randomUUID()}`;
+  const id =
+    input.lineId ?? input.createId?.() ?? `manual:${crypto.randomUUID()}`;
 
   if (input.line.calcMethod === "fixed") {
-    const amountMinor = toMinorAmountString(input.line.amount, input.line.currency);
+    const amountMinor = toMinorAmountString(
+      input.line.amount,
+      input.line.currency,
+    );
     if (parseMinorAmount(amountMinor) === 0n) {
       throw new Error("amount must be non-zero");
     }
@@ -175,7 +90,9 @@ export function compileManualFinancialLine(input: {
 
   const percentBps = parseSignedPercentToBps(input.line.percent);
   if (baseCurrency.length === 0) {
-    throw new Error("percent-based financial lines require a resolved base currency");
+    throw new Error(
+      "percent-based financial lines require a resolved base currency",
+    );
   }
   const resolvedCurrency = input.line.currency?.trim().toUpperCase() ?? "";
   if (resolvedCurrency.length > 0 && resolvedCurrency !== baseCurrency) {

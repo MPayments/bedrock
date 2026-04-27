@@ -10,7 +10,10 @@ import {
   CardTitle,
 } from "@bedrock/sdk-ui/components/card";
 
-import { getDocumentFormDefinitionForRole } from "../lib/document-form-registry";
+import {
+  getDocumentFormDefinitionForRole,
+  type DocumentFormDefinitions,
+} from "../lib/document-form-registry";
 import type { DocumentFormOptions } from "../lib/form-options";
 
 import {
@@ -36,6 +39,7 @@ type DocumentWorkbenchCardProps = {
   isAdmin: boolean;
   options: DocumentFormOptions;
   createMutator: DocumentFormCreateMutator;
+  formDefinitions: DocumentFormDefinitions;
   headerActions?: ReactNode;
   updateMutator: DocumentFormUpdateMutator;
 };
@@ -46,6 +50,7 @@ export function DocumentWorkbenchCard({
   docType,
   docTypeLabel,
   documentId,
+  formDefinitions,
   headerActions,
   isAdmin,
   options,
@@ -55,10 +60,11 @@ export function DocumentWorkbenchCard({
   const definition = useMemo(
     () =>
       getDocumentFormDefinitionForRole({
+        definitions: formDefinitions,
         docType,
         isAdmin,
       }),
-    [docType, isAdmin],
+    [docType, formDefinitions, isAdmin],
   );
 
   const canEditDraft = allowedActions.includes("edit");
@@ -109,6 +115,7 @@ export function DocumentWorkbenchCard({
       initialPayload={payload}
       documentId={documentId}
       disabled={!canEditDraft}
+      formDefinitions={formDefinitions}
       createMutator={createMutator}
       updateMutator={updateMutator}
     >

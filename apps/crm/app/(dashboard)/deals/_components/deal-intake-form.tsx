@@ -612,7 +612,6 @@ export function DealIntakeMoneyRequestSection({
     hasDedicatedIncomingReceiptCurrency,
     currencyOptions,
     intake,
-    isPaymentDeal,
     moneyRequestSectionTitle,
     primaryAmountLabel,
     primaryAmountValue,
