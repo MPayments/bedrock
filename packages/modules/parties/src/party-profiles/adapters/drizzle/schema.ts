@@ -212,12 +212,3 @@ export const partyLicenses = pgTable(
     ),
   ],
 );
-
-export const schema = {
-  partyProfiles,
-  partyIdentifiers,
-  partyAddresses,
-  partyContacts,
-  partyRepresentatives,
-  partyLicenses,
-};

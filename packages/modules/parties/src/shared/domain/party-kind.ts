@@ -12,11 +12,11 @@ const COUNTRY_ALPHA2_SET = new Set<string>(COUNTRY_ALPHA2_CODES);
 
 export type CountryCode = string;
 
-export function normalizeCountryCode(value: string): string {
+function normalizeCountryCode(value: string): string {
   return value.trim().toUpperCase();
 }
 
-export function isCountryCode(value: string): value is CountryCode {
+function isCountryCode(value: string): value is CountryCode {
   return COUNTRY_ALPHA2_SET.has(normalizeCountryCode(value));
 }
 
@@ -31,7 +31,7 @@ export function normalizeOptionalCountryCode(
   return normalized.length > 0 ? normalized : null;
 }
 
-export function parseCountryCode(value: string): CountryCode {
+function parseCountryCode(value: string): CountryCode {
   const normalized = normalizeCountryCode(value);
   invariant(
     isCountryCode(normalized),

@@ -1,11 +1,6 @@
 import { z } from "zod";
 
 import {
-  compileManualFinancialLine,
-  formatPercentFromBps,
-  parseSignedPercentToBps,
-} from "@bedrock/plugin-documents-sdk/financial-lines";
-import {
   baseOccurredAtSchema,
   currencyCodeSchema,
   memoSchema,
@@ -56,49 +51,6 @@ const positiveMinorAmountStringSchema = z
   );
 
 const financialLineCalcMethodSchema = z.enum(["fixed", "percent"]);
-
-const directFinancialLineFixedInputSchema = z
-  .object({
-    calcMethod: z.literal("fixed").optional(),
-    bucket: financialLineBucketSchema,
-    currency: currencyCodeSchema,
-    amount: amountValueSchema,
-    memo: memoSchema,
-  })
-  .transform((input) => ({
-    ...input,
-    calcMethod: "fixed" as const,
-  }));
-
-const directFinancialLinePercentInputSchema = z
-  .object({
-    calcMethod: z.literal("percent"),
-    bucket: financialLineBucketSchema,
-    currency: currencyCodeSchema.optional(),
-    percent: z.string().trim().min(1).max(32),
-    memo: memoSchema,
-  })
-  .transform((input, ctx) => {
-    try {
-      return {
-        ...input,
-        percent: formatPercentFromBps(parseSignedPercentToBps(input.percent)),
-      };
-    } catch (error) {
-      ctx.addIssue({
-        code: "custom",
-        message:
-          error instanceof Error ? error.message : "percent is invalid",
-        path: ["percent"],
-      });
-      return z.NEVER;
-    }
-  });
-
-const directFinancialLineInputSchema = z.union([
-  directFinancialLineFixedInputSchema,
-  directFinancialLinePercentInputSchema,
-]);
 
 const financialLinePayloadSchema = z.object({
   id: z.string().trim().min(1).max(128),
@@ -157,70 +109,13 @@ const invoiceBaseInputSchema = baseOccurredAtSchema.extend({
 const invoiceInputBaseSchema = invoiceBaseInputSchema.extend({
   amount: amountValueSchema,
   currency: currencyCodeSchema,
-  financialLines: z.array(directFinancialLineInputSchema).default([]),
 });
-
-function resolveDirectFinancialLineErrorPath(
-  error: unknown,
-  index: number,
-): [string, number, string] {
-  const message = error instanceof Error ? error.message : "";
-  if (message.includes("currency")) {
-    return ["financialLines", index, "currency"];
-  }
-
-  if (message.includes("percent")) {
-    return ["financialLines", index, "percent"];
-  }
-
-  return ["financialLines", index, "amount"];
-}
-
-export function compileInvoiceDirectFinancialLines(input: {
-  financialLines: DirectFinancialLineInput[];
-  amountMinor: string;
-  currency: string;
-}) {
-  return input.financialLines.map((line) =>
-    financialLinePayloadSchema.parse(
-      compileManualFinancialLine({
-        line,
-        baseAmountMinor: input.amountMinor,
-        baseCurrency: input.currency,
-      }),
-    ),
-  );
-}
 
 export const InvoiceInputSchema = invoiceInputBaseSchema.transform((input, ctx) => {
     try {
       const amountMinor = toMinorAmountString(input.amount, input.currency, {
         requirePositive: true,
       });
-
-      let hasFinancialLineIssue = false;
-      input.financialLines.forEach((line, index) => {
-        try {
-          compileManualFinancialLine({
-            line,
-            baseAmountMinor: amountMinor,
-            baseCurrency: input.currency,
-            createId: () => `manual:validation:${index}`,
-          });
-        } catch (error) {
-          hasFinancialLineIssue = true;
-          ctx.addIssue({
-            code: "custom",
-            message:
-              error instanceof Error ? error.message : "financial line is invalid",
-            path: resolveDirectFinancialLineErrorPath(error, index),
-          });
-        }
-      });
-
-      if (hasFinancialLineIssue) {
-        return z.NEVER;
-      }
 
       return {
         ...input,
@@ -248,7 +143,6 @@ export const InvoiceCurrentPayloadSchema = invoiceBasePayloadSchema.extend({
   amount: amountValueSchema,
   amountMinor: positiveMinorAmountStringSchema,
   currency: currencyCodeSchema,
-  financialLines: z.array(financialLinePayloadSchema),
 });
 export const InvoicePayloadSchema = InvoiceCurrentPayloadSchema;
 
@@ -280,9 +174,6 @@ export const AcceptancePayloadSchema = baseOccurredAtSchema.extend({
   memo: memoSchema,
 });
 
-export type DirectFinancialLineInput = z.infer<
-  typeof directFinancialLineInputSchema
->;
 export type FinancialLinePayload = z.infer<typeof financialLinePayloadSchema>;
 export type QuoteSnapshot = z.infer<typeof QuoteSnapshotSchema>;
 export type InvoiceInput = z.infer<typeof InvoiceInputSchema>;

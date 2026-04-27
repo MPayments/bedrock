@@ -1,24 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { createModuleRuntime } from "@bedrock/shared/core";
+import { createTestLogger } from "@bedrock/test-utils";
 
 import { CreateCalculationCommand } from "../../src/application/commands/create-calculation";
 import {
   CalculationFxQuoteCurrencyMismatchError,
   CalculationFxQuoteRateMismatchError,
 } from "../../src/errors";
-
-function createLogger() {
-  const logger = {
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    debug: vi.fn(),
-    child: vi.fn(),
-  };
-  logger.child.mockReturnValue(logger);
-  return logger;
-}
 
 function createHarness() {
   const calculationReads = {
@@ -30,16 +19,16 @@ function createHarness() {
     createCalculationLines: vi.fn(),
     setCurrentSnapshot: vi.fn(),
   };
+  const idempotency = {
+    withIdempotency: vi.fn(async ({ handler }) => handler()),
+  };
   const tx = {
-    transaction: { id: "tx-1" } as any,
     calculationReads,
     calculationStore,
+    idempotency,
   };
   const commandUow = {
     run: vi.fn(async (work: (value: typeof tx) => Promise<unknown>) => work(tx)),
-  };
-  const idempotency = {
-    withIdempotencyTx: vi.fn(async ({ handler }) => handler()),
   };
   const references = {
     assertCurrencyExists: vi.fn(async () => undefined),
@@ -65,14 +54,13 @@ function createHarness() {
   ];
   const runtime = createModuleRuntime({
     service: "calculations",
-    logger: createLogger(),
+    logger: createTestLogger(),
     generateUuid: () => uuids.shift() ?? "00000000-0000-4000-8000-000000000099",
     now: () => new Date("2026-03-30T12:00:00.000Z"),
   });
   const command = new CreateCalculationCommand(
     runtime,
     commandUow as any,
-    idempotency as any,
     references,
   );
 
@@ -150,7 +138,7 @@ describe("create calculation command", () => {
 
     expect(result).toBe(expected);
     expect(harness.commandUow.run).toHaveBeenCalledTimes(1);
-    expect(harness.idempotency.withIdempotencyTx).toHaveBeenCalledTimes(1);
+    expect(harness.idempotency.withIdempotency).toHaveBeenCalledTimes(1);
     expect(harness.calculationStore.createCalculationRoot).toHaveBeenCalledWith({
       id: "00000000-0000-4000-8000-000000000010",
     });

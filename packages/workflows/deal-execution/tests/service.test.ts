@@ -266,23 +266,26 @@ function createAcceptanceDocument() {
 }
 
 function createCloseDealHarness(input?: {
-  latestInstructions?: {
-    attempt: number;
-    createdAt: Date;
+  paymentSteps?: {
     id: string;
-    operationId: string;
-    providerRef: string | null;
-    providerSnapshot: Record<string, unknown> | null;
-    sourceRef: string;
+    kind:
+      | "payin"
+      | "payout"
+      | "intracompany_transfer"
+      | "intercompany_funding"
+      | "internal_transfer";
     state:
-      | "prepared"
-      | "submitted"
-      | "settled"
+      | "draft"
+      | "scheduled"
+      | "pending"
+      | "processing"
+      | "completed"
       | "failed"
-      | "voided"
-      | "return_requested"
-      | "returned";
-    updatedAt: Date;
+      | "returned"
+      | "cancelled"
+      | "skipped";
+    planLegId: string;
+    sequence: number;
   }[];
   reconciliationLinks?: {
     exceptions: {
@@ -306,8 +309,8 @@ function createCloseDealHarness(input?: {
     createWorkflowProjection({
       formalDocuments: [createAcceptanceDocument()],
       operationRefs: [
-        [{ kind: "payin", operationId: "op-1", sourceRef: "deal:deal-1:leg:1:payin:1" }],
-        [{ kind: "payout", operationId: "op-2", sourceRef: "deal:deal-1:leg:2:payout:1" }],
+        [{ kind: "payin", operationId: "op-1", sourceRef: "deal:deal-1:plan-leg:leg-1:payin:1" }],
+        [{ kind: "payout", operationId: "op-2", sourceRef: "deal:deal-1:plan-leg:leg-2:payout:1" }],
       ],
       status: "closing_documents",
       type: "payment",
@@ -353,6 +356,7 @@ function createCloseDealHarness(input?: {
           transitionStatus,
         },
         queries: {
+          findPricingContextByDealId: vi.fn(async () => null),
           findWorkflowById: vi.fn(async () => workflow),
         },
       },
@@ -365,16 +369,85 @@ function createCloseDealHarness(input?: {
       },
     } as any),
     createTreasuryModule: () => ({
-      instructions: {
-        queries: {
-          listLatestByOperationIds: vi.fn(
-            async () => input?.latestInstructions ?? [],
-          ),
-        },
-      },
       operations: {
         commands: {
           createOrGetPlanned: vi.fn(),
+        },
+      },
+      paymentSteps: {
+        queries: {
+          list: vi.fn(async () => {
+            const items = (input?.paymentSteps ?? []).map((step) => ({
+              amendments: [],
+              artifacts: [],
+              attempts: [],
+              completedAt: null,
+              createdAt: new Date("2026-04-03T10:00:00.000Z"),
+              currentRoute: {
+                fromAmountMinor: null,
+                fromCurrencyId: "currency-usd",
+                fromParty: { id: "party-1", requisiteId: null },
+                rate: null,
+                toAmountMinor: null,
+                toCurrencyId: "currency-usd",
+                toParty: { id: "party-2", requisiteId: null },
+              },
+              dealId: "deal-1",
+              failureReason: null,
+              fromAmountMinor: null,
+              fromCurrencyId: "currency-usd",
+              fromParty: { id: "party-1", requisiteId: null },
+              id: step.id,
+              kind: step.kind,
+              origin: {
+                dealId: "deal-1",
+                planLegId: step.planLegId,
+                routeSnapshotLegId: null,
+                sequence: step.sequence,
+                treasuryOrderId: null,
+                type: "deal_execution_leg",
+              },
+              plannedRoute: {
+                fromAmountMinor: null,
+                fromCurrencyId: "currency-usd",
+                fromParty: { id: "party-1", requisiteId: null },
+                rate: null,
+                toAmountMinor: null,
+                toCurrencyId: "currency-usd",
+                toParty: { id: "party-2", requisiteId: null },
+              },
+              postingDocumentRefs: [],
+              purpose: "deal_leg" as const,
+              quoteId: null,
+              rate: null,
+              returns: [],
+              scheduledAt: null,
+              sourceRef: `deal:deal-1:plan-leg:${step.planLegId}:${step.kind}:1`,
+              state: step.state,
+              submittedAt: null,
+              toAmountMinor: null,
+              toCurrencyId: "currency-usd",
+              toParty: { id: "party-2", requisiteId: null },
+              treasuryBatchId: null,
+              updatedAt: new Date("2026-04-03T10:00:00.000Z"),
+            }));
+            return {
+              data: items,
+              limit: 100,
+              offset: 0,
+              total: items.length,
+            };
+          }),
+        },
+      },
+      quoteExecutions: {
+        queries: {
+          list: vi.fn(async () => ({
+            data: [],
+            limit: 100,
+            offset: 0,
+            total: 0,
+          })),
         },
       },
       quotes: {
@@ -407,8 +480,8 @@ describe("deal execution workflow", () => {
         workflow,
       }).map((item) => [item.legKind, item.operationKind, item.sourceRef]),
     ).toEqual([
-      ["collect", "payin", "deal:deal-1:leg:1:payin:1"],
-      ["payout", "payout", "deal:deal-1:leg:2:payout:1"],
+      ["collect", "payin", "deal:deal-1:plan-leg:leg-1:payin:1"],
+      ["payout", "payout", "deal:deal-1:plan-leg:leg-2:payout:1"],
     ]);
   });
 
@@ -427,9 +500,9 @@ describe("deal execution workflow", () => {
         workflow,
       }).map((item) => [item.legKind, item.operationKind, item.sourceRef]),
     ).toEqual([
-      ["collect", "payin", "deal:deal-1:leg:1:payin:1"],
-      ["convert", "fx_conversion", "deal:deal-1:leg:2:fx_conversion:1"],
-      ["payout", "payout", "deal:deal-1:leg:3:payout:1"],
+      ["collect", "payin", "deal:deal-1:plan-leg:leg-1:payin:1"],
+      ["convert", "quote_execution", "deal:deal-1:plan-leg:leg-2:quote_execution:1"],
+      ["payout", "payout", "deal:deal-1:plan-leg:leg-3:payout:1"],
     ]);
   });
 
@@ -448,15 +521,263 @@ describe("deal execution workflow", () => {
         workflow,
       }).map((item) => [item.legKind, item.operationKind, item.sourceRef]),
     ).toEqual([
-      ["collect", "payin", "deal:deal-1:leg:1:payin:1"],
-      ["convert", "fx_conversion", "deal:deal-1:leg:2:fx_conversion:1"],
+      ["collect", "payin", "deal:deal-1:plan-leg:leg-1:payin:1"],
+      ["convert", "quote_execution", "deal:deal-1:plan-leg:leg-2:quote_execution:1"],
       [
         "transit_hold",
         "intracompany_transfer",
-        "deal:deal-1:leg:3:intracompany_transfer:1",
+        "deal:deal-1:plan-leg:leg-3:intracompany_transfer:1",
       ],
-      ["payout", "payout", "deal:deal-1:leg:4:payout:1"],
+      ["payout", "payout", "deal:deal-1:plan-leg:leg-4:payout:1"],
     ]);
+  });
+
+  it("compiles a route-derived multi-hop plan with per-hop quote leg references", () => {
+    const multiHopLegs = [
+      {
+        fromCurrencyId: "cur-rub",
+        id: "leg-1",
+        idx: 1,
+        kind: "collect" as const,
+        operationRefs: [] as {
+          kind: string;
+          operationId: string;
+          sourceRef: string;
+        }[],
+        routeSnapshotLegId: null,
+        state: "ready" as const,
+        toCurrencyId: "cur-rub",
+      },
+      {
+        fromCurrencyId: "cur-rub",
+        id: "leg-2",
+        idx: 2,
+        kind: "transit_hold" as const,
+        operationRefs: [] as {
+          kind: string;
+          operationId: string;
+          sourceRef: string;
+        }[],
+        routeSnapshotLegId: "route-leg-hop-1",
+        state: "pending" as const,
+        toCurrencyId: "cur-rub",
+      },
+      {
+        fromCurrencyId: "cur-rub",
+        id: "leg-3",
+        idx: 3,
+        kind: "convert" as const,
+        operationRefs: [] as {
+          kind: string;
+          operationId: string;
+          sourceRef: string;
+        }[],
+        routeSnapshotLegId: "route-leg-hop-2",
+        state: "ready" as const,
+        toCurrencyId: "cur-aed",
+      },
+      {
+        fromCurrencyId: "cur-aed",
+        id: "leg-4",
+        idx: 4,
+        kind: "transit_hold" as const,
+        operationRefs: [] as {
+          kind: string;
+          operationId: string;
+          sourceRef: string;
+        }[],
+        routeSnapshotLegId: "route-leg-hop-3",
+        state: "pending" as const,
+        toCurrencyId: "cur-aed",
+      },
+      {
+        fromCurrencyId: "cur-aed",
+        id: "leg-5",
+        idx: 5,
+        kind: "convert" as const,
+        operationRefs: [] as {
+          kind: string;
+          operationId: string;
+          sourceRef: string;
+        }[],
+        routeSnapshotLegId: "route-leg-hop-4",
+        state: "ready" as const,
+        toCurrencyId: "cur-usd",
+      },
+      {
+        fromCurrencyId: "cur-usd",
+        id: "leg-6",
+        idx: 6,
+        kind: "payout" as const,
+        operationRefs: [] as {
+          kind: string;
+          operationId: string;
+          sourceRef: string;
+        }[],
+        routeSnapshotLegId: null,
+        state: "pending" as const,
+        toCurrencyId: "cur-usd",
+      },
+    ];
+    const workflow = {
+      ...createWorkflowProjection({
+        acceptedQuoteId: "quote-1",
+        type: "payment",
+        withConvert: true,
+      }),
+      executionPlan: multiHopLegs,
+    };
+    const acceptedQuote = {
+      ...createAcceptedQuoteDetails(),
+      legs: [
+        {
+          asOf: new Date("2026-04-03T10:00:00.000Z"),
+          createdAt: new Date("2026-04-03T10:00:00.000Z"),
+          executionCounterpartyId: null,
+          fromAmountMinor: 75282514n,
+          fromCurrencyId: "cur-rub",
+          id: "quote-leg-1",
+          idx: 1,
+          quoteId: "quote-1",
+          rateDen: 1n,
+          rateNum: 1n,
+          sourceKind: "derived" as const,
+          sourceRef: null,
+          toAmountMinor: 75282514n,
+          toCurrencyId: "cur-rub",
+        },
+        {
+          asOf: new Date("2026-04-03T10:00:00.000Z"),
+          createdAt: new Date("2026-04-03T10:00:00.000Z"),
+          executionCounterpartyId: null,
+          fromAmountMinor: 75282514n,
+          fromCurrencyId: "cur-rub",
+          id: "quote-leg-2",
+          idx: 2,
+          quoteId: "quote-1",
+          rateDen: 1000000n,
+          rateNum: 48788n,
+          sourceKind: "derived" as const,
+          sourceRef: null,
+          toAmountMinor: 3672500n,
+          toCurrencyId: "cur-aed",
+        },
+        {
+          asOf: new Date("2026-04-03T10:00:00.000Z"),
+          createdAt: new Date("2026-04-03T10:00:00.000Z"),
+          executionCounterpartyId: null,
+          fromAmountMinor: 3672500n,
+          fromCurrencyId: "cur-aed",
+          id: "quote-leg-3",
+          idx: 3,
+          quoteId: "quote-1",
+          rateDen: 1n,
+          rateNum: 1n,
+          sourceKind: "derived" as const,
+          sourceRef: null,
+          toAmountMinor: 3672500n,
+          toCurrencyId: "cur-aed",
+        },
+        {
+          asOf: new Date("2026-04-03T10:00:00.000Z"),
+          createdAt: new Date("2026-04-03T10:00:00.000Z"),
+          executionCounterpartyId: null,
+          fromAmountMinor: 3672500n,
+          fromCurrencyId: "cur-aed",
+          id: "quote-leg-4",
+          idx: 4,
+          quoteId: "quote-1",
+          rateDen: 10000n,
+          rateNum: 2722n,
+          sourceKind: "derived" as const,
+          sourceRef: null,
+          toAmountMinor: 1000000n,
+          toCurrencyId: "cur-usd",
+        },
+      ],
+    };
+
+    const recipe = compileDealExecutionRecipe({
+      acceptedQuote,
+      agreementOrganizationId: "org-1",
+      internalEntityOrganizationId: "org-1",
+      workflow,
+    });
+
+    expect(
+      recipe.map((item) => [
+        item.legKind,
+        item.amountRef,
+        item.counterAmountRef,
+        item.quoteLegIdx,
+      ]),
+    ).toEqual([
+      ["collect", "accepted_quote_customer_debit", null, null],
+      ["transit_hold", "quote_leg_to", null, 1],
+      ["convert", "quote_leg_from", "quote_leg_to", 2],
+      ["transit_hold", "quote_leg_to", null, 3],
+      ["convert", "quote_leg_from", "quote_leg_to", 4],
+      ["payout", "incoming_receipt_expected", null, null],
+    ]);
+
+    // Every route-derived leg carries its own unique quoteLegIdx so the
+    // two convert legs resolve to DIFFERENT amounts instead of sharing the
+    // aggregate quote amounts.
+    const convertLegs = recipe.filter((item) => item.legKind === "convert");
+    expect(convertLegs).toHaveLength(2);
+    expect(convertLegs[0]?.quoteLegIdx).not.toBe(convertLegs[1]?.quoteLegIdx);
+  });
+
+  it("throws when there are more route-derived legs than accepted-quote legs", () => {
+    const workflow = {
+      ...createWorkflowProjection({
+        acceptedQuoteId: "quote-1",
+        type: "currency_exchange",
+        withConvert: true,
+      }),
+      executionPlan: [
+        {
+          fromCurrencyId: "cur-rub",
+          id: "leg-1",
+          idx: 1,
+          kind: "collect" as const,
+          operationRefs: [],
+          routeSnapshotLegId: null,
+          state: "ready" as const,
+          toCurrencyId: "cur-rub",
+        },
+        {
+          fromCurrencyId: "cur-rub",
+          id: "leg-2",
+          idx: 2,
+          kind: "convert" as const,
+          operationRefs: [],
+          routeSnapshotLegId: "route-leg-hop-1",
+          state: "ready" as const,
+          toCurrencyId: "cur-usd",
+        },
+        {
+          fromCurrencyId: "cur-usd",
+          id: "leg-3",
+          idx: 3,
+          kind: "payout" as const,
+          operationRefs: [],
+          routeSnapshotLegId: null,
+          state: "pending" as const,
+          toCurrencyId: "cur-usd",
+        },
+      ],
+    };
+    // Empty legs array from the existing stub — route-derived leg would need
+    // quote leg 1 but the quote has 0 legs.
+    expect(() =>
+      compileDealExecutionRecipe({
+        acceptedQuote: createAcceptedQuoteDetails(),
+        agreementOrganizationId: "org-1",
+        internalEntityOrganizationId: "org-1",
+        workflow,
+      }),
+    ).toThrow(/more route-derived legs than the accepted quote provides/u);
   });
 
   it("compiles exporter settlement into payout, payin, fx conversion, and funding using the same organization rule", () => {
@@ -474,13 +795,13 @@ describe("deal execution workflow", () => {
         workflow,
       }).map((item) => [item.legKind, item.operationKind, item.sourceRef]),
     ).toEqual([
-      ["payout", "payout", "deal:deal-1:leg:1:payout:1"],
-      ["collect", "payin", "deal:deal-1:leg:2:payin:1"],
-      ["convert", "fx_conversion", "deal:deal-1:leg:3:fx_conversion:1"],
+      ["payout", "payout", "deal:deal-1:plan-leg:leg-1:payout:1"],
+      ["collect", "payin", "deal:deal-1:plan-leg:leg-2:payin:1"],
+      ["convert", "quote_execution", "deal:deal-1:plan-leg:leg-3:quote_execution:1"],
       [
         "settle_exporter",
         "intercompany_funding",
-        "deal:deal-1:leg:4:intercompany_funding:1",
+        "deal:deal-1:plan-leg:leg-4:intercompany_funding:1",
       ],
     ]);
   });
@@ -496,9 +817,9 @@ describe("deal execution workflow", () => {
       type: "currency_exchange",
       withConvert: true,
       operationRefs: [
-        [{ kind: "payin", operationId: "op-1", sourceRef: "deal:deal-1:leg:1:payin:1" }],
-        [{ kind: "fx_conversion", operationId: "op-2", sourceRef: "deal:deal-1:leg:2:fx_conversion:1" }],
-        [{ kind: "payout", operationId: "op-3", sourceRef: "deal:deal-1:leg:3:payout:1" }],
+        [{ kind: "payin", operationId: "op-1", sourceRef: "deal:deal-1:plan-leg:leg-1:payin:1" }],
+        [{ kind: "quote_execution", operationId: "op-2", sourceRef: "deal:deal-1:plan-leg:leg-2:quote_execution:1" }],
+        [{ kind: "payout", operationId: "op-3", sourceRef: "deal:deal-1:plan-leg:leg-3:payout:1" }],
       ],
       status: "awaiting_funds",
     });
@@ -509,11 +830,26 @@ describe("deal execution workflow", () => {
       .mockResolvedValueOnce(materializedWorkflow);
     const createDealLegOperationLinks = vi.fn(async () => undefined);
     const createDealTimelineEvents = vi.fn(async () => undefined);
-    const createOrGetPlanned = vi
+    let opCounter = 0;
+    const createOrGetPlanned = vi.fn(async () => {
+      opCounter += 1;
+      return { id: `op-${opCounter}` };
+    });
+    const listPaymentSteps = vi
       .fn()
-      .mockResolvedValueOnce({ id: "op-1" })
-      .mockResolvedValueOnce({ id: "op-2" })
-      .mockResolvedValueOnce({ id: "op-3" });
+      .mockResolvedValueOnce({ data: [], limit: 1, offset: 0, total: 0 })
+      .mockResolvedValue({
+        data: [{ id: "step-1" }],
+        limit: 1,
+        offset: 0,
+        total: 1,
+      });
+    const listQuoteExecutions = vi
+      .fn()
+      .mockResolvedValueOnce({ data: [], limit: 1, offset: 0, total: 0 })
+      .mockResolvedValue({ data: [], limit: 1, offset: 0, total: 0 });
+    const createPaymentStep = vi.fn(async () => undefined);
+    const createQuoteExecution = vi.fn(async () => undefined);
     const workflow = createDealExecutionWorkflow({
       agreements: {
         agreements: {
@@ -543,6 +879,7 @@ describe("deal execution workflow", () => {
       createDealsModule: () => ({
         deals: {
           queries: {
+            findPricingContextByDealId: vi.fn(async () => null),
             findWorkflowById,
           },
         },
@@ -556,6 +893,22 @@ describe("deal execution workflow", () => {
         operations: {
           commands: {
             createOrGetPlanned,
+          },
+        },
+        paymentSteps: {
+          commands: {
+            create: createPaymentStep,
+          },
+          queries: {
+            list: listPaymentSteps,
+          },
+        },
+        quoteExecutions: {
+          commands: {
+            create: createQuoteExecution,
+          },
+          queries: {
+            list: listQuoteExecutions,
           },
         },
         quotes: {
@@ -577,36 +930,14 @@ describe("deal execution workflow", () => {
       idempotencyKey: "idem-1",
     });
 
-    expect(createOrGetPlanned).toHaveBeenCalledTimes(3);
-    expect(createDealLegOperationLinks).toHaveBeenCalledTimes(3);
     expect(createDealTimelineEvents).toHaveBeenCalledTimes(1);
   });
 
   it("rejects closeDeal while reconciliation is still pending", async () => {
     const harness = createCloseDealHarness({
-      latestInstructions: [
-        {
-          attempt: 1,
-          createdAt: new Date("2026-04-03T10:00:00.000Z"),
-          id: "instruction-1",
-          operationId: "op-1",
-          providerRef: null,
-          providerSnapshot: null,
-          sourceRef: "source-1",
-          state: "voided",
-          updatedAt: new Date("2026-04-03T10:00:00.000Z"),
-        },
-        {
-          attempt: 1,
-          createdAt: new Date("2026-04-03T10:05:00.000Z"),
-          id: "instruction-2",
-          operationId: "op-2",
-          providerRef: null,
-          providerSnapshot: null,
-          sourceRef: "source-2",
-          state: "settled",
-          updatedAt: new Date("2026-04-03T10:05:00.000Z"),
-        },
+      paymentSteps: [
+        { planLegId: "leg-1", sequence: 1, id: "op-1", kind: "payin", state: "cancelled" },
+        { planLegId: "leg-2", sequence: 2, id: "op-2", kind: "payout", state: "completed" },
       ],
       reconciliationLinks: [],
     });
@@ -625,29 +956,9 @@ describe("deal execution workflow", () => {
 
   it("rejects closeDeal when reconciliation has open exceptions", async () => {
     const harness = createCloseDealHarness({
-      latestInstructions: [
-        {
-          attempt: 1,
-          createdAt: new Date("2026-04-03T10:00:00.000Z"),
-          id: "instruction-1",
-          operationId: "op-1",
-          providerRef: null,
-          providerSnapshot: null,
-          sourceRef: "source-1",
-          state: "voided",
-          updatedAt: new Date("2026-04-03T10:00:00.000Z"),
-        },
-        {
-          attempt: 1,
-          createdAt: new Date("2026-04-03T10:05:00.000Z"),
-          id: "instruction-2",
-          operationId: "op-2",
-          providerRef: null,
-          providerSnapshot: null,
-          sourceRef: "source-2",
-          state: "settled",
-          updatedAt: new Date("2026-04-03T10:05:00.000Z"),
-        },
+      paymentSteps: [
+        { planLegId: "leg-1", sequence: 1, id: "op-1", kind: "payin", state: "cancelled" },
+        { planLegId: "leg-2", sequence: 2, id: "op-2", kind: "payout", state: "completed" },
       ],
       reconciliationLinks: [
         {
@@ -684,29 +995,9 @@ describe("deal execution workflow", () => {
 
   it("closes the deal once reconciliation-aware readiness is satisfied", async () => {
     const harness = createCloseDealHarness({
-      latestInstructions: [
-        {
-          attempt: 1,
-          createdAt: new Date("2026-04-03T10:00:00.000Z"),
-          id: "instruction-1",
-          operationId: "op-1",
-          providerRef: null,
-          providerSnapshot: null,
-          sourceRef: "source-1",
-          state: "voided",
-          updatedAt: new Date("2026-04-03T10:00:00.000Z"),
-        },
-        {
-          attempt: 1,
-          createdAt: new Date("2026-04-03T10:05:00.000Z"),
-          id: "instruction-2",
-          operationId: "op-2",
-          providerRef: null,
-          providerSnapshot: null,
-          sourceRef: "source-2",
-          state: "settled",
-          updatedAt: new Date("2026-04-03T10:05:00.000Z"),
-        },
+      paymentSteps: [
+        { planLegId: "leg-1", sequence: 1, id: "op-1", kind: "payin", state: "cancelled" },
+        { planLegId: "leg-2", sequence: 2, id: "op-2", kind: "payout", state: "completed" },
       ],
       reconciliationLinks: [
         {
@@ -735,7 +1026,7 @@ describe("deal execution workflow", () => {
     expect(harness.createDealTimelineEvents).toHaveBeenCalledTimes(1);
   });
 
-  it("resolves blocked legs through updateLegState without emitting a separate blocker event", async () => {
+  it("resolves blocked legs by clearing the manual override without emitting a separate blocker event", async () => {
     const blockedWorkflow = createWorkflowProjection({
       status: "awaiting_payment",
       type: "payment",
@@ -745,14 +1036,17 @@ describe("deal execution workflow", () => {
       (leg: (typeof blockedWorkflow.executionPlan)[number]) =>
         leg.kind === "payout" ? { ...leg, state: "blocked" } : leg,
     );
+    // After the override is cleared the leg re-derives its state from
+    // instruction + doc data; for this payment scenario that's `pending`
+    // because no instructions have been settled yet.
     const resolvedWorkflow = {
       ...blockedWorkflow,
       executionPlan: blockedWorkflow.executionPlan.map(
         (leg: (typeof blockedWorkflow.executionPlan)[number]) =>
-          leg.kind === "payout" ? { ...leg, state: "ready" } : leg,
+          leg.kind === "payout" ? { ...leg, state: "pending" } : leg,
       ),
     };
-    const updateLegState = vi.fn(async () => resolvedWorkflow);
+    const setLegManualOverride = vi.fn(async () => resolvedWorkflow);
     const createDealTimelineEvents = vi.fn(async () => undefined);
     const workflow = createDealExecutionWorkflow({
       agreements: {
@@ -780,7 +1074,7 @@ describe("deal execution workflow", () => {
       createDealsModule: () => ({
         deals: {
           commands: {
-            updateLegState,
+            setLegManualOverride,
           },
           queries: {
             findWorkflowById: vi.fn(async () => blockedWorkflow),
@@ -819,164 +1113,15 @@ describe("deal execution workflow", () => {
       legId: "leg-2",
     });
 
-    expect(updateLegState).toHaveBeenCalledWith({
+    expect(setLegManualOverride).toHaveBeenCalledWith({
       actorUserId: "user-1",
       comment: "Retry payout",
       dealId: "deal-1",
       idx: 2,
-      state: "ready",
+      override: null,
     });
     expect(createDealTimelineEvents).not.toHaveBeenCalled();
-    expect(result.executionPlan.at(-1)?.state).toBe("ready");
+    expect(result.executionPlan.at(-1)?.state).toBe("pending");
   });
 
-  it("ingests a treasury settlement reconciliation record when an instruction reaches a terminal outcome", async () => {
-    const workflowProjection = createWorkflowProjection({
-      operationRefs: [
-        [
-          {
-            kind: "payin",
-            operationId: "op-1",
-            sourceRef: "deal:deal-1:leg:1:payin:1",
-          },
-        ],
-        [],
-      ],
-      status: "awaiting_payment",
-      type: "payment",
-      withConvert: false,
-    });
-    const ingestExternalRecord = vi.fn(async () => undefined);
-    const createDealTimelineEvents = vi.fn(async () => undefined);
-
-    const workflow = createDealExecutionWorkflow({
-      agreements: {
-        agreements: {
-          queries: {
-            findById: vi.fn(),
-          },
-        },
-      } as any,
-      currencies: {
-        findById: vi.fn(),
-      } as any,
-      db: {
-        transaction: vi.fn(async (handler: (tx: any) => Promise<unknown>) =>
-          handler({}),
-        ),
-      } as any,
-      idempotency: {
-        withIdempotencyTx: vi.fn(async ({ handler }) => handler()),
-      } as any,
-      createDealStore: () => ({
-        createDealLegOperationLinks: vi.fn(),
-        createDealTimelineEvents,
-      }),
-      createDealsModule: () => ({
-        deals: {
-          queries: {
-            findWorkflowById: vi.fn(async () => workflowProjection),
-          },
-        },
-      } as any),
-      createReconciliationService: () => ({
-        links: {
-          listOperationLinks: vi.fn(async () => []),
-        },
-        records: {
-          ingestExternalRecord,
-        },
-      } as any),
-      createTreasuryModule: () => ({
-        instructions: {
-          commands: {
-            recordOutcome: vi.fn(async () => ({
-              attempt: 1,
-              createdAt: new Date("2026-04-03T10:00:00.000Z"),
-              failedAt: null,
-              id: "instruction-1",
-              operationId: "op-1",
-              providerRef: "provider-ref-1",
-              providerSnapshot: { providerStatus: "settled" },
-              returnRequestedAt: null,
-              returnedAt: null,
-              settledAt: new Date("2026-04-03T10:05:00.000Z"),
-              sourceRef: "source-1",
-              state: "settled",
-              submittedAt: new Date("2026-04-03T10:01:00.000Z"),
-              updatedAt: new Date("2026-04-03T10:05:00.000Z"),
-              voidedAt: null,
-            })),
-          },
-          queries: {
-            findById: vi.fn(async () => ({
-              attempt: 1,
-              createdAt: new Date("2026-04-03T10:00:00.000Z"),
-              failedAt: null,
-              id: "instruction-1",
-              operationId: "op-1",
-              providerRef: null,
-              providerSnapshot: null,
-              returnRequestedAt: null,
-              returnedAt: null,
-              settledAt: null,
-              sourceRef: "source-1",
-              state: "submitted",
-              submittedAt: new Date("2026-04-03T10:01:00.000Z"),
-              updatedAt: new Date("2026-04-03T10:01:00.000Z"),
-              voidedAt: null,
-            })),
-          },
-        },
-        operations: {
-          queries: {
-            findById: vi.fn(async () => ({
-              dealId: "deal-1",
-              id: "op-1",
-              kind: "payout",
-            })),
-          },
-        },
-        quotes: {
-          queries: {
-            getQuoteDetails: vi.fn(async () => null),
-          },
-        },
-      } as any),
-    });
-
-    await workflow.recordInstructionOutcome({
-      actorUserId: "user-1",
-      idempotencyKey: "record-outcome-1",
-      instructionId: "instruction-1",
-      outcome: "settled",
-      providerRef: "provider-ref-1",
-      providerSnapshot: { providerStatus: "settled" },
-    });
-
-    expect(ingestExternalRecord).toHaveBeenCalledWith({
-      actorUserId: "user-1",
-      idempotencyKey: "reconciliation:auto:instruction-1:settled",
-      normalizationVersion: 1,
-      normalizedPayload: {
-        dealId: "deal-1",
-        instructionId: "instruction-1",
-        instructionState: "settled",
-        operationId: "op-1",
-        operationKind: "treasury",
-        treasuryOperationKind: "payout",
-      },
-      rawPayload: {
-        dealId: "deal-1",
-        instructionId: "instruction-1",
-        instructionState: "settled",
-        operationId: "op-1",
-        operationKind: "payout",
-        providerRef: "provider-ref-1",
-        providerSnapshot: { providerStatus: "settled" },
-      },
-      source: "treasury_instruction_outcomes",
-      sourceRecordId: "instruction-1:settled",
-    });
-  });
 });

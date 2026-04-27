@@ -1,18 +1,32 @@
 "use client";
 
-import { ChevronDown, Minus } from "lucide-react";
+import {
+  BarChart3,
+  Building2,
+  CalendarDays,
+  ChevronDown,
+  FileSignature,
+  FileText,
+  Handshake,
+  House,
+  Landmark,
+  Minus,
+  UserRound,
+  Users,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { formatFractionDecimal } from "@bedrock/shared/money";
 import {
-  NavigationMenu,
-  NavigationMenuItem,
-  NavigationMenuLink,
-  NavigationMenuList,
-  navigationMenuTriggerStyle,
-} from "@/components/ui/navigation-menu";
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@bedrock/sdk-ui/components/breadcrumb";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,9 +38,22 @@ import {
   AvatarFallback,
   AvatarImage,
 } from "@bedrock/sdk-ui/components/avatar";
+
+import { useCrmBreadcrumbTrail } from "@/components/app/breadcrumbs-provider";
+import {
+  NavigationMenu,
+  NavigationMenuItem,
+  NavigationMenuLink,
+  NavigationMenuList,
+  navigationMenuTriggerStyle,
+} from "@/components/ui/navigation-menu";
 import { signOut } from "@/lib/auth-client";
 import { PORTAL_BASE_URL } from "@/lib/constants";
 import type { UserSessionSnapshot } from "@/lib/auth/types";
+import type {
+  CrmBreadcrumbIconName,
+  CrmBreadcrumbItem,
+} from "./breadcrumbs";
 
 type CurrencyCode = "USD" | "EUR" | "CNY";
 type HeaderRateSource = "cbr" | "investing";
@@ -48,6 +75,19 @@ type RatePairsResponseDto = {
 const HEADER_CURRENCIES = ["USD", "EUR", "CNY"] as const;
 const HEADER_SOURCES = ["cbr", "investing"] as const;
 const HEADER_RATES_POLL_INTERVAL_MS = 60_000;
+const BREADCRUMB_ICON_MAP: Record<CrmBreadcrumbIconName, typeof House> = {
+  agreements: FileSignature,
+  calendar: CalendarDays,
+  counterparty: Building2,
+  customer: Users,
+  deal: Handshake,
+  documents: FileText,
+  home: House,
+  organization: Building2,
+  reports: BarChart3,
+  requisites: Landmark,
+  user: UserRound,
+};
 
 function isHeaderCurrency(value: string): value is CurrencyCode {
   return HEADER_CURRENCIES.includes(value as CurrencyCode);
@@ -97,6 +137,7 @@ async function fetchHeaderRates(): Promise<Record<HeaderRateSource, SourceRates>
 
 export function AppHeader({ session }: { session: UserSessionSnapshot }) {
   const router = useRouter();
+  const breadcrumbs = useCrmBreadcrumbTrail();
   const [cbrRates, setCbrRates] = useState<SourceRates | null>(null);
   const [investingRates, setInvestingRates] = useState<SourceRates | null>(
     null,
@@ -202,14 +243,6 @@ export function AppHeader({ session }: { session: UserSessionSnapshot }) {
                   className={navigationMenuTriggerStyle()}
                 >
                   <Link href="/calendar">Календарь</Link>
-                </NavigationMenuLink>
-              </NavigationMenuItem>
-              <NavigationMenuItem>
-                <NavigationMenuLink
-                  asChild
-                  className={navigationMenuTriggerStyle()}
-                >
-                  <Link href="/documents">Документы</Link>
                 </NavigationMenuLink>
               </NavigationMenuItem>
               <NavigationMenuItem>
@@ -331,6 +364,12 @@ export function AppHeader({ session }: { session: UserSessionSnapshot }) {
           />
         </div>
       </div>
+
+      <div className="border-b bg-background">
+        <div className="mx-auto max-w-[1920px] px-4 py-2">
+          <HeaderBreadcrumbs items={breadcrumbs} />
+        </div>
+      </div>
     </>
   );
 }
@@ -371,5 +410,52 @@ function SourceRatesTicker({
         </div>
       )}
     </div>
+  );
+}
+
+function HeaderBreadcrumbs({ items }: { items: CrmBreadcrumbItem[] }) {
+  return (
+    <Breadcrumb>
+      <BreadcrumbList>
+        {items.map((item, index) => {
+          const isLast = index === items.length - 1;
+          const Icon = BREADCRUMB_ICON_MAP[item.icon];
+          const content = (
+            <>
+              <Icon className="size-4 shrink-0" />
+              {item.iconOnly ? (
+                <span className="sr-only">{item.label}</span>
+              ) : (
+                <span>{item.label}</span>
+              )}
+            </>
+          );
+
+          return (
+            <span key={`${item.href ?? item.label}-${index}`} className="contents">
+              <BreadcrumbItem>
+                {isLast ? (
+                  <BreadcrumbPage className="inline-flex items-center gap-1.5">
+                    {content}
+                  </BreadcrumbPage>
+                ) : item.href ? (
+                  <BreadcrumbLink
+                    render={<Link href={item.href} />}
+                    className="inline-flex items-center gap-1.5"
+                  >
+                    {content}
+                  </BreadcrumbLink>
+                ) : (
+                  <span className="text-muted-foreground inline-flex items-center gap-1.5">
+                    {content}
+                  </span>
+                )}
+              </BreadcrumbItem>
+              {!isLast && <BreadcrumbSeparator />}
+            </span>
+          );
+        })}
+      </BreadcrumbList>
+    </Breadcrumb>
   );
 }

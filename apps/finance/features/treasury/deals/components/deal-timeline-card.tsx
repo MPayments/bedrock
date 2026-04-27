@@ -1,12 +1,5 @@
 import { History } from "lucide-react";
 
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@bedrock/sdk-ui/components/card";
-
 import type {
   FinanceDealWorkbench,
   FinanceDealWorkspace,
@@ -79,13 +72,6 @@ function findExecutionLeg(
     if (matchingLeg) {
       return matchingLeg;
     }
-  }
-
-  const operationId = getPayloadString(event, "operationId");
-  if (operationId) {
-    return executionPlan.find((leg) =>
-      leg.operationRefs.some((operationRef) => operationRef.operationId === operationId),
-    );
   }
 
   return null;
@@ -203,20 +189,18 @@ export function DealTimelineCard({
     typeof maxItems === "number" ? visibleTimeline.slice(0, maxItems) : visibleTimeline;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <History className="h-5 w-5 text-muted-foreground" />
-          Таймлайн
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
+    <section className="bg-card rounded-lg border">
+      <header className="flex items-center gap-2 border-b p-3">
+        <History className="h-4 w-4 text-muted-foreground" />
+        <div className="text-sm font-semibold">Таймлайн</div>
+      </header>
+      <div className="p-3">
         {limitedTimeline.length === 0 ? (
           <div className="text-sm text-muted-foreground">
             По сделке еще нет событий.
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {limitedTimeline.map((event) => {
               const actorLabel = getTimelineActorLabel(event);
               const details = renderTimelineDetails(event);
@@ -224,15 +208,15 @@ export function DealTimelineCard({
               return (
                 <div key={event.id} className="border-l-2 pl-3">
                   <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="font-medium">
+                    <div className="text-sm font-medium">
                       {getTimelineTitle(event, executionPlan)}
                     </div>
-                    <div className="text-sm text-muted-foreground">
+                    <div className="text-xs text-muted-foreground">
                       {formatDate(event.occurredAt)}
                     </div>
                   </div>
                   {(details || actorLabel) && (
-                    <div className="mt-1 text-sm text-muted-foreground">
+                    <div className="mt-1 text-xs text-muted-foreground">
                       {[details, actorLabel].filter(Boolean).join(" · ")}
                     </div>
                   )}
@@ -241,7 +225,7 @@ export function DealTimelineCard({
             })}
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 }

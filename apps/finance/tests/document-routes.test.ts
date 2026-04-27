@@ -36,28 +36,28 @@ describe("document routes", () => {
         returnTo: buildDealDocumentsTabHref("deal-123"),
       }),
     ).toBe(
-      "/documents/create/invoice?dealId=deal-123&reconciliationExceptionId=exception-1&returnTo=%2Ftreasury%2Fdeals%2Fdeal-123%3Ftab%3Ddocuments",
+      "/documents/create/invoice?dealId=deal-123&reconciliationExceptionId=exception-1&returnTo=%2Ftreasury%2Fdeals%2Fdeal-123",
     );
     expect(
       buildDocumentDetailsHref("period_close", "doc-123", {
         reconciliationExceptionId: "exception-2",
-        returnTo: "/treasury/deals/deal-123?tab=execution",
+        returnTo: "/treasury/deals/deal-123",
       }),
     ).toBe(
-      "/documents/ifrs/period_close/doc-123?reconciliationExceptionId=exception-2&returnTo=%2Ftreasury%2Fdeals%2Fdeal-123%3Ftab%3Dexecution",
+      "/documents/ifrs/period_close/doc-123?reconciliationExceptionId=exception-2&returnTo=%2Ftreasury%2Fdeals%2Fdeal-123",
     );
   });
 
   it("returns null for non-documents-workspace types", () => {
-    expect(buildDocumentTypeHref("legacy_doc_type")).toBeNull();
+    expect(buildDocumentTypeHref("unknown_doc_type")).toBeNull();
     expect(buildDocumentCreateHref("unknown_doc_type")).toBeNull();
-    expect(buildDocumentDetailsHref("legacy_doc_type", "doc-123")).toBeNull();
+    expect(buildDocumentDetailsHref("unknown_doc_type", "doc-123")).toBeNull();
   });
 
   it("accepts only internal absolute returnTo paths", () => {
     expect(
-      normalizeInternalReturnToPath("/treasury/deals/deal-123?tab=documents"),
-    ).toBe("/treasury/deals/deal-123?tab=documents");
+      normalizeInternalReturnToPath("/treasury/deals/deal-123"),
+    ).toBe("/treasury/deals/deal-123");
     expect(normalizeInternalReturnToPath("https://example.com")).toBeNull();
     expect(normalizeInternalReturnToPath("//example.com")).toBeNull();
     expect(normalizeInternalReturnToPath("documents")).toBeNull();

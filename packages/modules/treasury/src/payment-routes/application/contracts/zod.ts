@@ -6,6 +6,36 @@ import {
 } from "@bedrock/shared/core/pagination";
 import { parseDecimalToFraction } from "@bedrock/shared/money/math";
 
+import {
+  PAYMENT_ROUTE_FEE_KIND_VALUES,
+  PAYMENT_ROUTE_LEG_SEMANTIC_TAG_VALUES,
+  PAYMENT_ROUTE_LEG_TREASURY_OPERATION_HINT_VALUES,
+  PAYMENT_ROUTE_LOCKED_SIDE_VALUES,
+  PAYMENT_ROUTE_PARTICIPANT_BINDING_VALUES,
+  PAYMENT_ROUTE_PARTICIPANT_KIND_VALUES,
+  PAYMENT_ROUTE_PARTICIPANT_ROLE_VALUES,
+  PAYMENT_ROUTE_TEMPLATE_STATUS_VALUES,
+  type PaymentRouteDraft,
+  type PaymentRouteLegSemanticTag,
+  type PaymentRouteLegTreasuryOperationHint,
+} from "../../domain/model";
+
+export type {
+  PaymentRouteDraft,
+  PaymentRouteFee,
+  PaymentRouteFeeKind,
+  PaymentRouteLeg,
+  PaymentRouteLegSemanticTag,
+  PaymentRouteLegTreasuryOperationHint,
+  PaymentRouteLockedSide,
+  PaymentRouteParticipantBinding,
+  PaymentRouteParticipantKind,
+  PaymentRouteParticipantRef,
+  PaymentRouteParticipantRole,
+  PaymentRouteTemplateStatus,
+  PaymentRouteVisualMetadata,
+} from "../../domain/model";
+
 const positiveMinorStringSchema = z
   .string()
   .regex(/^\d+$/, "Minor amount must be a positive integer string")
@@ -32,45 +62,7 @@ export const ABSTRACT_PAYMENT_ROUTE_SOURCE_DISPLAY_NAME = "Клиент";
 export const ABSTRACT_PAYMENT_ROUTE_DESTINATION_DISPLAY_NAME =
   "Бенефициар";
 
-export const PAYMENT_ROUTE_TEMPLATE_STATUS_VALUES = [
-  "active",
-  "archived",
-] as const;
-export const PAYMENT_ROUTE_PARTICIPANT_KIND_VALUES = [
-  "customer",
-  "counterparty",
-  "organization",
-] as const;
-export const PAYMENT_ROUTE_PARTICIPANT_ROLE_VALUES = [
-  "source",
-  "hop",
-  "destination",
-] as const;
-export const PAYMENT_ROUTE_PARTICIPANT_BINDING_VALUES = [
-  "abstract",
-  "bound",
-] as const;
-export const PAYMENT_ROUTE_LEG_SEMANTIC_TAG_VALUES = [
-  "collection",
-  "payout",
-  "intracompany_transfer",
-  "intercompany_transfer",
-  "counterparty_transfer",
-  "transfer",
-  "fx_conversion",
-] as const;
-export const PAYMENT_ROUTE_LEG_TREASURY_OPERATION_HINT_VALUES = [
-  "payin",
-  "payout",
-  "intracompany_transfer",
-  "intercompany_funding",
-  "fx_conversion",
-] as const;
-export const PAYMENT_ROUTE_FEE_KIND_VALUES = ["percent", "fixed"] as const;
-export const PAYMENT_ROUTE_LOCKED_SIDE_VALUES = [
-  "currency_in",
-  "currency_out",
-] as const;
+const FX_SPREAD_MAX_PERCENT = 10n;
 
 export const PaymentRouteTemplateStatusSchema = z.enum(
   PAYMENT_ROUTE_TEMPLATE_STATUS_VALUES,
@@ -164,6 +156,7 @@ export const PaymentRouteParticipantRefSchema = z.union([
 export const PaymentRouteFeeSchema = z
   .object({
     amountMinor: nonNegativeMinorStringSchema.optional(),
+    chargeToCustomer: z.boolean().default(false),
     currencyId: z.uuid().nullable().optional(),
     id: z.string().trim().min(1),
     kind: PaymentRouteFeeKindSchema,
@@ -171,74 +164,75 @@ export const PaymentRouteFeeSchema = z
     percentage: positiveDecimalStringSchema.optional(),
   })
   .superRefine((value, context) => {
-    if (value.kind === "percent") {
-      if (!value.percentage) {
+    if (value.kind === "fixed") {
+      if (!value.amountMinor || BigInt(value.amountMinor) <= 0n) {
         context.addIssue({
           code: z.ZodIssueCode.custom,
-          message: "Percent fee requires percentage",
-          path: ["percentage"],
-        });
-      }
-
-      if (value.amountMinor !== undefined) {
-        context.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Percent fee cannot define amountMinor",
+          message: "Fixed fee requires amountMinor > 0",
           path: ["amountMinor"],
         });
       }
 
-      if (value.currencyId !== undefined && value.currencyId !== null) {
+      if (!value.currencyId) {
         context.addIssue({
           code: z.ZodIssueCode.custom,
-          message: "Percent fee cannot define currencyId",
+          message: "Fixed fee requires currencyId",
           path: ["currencyId"],
         });
       }
 
-      if (value.percentage) {
-        try {
-          const fraction = parseDecimalToFraction(value.percentage, {
-            allowScientific: false,
-          });
-
-          if (fraction.num >= fraction.den * 100n) {
-            context.addIssue({
-              code: z.ZodIssueCode.custom,
-              message: "Percent fee must be lower than 100",
-              path: ["percentage"],
-            });
-          }
-        } catch {
-          // The base schema already reports the invalid value.
-        }
+      if (value.percentage !== undefined) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Fixed fee cannot define percentage",
+          path: ["percentage"],
+        });
       }
 
       return;
     }
 
-    if (!value.amountMinor || BigInt(value.amountMinor) <= 0n) {
+    if (!value.percentage) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Fixed fee requires amountMinor > 0",
+        message: `${value.kind} fee requires percentage`,
+        path: ["percentage"],
+      });
+    }
+
+    if (value.amountMinor !== undefined) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `${value.kind} fee cannot define amountMinor`,
         path: ["amountMinor"],
       });
     }
 
-    if (!value.currencyId) {
+    if (value.currencyId !== undefined && value.currencyId !== null) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Fixed fee requires currencyId",
+        message: `${value.kind} fee cannot define currencyId`,
         path: ["currencyId"],
       });
     }
 
-    if (value.percentage !== undefined) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Fixed fee cannot define percentage",
-        path: ["percentage"],
-      });
+    if (value.percentage) {
+      try {
+        const fraction = parseDecimalToFraction(value.percentage, {
+          allowScientific: false,
+        });
+        const limit = value.kind === "fx_spread" ? FX_SPREAD_MAX_PERCENT : 100n;
+
+        if (fraction.num >= fraction.den * limit) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `${value.kind} fee must be lower than ${limit}%`,
+            path: ["percentage"],
+          });
+        }
+      } catch {
+        // The base schema already reports the invalid value.
+      }
     }
   });
 
@@ -249,7 +243,20 @@ export const PaymentRouteLegSchema = z
     id: z.string().trim().min(1),
     toCurrencyId: z.uuid(),
   })
-  .strict();
+  .strict()
+  .superRefine((value, context) => {
+    if (value.fromCurrencyId === value.toCurrencyId) {
+      value.fees.forEach((fee, index) => {
+        if (fee.kind === "fx_spread") {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "fx_spread fee requires a currency-changing leg",
+            path: ["fees", index, "kind"],
+          });
+        }
+      });
+    }
+  });
 
 const PaymentRouteNodePositionSchema = z.object({
   x: z.number(),
@@ -288,7 +295,7 @@ function isLegacyPaymentRouteParticipantRef(
   );
 }
 
-export function normalizePaymentRouteParticipantRef(input: {
+function normalizePaymentRouteParticipantRef(input: {
   index: number;
   participant: unknown;
   total: number;
@@ -465,9 +472,19 @@ export const PaymentRouteDraftSchema = z
         });
       }
     }
+
+    value.additionalFees.forEach((fee, index) => {
+      if (fee.kind === "fx_spread") {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "fx_spread fee is only allowed inside a leg",
+          path: ["additionalFees", index, "kind"],
+        });
+      }
+    });
   });
 
-export const PAYMENT_ROUTE_TEMPLATES_SORTABLE_COLUMNS = [
+const PAYMENT_ROUTE_TEMPLATES_SORTABLE_COLUMNS = [
   "name",
   "status",
   "createdAt",
@@ -502,37 +519,6 @@ export const PAYMENT_ROUTE_TEMPLATES_LIST_CONTRACT: ListQueryContract<
 export const ListPaymentRouteTemplatesQuerySchema =
   createListQuerySchemaFromContract(PAYMENT_ROUTE_TEMPLATES_LIST_CONTRACT);
 
-export type PaymentRouteTemplateStatus = z.infer<
-  typeof PaymentRouteTemplateStatusSchema
->;
-export type PaymentRouteParticipantKind = z.infer<
-  typeof PaymentRouteParticipantKindSchema
->;
-export type PaymentRouteParticipantRole = z.infer<
-  typeof PaymentRouteParticipantRoleSchema
->;
-export type PaymentRouteParticipantBinding = z.infer<
-  typeof PaymentRouteParticipantBindingSchema
->;
-export type PaymentRouteLegSemanticTag = z.infer<
-  typeof PaymentRouteLegSemanticTagSchema
->;
-export type PaymentRouteLegTreasuryOperationHint = z.infer<
-  typeof PaymentRouteLegTreasuryOperationHintSchema
->;
-export type PaymentRouteFeeKind = z.infer<typeof PaymentRouteFeeKindSchema>;
-export type PaymentRouteLockedSide = z.infer<
-  typeof PaymentRouteLockedSideSchema
->;
-export type PaymentRouteParticipantRef = z.infer<
-  typeof PaymentRouteParticipantRefSchema
->;
-export type PaymentRouteFee = z.infer<typeof PaymentRouteFeeSchema>;
-export type PaymentRouteLeg = z.infer<typeof PaymentRouteLegSchema>;
-export type PaymentRouteVisualMetadata = z.infer<
-  typeof PaymentRouteVisualMetadataSchema
->;
-export type PaymentRouteDraft = z.infer<typeof PaymentRouteDraftSchema>;
 export type ListPaymentRouteTemplatesQuery = z.infer<
   typeof ListPaymentRouteTemplatesQuerySchema
 >;

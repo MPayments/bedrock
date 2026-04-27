@@ -1,4 +1,3 @@
-import { cache } from "react";
 import { z } from "zod";
 
 import { CurrencyOptionsResponseSchema } from "@bedrock/currencies/contracts";
@@ -14,24 +13,13 @@ import {
 } from "@/features/entities/requisites-shared/lib/constants";
 import {
   resolveLegacyRequisiteIdentity,
-  toLegacyRequisiteValues,
 } from "@/features/entities/requisites-shared/lib/master-data";
-import { REQUISITES_LIST_CONTRACT } from "@/features/entities/requisites-shared/lib/contracts";
 import { getServerApiClient } from "@/lib/api/server-client";
 import { createPaginatedResponseSchema } from "@/lib/api/schemas";
 import {
-  readEntityById,
   readOptionsList,
   readPaginatedList,
 } from "@/lib/api/query";
-import { createResourceListQuery } from "@/lib/resources/search-params";
-
-import type {
-  OrganizationRequisiteDetails,
-  OrganizationRequisiteFormOptions,
-  OrganizationRequisitesListResult,
-} from "./types";
-import type { OrganizationRequisitesSearchParams } from "./validations";
 
 const RequisiteApiSchema = z.object({
   id: z.uuid(),
@@ -64,62 +52,6 @@ const RequisiteApiSchema = z.object({
 const RequisitesListResponseSchema = createPaginatedResponseSchema(
   RequisiteApiSchema,
 );
-
-const RequisiteDetailsSchema = RequisiteApiSchema.transform<
-  OrganizationRequisiteDetails
->((row) => ({
-  ...toLegacyRequisiteValues({
-    kind: row.kind,
-    beneficiaryName: row.beneficiaryName,
-    beneficiaryNameLocal: row.beneficiaryNameLocal,
-    beneficiaryAddress: row.beneficiaryAddress,
-    paymentPurposeTemplate: row.paymentPurposeTemplate,
-    notes: row.notes,
-    identifiers: row.identifiers,
-  }),
-  id: row.id,
-  ownerId: row.ownerId,
-  providerId: row.providerId,
-  providerBranchId: row.providerBranchId ?? "",
-  currencyId: row.currencyId,
-  kind: row.kind,
-  label: row.label,
-  isDefault: row.isDefault,
-  createdAt: row.createdAt,
-  updatedAt: row.updatedAt,
-}));
-
-const RawRequisiteDetailsSchema = RequisiteApiSchema.or(
-  z.object({
-    id: z.uuid(),
-    ownerType: z.enum(["organization", "counterparty"]),
-    ownerId: z.uuid(),
-    providerId: z.uuid(),
-    providerBranchId: z.uuid().nullable(),
-    currencyId: z.uuid(),
-    kind: z.enum(["bank", "blockchain", "exchange", "custodian"]),
-    label: z.string(),
-    beneficiaryName: z.string().nullable(),
-    beneficiaryNameLocal: z.string().nullable(),
-    beneficiaryAddress: z.string().nullable(),
-    paymentPurposeTemplate: z.string().nullable(),
-    notes: z.string().nullable(),
-    identifiers: z.array(
-      z.object({
-        scheme: z.string(),
-        value: z.string(),
-        isPrimary: z.boolean(),
-      }),
-    ),
-    isDefault: z.boolean(),
-    createdAt: z.iso.datetime(),
-    updatedAt: z.iso.datetime(),
-  }),
-);
-
-function createListQuery(search: OrganizationRequisitesSearchParams) {
-  return createResourceListQuery(REQUISITES_LIST_CONTRACT, search);
-}
 
 async function getOrganizationLabelById() {
   const client = await getServerApiClient();
@@ -193,34 +125,6 @@ function serializeRow(
   };
 }
 
-export async function getOrganizationRequisites(
-  search: OrganizationRequisitesSearchParams & { organizationId: string },
-): Promise<OrganizationRequisitesListResult> {
-  const client = await getServerApiClient();
-  const [{ data: payload }, ownerLabelById, providerLabelById, currencyLabelById] =
-    await Promise.all([
-      readPaginatedList({
-        request: () =>
-          client.v1.organizations[":id"].requisites.$get({
-            param: { id: search.organizationId },
-            query: createListQuery(search),
-          }),
-        schema: RequisitesListResponseSchema,
-        context: "Не удалось загрузить реквизиты организаций",
-      }),
-      getOrganizationLabelById(),
-      getProviderLabelById(),
-      getCurrencyLabelById(),
-    ]);
-
-  return {
-    ...payload,
-    data: payload.data.map((row) =>
-      serializeRow(row, ownerLabelById, providerLabelById, currencyLabelById),
-    ),
-  };
-}
-
 export async function getOrganizationRequisitesForOrganization(
   organizationId: string,
 ): Promise<SerializedRequisite[]> {
@@ -249,78 +153,4 @@ export async function getOrganizationRequisitesForOrganization(
   return payload.data.map((row) =>
     serializeRow(row, ownerLabelById, providerLabelById, currencyLabelById),
   );
-}
-
-const getOrganizationRequisiteByIdUncached = async (
-  id: string,
-): Promise<OrganizationRequisiteDetails | null> => {
-  const row = await readEntityById({
-    id,
-    resourceName: "реквизит организации",
-    request: async (validId) => {
-      const client = await getServerApiClient();
-      return client.v1.requisites[":id"].$get(
-        { param: { id: validId } },
-        { init: { cache: "no-store" } },
-      );
-    },
-    schema: RawRequisiteDetailsSchema,
-  });
-
-  if (!row || row.ownerType !== "organization") {
-    return null;
-  }
-
-  return RequisiteDetailsSchema.parse(row);
-};
-
-export const getOrganizationRequisiteById = cache(
-  getOrganizationRequisiteByIdUncached,
-);
-
-export async function getOrganizationRequisiteFormOptions(): Promise<OrganizationRequisiteFormOptions> {
-  const client = await getServerApiClient();
-  const [owners, providers, currencies] = await Promise.all([
-    readOptionsList({
-      request: () =>
-        client.v1.organizations.options.$get(
-          {},
-          { init: { cache: "no-store" } },
-        ),
-      schema: OrganizationOptionsResponseSchema,
-      context: "Не удалось загрузить организации",
-    }),
-    readOptionsList({
-      request: () =>
-        client.v1.requisites.providers.options.$get(
-          { query: {} },
-          { init: { cache: "no-store" } },
-        ),
-      schema: RequisiteProviderOptionsResponseSchema,
-      context: "Не удалось загрузить провайдеров реквизитов",
-    }),
-    readOptionsList({
-      request: () =>
-        client.v1.currencies.options.$get({}, { init: { cache: "no-store" } }),
-      schema: CurrencyOptionsResponseSchema,
-      context: "Не удалось загрузить валюты",
-    }),
-  ]);
-
-  return {
-    owners: owners.data.map((item) => ({ id: item.id, label: item.label })),
-    providers: providers.data.map((item) => ({ id: item.id, label: item.label })),
-    currencies: currencies.data.map((item) => ({
-      id: item.id,
-      label: item.label,
-    })),
-  };
-}
-
-export async function getOrganizationRequisiteCurrencyFilterOptions() {
-  const labelById = await getCurrencyLabelById();
-
-  return [...labelById.entries()]
-    .map(([value, label]) => ({ value, label }))
-    .sort((a, b) => a.label.localeCompare(b.label));
 }

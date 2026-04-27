@@ -25,7 +25,11 @@ vi.mock("../../src/auth", () => ({
   },
 }));
 
-import { DealNotFoundError, DealTransitionBlockedError } from "@bedrock/deals";
+import {
+  DealNotFoundError,
+  DealPricingContextRevisionConflictError,
+  DealTransitionBlockedError,
+} from "@bedrock/deals";
 
 import { dealsRoutes } from "../../src/routes/deals";
 
@@ -35,11 +39,14 @@ function createExecutionLeg(
   state: "pending" | "ready" | "in_progress" | "done" | "blocked",
 ) {
   return {
+    fromCurrencyId: null,
     id: `00000000-0000-4000-8000-0000000001${idx.toString().padStart(2, "0")}`,
     idx,
     kind,
     operationRefs: [],
+    routeSnapshotLegId: null,
     state,
+    toCurrencyId: null,
   };
 }
 
@@ -93,6 +100,54 @@ function createDealDetail() {
   };
 }
 
+function createDocumentWithOperation() {
+  const now = new Date("2026-01-01T00:00:00.000Z");
+
+  return {
+    document: {
+      id: "11111111-1111-4111-8111-111111111111",
+      docType: "invoice",
+      docNo: "DOC-1",
+      payloadVersion: 1,
+      payload: { amountMinor: "1234", currency: "USD" },
+      title: "Document",
+      occurredAt: now,
+      submissionStatus: "submitted",
+      approvalStatus: "approved",
+      postingStatus: "posted",
+      lifecycleStatus: "active",
+      createIdempotencyKey: "create-idem",
+      amountMinor: 1234n,
+      currency: "USD",
+      memo: null,
+      counterpartyId: null,
+      customerId: null,
+      organizationRequisiteId: null,
+      searchText: "",
+      createdBy: "user-1",
+      submittedBy: "user-1",
+      submittedAt: now,
+      approvedBy: "user-1",
+      approvedAt: now,
+      rejectedBy: null,
+      rejectedAt: null,
+      cancelledBy: null,
+      cancelledAt: null,
+      postingStartedAt: now,
+      postedAt: now,
+      postingError: null,
+      createdAt: now,
+      updatedAt: now,
+      version: 1,
+      moduleId: "documents.core",
+      moduleVersion: "1.0.0",
+    },
+    postingOperationId: null,
+    allowedActions: ["submit", "approve", "reject", "post", "cancel", "repost"],
+    dealId: "00000000-0000-4000-8000-000000000010",
+  };
+}
+
 function createDealsModuleStub() {
   return {
     deals: {
@@ -111,7 +166,7 @@ function createDealsModuleStub() {
         transitionStatus: vi.fn(),
         updateAgreement: vi.fn(),
         updateComment: vi.fn(),
-        updateLegState: vi.fn(),
+        setLegManualOverride: vi.fn(),
       },
     },
   };
@@ -322,6 +377,7 @@ function createFinanceWorkspaceProjection() {
         actions: {
           canCreateLegOperation: false,
         },
+        fromCurrencyId: null,
         id: "leg-1",
         idx: 1,
         kind: "payout",
@@ -332,7 +388,9 @@ function createFinanceWorkspaceProjection() {
             sourceRef: "deal:deal-1:leg:1:payout:1",
           },
         ],
+        routeSnapshotLegId: null,
         state: "done",
+        toCurrencyId: null,
       },
     ],
     formalDocumentRequirements: [],
@@ -356,6 +414,7 @@ function createFinanceWorkspaceProjection() {
       quoteAmount: "100.00",
       quoteAmountSide: "source",
       quoteEligibility: false,
+      routeAttachment: null,
       sourceCurrencyId: "00000000-0000-4000-8000-000000000006",
       targetCurrencyId: null,
     },
@@ -443,6 +502,223 @@ function createFinanceWorkspaceProjection() {
   } as const;
 }
 
+function createDealPricingRouteCandidate() {
+  return {
+    createdAt: "2026-04-19T09:00:00.000Z",
+    currencyInId: "00000000-0000-4000-8000-000000000006",
+    currencyOutId: "00000000-0000-4000-8000-000000000007",
+    destinationEndpoint: {
+      binding: "abstract",
+      displayName: "Beneficiary",
+      entityId: null,
+      entityKind: null,
+      requisiteId: null,
+      role: "destination",
+    },
+    hopCount: 1,
+    id: "00000000-0000-4000-8000-000000000301",
+    lastCalculation: null,
+    name: "RUB via AED to USD",
+    snapshotPolicy: "clone_on_attach",
+    sourceEndpoint: {
+      binding: "abstract",
+      displayName: "Client",
+      entityId: null,
+      entityKind: null,
+      requisiteId: null,
+      role: "source",
+    },
+    status: "active",
+    updatedAt: "2026-04-19T10:00:00.000Z",
+  } as const;
+}
+
+function createDealPricingPreview() {
+  return {
+    benchmarks: {
+      client: {
+        asOf: "2026-04-19T09:58:00.000Z",
+        baseCurrency: "RUB",
+        quoteCurrency: "USD",
+        rateDen: "79005226",
+        rateNum: "101819387",
+        sourceKind: "client" as const,
+        sourceLabel: "Курс клиенту",
+      },
+      cost: {
+        asOf: "2026-04-19T09:58:00.000Z",
+        baseCurrency: "RUB",
+        quoteCurrency: "USD",
+        rateDen: "79005526",
+        rateNum: "101819387",
+        sourceKind: "cost" as const,
+        sourceLabel: "Курс себестоимости",
+      },
+      market: {
+        asOf: "2026-04-19T09:58:00.000Z",
+        baseCurrency: "RUB",
+        quoteCurrency: "USD",
+        rateDen: "78926300",
+        rateNum: "1000000",
+        sourceKind: "market" as const,
+        sourceLabel: "Рыночный курс",
+      },
+      pricingBase: "route_benchmark" as const,
+      routeBase: {
+        asOf: "2026-04-19T09:58:00.000Z",
+        baseCurrency: "RUB",
+        quoteCurrency: "USD",
+        rateDen: "36700",
+        rateNum: "47300",
+        sourceKind: "route" as const,
+        sourceLabel: "Базовый курс маршрута",
+      },
+    },
+    formulaTrace: {
+      sections: [
+        {
+          kind: "client_pricing" as const,
+          lines: [
+            {
+              currency: "USD",
+              expression: "790 052.26 RUB / 77.59 = 10 181.94 USD",
+              kind: "equation" as const,
+              label: "Цена клиенту",
+              metadata: {},
+              result: "10 181.94 USD",
+            },
+          ],
+          title: "Цена клиенту",
+        },
+      ],
+    },
+    fundingSummary: {
+      positions: [
+        {
+          adjustmentTotalMinor: "0",
+          currencyCode: "RUB",
+          currencyId: "00000000-0000-4000-8000-000000000006",
+          netFundingNeedMinor: "79005226",
+          requiredMinor: "79005226",
+        },
+      ],
+    },
+    pricingMode: "explicit_route" as const,
+    profitability: {
+      commercialRevenueMinor: "197513",
+      costPriceMinor: "79005526",
+      currency: "RUB",
+      customerPrincipalMinor: "79005226",
+      customerTotalMinor: "79005376",
+      passThroughMinor: "150",
+      profitMinor: "197213",
+      profitPercentOnCost: "0.25",
+    },
+    quotePreview: {
+      commercialTerms: {
+        agreementFeeBps: 125n,
+        agreementVersionId: "agreement-version-1",
+        fixedFeeAmountMinor: 1500n,
+        fixedFeeCurrency: "USD",
+        quoteMarkupBps: 25n,
+        totalFeeBps: 150n,
+      },
+      dealDirection: null,
+      dealForm: null,
+      expiresAt: new Date("2026-04-19T10:58:00.000Z"),
+      feeComponents: [],
+      financialLines: [
+        {
+          amountMinor: 300n,
+          bucket: "provider_fee_expense",
+          currency: "RUB",
+          source: "manual",
+        },
+      ],
+      fromAmountMinor: 79005226n,
+      fromCurrency: "RUB",
+      legs: [],
+      pricingMode: "explicit_route" as const,
+      pricingTrace: {},
+      rateDen: 79005226n,
+      rateNum: 101819387n,
+      toAmountMinor: 101819387n,
+      toCurrency: "USD",
+    },
+    routePreview: {
+      additionalFees: [],
+      amountInMinor: "79005226",
+      amountOutMinor: "101819387",
+      chargedFeeTotals: [],
+      cleanAmountOutMinor: "101819387",
+      clientTotalInMinor: "79005226",
+      computedAt: "2026-04-19T09:58:00.000Z",
+      costPriceInMinor: "79005526",
+      currencyInId: "00000000-0000-4000-8000-000000000006",
+      currencyOutId: "00000000-0000-4000-8000-000000000007",
+      feeTotals: [
+        {
+          amountMinor: "300",
+          currencyId: "00000000-0000-4000-8000-000000000006",
+        },
+      ],
+      grossAmountOutMinor: "101819387",
+      internalFeeTotals: [
+        {
+          amountMinor: "300",
+          currencyId: "00000000-0000-4000-8000-000000000006",
+        },
+      ],
+      legs: [],
+      lockedSide: "currency_in" as const,
+      netAmountOutMinor: "101819387",
+    },
+  };
+}
+
+function createDealPricingQuoteResult() {
+  return {
+    benchmarks: createDealPricingPreview().benchmarks,
+    formulaTrace: createDealPricingPreview().formulaTrace,
+    pricingMode: "explicit_route" as const,
+    profitability: createDealPricingPreview().profitability,
+    quote: {
+      benchmarks: createDealPricingPreview().benchmarks,
+      commercialTerms: {
+        agreementFeeBps: 125n,
+        agreementVersionId: "agreement-version-1",
+        fixedFeeAmountMinor: 1500n,
+        fixedFeeCurrency: "USD",
+        quoteMarkupBps: 25n,
+        totalFeeBps: 150n,
+      },
+      createdAt: new Date("2026-04-19T09:58:00.000Z"),
+      dealDirection: null,
+      dealForm: null,
+      dealId: "00000000-0000-4000-8000-000000000010",
+      expiresAt: new Date("2026-04-19T10:58:00.000Z"),
+      fromAmountMinor: 79005226n,
+      fromCurrency: "RUB",
+      fromCurrencyId: "00000000-0000-4000-8000-000000000006",
+      id: "00000000-0000-4000-8000-000000000302",
+      idempotencyKey: "pricing-quote-1",
+      formulaTrace: createDealPricingPreview().formulaTrace,
+      pricingMode: "explicit_route" as const,
+      pricingTrace: {},
+      profitability: createDealPricingPreview().profitability,
+      rateDen: 79005226n,
+      rateNum: 101819387n,
+      status: "active" as const,
+      toAmountMinor: 101819387n,
+      toCurrency: "USD",
+      toCurrencyId: "00000000-0000-4000-8000-000000000007",
+      usedAt: null,
+      usedByRef: null,
+      usedDocumentId: null,
+    },
+  };
+}
+
 function createTestApp() {
   const dealsModule = createDealsModuleStub();
   const agreementsModule = {
@@ -464,6 +740,16 @@ function createTestApp() {
   };
   const dealQuoteWorkflow = {
     createCalculationFromAcceptedQuote: vi.fn(),
+  };
+  const dealPricingWorkflow = {
+    attachRoute: vi.fn(),
+    createQuote: vi.fn(),
+    detachRoute: vi.fn(),
+    initializeDefaultRoute: vi.fn(),
+    listRoutes: vi.fn(),
+    preview: vi.fn(),
+    swapRouteTemplate: vi.fn(),
+    updateContext: vi.fn(),
   };
   const dealExecutionWorkflow = {
     closeDeal: vi.fn(),
@@ -521,10 +807,19 @@ function createTestApp() {
   const documentsService = {
     get: vi.fn(),
   };
+  const documentDraftWorkflow = {
+    createDraft: vi.fn(),
+  };
   const persistence = {
     db: {
       execute: vi.fn(async () => ({ rows: [] })),
     },
+  };
+  const logger = {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
   };
   const app = new OpenAPIHono();
 
@@ -545,6 +840,7 @@ function createTestApp() {
     dealsRoutes({
       dealProjectionsWorkflow,
       dealExecutionWorkflow,
+      dealPricingWorkflow,
       dealQuoteWorkflow,
       dealsModule,
       agreementsModule,
@@ -555,6 +851,8 @@ function createTestApp() {
       currenciesService,
       reconciliationService,
       documentsService,
+      documentDraftWorkflow,
+      logger,
       persistence,
     } as any),
   );
@@ -563,16 +861,19 @@ function createTestApp() {
     app,
     dealProjectionsWorkflow,
     dealExecutionWorkflow,
+    dealPricingWorkflow,
     dealQuoteWorkflow,
     dealsModule,
     agreementsModule,
     treasuryModule,
     calculationsModule,
+    logger,
     iamService,
     partiesModule,
     currenciesService,
     reconciliationService,
     documentsService,
+    documentDraftWorkflow,
     persistence,
   };
 }
@@ -818,7 +1119,7 @@ describe("deals routes", () => {
           fromCurrency: "RUB",
           toCurrency: "USD",
           asOf: "2026-03-30T00:00:00.000Z",
-          quoteMarkupPercent: "0.5",
+          quoteMarkupBps: 50,
           fixedFeeAmount: "15.00",
           fixedFeeCurrency: "USD",
         }),
@@ -910,7 +1211,7 @@ describe("deals routes", () => {
           fromCurrency: "RUB",
           toCurrency: "USD",
           asOf: "2026-03-30T00:00:00.000Z",
-          quoteMarkupPercent: "0.5",
+          quoteMarkupBps: 50,
           fixedFeeAmount: "25.00",
           fixedFeeCurrency: "USD",
         }),
@@ -927,6 +1228,370 @@ describe("deals routes", () => {
         }),
       }),
     );
+  });
+
+  it("lists recommended payment routes for deal pricing", async () => {
+    const { app, dealPricingWorkflow } = createTestApp();
+    dealPricingWorkflow.listRoutes.mockResolvedValue([
+      createDealPricingRouteCandidate(),
+    ]);
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/pricing/routes",
+    );
+
+    expect(response.status).toBe(200);
+    expect(dealPricingWorkflow.listRoutes).toHaveBeenCalledWith({
+      dealId: "00000000-0000-4000-8000-000000000010",
+    });
+    await expect(response.json()).resolves.toMatchObject([
+      {
+        id: "00000000-0000-4000-8000-000000000301",
+        name: "RUB via AED to USD",
+      },
+    ]);
+  });
+
+  it("previews deal pricing through the route pricing workflow", async () => {
+    const { app, dealPricingWorkflow } = createTestApp();
+    dealPricingWorkflow.preview.mockResolvedValue(createDealPricingPreview());
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/pricing/preview",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          amountMinor: "79005226",
+          amountSide: "source",
+          asOf: "2026-04-19T09:58:00.000Z",
+          expectedRevision: 3,
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(dealPricingWorkflow.preview).toHaveBeenCalledWith({
+      amountMinor: "79005226",
+      amountSide: "source",
+      asOf: new Date("2026-04-19T09:58:00.000Z"),
+      dealId: "00000000-0000-4000-8000-000000000010",
+      expectedRevision: 3,
+    });
+    await expect(response.json()).resolves.toMatchObject({
+      fundingSummary: {
+        positions: [
+          {
+            currencyCode: "RUB",
+            netFundingNeedMinor: "79005226",
+          },
+        ],
+      },
+      pricingMode: "explicit_route",
+      quotePreview: {
+        financialLines: [
+          {
+            amountMinor: "300",
+            bucket: "provider_fee_expense",
+          },
+        ],
+      },
+    });
+  });
+
+  it("creates a deal pricing quote and appends a timeline event", async () => {
+    const { app, dealPricingWorkflow, dealsModule } = createTestApp();
+    dealPricingWorkflow.createQuote.mockResolvedValue(
+      createDealPricingQuoteResult(),
+    );
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/pricing/quotes",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "idempotency-key": "pricing-quote-1",
+        },
+        body: JSON.stringify({
+          amountMinor: "79005226",
+          amountSide: "source",
+          asOf: "2026-04-19T09:58:00.000Z",
+          expectedRevision: 3,
+        }),
+      },
+    );
+
+    expect(response.status).toBe(201);
+    expect(dealPricingWorkflow.createQuote).toHaveBeenCalledWith({
+      amountMinor: "79005226",
+      amountSide: "source",
+      asOf: new Date("2026-04-19T09:58:00.000Z"),
+      dealId: "00000000-0000-4000-8000-000000000010",
+      expectedRevision: 3,
+      idempotencyKey: "pricing-quote-1",
+    });
+    expect(dealsModule.deals.commands.appendTimelineEvent).toHaveBeenCalledWith({
+      actorUserId: "user-1",
+      dealId: "00000000-0000-4000-8000-000000000010",
+      payload: {
+        expiresAt: new Date("2026-04-19T10:58:00.000Z"),
+        pricingMode: "explicit_route",
+        quoteId: "00000000-0000-4000-8000-000000000302",
+      },
+      sourceRef: "quote:00000000-0000-4000-8000-000000000302:created",
+      type: "quote_created",
+      visibility: "internal",
+    });
+    await expect(response.json()).resolves.toMatchObject({
+      pricingMode: "explicit_route",
+      quote: {
+        id: "00000000-0000-4000-8000-000000000302",
+      },
+    });
+  });
+
+  it("attaches the default route via the initialize-route endpoint", async () => {
+    const { app, dealPricingWorkflow } = createTestApp();
+    const updatedContext = {
+      commercialDraft: {
+        fixedFeeAmount: null,
+        fixedFeeCurrency: null,
+        quoteMarkupBps: 0,
+      },
+      fundingAdjustments: [],
+      revision: 4,
+      routeAttachment: {
+        attachedAt: new Date("2026-04-19T09:00:00.000Z"),
+        snapshot: createDealPricingPreview().routePreview,
+        templateId: "00000000-0000-4000-8000-000000000301",
+        templateName: "Default route",
+      },
+    };
+    dealPricingWorkflow.initializeDefaultRoute.mockResolvedValue(updatedContext);
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/pricing/initialize-route",
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(200);
+    expect(dealPricingWorkflow.initializeDefaultRoute).toHaveBeenCalledWith({
+      dealId: "00000000-0000-4000-8000-000000000010",
+    });
+  });
+
+  it("commits pricing and triggers auto-materialize after acceptance", async () => {
+    const {
+      app,
+      dealsModule,
+      dealPricingWorkflow,
+      dealQuoteWorkflow,
+      dealExecutionWorkflow,
+    } = createTestApp();
+    const quoteResult = createDealPricingQuoteResult();
+    dealPricingWorkflow.createQuote.mockResolvedValue(quoteResult);
+    dealsModule.deals.commands.acceptQuote.mockResolvedValue({
+      acceptedQuote: { quoteId: quoteResult.quote.id },
+      summary: { id: "00000000-0000-4000-8000-000000000010" },
+    });
+    dealQuoteWorkflow.createCalculationFromAcceptedQuote.mockResolvedValue({
+      id: "00000000-0000-4000-8000-000000000701",
+    });
+    dealExecutionWorkflow.requestExecution.mockResolvedValue({});
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/pricing/commit",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "idempotency-key": "commit-1",
+        },
+        body: JSON.stringify({
+          amountMinor: "79005226",
+          amountSide: "source",
+          asOf: "2026-04-19T09:58:00.000Z",
+          expectedRevision: 3,
+        }),
+      },
+    );
+
+    expect(response.status).toBe(201);
+    expect(dealsModule.deals.commands.acceptQuote).toHaveBeenCalled();
+    expect(dealExecutionWorkflow.requestExecution).toHaveBeenCalledWith({
+      actorUserId: "user-1",
+      comment: null,
+      dealId: "00000000-0000-4000-8000-000000000010",
+      idempotencyKey: `auto-materialize:${quoteResult.quote.id}`,
+    });
+  });
+
+  it("delegates route swap to dealPricingWorkflow.swapRouteTemplate", async () => {
+    const { app, dealPricingWorkflow } = createTestApp();
+    dealPricingWorkflow.swapRouteTemplate.mockResolvedValue({
+      summary: { id: "00000000-0000-4000-8000-000000000010" },
+    });
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/pricing/route/swap",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          newRouteTemplateId: "00000000-0000-4000-8000-000000000444",
+          reasonCode: "market_moved",
+          memo: "Test swap",
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(dealPricingWorkflow.swapRouteTemplate).toHaveBeenCalledWith({
+      actorUserId: "user-1",
+      dealId: "00000000-0000-4000-8000-000000000010",
+      memo: "Test swap",
+      newRouteTemplateId: "00000000-0000-4000-8000-000000000444",
+      reasonCode: "market_moved",
+    });
+  });
+
+  it("rejects deal-scoped formal document creation in draft", async () => {
+    const { app, dealsModule, documentDraftWorkflow } = createTestApp();
+    dealsModule.deals.queries.findById.mockResolvedValue({
+      ...createDealDetail(),
+      status: "draft",
+    });
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/formal-documents/invoice",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "idempotency-key": "doc-create-draft",
+        },
+        body: JSON.stringify({
+          input: {},
+        }),
+      },
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      error: expect.stringContaining(
+        "cannot create formal documents from status draft",
+      ),
+    });
+    expect(documentDraftWorkflow.createDraft).not.toHaveBeenCalled();
+  });
+
+  it("rejects deal-scoped formal document creation in submitted", async () => {
+    const { app, dealsModule, documentDraftWorkflow } = createTestApp();
+    dealsModule.deals.queries.findById.mockResolvedValue({
+      ...createDealDetail(),
+      status: "submitted",
+    });
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/formal-documents/invoice",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "idempotency-key": "doc-create-submitted",
+        },
+        body: JSON.stringify({
+          input: {},
+        }),
+      },
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      error: expect.stringContaining(
+        "cannot create formal documents from status submitted",
+      ),
+    });
+    expect(documentDraftWorkflow.createDraft).not.toHaveBeenCalled();
+  });
+
+  it("creates a deal-scoped formal document in preparing_documents", async () => {
+    const { app, dealsModule, documentDraftWorkflow } = createTestApp();
+    dealsModule.deals.queries.findById.mockResolvedValue({
+      ...createDealDetail(),
+      status: "preparing_documents",
+    });
+    documentDraftWorkflow.createDraft.mockResolvedValue(createDocumentWithOperation());
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/formal-documents/invoice",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "idempotency-key": "doc-create-preparing",
+        },
+        body: JSON.stringify({
+          input: {},
+        }),
+      },
+    );
+
+    expect(response.status).toBe(201);
+    expect(documentDraftWorkflow.createDraft).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorUserId: "user-1",
+        createIdempotencyKey: "doc-create-preparing",
+        dealId: "00000000-0000-4000-8000-000000000010",
+        docType: "invoice",
+      }),
+    );
+    expect(dealsModule.deals.commands.appendTimelineEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payload: {
+          docType: "invoice",
+          documentId: "11111111-1111-4111-8111-111111111111",
+        },
+        type: "document_created",
+      }),
+    );
+    await expect(response.json()).resolves.toMatchObject({
+      docType: "invoice",
+      id: "11111111-1111-4111-8111-111111111111",
+    });
+  });
+
+  it("returns 409 for stale pricing context updates", async () => {
+    const { app, dealPricingWorkflow } = createTestApp();
+    dealPricingWorkflow.updateContext.mockRejectedValue(
+      new DealPricingContextRevisionConflictError(
+        "00000000-0000-4000-8000-000000000010",
+        3,
+      ),
+    );
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/pricing/context",
+      {
+        method: "PATCH",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          commercialDraft: {
+            quoteMarkupBps: 25,
+          },
+          expectedRevision: 3,
+        }),
+      },
+    );
+
+    expect(response.status).toBe(409);
   });
 
   it("normalizes decimal agreement fee bps before previewing a deal quote", async () => {
@@ -1131,31 +1796,14 @@ describe("deals routes", () => {
     ).toHaveBeenCalledWith(detail.id);
   });
 
-  it("does not expose the legacy attach calculation route", async () => {
-    const { app } = createTestApp();
-
-    const response = await app.request(
-      "http://localhost/deals/00000000-0000-4000-8000-000000000010/calculation",
-      {
-        method: "PATCH",
-        headers: {
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
-          calculationId: "00000000-0000-4000-8000-000000000011",
-        }),
-      },
-    );
-
-    expect(response.status).toBe(404);
-  });
-
-  it("accepts a quote for a deal", async () => {
-    const { app, dealsModule } = createTestApp();
+  it("accepts a quote for a deal and triggers auto-materialize", async () => {
+    const { app, dealsModule, dealExecutionWorkflow } = createTestApp();
     const projection = {
+      acceptedQuote: { quoteId: "00000000-0000-4000-8000-000000000210" },
       summary: { id: "00000000-0000-4000-8000-000000000010" },
     };
     dealsModule.deals.commands.acceptQuote.mockResolvedValue(projection);
+    dealExecutionWorkflow.requestExecution.mockResolvedValue(projection);
 
     const response = await app.request(
       "http://localhost/deals/00000000-0000-4000-8000-000000000010/quotes/00000000-0000-4000-8000-000000000210/accept",
@@ -1170,6 +1818,48 @@ describe("deals routes", () => {
       dealId: "00000000-0000-4000-8000-000000000010",
       quoteId: "00000000-0000-4000-8000-000000000210",
     });
+    expect(dealExecutionWorkflow.requestExecution).toHaveBeenCalledWith({
+      actorUserId: "user-1",
+      comment: null,
+      dealId: "00000000-0000-4000-8000-000000000010",
+      idempotencyKey:
+        "auto-materialize:00000000-0000-4000-8000-000000000210",
+    });
+  });
+
+  it("appends a materialization_failed timeline event when auto-materialize throws", async () => {
+    const { app, dealsModule, dealExecutionWorkflow } = createTestApp();
+    const projection = {
+      acceptedQuote: { quoteId: "00000000-0000-4000-8000-000000000210" },
+      summary: { id: "00000000-0000-4000-8000-000000000010" },
+    };
+    dealsModule.deals.commands.acceptQuote.mockResolvedValue(projection);
+    dealExecutionWorkflow.requestExecution.mockRejectedValue(
+      new Error("intake not ready"),
+    );
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/quotes/00000000-0000-4000-8000-000000000210/accept",
+      {
+        method: "POST",
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(dealsModule.deals.commands.appendTimelineEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorUserId: "user-1",
+        dealId: "00000000-0000-4000-8000-000000000010",
+        payload: expect.objectContaining({
+          quoteId: "00000000-0000-4000-8000-000000000210",
+          reason: "intake not ready",
+        }),
+        sourceRef:
+          "materialize:auto:00000000-0000-4000-8000-000000000210",
+        type: "materialization_failed",
+        visibility: "internal",
+      }),
+    );
   });
 
   it("updates the draft agreement on the workbench", async () => {
@@ -1918,29 +2608,63 @@ describe("deals routes", () => {
     });
   });
 
-  it("updates a deal execution leg state", async () => {
+  it("sets a deal execution leg manual override", async () => {
     const { app, dealsModule } = createTestApp();
     const projection = createWorkflowProjection();
-    dealsModule.deals.commands.updateLegState.mockResolvedValue(projection);
+    dealsModule.deals.commands.setLegManualOverride.mockResolvedValue(
+      projection,
+    );
 
     const response = await app.request(
-      "http://localhost/deals/00000000-0000-4000-8000-000000000010/legs/1/state",
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/legs/1/override",
       {
         method: "POST",
         headers: {
           "content-type": "application/json",
         },
-        body: JSON.stringify({ state: "in_progress" }),
+        body: JSON.stringify({ override: "blocked" }),
       },
     );
 
     expect(response.status).toBe(200);
-    expect(dealsModule.deals.commands.updateLegState).toHaveBeenCalledWith({
+    expect(
+      dealsModule.deals.commands.setLegManualOverride,
+    ).toHaveBeenCalledWith({
       actorUserId: "user-1",
       comment: null,
       dealId: "00000000-0000-4000-8000-000000000010",
       idx: 1,
-      state: "in_progress",
+      override: "blocked",
+    });
+  });
+
+  it("clears a deal execution leg manual override", async () => {
+    const { app, dealsModule } = createTestApp();
+    const projection = createWorkflowProjection();
+    dealsModule.deals.commands.setLegManualOverride.mockResolvedValue(
+      projection,
+    );
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/legs/1/override",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ override: null }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(
+      dealsModule.deals.commands.setLegManualOverride,
+    ).toHaveBeenCalledWith({
+      actorUserId: "user-1",
+      comment: null,
+      dealId: "00000000-0000-4000-8000-000000000010",
+      idx: 1,
+      override: null,
     });
   });
 });

@@ -1,4 +1,4 @@
-import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
 import {
   AgreementDetailsSchema,
@@ -7,6 +7,9 @@ import {
   PaginatedAgreementsSchema,
   UpdateAgreementInputSchema,
 } from "@bedrock/agreements/contracts";
+import { FileAttachmentSchema } from "@bedrock/files/contracts";
+import { NotFoundError, ValidationError } from "@bedrock/shared/core/errors";
+import { PrintFormDescriptorSchema } from "@bedrock/workflow-document-generation";
 
 import { DeletedSchema, ErrorSchema, IdParamSchema } from "../common";
 import { handleRouteError } from "../common/errors";
@@ -15,9 +18,33 @@ import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";
 import { withRequiredIdempotency } from "../middleware/idempotency";
 import { requirePermission } from "../middleware/permission";
+import {
+  generateAgreementVersionPrintForm,
+  listAgreementVersionPrintForms,
+  PrintFormFormatQuerySchema,
+  writeGeneratedDocumentResponse,
+} from "./internal/print-forms";
 
 export function agreementsRoutes(ctx: AppContext) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();
+
+  async function assertAgreementVersion(input: {
+    agreementId: string;
+    versionId: string;
+  }) {
+    const agreement =
+      await ctx.agreementsModule.agreements.queries.findById(input.agreementId);
+
+    if (!agreement) {
+      throw new NotFoundError("Agreement", input.agreementId);
+    }
+
+    if (agreement.currentVersion.id !== input.versionId) {
+      throw new NotFoundError("Agreement version", input.versionId);
+    }
+
+    return agreement;
+  }
 
   const listRoute = createRoute({
     middleware: [requirePermission({ agreements: ["list"] })],
@@ -203,6 +230,111 @@ export function agreementsRoutes(ctx: AppContext) {
     },
   });
 
+  const listPrintFormsRoute = createRoute({
+    middleware: [requirePermission({ agreements: ["list"] })],
+    method: "get",
+    path: "/{id}/versions/{versionId}/print-forms",
+    tags: ["Agreements"],
+    summary: "List agreement version print forms",
+    request: {
+      params: IdParamSchema.extend({
+        versionId: z.string().uuid(),
+      }),
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: z.array(PrintFormDescriptorSchema),
+          },
+        },
+        description: "Agreement version print forms",
+      },
+    },
+  });
+
+  const downloadPrintFormRoute = createRoute({
+    middleware: [requirePermission({ agreements: ["list"] })],
+    method: "get",
+    path: "/{id}/versions/{versionId}/print-forms/{formId}",
+    tags: ["Agreements"],
+    summary: "Download agreement version print form",
+    request: {
+      params: IdParamSchema.extend({
+        formId: z.string().min(1),
+        versionId: z.string().uuid(),
+      }),
+      query: PrintFormFormatQuerySchema,
+    },
+    responses: {
+      200: { description: "Generated file" },
+    },
+  });
+
+  const uploadSignedContractRoute = createRoute({
+    middleware: [requirePermission({ agreements: ["update"] })],
+    method: "post",
+    path: "/{id}/versions/{versionId}/signed-contract",
+    tags: ["Agreements"],
+    summary: "Upload signed contract for an agreement version",
+    request: {
+      params: IdParamSchema.extend({
+        versionId: z.string().uuid(),
+      }),
+    },
+    responses: {
+      201: {
+        content: {
+          "application/json": {
+            schema: FileAttachmentSchema,
+          },
+        },
+        description: "Signed contract uploaded",
+      },
+    },
+  });
+
+  const getSignedContractRoute = createRoute({
+    middleware: [requirePermission({ agreements: ["list"] })],
+    method: "get",
+    path: "/{id}/versions/{versionId}/signed-contract",
+    tags: ["Agreements"],
+    summary: "Get signed contract metadata for an agreement version",
+    request: {
+      params: IdParamSchema.extend({
+        versionId: z.string().uuid(),
+      }),
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: FileAttachmentSchema,
+          },
+        },
+        description: "Signed contract metadata",
+      },
+    },
+  });
+
+  const downloadSignedContractRoute = createRoute({
+    middleware: [requirePermission({ agreements: ["list"] })],
+    method: "get",
+    path: "/{id}/versions/{versionId}/signed-contract/download",
+    tags: ["Agreements"],
+    summary: "Download signed contract for an agreement version",
+    request: {
+      params: IdParamSchema.extend({
+        versionId: z.string().uuid(),
+      }),
+    },
+    responses: {
+      302: {
+        description: "Redirect to signed file URL",
+      },
+    },
+  });
+
   return app
     .openapi(listRoute, async (c) => {
       try {
@@ -269,6 +401,125 @@ export function agreementsRoutes(ctx: AppContext) {
         const { id } = c.req.valid("param");
         await ctx.agreementsModule.agreements.commands.archive(id);
         return jsonOk(c, { deleted: true });
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(listPrintFormsRoute, async (c) => {
+      try {
+        const { id, versionId } = c.req.valid("param");
+        const result = await listAgreementVersionPrintForms({
+          agreementId: id,
+          ctx,
+          versionId,
+        });
+        return jsonOk(c, result);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(downloadPrintFormRoute, async (c): Promise<any> => {
+      try {
+        const { formId, id, versionId } = c.req.valid("param");
+        const { format } = c.req.valid("query");
+        const result = await generateAgreementVersionPrintForm({
+          agreementId: id,
+          ctx,
+          formId,
+          format,
+          versionId,
+        });
+
+        return writeGeneratedDocumentResponse(c, result);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(uploadSignedContractRoute, async (c) => {
+      try {
+        const { id, versionId } = c.req.valid("param");
+        await assertAgreementVersion({ agreementId: id, versionId });
+
+        let body: Awaited<ReturnType<typeof c.req.parseBody>>;
+        try {
+          body = await c.req.parseBody();
+        } catch {
+          throw new ValidationError("Invalid multipart form data");
+        }
+
+        const file = body.file;
+        if (!file || typeof file === "string") {
+          throw new ValidationError("File is required");
+        }
+
+        const result =
+          await ctx.filesModule.files.commands.upsertAgreementVersionSignedContract(
+            {
+              buffer: Buffer.from(await file.arrayBuffer()),
+              fileName: file.name,
+              fileSize: file.size,
+              mimeType: file.type || "application/octet-stream",
+              uploadedBy: c.get("user")!.id,
+              versionId,
+            },
+          );
+
+        return jsonOk(c, result, 201);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(getSignedContractRoute, async (c) => {
+      try {
+        const { id, versionId } = c.req.valid("param");
+        await assertAgreementVersion({ agreementId: id, versionId });
+        const result =
+          await ctx.filesModule.files.queries.findAgreementVersionSignedContract(
+            versionId,
+          );
+
+        if (!result) {
+          throw new NotFoundError("Signed contract", versionId);
+        }
+
+        return jsonOk(c, {
+          id: result.id,
+          fileName: result.fileName,
+          fileSize: result.fileSize,
+          mimeType: result.mimeType,
+          purpose: result.attachmentPurpose,
+          visibility: result.attachmentVisibility,
+          uploadedBy: result.versionCreatedBy,
+          description: result.description,
+          createdAt: result.createdAt,
+          updatedAt: result.updatedAt,
+        });
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(downloadSignedContractRoute, async (c) => {
+      try {
+        const { id, versionId } = c.req.valid("param");
+        await assertAgreementVersion({ agreementId: id, versionId });
+        const result =
+          await ctx.filesModule.files.queries.findAgreementVersionSignedContract(
+            versionId,
+          );
+
+        if (!result) {
+          throw new NotFoundError("Signed contract", versionId);
+        }
+
+        const url =
+          await ctx.filesModule.files.queries.getAgreementVersionSignedContractDownloadUrl(
+            {
+              fileAssetId: result.id,
+              versionId,
+            },
+          );
+
+        return c.redirect(url, 302);
       } catch (error) {
         return handleRouteError(c, error);
       }

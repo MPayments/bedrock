@@ -1,4 +1,4 @@
-import { relations, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import {
   check,
   foreignKey,
@@ -14,6 +14,7 @@ import {
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 
+import { agreementVersions } from "@bedrock/agreements/schema";
 import { deals } from "@bedrock/deals/schema";
 import { user } from "@bedrock/iam/schema";
 import { counterparties } from "@bedrock/parties/schema";
@@ -125,6 +126,11 @@ export const fileLinks = pgTable(
     counterpartyId: uuid("counterparty_id").references(() => counterparties.id, {
       onDelete: "cascade",
     }),
+    agreementVersionId: uuid("agreement_version_id").references(
+      () => agreementVersions.id,
+      { onDelete: "cascade" },
+    ),
+    paymentStepId: uuid("payment_step_id"),
     linkKind: fileLinkKindEnum("link_kind").notNull(),
     attachmentPurpose: fileAttachmentPurposeEnum("attachment_purpose"),
     attachmentVisibility: fileAttachmentVisibilityEnum("attachment_visibility"),
@@ -142,91 +148,37 @@ export const fileLinks = pgTable(
     uniqueIndex("file_links_asset_uq").on(table.fileAssetId),
     index("file_links_deal_idx").on(table.dealId),
     index("file_links_counterparty_idx").on(table.counterpartyId),
+    index("file_links_agreement_version_idx").on(table.agreementVersionId),
+    index("file_links_payment_step_idx").on(table.paymentStepId),
     check(
       "file_links_exactly_one_owner_chk",
       sql`(
-        (${table.dealId} is not null and ${table.counterpartyId} is null)
-        or (${table.dealId} is null and ${table.counterpartyId} is not null)
+        (${table.dealId} is not null and ${table.counterpartyId} is null and ${table.agreementVersionId} is null and ${table.paymentStepId} is null)
+        or (${table.dealId} is null and ${table.counterpartyId} is not null and ${table.agreementVersionId} is null and ${table.paymentStepId} is null)
+        or (${table.dealId} is null and ${table.counterpartyId} is null and ${table.agreementVersionId} is not null and ${table.paymentStepId} is null)
+        or (${table.dealId} is null and ${table.counterpartyId} is null and ${table.agreementVersionId} is null and ${table.paymentStepId} is not null)
       )`,
     ),
     check(
       "file_links_generated_variant_shape_chk",
       sql`(
-        ${table.linkKind} in ('deal_attachment', 'legal_entity_attachment')
+        ${table.linkKind} in ('deal_attachment', 'legal_entity_attachment', 'payment_step_evidence')
         and ${table.attachmentPurpose} is not null
         and ${table.attachmentVisibility} is not null
         and ${table.generatedFormat} is null
         and ${table.generatedLang} is null
       ) or (
-        ${table.linkKind} in ('deal_application', 'deal_invoice', 'deal_acceptance', 'legal_entity_contract')
+        ${table.linkKind} = 'agreement_signed_contract'
         and ${table.attachmentPurpose} is null
         and ${table.attachmentVisibility} is null
-        and ${table.generatedFormat} is not null
-        and ${table.generatedLang} is not null
+        and ${table.generatedFormat} is null
+        and ${table.generatedLang} is null
       )`,
     ),
-    uniqueIndex("file_links_generated_deal_variant_uq")
-      .on(
-        table.dealId,
-        table.linkKind,
-        table.generatedFormat,
-        table.generatedLang,
-      )
+    uniqueIndex("file_links_agreement_signed_contract_uq")
+      .on(table.agreementVersionId, table.linkKind)
       .where(
-        sql`${table.dealId} is not null and ${table.linkKind} in ('deal_application', 'deal_invoice', 'deal_acceptance')`,
-      ),
-    uniqueIndex("file_links_generated_counterparty_variant_uq")
-      .on(
-        table.counterpartyId,
-        table.linkKind,
-        table.generatedFormat,
-        table.generatedLang,
-      )
-      .where(
-        sql`${table.counterpartyId} is not null and ${table.linkKind} = 'legal_entity_contract'`,
+        sql`${table.agreementVersionId} is not null and ${table.linkKind} = 'agreement_signed_contract'`,
       ),
   ],
 );
-
-export const fileAssetsRelations = relations(fileAssets, ({ many, one }) => ({
-  currentVersion: one(fileVersions, {
-    relationName: "file_assets_current_version",
-    fields: [fileAssets.currentVersionId],
-    references: [fileVersions.id],
-  }),
-  link: one(fileLinks, {
-    fields: [fileAssets.id],
-    references: [fileLinks.fileAssetId],
-  }),
-  versions: many(fileVersions, {
-    relationName: "file_versions_file_asset",
-  }),
-}));
-
-export const fileVersionsRelations = relations(fileVersions, ({ one }) => ({
-  currentForAsset: one(fileAssets, {
-    relationName: "file_assets_current_version",
-    fields: [fileVersions.id],
-    references: [fileAssets.currentVersionId],
-  }),
-  fileAsset: one(fileAssets, {
-    relationName: "file_versions_file_asset",
-    fields: [fileVersions.fileAssetId],
-    references: [fileAssets.id],
-  }),
-}));
-
-export const fileLinksRelations = relations(fileLinks, ({ one }) => ({
-  counterparty: one(counterparties, {
-    fields: [fileLinks.counterpartyId],
-    references: [counterparties.id],
-  }),
-  deal: one(deals, {
-    fields: [fileLinks.dealId],
-    references: [deals.id],
-  }),
-  fileAsset: one(fileAssets, {
-    fields: [fileLinks.fileAssetId],
-    references: [fileAssets.id],
-  }),
-}));

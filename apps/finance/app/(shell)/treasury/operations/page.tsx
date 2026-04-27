@@ -2,6 +2,7 @@ import { Workflow } from "lucide-react";
 
 import { DataTableSkeleton } from "@bedrock/sdk-tables-ui/components/data-table-skeleton";
 import { EntityListPageShell } from "@/components/entities/entity-list-page-shell";
+import { TreasuryOperationsActions } from "@/features/treasury/operations/components/actions";
 import { TreasuryOperationsTable } from "@/features/treasury/operations/components/table";
 import { getTreasuryOperations } from "@/features/treasury/operations/lib/queries";
 import { searchParamsCache } from "@/features/treasury/operations/lib/validations";
@@ -20,8 +21,9 @@ export default async function TreasuryOperationsPage({
     <EntityListPageShell
       icon={Workflow}
       title="Операции"
-      description="Очередь материализованных казначейских операций, связанных с процессом исполнения сделки и блокирующими факторами исполнения."
-      fallback={<DataTableSkeleton columnCount={8} rowCount={10} filterCount={1} />}
+      description="Список платёжных шагов и FX-исполнений: как связанных со сделками, так и отдельных казначейских ордеров."
+      actions={<TreasuryOperationsActions />}
+      fallback={<DataTableSkeleton columnCount={6} rowCount={10} filterCount={1} />}
     >
       <TreasuryOperationsTable promise={promise} />
     </EntityListPageShell>

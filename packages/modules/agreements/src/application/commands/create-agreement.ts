@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-import type { IdempotencyPort } from "@bedrock/platform/idempotency";
 import type { ModuleRuntime } from "@bedrock/shared/core";
 import {
   NotFoundError,
@@ -88,7 +87,6 @@ export class CreateAgreementCommand {
   constructor(
     private readonly runtime: ModuleRuntime,
     private readonly commandUow: AgreementsCommandUnitOfWork,
-    private readonly idempotency: IdempotencyPort,
     private readonly references: AgreementReferencesPort,
   ) {}
 
@@ -99,8 +97,7 @@ export class CreateAgreementCommand {
     await validateAgreementReferences(validated, this.references);
 
     return this.commandUow.run((tx) =>
-      this.idempotency.withIdempotencyTx({
-        tx: tx.transaction,
+      tx.idempotency.withIdempotency({
         scope: AGREEMENTS_CREATE_IDEMPOTENCY_SCOPE,
         idempotencyKey: validated.idempotencyKey,
         request: {

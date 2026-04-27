@@ -15,6 +15,7 @@ import {
   UpdateCustomerInputSchema,
 } from "@bedrock/parties/contracts";
 import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
+import { ValidationError } from "@bedrock/shared/core/errors";
 
 import {
   assertCustomerOwnsCounterparty,
@@ -25,8 +26,6 @@ import {
 } from "./customer-agreements";
 import {
   CustomerFileAttachmentSchema,
-  GeneratedDocumentFormatSchema,
-  GeneratedDocumentLangSchema,
   serializeCustomerFileAttachment,
 } from "./customer-files";
 import { DeletedSchema, ErrorSchema } from "../common";
@@ -388,28 +387,6 @@ export function customersRoutes(ctx: AppContext) {
     tags: ["Customers"],
   });
 
-  const generateCounterpartyContractRoute = createRoute({
-    middleware: [requirePermission({ agreements: ["list"] })],
-    method: "get",
-    path: "/{customerId}/counterparties/{counterpartyId}/contract",
-    request: {
-      params: CustomerCounterpartyParamsSchema,
-      query: z.object({
-        format: GeneratedDocumentFormatSchema,
-        lang: GeneratedDocumentLangSchema,
-      }),
-    },
-    responses: {
-      200: { description: "Contract document" },
-      404: {
-        content: { "application/json": { schema: ErrorSchema } },
-        description: "Counterparty or contract not found",
-      },
-    },
-    summary: "Generate contract for a customer-owned counterparty",
-    tags: ["Customers"],
-  });
-
   const upsertCounterpartyContractRoute = createRoute({
     middleware: [requirePermission({ agreements: ["create", "update"] })],
     method: "post",
@@ -550,20 +527,35 @@ export function customersRoutes(ctx: AppContext) {
       }
     })
     .openapi(uploadCounterpartyDocumentRoute, async (c) => {
+      let customerId: string | null = null;
+      let counterpartyId: string | null = null;
+
       try {
-        const { counterpartyId, customerId } = c.req.valid("param");
+        ({ counterpartyId, customerId } = c.req.valid("param"));
         await assertCustomerOwnsCounterparty(ctx, {
           counterpartyId,
           customerId,
         });
-        const body = await c.req.parseBody();
+        let body: Awaited<ReturnType<typeof c.req.parseBody>>;
+        try {
+          body = await c.req.parseBody();
+        } catch {
+          throw new ValidationError("Invalid multipart form data");
+        }
+
         const file = body.file;
         if (!file || typeof file === "string") {
           return c.json({ error: "File is required" }, 400 as const);
         }
 
         const sessionUser = c.get("user")!;
-        const buffer = Buffer.from(await file.arrayBuffer());
+        let buffer: Buffer;
+        try {
+          buffer = Buffer.from(await file.arrayBuffer());
+        } catch {
+          throw new ValidationError("Uploaded file could not be read");
+        }
+
         const result =
           await ctx.filesModule.files.commands.uploadCounterpartyAttachment({
             buffer,
@@ -571,12 +563,21 @@ export function customersRoutes(ctx: AppContext) {
               typeof body.description === "string" ? body.description : null,
             fileName: file.name,
             fileSize: file.size,
-            mimeType: file.type,
+            mimeType: file.type || "application/octet-stream",
             ownerId: counterpartyId,
             uploadedBy: sessionUser.id,
           });
         return c.json(serializeCustomerFileAttachment(result), 201);
       } catch (error) {
+        if (!(error instanceof ValidationError)) {
+          ctx.logger.error("Customer counterparty document upload failed", {
+            counterpartyId,
+            customerId,
+            error: error instanceof Error ? error.message : String(error),
+            userId: c.get("user")?.id ?? null,
+          });
+        }
+
         return handleRouteError(c, error);
       }
     })
@@ -612,39 +613,6 @@ export function customersRoutes(ctx: AppContext) {
           ownerId: counterpartyId,
         });
         return c.json({ deleted: true }, 200);
-      } catch (error) {
-        return handleRouteError(c, error);
-      }
-    })
-    .openapi(generateCounterpartyContractRoute, async (c) => {
-      try {
-        const { counterpartyId, customerId } = c.req.valid("param");
-        const { format, lang } = c.req.valid("query");
-        const result =
-          await ctx.documentGenerationWorkflow.generateCustomerContract({
-            counterpartyId,
-            customerId,
-            format,
-            lang,
-          });
-        await ctx.filesModule.files.commands.persistGeneratedCounterpartyFile({
-          buffer: result.buffer,
-          createdBy: c.get("user")?.id ?? null,
-          fileName: result.fileName,
-          fileSize: result.buffer.byteLength,
-          generatedFormat: format,
-          generatedLang: lang,
-          linkKind: "legal_entity_contract",
-          mimeType: result.mimeType,
-          ownerId: counterpartyId,
-        });
-
-        c.header("Content-Type", result.mimeType);
-        c.header(
-          "Content-Disposition",
-          `attachment; filename="${result.fileName}"`,
-        );
-        return c.body(result.buffer as unknown as ArrayBuffer);
       } catch (error) {
         return handleRouteError(c, error);
       }

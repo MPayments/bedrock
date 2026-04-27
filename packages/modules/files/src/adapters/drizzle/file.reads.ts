@@ -7,10 +7,16 @@ import type { FileAttachment } from "../../application/contracts/dto";
 import type {
   FileOwnerType,
   FileReads,
+  FileVersionMetadata,
   StoredFileRecord,
 } from "../../application/ports/file.reads";
 
-const ATTACHMENT_LINK_KINDS = ["deal_attachment", "legal_entity_attachment"] as const;
+const ATTACHMENT_LINK_KINDS = [
+  "agreement_signed_contract",
+  "deal_attachment",
+  "legal_entity_attachment",
+  "payment_step_evidence",
+] as const;
 
 function mapStoredFile(row: {
   id: string;
@@ -33,14 +39,14 @@ function mapStoredFile(row: {
   attachmentVisibility: "customer_safe" | "internal" | null;
   linkId: string;
   linkKind:
-    | "deal_acceptance"
-    | "deal_application"
     | "deal_attachment"
-    | "deal_invoice"
+    | "agreement_signed_contract"
     | "legal_entity_attachment"
-    | "legal_entity_contract";
+    | "payment_step_evidence";
+  agreementVersionId: string | null;
   dealId: string | null;
   counterpartyId: string | null;
+  paymentStepId: string | null;
   generatedFormat: "docx" | "pdf" | null;
   generatedLang: "en" | "ru" | null;
 }): StoredFileRecord {
@@ -69,11 +75,26 @@ function mapStoredFile(row: {
     attachmentVisibility: row.attachmentVisibility,
     linkId: row.linkId,
     linkKind: row.linkKind,
+    agreementVersionId: row.agreementVersionId,
     dealId: row.dealId,
     counterpartyId: row.counterpartyId,
+    paymentStepId: row.paymentStepId,
     generatedFormat: row.generatedFormat,
     generatedLang: row.generatedLang,
   };
+}
+
+function ownerFilter(ownerType: FileOwnerType, ownerId: string) {
+  switch (ownerType) {
+    case "deal":
+      return eq(fileLinks.dealId, ownerId);
+    case "counterparty":
+      return eq(fileLinks.counterpartyId, ownerId);
+    case "payment_step":
+      return eq(fileLinks.paymentStepId, ownerId);
+    case "agreement_version":
+      return eq(fileLinks.agreementVersionId, ownerId);
+  }
 }
 
 function mapAttachment(row: StoredFileRecord): FileAttachment {
@@ -104,9 +125,7 @@ export class DrizzleFileReads implements FileReads {
         and(
           eq(fileAssets.id, input.fileAssetId),
           inArray(fileLinks.linkKind, ATTACHMENT_LINK_KINDS),
-          input.ownerType === "deal"
-            ? eq(fileLinks.dealId, input.ownerId)
-            : eq(fileLinks.counterpartyId, input.ownerId),
+          ownerFilter(input.ownerType, input.ownerId),
         ),
       )
       .limit(1);
@@ -122,16 +141,12 @@ export class DrizzleFileReads implements FileReads {
     return row ? mapStoredFile(row) : null;
   }
 
-  async findGeneratedByOwner(input: {
-    generatedFormat: "docx" | "pdf";
-    generatedLang: "en" | "ru";
+  async findLatestByOwnerAndKind(input: {
     linkKind:
-      | "deal_acceptance"
-      | "deal_application"
       | "deal_attachment"
-      | "deal_invoice"
+      | "agreement_signed_contract"
       | "legal_entity_attachment"
-      | "legal_entity_contract";
+      | "payment_step_evidence";
     ownerId: string;
     ownerType: FileOwnerType;
   }): Promise<StoredFileRecord | null> {
@@ -139,16 +154,37 @@ export class DrizzleFileReads implements FileReads {
       .where(
         and(
           eq(fileLinks.linkKind, input.linkKind),
-          eq(fileLinks.generatedFormat, input.generatedFormat),
-          eq(fileLinks.generatedLang, input.generatedLang),
-          input.ownerType === "deal"
-            ? eq(fileLinks.dealId, input.ownerId)
-            : eq(fileLinks.counterpartyId, input.ownerId),
+          ownerFilter(input.ownerType, input.ownerId),
         ),
       )
       .limit(1);
 
     return row ? mapStoredFile(row) : null;
+  }
+
+  async listCurrentFileVersionsByAssetIds(
+    assetIds: string[],
+  ): Promise<FileVersionMetadata[]> {
+    if (assetIds.length === 0) return [];
+    const rows = await this.db
+      .select({
+        assetId: fileAssets.id,
+        fileName: fileVersions.fileName,
+        fileSize: fileVersions.fileSize,
+        mimeType: fileVersions.mimeType,
+      })
+      .from(fileAssets)
+      .innerJoin(
+        fileVersions,
+        eq(fileVersions.id, fileAssets.currentVersionId),
+      )
+      .where(inArray(fileAssets.id, assetIds));
+    return rows.map((row) => ({
+      assetId: row.assetId,
+      fileName: row.fileName,
+      fileSize: row.fileSize,
+      mimeType: row.mimeType,
+    }));
   }
 
   async listAttachmentsByOwner(input: {
@@ -159,9 +195,7 @@ export class DrizzleFileReads implements FileReads {
       .where(
         and(
           inArray(fileLinks.linkKind, ATTACHMENT_LINK_KINDS),
-          input.ownerType === "deal"
-            ? eq(fileLinks.dealId, input.ownerId)
-            : eq(fileLinks.counterpartyId, input.ownerId),
+          ownerFilter(input.ownerType, input.ownerId),
         ),
       )
       .orderBy(desc(fileAssets.createdAt), desc(fileAssets.id));
@@ -192,8 +226,10 @@ export class DrizzleFileReads implements FileReads {
         attachmentVisibility: fileLinks.attachmentVisibility,
         linkId: fileLinks.id,
         linkKind: fileLinks.linkKind,
+        agreementVersionId: fileLinks.agreementVersionId,
         dealId: fileLinks.dealId,
         counterpartyId: fileLinks.counterpartyId,
+        paymentStepId: fileLinks.paymentStepId,
         generatedFormat: fileLinks.generatedFormat,
         generatedLang: fileLinks.generatedLang,
       })

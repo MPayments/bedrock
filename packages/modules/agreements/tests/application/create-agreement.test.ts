@@ -1,24 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { createModuleRuntime } from "@bedrock/shared/core";
+import { createTestLogger } from "@bedrock/test-utils";
 
 import { CreateAgreementCommand } from "../../src/application/commands/create-agreement";
 import {
   AgreementRequisiteBindingMissingError,
   AgreementRequisiteOwnershipError,
 } from "../../src/errors";
-
-function createLogger() {
-  const logger = {
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    debug: vi.fn(),
-    child: vi.fn(),
-  };
-  logger.child.mockReturnValue(logger);
-  return logger;
-}
 
 function createHandlerHarness() {
   const agreementReads = {
@@ -31,16 +20,16 @@ function createHandlerHarness() {
     createAgreementFeeRules: vi.fn(),
     setCurrentVersion: vi.fn(),
   };
+  const idempotency = {
+    withIdempotency: vi.fn(async ({ handler }) => handler()),
+  };
   const tx = {
-    transaction: { id: "tx-1" } as any,
     agreementReads,
     agreementStore,
+    idempotency,
   };
   const commandUow = {
     run: vi.fn(async (work: (value: typeof tx) => Promise<unknown>) => work(tx)),
-  };
-  const idempotency = {
-    withIdempotencyTx: vi.fn(async ({ handler }) => handler()),
   };
   const references = {
     findCustomerById: vi.fn(async () => ({ id: "customer-1" })),
@@ -64,7 +53,7 @@ function createHandlerHarness() {
   ];
   const runtime = createModuleRuntime({
     service: "agreements",
-    logger: createLogger(),
+    logger: createTestLogger(),
     generateUuid: () => uuids.shift() ?? "00000000-0000-4000-8000-000000000099",
     now: () => new Date("2026-03-30T12:00:00.000Z"),
   });
@@ -72,7 +61,6 @@ function createHandlerHarness() {
   const command = new CreateAgreementCommand(
     runtime,
     commandUow as any,
-    idempotency as any,
     references,
   );
 
@@ -130,7 +118,7 @@ describe("create agreement handler", () => {
 
     expect(result).toBe(expectedAgreement);
     expect(harness.commandUow.run).toHaveBeenCalledTimes(1);
-    expect(harness.idempotency.withIdempotencyTx).toHaveBeenCalledTimes(1);
+    expect(harness.idempotency.withIdempotency).toHaveBeenCalledTimes(1);
     expect(harness.references.assertCurrencyExists).toHaveBeenCalledWith(
       "00000000-0000-4000-8000-000000000004",
     );

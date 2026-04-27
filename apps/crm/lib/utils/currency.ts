@@ -6,7 +6,7 @@
 import { formatDecimalString } from "@bedrock/shared/money";
 
 /** Map of currency codes to their symbols */
-export const CURRENCY_SYMBOLS: Record<string, string> = {
+const CURRENCY_SYMBOLS: Record<string, string> = {
   USD: "$",
   EUR: "€",
   RUB: "₽",
@@ -85,21 +85,4 @@ export function formatCurrency(
  */
 export function formatDate(value: string): string {
   return new Date(value).toLocaleDateString("ru-RU");
-}
-
-/**
- * Get the currency symbol for a given code.
- * Returns the code itself if no symbol is defined.
- */
-export function getCurrencySymbol(code: string): string {
-  return CURRENCY_SYMBOLS[code.toUpperCase()] || code;
-}
-
-/**
- * Get a short label for displaying a currency in column headers,
- * using the symbol when available.
- */
-export function getCurrencyLabel(code: string): string {
-  const symbol = CURRENCY_SYMBOLS[code.toUpperCase()];
-  return symbol || code;
 }

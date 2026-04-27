@@ -1,20 +1,19 @@
 import { z } from "@hono/zod-openapi";
-import { and, eq, inArray } from "drizzle-orm";
 
-import { canDealWriteTreasuryOrFormalDocuments } from "@bedrock/deals";
+import {
+  canDealCreateFormalDocuments,
+  canDealWriteTreasuryOrFormalDocuments,
+} from "@bedrock/deals";
 import type { DealDetails, DealTrace } from "@bedrock/deals/contracts";
 import { DealTraceSchema } from "@bedrock/deals/contracts";
-import { fileLinks } from "@bedrock/files/schema";
 import { NotFoundError, ValidationError } from "@bedrock/shared/core/errors";
 import type { QuotePreviewRecord } from "@bedrock/treasury/contracts";
 
 import {
   extractAgreementCommercialDefaults,
   normalizeOptionalDecimalString,
-  percentStringToBps,
 } from "../../composition/commercial-pricing";
 import type { AppContext } from "../../context";
-import { db } from "../../db/client";
 
 export const DealScopedCreateDocumentInputSchema = z.object({
   dealId: z.string().uuid().optional(),
@@ -35,6 +34,57 @@ export async function requireDeal(ctx: AppContext, dealId: string) {
   return deal;
 }
 
+export async function triggerAutoMaterializeAfterAccept(
+  ctx: AppContext,
+  input: { actorUserId: string; dealId: string; quoteId: string },
+): Promise<void> {
+  try {
+    await ctx.dealExecutionWorkflow.requestExecution({
+      actorUserId: input.actorUserId,
+      comment: null,
+      dealId: input.dealId,
+      idempotencyKey: `auto-materialize:${input.quoteId}`,
+    });
+  } catch (materializeError) {
+    ctx.logger.warn("auto-materialize after accept-quote failed", {
+      dealId: input.dealId,
+      error:
+        materializeError instanceof Error
+          ? materializeError.message
+          : String(materializeError),
+      quoteId: input.quoteId,
+    });
+
+    try {
+      await ctx.dealsModule.deals.commands.appendTimelineEvent({
+        actorUserId: input.actorUserId,
+        dealId: input.dealId,
+        payload: {
+          quoteId: input.quoteId,
+          reason:
+            materializeError instanceof Error
+              ? materializeError.message
+              : String(materializeError),
+        },
+        sourceRef: `materialize:auto:${input.quoteId}`,
+        type: "materialization_failed",
+        visibility: "internal",
+      });
+    } catch (timelineError) {
+      ctx.logger.warn(
+        "failed to append materialization_failed timeline event",
+        {
+          dealId: input.dealId,
+          error:
+            timelineError instanceof Error
+              ? timelineError.message
+              : String(timelineError),
+        },
+      );
+    }
+  }
+}
+
 export function assertDealAllowsCommercialWrite(deal: DealDetails) {
   if (
     !canDealWriteTreasuryOrFormalDocuments({
@@ -44,6 +94,19 @@ export function assertDealAllowsCommercialWrite(deal: DealDetails) {
   ) {
     throw new ValidationError(
       `Deal ${deal.id} cannot start treasury quotes or formal documents from status ${deal.status}`,
+    );
+  }
+}
+
+export function assertDealAllowsFormalDocumentCreate(deal: DealDetails) {
+  if (
+    !canDealCreateFormalDocuments({
+      status: deal.status,
+      type: deal.type,
+    })
+  ) {
+    throw new ValidationError(
+      `Deal ${deal.id} cannot create formal documents from status ${deal.status}; formal documents are available from status preparing_documents onwards`,
     );
   }
 }
@@ -95,12 +158,12 @@ async function buildDealScopedQuoteInput(input: {
   const {
     fixedFeeAmount,
     fixedFeeCurrency,
-    quoteMarkupPercent,
+    quoteMarkupBps,
     ...quoteBody
   } = input.body as {
     fixedFeeAmount?: string | null;
     fixedFeeCurrency?: string | null;
-    quoteMarkupPercent?: string | null;
+    quoteMarkupBps?: number | null;
   } & Record<string, unknown>;
   const defaults = extractAgreementCommercialDefaults({
     agreement,
@@ -124,7 +187,7 @@ async function buildDealScopedQuoteInput(input: {
     commercialTerms: {
       agreementVersionId: defaults.agreementVersionId,
       agreementFeeBps: defaults.agreementFeeBps.toString(),
-      quoteMarkupBps: percentStringToBps(quoteMarkupPercent).toString(),
+      quoteMarkupBps: (quoteMarkupBps ?? 0).toString(),
       fixedFeeAmount: normalizedFixedFeeAmount,
       fixedFeeCurrency: normalizedFixedFeeCurrency,
     },
@@ -143,7 +206,7 @@ export async function createDealScopedFormalDocument(input: {
   requestContext?: Parameters<AppContext["documentDraftWorkflow"]["createDraft"]>[0]["requestContext"];
 }) {
   const deal = await requireDeal(input.ctx, input.dealId);
-  assertDealAllowsCommercialWrite(deal);
+  assertDealAllowsFormalDocumentCreate(deal);
 
   if (input.body.dealId && input.body.dealId !== input.dealId) {
     throw new ValidationError(
@@ -166,7 +229,7 @@ export async function buildDealTrace(
   dealId: string,
 ): Promise<DealTrace> {
   const deal = await requireDeal(ctx, dealId);
-  const [quotesResult, documentRows, generatedFileRows] = await Promise.all([
+  const [quotesResult, documentRows] = await Promise.all([
     ctx.treasuryModule.quotes.queries.listQuotes({
       dealId,
       limit: 500,
@@ -175,22 +238,6 @@ export async function buildDealTrace(
       sortOrder: "desc",
     }),
     ctx.documentsReadModel.listDealTraceRowsByDealId(dealId),
-    db
-      .select({
-        fileAssetId: fileLinks.fileAssetId,
-        linkKind: fileLinks.linkKind,
-      })
-      .from(fileLinks)
-      .where(
-        and(
-          eq(fileLinks.dealId, dealId),
-          inArray(fileLinks.linkKind, [
-            "deal_application",
-            "deal_invoice",
-            "deal_acceptance",
-          ]),
-        ),
-      ),
   ]);
 
   const formalDocuments = documentRows.map((row) => ({
@@ -211,10 +258,7 @@ export async function buildDealTrace(
     calculationId: deal.calculationId,
     dealId: deal.id,
     formalDocuments,
-    generatedFiles: generatedFileRows.map((row) => ({
-      fileAssetId: row.fileAssetId,
-      linkKind: row.linkKind,
-    })),
+    generatedFiles: [],
     ledgerOperationIds,
     quotes: quotesResult.data.map((quote) => ({
       createdAt: quote.createdAt,

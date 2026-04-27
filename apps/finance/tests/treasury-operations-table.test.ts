@@ -29,25 +29,15 @@ describe("treasury operations table", () => {
     ).React = React;
   });
 
-  it("renders the operations table and opens the operation panel on row double click", async () => {
+  it("renders the operations table and opens the operation panel from row navigation", async () => {
     const result = {
       data: [],
       limit: 10,
       offset: 0,
       total: 0,
-      viewCounts: {
-        all: 7,
-        exceptions: 2,
-        fx: 1,
-        incoming: 1,
-        intercompany: 1,
-        intracompany: 1,
-        outgoing: 1,
-      },
     };
-    const { TreasuryOperationsTable } = await import(
-      "@/features/treasury/operations/components/table"
-    );
+    const { TreasuryOperationsTable } =
+      await import("@/features/treasury/operations/components/table");
 
     const markup = renderToStaticMarkup(
       createElement(TreasuryOperationsTable, {
@@ -70,24 +60,27 @@ describe("treasury operations table", () => {
       initialState: {
         sorting: Array<{ id: string; desc: boolean }>;
       };
+      onRowClick: (row: { original: { id: string } }) => void;
       onRowDoubleClick: (row: { original: { id: string } }) => void;
     };
 
-    expect(props.columns.map((column) => column.accessorKey ?? column.id)).toEqual([
-      "kind",
-      "amount",
-      "internalEntity",
-      "accounts",
-      "providerRoute",
-      "instructionStatus",
-      "dealRef",
-      "nextAction",
-      "createdAt",
-    ]);
+    expect(
+      props.columns.map((column) => column.accessorKey ?? column.id),
+    ).toEqual(["kind", "state", "purpose", "amounts", "attempts", "createdAt"]);
     expect(props.initialState).toEqual({
       sorting: [{ id: "createdAt", desc: true }],
     });
     expect(props.getRowId({ id: "operation-1" })).toBe("operation-1");
+
+    props.onRowClick({
+      original: {
+        id: "114fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+      },
+    });
+
+    expect(push).toHaveBeenCalledWith(
+      "/treasury/operations/114fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+    );
 
     props.onRowDoubleClick({
       original: {
@@ -95,7 +88,7 @@ describe("treasury operations table", () => {
       },
     });
 
-    expect(push).toHaveBeenCalledWith(
+    expect(push).toHaveBeenLastCalledWith(
       "/treasury/operations/114fb6eb-a1bd-429e-9628-e97d0f2efa0b",
     );
   }, 15_000);

@@ -70,7 +70,7 @@ describe("deal operational state", () => {
           state: "pending",
         }),
         expect.objectContaining({
-          kind: "provider_payable",
+          kind: "downstream_payable",
           reasonCode: "execution_pending",
           state: "pending",
         }),

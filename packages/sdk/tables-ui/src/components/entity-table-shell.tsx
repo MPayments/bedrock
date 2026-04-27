@@ -1,9 +1,16 @@
 "use client";
 
 import * as React from "react";
-import type { ColumnDef, Row as TanstackRow, TableState } from "@tanstack/react-table";
+import type {
+  ColumnDef,
+  Row as TanstackRow,
+  TableState,
+} from "@tanstack/react-table";
 
-import { DataTable, type ContextMenuItem } from "@bedrock/sdk-tables-ui/components/data-table";
+import {
+  DataTable,
+  type ContextMenuItem,
+} from "@bedrock/sdk-tables-ui/components/data-table";
 import { DataTableToolbar } from "@bedrock/sdk-tables-ui/components/data-table-toolbar";
 import { useDataTable } from "@bedrock/sdk-tables-ui/hooks/use-data-table";
 import type { ExtendedColumnSort } from "@bedrock/sdk-tables-ui/lib/types";
@@ -24,8 +31,11 @@ type EntityTableShellProps<TData> = {
   columns: ColumnDef<TData>[];
   getRowId: (row: TData) => string;
   initialState?: EntityTableInitialState<TData>;
+  onRowClick?: (row: TanstackRow<TData>) => void;
   onRowDoubleClick?: (row: TanstackRow<TData>) => void;
-  contextMenuItems?: ContextMenuItem<TData>[] | ((row: TanstackRow<TData>) => ContextMenuItem<TData>[]);
+  contextMenuItems?:
+    | ContextMenuItem<TData>[]
+    | ((row: TanstackRow<TData>) => ContextMenuItem<TData>[]);
   clearOnDefault?: boolean;
 };
 
@@ -34,6 +44,7 @@ export function EntityTableShell<TData>({
   columns,
   getRowId,
   initialState,
+  onRowClick,
   onRowDoubleClick,
   contextMenuItems,
   clearOnDefault = true,
@@ -53,6 +64,13 @@ export function EntityTableShell<TData>({
   return (
     <DataTable
       table={table}
+      onRowClick={
+        onRowClick
+          ? (row) => {
+              onRowClick(row);
+            }
+          : undefined
+      }
       onRowDoubleClick={
         onRowDoubleClick
           ? (row) => {

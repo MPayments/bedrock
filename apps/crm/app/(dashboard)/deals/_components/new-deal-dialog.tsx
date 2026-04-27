@@ -339,6 +339,7 @@ export function NewDealDialog({
         dealType === "payment"
           ? {
               ...current.moneyRequest,
+              sourceAmount: null,
               sourceCurrencyId:
                 current.type !== "payment"
                   ? defaultPaymentSourceCurrencyId

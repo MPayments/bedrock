@@ -1,8 +1,8 @@
 import { asc, eq } from "drizzle-orm";
 
-import type { AccountingModule } from "@bedrock/accounting";
 import {
   createAccountingPeriodDocumentTransitionEffectsService,
+  createDocumentsAccountingPeriodsPort,
   createDocumentsService,
   createRuleBasedDocumentActionPolicyService,
   type DocumentApprovalRule,
@@ -10,7 +10,10 @@ import {
 import { createDrizzleDocumentsReadModel } from "@bedrock/documents/read-model";
 import { user } from "@bedrock/iam/schema";
 import { createIdempotencyService } from "@bedrock/platform/idempotency-postgres";
-import { noopLogger, type Logger } from "@bedrock/platform/observability/logger";
+import {
+  noopLogger,
+  type Logger,
+} from "@bedrock/platform/observability/logger";
 import {
   bindPersistenceSession,
   createPersistenceContext,
@@ -104,83 +107,18 @@ export function createPeriodCloseWorkerDefinition(deps: {
     persistence: createPersistenceContext(deps.db),
     logger: accountingLogger,
   });
-  const accountingPeriods = {
-    async assertOrganizationPeriodsOpen(input: {
-      occurredAt: Date;
-      organizationIds: string[];
-      docType: string;
-    }) {
-      return accountingModule.periods.commands.assertOrganizationPeriodsOpen(
-        input,
-      );
-    },
-    async listClosedOrganizationIdsForPeriod(input: {
-      organizationIds: string[];
-      occurredAt: Date;
-    }) {
-      return accountingModule.periods.queries.listClosedOrganizationIdsForPeriod(
-        input,
-      );
-    },
-    async closePeriod(input: {
-      organizationId: string;
-      periodStart: Date;
-      periodEnd: Date;
-      closedBy: string;
-      closeReason?: string | null;
-      closeDocumentId: string;
-      db?: unknown;
-    }) {
-      const target = input.db as Transaction | undefined;
-      const module: AccountingModule = target
-        ? createWorkerAccountingModule({
-            db: target,
-            persistence: bindPersistenceSession(target),
-            logger: accountingLogger,
-          })
-        : accountingModule;
+  const accountingPeriods = createDocumentsAccountingPeriodsPort({
+    accountingModule,
+    createAccountingModuleForTransaction: (transaction) => {
+      const tx = transaction as Transaction;
 
-      return module.periods.commands.closePeriod({
-        organizationId: input.organizationId,
-        periodStart: input.periodStart,
-        periodEnd: input.periodEnd,
-        closedBy: input.closedBy,
-        closeReason: input.closeReason,
-        closeDocumentId: input.closeDocumentId,
+      return createWorkerAccountingModule({
+        db: tx,
+        persistence: bindPersistenceSession(tx),
+        logger: accountingLogger,
       });
     },
-    async isOrganizationPeriodClosed(input: {
-      organizationId: string;
-      occurredAt: Date;
-    }) {
-      return accountingModule.periods.queries.isOrganizationPeriodClosed(input);
-    },
-    async reopenPeriod(input: {
-      organizationId: string;
-      periodStart: Date;
-      reopenedBy: string;
-      reopenReason?: string | null;
-      reopenDocumentId?: string | null;
-      db?: unknown;
-    }) {
-      const target = input.db as Transaction | undefined;
-      const module: AccountingModule = target
-        ? createWorkerAccountingModule({
-            db: target,
-            persistence: bindPersistenceSession(target),
-            logger: accountingLogger,
-          })
-        : accountingModule;
-
-      return module.periods.commands.reopenPeriod({
-        organizationId: input.organizationId,
-        periodStart: input.periodStart,
-        reopenedBy: input.reopenedBy,
-        reopenReason: input.reopenReason,
-        reopenDocumentId: input.reopenDocumentId,
-      });
-    },
-  };
+  });
   const documentsAccountingPort = {
     getDefaultCompiledPack:
       accountingModule.packs.queries.getDefaultCompiledPack,

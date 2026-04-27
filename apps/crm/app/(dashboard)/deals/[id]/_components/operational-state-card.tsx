@@ -19,7 +19,7 @@ const CRM_POSITION_LABELS: Partial<
   customer_receivable: "Поступление от клиента",
   exporter_expected_receivable: "Ожидаемая экспортная выручка",
   in_transit: "Средства в транзите",
-  provider_payable: "Выплата получателю",
+  downstream_payable: "Выплата получателю",
 };
 
 const HIDDEN_POSITION_KINDS = new Set<

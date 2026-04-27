@@ -25,8 +25,6 @@ import { canonicalJson } from "@bedrock/shared/core/canon";
 
 import type { CommercialDocumentRuntime, CommercialModuleDeps } from "./types";
 import {
-  AcceptancePayloadSchema,
-  ExchangePayloadSchema,
   InvoicePayloadSchema,
   QuoteSnapshotSchema,
   type ExchangePayload,
@@ -388,30 +386,6 @@ export function buildDirectInvoicePostingPlan(input: {
         },
         memo: input.payload.memo ?? null,
       }),
-      ...buildFinancialLineRequests({
-        document: input.document,
-        bookId: input.bookId,
-        customerId: input.payload.customerId,
-        orderId: input.document.id,
-        counterpartyId: input.payload.counterpartyId,
-        quoteRef,
-        chainId,
-        lines: input.payload.financialLines.map((line) =>
-          normalizeFinancialLine({
-            id: line.id,
-            bucket: line.bucket,
-            currency: line.currency,
-            amountMinor: BigInt(line.amountMinor),
-            source: line.source,
-            settlementMode: line.settlementMode,
-            memo: line.memo ?? undefined,
-            metadata: line.metadata ?? undefined,
-          }),
-        ),
-        includeCustomerLines: true,
-        includeProviderLines: true,
-        postingPhase: "direct",
-      }),
     ],
   });
 }
@@ -714,12 +688,4 @@ export async function invoiceRequiresExchange(
   }
 
   return false;
-}
-
-export function parseExchangePayload(document: Document) {
-  return parseDocumentPayload(ExchangePayloadSchema, document);
-}
-
-export function parseAcceptancePayload(document: Document) {
-  return parseDocumentPayload(AcceptancePayloadSchema, document);
 }

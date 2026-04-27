@@ -50,7 +50,7 @@ interface FinanceDealsListFilters {
   };
 }
 
-export const FINANCE_DEALS_LIST_CONTRACT: ListQueryContract<
+const FINANCE_DEALS_LIST_CONTRACT: ListQueryContract<
   typeof FINANCE_DEALS_SORTABLE_COLUMNS,
   FinanceDealsListFilters
 > = {

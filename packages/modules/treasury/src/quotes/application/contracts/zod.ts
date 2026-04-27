@@ -115,11 +115,11 @@ export const QuotePricingTraceSchema = z
     mode: quotePricingModeSchema,
     summary: z.string().max(2_000).optional(),
     steps: z.array(z.record(z.string(), z.unknown())).optional(),
-    metadata: z.record(z.string(), z.string().max(255)).optional(),
+    metadata: z.record(z.string(), z.unknown()).optional(),
   })
   .passthrough();
 
-export const QuoteCommercialTermsInputSchema = z
+const QuoteCommercialTermsInputSchema = z
   .object({
     agreementVersionId: uuidSchema.nullish(),
     agreementFeeBps: nonNegativeIntegerStringSchema.optional(),
@@ -149,23 +149,23 @@ export const QuoteCommercialTermsSchema = z.object({
   fixedFeeCurrency: currencySchema.nullable(),
 });
 
-export const quoteMinorAmountInputSchema = z.union([
+const quoteMinorAmountInputSchema = z.union([
   positiveAmountSchema,
   positiveMinorAmountStringSchema.transform((value) => BigInt(value)),
 ]);
 
-export const quoteDateInputSchema = z.union([
+const quoteDateInputSchema = z.union([
   z.date(),
   z.iso.datetime().transform((value) => new Date(value)),
 ]);
 
-export const quoteFinancialLineInputSchema = z.union([
+const quoteFinancialLineInputSchema = z.union([
   QuoteFinancialLineSchema,
   z.object({
     id: z.string().min(1).max(128),
     bucket: z.enum(FINANCIAL_LINE_BUCKETS),
     currency: currencySchema,
-    amountMinor: positiveMinorAmountStringSchema,
+    amountMinor: quoteMinorAmountInputSchema,
     source: financialLineSourceSchema,
     settlementMode: financialLineSettlementModeSchema.optional(),
     memo: z.string().max(1_000).optional(),
@@ -179,7 +179,7 @@ export const quoteFinancialLineInputSchema = z.union([
       : BigInt(line.amountMinor),
 }));
 
-export const quoteLegInputDataSchema = z.union([
+const quoteLegInputDataSchema = z.union([
   z.object({
     fromCurrency: currencySchema,
     toCurrency: currencySchema,
@@ -196,11 +196,9 @@ export const quoteLegInputDataSchema = z.union([
     rateDen: BigInt(leg.rateDen),
     asOf: leg.asOf ? new Date(leg.asOf) : undefined,
   })),
-]).refine((leg) => leg.fromCurrency !== leg.toCurrency, {
-  message: "Leg currencies must be different",
-});
+]);
 
-export const pricingTraceInputSchema = QuotePricingTraceSchema.transform(
+const pricingTraceInputSchema = QuotePricingTraceSchema.transform(
   (trace) => trace as Record<string, unknown>,
 );
 

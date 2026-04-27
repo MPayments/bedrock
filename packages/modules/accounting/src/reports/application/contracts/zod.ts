@@ -33,11 +33,11 @@ const ReportStatusArrayQuerySchema = z
   .preprocess(toArray, z.array(ReportFinancialStatusSchema).optional())
   .transform((value) => (value && value.length > 0 ? value : ["posted"]));
 
-export const ReportScopeTypeSchema = z
+const ReportScopeTypeSchema = z
   .enum(["all", "counterparty", "group", "book"])
   .default("all");
 
-export const ReportAttributionModeSchema = z
+const ReportAttributionModeSchema = z
   .enum(["analytic_counterparty", "book_org"])
   .default("analytic_counterparty");
 

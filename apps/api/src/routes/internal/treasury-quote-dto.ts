@@ -47,6 +47,7 @@ export function serializeQuote(
     usedAt: quote.usedAt?.toISOString() ?? null,
     expiresAt: quote.expiresAt.toISOString(),
     idempotencyKey: quote.idempotencyKey,
+    pricingFingerprint: quote.pricingFingerprint,
     createdAt: quote.createdAt.toISOString(),
     dealRef,
   };

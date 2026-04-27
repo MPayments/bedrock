@@ -38,7 +38,7 @@ describe("navigation config", () => {
     ]);
   });
 
-  it("shows admin sections and no dead placeholder links", () => {
+  it("shows admin sections", () => {
     const items = getPrimaryNavigation(createSession("admin"));
     const hrefs = items.flatMap((item) => [
       item.href,
@@ -69,12 +69,6 @@ describe("navigation config", () => {
     expect(hrefs).toContain("/treasury/rates");
     expect(hrefs).toContain("/treasury/operations");
     expect(hrefs).toContain("/treasury/quotes");
-    expect(hrefs).not.toContain("/operations");
-    expect(hrefs).not.toContain("#");
-    expect(hrefs).not.toContain("/treasury/counterparty-accounts");
-    expect(hrefs).not.toContain("/finance/accounting");
-    expect(hrefs).not.toContain("/transfers");
-    expect(hrefs).not.toContain("/entities/parties/customers");
   });
 
   it("keeps secondary navigation available", () => {

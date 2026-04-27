@@ -60,7 +60,7 @@ describe("treasury deal labels", () => {
   });
 
   it("keeps operational position visibility rules for the execution UI", () => {
-    expect(isPrimaryOperationalPositionVisible("provider_payable")).toBe(true);
+    expect(isPrimaryOperationalPositionVisible("downstream_payable")).toBe(true);
     expect(isPrimaryOperationalPositionVisible("spread_revenue")).toBe(false);
   });
 

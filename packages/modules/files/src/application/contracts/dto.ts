@@ -42,6 +42,7 @@ export const FileLinkSchema = z.object({
   attachmentVisibility: FileAttachmentVisibilitySchema.nullable(),
   id: z.uuid(),
   linkKind: FileLinkKindSchema,
+  agreementVersionId: z.uuid().nullable(),
   dealId: z.uuid().nullable(),
   counterpartyId: z.uuid().nullable(),
   generatedFormat: FileGeneratedFormatSchema.nullable(),

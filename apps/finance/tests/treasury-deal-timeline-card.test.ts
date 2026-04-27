@@ -25,17 +25,13 @@ describe("treasury deal timeline card", () => {
               canCreateLegOperation: false,
               exchangeDocument: null,
             },
+            fromCurrencyId: null,
             id: "714fb6eb-a1bd-429e-9628-e97d0f2efa0b",
             idx: 1,
             kind: "collect",
-            operationRefs: [
-              {
-                kind: "payin",
-                operationId: "operation-1",
-                sourceRef: "deal:1:collect",
-              },
-            ],
-            state: "ready",
+            routeSnapshotLegId: null,
+            runtimeState: "ready",
+            toCurrencyId: null,
           },
         ],
         timeline: [
@@ -56,6 +52,7 @@ describe("treasury deal timeline card", () => {
             occurredAt: "2026-04-13T10:11:00.000Z",
             payload: {
               attempt: 2,
+              legId: "714fb6eb-a1bd-429e-9628-e97d0f2efa0b",
               operationId: "operation-1",
             },
             type: "instruction_submitted",

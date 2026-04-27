@@ -13,9 +13,10 @@ import {
 } from "@bedrock/treasury";
 import {
   DrizzlePaymentRouteTemplatesRepository,
+  DrizzlePaymentStepsRepository,
+  DrizzleQuoteExecutionsRepository,
   DrizzleTreasuryFeeRulesRepository,
-  DrizzleTreasuryInstructionsRepository,
-  DrizzleTreasuryOperationsRepository,
+  DrizzleTreasuryOrdersRepository,
   DrizzleTreasuryQuoteFeeComponentsRepository,
   DrizzleTreasuryQuoteFinancialLinesRepository,
   DrizzleTreasuryQuotesRepository,
@@ -39,8 +40,6 @@ export function createApiTreasuryModule(input: {
     now: input.now ?? (() => new Date()),
     generateUuid: input.generateUuid ?? randomUUID,
     currencies: input.currencies,
-    instructionsRepository: new DrizzleTreasuryInstructionsRepository(input.db),
-    operationsRepository: new DrizzleTreasuryOperationsRepository(input.db),
     ratesRepository: new DrizzleTreasuryRatesRepository(input.db),
     quotesRepository: new DrizzleTreasuryQuotesRepository(input.db),
     quoteFinancialLinesRepository:
@@ -50,6 +49,9 @@ export function createApiTreasuryModule(input: {
     feeRulesRepository: new DrizzleTreasuryFeeRulesRepository(input.db),
     paymentRouteTemplatesRepository:
       new DrizzlePaymentRouteTemplatesRepository(input.db),
+    paymentStepsRepository: new DrizzlePaymentStepsRepository(input.db),
+    quoteExecutionsRepository: new DrizzleQuoteExecutionsRepository(input.db),
+    treasuryOrdersRepository: new DrizzleTreasuryOrdersRepository(input.db),
     unitOfWork: new DrizzleTreasuryUnitOfWork({ persistence }),
     rateSourceProviders: createDefaultRateSourceProviders(),
   });

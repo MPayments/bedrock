@@ -23,6 +23,7 @@ import {
   activityRoutes,
   agentsRoutes,
   agreementsRoutes,
+  aiRoutes,
   balancesRoutes,
   calculationsRoutes,
   counterpartiesRoutes,
@@ -40,10 +41,12 @@ import {
   requisitesRoutes,
   subAgentProfilesRoutes,
   treasuryOrganizationBalancesRoutes,
-  treasuryInstructionRoutes,
-  treasuryOperationsRoutes,
+  treasuryOrdersRoutes,
+  treasuryQueueRoutes,
+  treasuryQuoteExecutionsRoutes,
   treasuryQuotesRoutes,
   treasuryRatesRoutes,
+  treasuryStepsRoutes,
   usersRoutes,
 } from "./routes";
 import { customerAuthRoutes } from "./routes/customer-auth";
@@ -206,6 +209,7 @@ function createV1Routes(ctx: AppContext) {
     .route("/activity", activityRoutes(ctx))
     .route("/agents", agentsRoutes(ctx))
     .route("/agreements", agreementsRoutes(ctx))
+    .route("/ai", aiRoutes(ctx))
     .route("/balances", balancesRoutes(ctx))
     .route("/calculations", calculationsRoutes(ctx))
     .route("/counterparties", counterpartyDirectoryRoutes(ctx))
@@ -225,10 +229,12 @@ function createV1Routes(ctx: AppContext) {
       "/treasury/organizations/balances",
       treasuryOrganizationBalancesRoutes(ctx),
     )
-    .route("/treasury/instructions", treasuryInstructionRoutes(ctx))
-    .route("/treasury/operations", treasuryOperationsRoutes(ctx))
+    .route("/treasury/orders", treasuryOrdersRoutes(ctx))
+    .route("/treasury/queue", treasuryQueueRoutes(ctx))
+    .route("/treasury/quote-executions", treasuryQuoteExecutionsRoutes(ctx))
     .route("/treasury/quotes", treasuryQuotesRoutes(ctx))
     .route("/treasury/rates", treasuryRatesRoutes(ctx))
+    .route("/treasury/steps", treasuryStepsRoutes(ctx))
     .route("/users", usersRoutes(ctx))
     .route("/me", profileRoutes(ctx));
 }

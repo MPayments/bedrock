@@ -29,7 +29,7 @@ import type {
   DocumentsQueryRepository,
 } from "../documents/ports";
 
-export function resolveDocumentAllowedActionsForDocument(input: {
+function resolveDocumentAllowedActionsForDocument(input: {
   registry?: DocumentRegistry;
   document: Document;
 }) {

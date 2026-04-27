@@ -10,18 +10,21 @@ import { seedCurrencies } from "../helpers";
 const pool = createTestPgPool();
 const db = createTestDrizzleDb(pool, schema);
 
-async function cleanupFxRateTables() {
-    await pool.query("DELETE FROM fx_rates");
-    await pool.query("DELETE FROM fx_rate_sources");
+async function cleanupTreasuryTables() {
+  await pool.query("DELETE FROM payment_step_artifacts");
+  await pool.query("DELETE FROM payment_step_attempts");
+  await pool.query("DELETE FROM payment_steps");
+  await pool.query("DELETE FROM fx_rates");
+  await pool.query("DELETE FROM fx_rate_sources");
 }
 
 registerPgIntegrationLifecycle({
   name: "Treasury",
   pool,
-  cleanup: cleanupFxRateTables,
+  cleanup: cleanupTreasuryTables,
   setup: async () => {
     await seedCurrencies(db);
   },
 });
 
-export { db, pool };
+export { db };

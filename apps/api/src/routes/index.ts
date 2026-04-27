@@ -2,6 +2,7 @@ export { agreementsRoutes } from "./agreements";
 export { accountingRoutes } from "./accounting";
 export { activityRoutes } from "./activity";
 export { agentsRoutes } from "./agents";
+export { aiRoutes } from "./ai";
 export { balancesRoutes } from "./balances";
 export { calculationsRoutes } from "./calculations";
 export { counterpartiesRoutes } from "./counterparties";
@@ -18,11 +19,11 @@ export { profileRoutes } from "./profile";
 export { requisiteProvidersRoutes } from "./requisite-providers";
 export { requisitesRoutes } from "./requisites";
 export { subAgentProfilesRoutes } from "./sub-agent-profiles";
+export { treasuryQueueRoutes } from "./treasury-queue";
+export { treasuryQuoteExecutionsRoutes } from "./treasury-quote-executions";
 export { treasuryQuotesRoutes } from "./treasury-quotes";
 export { treasuryRatesRoutes } from "./treasury-rates";
-export {
-  treasuryInstructionRoutes,
-  treasuryOperationsRoutes,
-} from "./treasury-operations";
+export { treasuryOrdersRoutes } from "./treasury-orders";
+export { treasuryStepsRoutes } from "./treasury-steps";
 export { treasuryOrganizationBalancesRoutes } from "./treasury-organizations-balances";
 export { usersRoutes } from "./users";

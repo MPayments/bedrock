@@ -1,6 +1,6 @@
 import { minorToAmountString } from "@bedrock/shared/money";
 
-export function formatMajorAmount(amount: string | number | bigint): string {
+function formatMajorAmount(amount: string | number | bigint): string {
   const normalized = String(amount).trim().replace(",", ".");
   const match = /^(-?)(\d+)(?:\.(\d+))?$/.exec(normalized);
   if (!match) {
@@ -31,7 +31,7 @@ export function formatMajorAmount(amount: string | number | bigint): string {
   return `${signRaw}${integerPart},${fractionPart}`;
 }
 
-export function formatMinorAmount(
+function formatMinorAmount(
   amount: string | number | bigint,
   precision = 2,
 ): string {

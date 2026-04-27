@@ -6,8 +6,10 @@ import * as React from "react";
 
 import { EntityTableShell } from "@bedrock/sdk-tables-ui/components/entity-table-shell";
 
-import type { TreasuryOperationsListResult } from "../lib/queries";
-import type { TreasuryOperationWorkspaceItem } from "@bedrock/treasury/contracts";
+import type {
+  TreasuryOperationRow,
+  TreasuryOperationsListResult,
+} from "../lib/queries";
 
 import { columns } from "./columns";
 
@@ -21,8 +23,8 @@ export function TreasuryOperationsTable({
   const router = useRouter();
   const result = React.use(promise);
 
-  const handleRowDoubleClick = React.useCallback(
-    (row: TanstackRow<TreasuryOperationWorkspaceItem>) => {
+  const handleRowOpen = React.useCallback(
+    (row: TanstackRow<TreasuryOperationRow>) => {
       router.push(`/treasury/operations/${row.original.id}`);
     },
     [router],
@@ -36,7 +38,8 @@ export function TreasuryOperationsTable({
       initialState={{
         sorting: [{ id: "createdAt", desc: true }],
       }}
-      onRowDoubleClick={handleRowDoubleClick}
+      onRowClick={handleRowOpen}
+      onRowDoubleClick={handleRowOpen}
     />
   );
 }

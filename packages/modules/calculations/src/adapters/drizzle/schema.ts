@@ -1,4 +1,4 @@
-import { relations, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import {
   bigint,
   boolean,
@@ -265,46 +265,4 @@ export const calculationLines = pgTable(
     ),
     index("calculation_lines_snapshot_idx").on(table.calculationSnapshotId),
   ],
-);
-
-export const calculationsRelations = relations(calculations, ({ many, one }) => ({
-  currentSnapshot: one(calculationSnapshots, {
-    relationName: "calculations_current_snapshot",
-    fields: [calculations.currentSnapshotId],
-    references: [calculationSnapshots.id],
-  }),
-  snapshots: many(calculationSnapshots, {
-    relationName: "calculation_snapshots_calculation",
-  }),
-}));
-
-export const calculationSnapshotsRelations = relations(
-  calculationSnapshots,
-  ({ many, one }) => ({
-    calculation: one(calculations, {
-      relationName: "calculation_snapshots_calculation",
-      fields: [calculationSnapshots.calculationId],
-      references: [calculations.id],
-    }),
-    lines: many(calculationLines),
-    currentCalculation: one(calculations, {
-      relationName: "calculations_current_snapshot",
-      fields: [calculationSnapshots.id],
-      references: [calculations.currentSnapshotId],
-    }),
-  }),
-);
-
-export const calculationLinesRelations = relations(
-  calculationLines,
-  ({ one }) => ({
-    snapshot: one(calculationSnapshots, {
-      fields: [calculationLines.calculationSnapshotId],
-      references: [calculationSnapshots.id],
-    }),
-    currency: one(currencies, {
-      fields: [calculationLines.currencyId],
-      references: [currencies.id],
-    }),
-  }),
 );

@@ -1,3 +1,5 @@
+import { FORMAL_DOCUMENT_LABELS } from "@bedrock/deals/labels";
+
 import type {
   ApiDealTimelineEvent,
   DealLegKind,
@@ -7,6 +9,8 @@ import type {
   DealStatus,
   DealType,
 } from "./types";
+
+export { FORMAL_DOCUMENT_LABELS };
 
 export const STATUS_LABELS: Record<DealStatus, string> = {
   awaiting_funds: "Ожидание средств",
@@ -39,7 +43,7 @@ export const DEAL_TYPE_LABELS: Record<DealType, string> = {
   payment: "Платеж поставщику",
 };
 
-export const DEAL_PARTICIPANT_ROLE_LABELS: Record<string, string> = {
+const DEAL_PARTICIPANT_ROLE_LABELS: Record<string, string> = {
   applicant: "контрагент клиента",
   customer: "клиент",
   external_beneficiary: "получатель выплаты",
@@ -47,16 +51,6 @@ export const DEAL_PARTICIPANT_ROLE_LABELS: Record<string, string> = {
   internal_entity: "наша организация",
 };
 
-export const FORMAL_DOCUMENT_LABELS: Record<string, string> = {
-  acceptance: "Акт / подтверждение исполнения",
-  exchange: "Документ по обмену валюты",
-  fx_execute: "Исполнение конвертации",
-  fx_resolution: "Сверка по конвертации",
-  invoice: "Исходящий инвойс",
-  transfer_intra: "Внутренний перевод",
-  transfer_intercompany: "Межкомпанейский перевод",
-  transfer_resolution: "Сверка по переводу",
-};
 
 export const DEAL_LEG_KIND_LABELS: Record<DealLegKind, string> = {
   collect: "Сбор средств",
@@ -71,7 +65,7 @@ export const DEAL_LEG_STATE_LABELS: Record<DealLegState, string> = {
   done: "Завершен",
   in_progress: "В работе",
   pending: "Ожидает",
-  ready: "Готов",
+  ready: "Подготовлен",
   skipped: "Пропущен",
 };
 
@@ -84,7 +78,7 @@ export const DEAL_LEG_STATE_COLORS: Record<DealLegState, string> = {
   skipped: "bg-zinc-100 text-zinc-700",
 };
 
-export const DEAL_OPERATIONAL_POSITION_LABELS: Record<
+const DEAL_OPERATIONAL_POSITION_LABELS: Record<
   DealOperationalPositionKind,
   string
 > = {
@@ -94,16 +88,9 @@ export const DEAL_OPERATIONAL_POSITION_LABELS: Record<
   in_transit: "Средства в транзите",
   intercompany_due_from: "Межкомпанейская дебиторка",
   intercompany_due_to: "Межкомпанейская кредиторка",
-  provider_payable: "Обязательство перед провайдером",
+  downstream_payable: "Исходящая кредиторка",
   spread_revenue: "Доход от спреда",
   suspense: "Суспенс",
-};
-
-export const DEAL_QUOTE_STATUS_LABELS: Record<string, string> = {
-  active: "Активна",
-  cancelled: "Отменена",
-  expired: "Истекла",
-  used: "Исполнена",
 };
 
 export const DEAL_OPERATIONAL_POSITION_STATE_LABELS: Record<
@@ -150,7 +137,7 @@ const DEAL_NEXT_ACTION_LABELS: Record<string, string> = {
   "Resolve approvals": "Завершить согласование",
   "Resolve operational state": "Разобрать операционное состояние",
   "Submit deal": "Отправить сделку",
-  "Update execution leg state": "Обновить этап исполнения",
+  "Update execution leg state": "Обновить шаг исполнения",
 };
 
 const DEAL_MESSAGE_LABELS: Record<string, string> = {
@@ -201,8 +188,10 @@ export const DEAL_TIMELINE_EVENT_LABELS: Record<
   instruction_settled: "Инструкция исполнена",
   instruction_submitted: "Инструкция отправлена",
   instruction_voided: "Инструкция отменена",
+  leg_manual_override_cleared: "Оператор снял ручную блокировку шага",
+  leg_manual_override_set: "Оператор заблокировал или пропустил шаг",
   leg_operation_created: "Создана казначейская операция",
-  leg_state_changed: "Состояние этапа изменено",
+  leg_state_changed: "Состояние шага изменено",
   participant_changed: "Участники изменены",
   quote_accepted: "Котировка принята",
   quote_created: "Котировка создана",

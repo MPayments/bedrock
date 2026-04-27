@@ -42,7 +42,7 @@ function hasText(value: string | null | undefined): boolean {
   return typeof value === "string" && value.trim().length > 0;
 }
 
-export function collectRequisiteFieldIssues(
+function collectRequisiteFieldIssues(
   input: RequisiteFieldsInput,
 ): string[] {
   const issues: string[] = [];
@@ -78,7 +78,7 @@ export function collectRequisiteFieldIssues(
   return issues;
 }
 
-export function validateRequisiteFields(input: RequisiteFieldsInput) {
+function validateRequisiteFields(input: RequisiteFieldsInput) {
   const issues = collectRequisiteFieldIssues(input);
 
   invariant(issues.length === 0, issues.join("; "), {
@@ -134,7 +134,7 @@ export class RequisiteDetails extends ValueObject<RequisiteDetailsFields> {
   }
 }
 
-export function resolveRequisiteIdentity(input: RequisiteFieldsInput): string {
+function resolveRequisiteIdentity(input: RequisiteFieldsInput): string {
   switch (input.kind) {
     case "bank":
       return input.accountNo?.trim() || input.iban?.trim() || "";

@@ -1,11 +1,11 @@
 import type { CurrenciesService } from "@bedrock/currencies";
-import { normalizeFinancialLine } from "@bedrock/documents/contracts";
 import type { LedgerOperationDetails } from "@bedrock/ledger/contracts";
 import { DocumentValidationError } from "@bedrock/plugin-documents-sdk";
-import { canonicalJson } from "@bedrock/shared/core/canon";
-import { sha256Hex } from "@bedrock/shared/core/crypto";
-import { ServiceError } from "@bedrock/shared/core/errors";
-import { minorToAmountString } from "@bedrock/shared/money";
+import {
+  buildQuoteSnapshotBase,
+  buildQuoteSnapshotHash,
+  rethrowAsDocumentValidationError,
+} from "@bedrock/plugin-documents-sdk/module-kit";
 import type {
   CreateQuoteInput,
   GetQuoteDetailsInput,
@@ -21,128 +21,15 @@ const FX_EXECUTE_DOC_TYPE = "fx_execute";
 const TRANSFER_DOC_TYPES = ["transfer_intra", "transfer_intercompany"] as const;
 
 interface IfrsTreasuryQuotesPort {
-  getQuoteDetails(
-    input: GetQuoteDetailsInput,
-  ): Promise<QuoteDetailsRecord>;
-  markQuoteUsed(
-    input: MarkQuoteUsedInput,
-  ): Promise<QuoteRecord>;
-  createQuote(
-    input: CreateQuoteInput,
-  ): Promise<QuoteRecord>;
+  getQuoteDetails(input: GetQuoteDetailsInput): Promise<QuoteDetailsRecord>;
+  markQuoteUsed(input: MarkQuoteUsedInput): Promise<QuoteRecord>;
+  createQuote(input: CreateQuoteInput): Promise<QuoteRecord>;
 }
 
 interface IfrsLedgerReadPort {
   getOperationDetails(
     operationId: string,
   ): Promise<LedgerOperationDetails | null>;
-}
-
-function buildQuoteSnapshotHash(snapshot: Record<string, unknown>) {
-  return sha256Hex(canonicalJson(snapshot));
-}
-
-function rethrowAsDocumentValidationError(error: unknown): never {
-  if (error instanceof DocumentValidationError) {
-    throw error;
-  }
-
-  if (error instanceof ServiceError) {
-    throw new DocumentValidationError(error.message);
-  }
-
-  throw error;
-}
-
-async function buildCurrencyPrecisionMap(
-  currenciesService: Pick<CurrenciesService, "findByCode">,
-  currencyCodes: string[],
-) {
-  const uniqueCurrencyCodes = [...new Set(currencyCodes)];
-  const precisionByCode = new Map<string, number>();
-
-  await Promise.all(
-    uniqueCurrencyCodes.map(async (code) => {
-      const currency = await currenciesService.findByCode(code);
-      precisionByCode.set(code, currency.precision);
-    }),
-  );
-
-  return precisionByCode;
-}
-
-async function buildQuoteSnapshotBase(input: {
-  currenciesService: CurrenciesService;
-  details: QuoteDetailsRecord;
-}) {
-  const { currenciesService, details } = input;
-  const fromCurrency = details.quote.fromCurrency;
-  const toCurrency = details.quote.toCurrency;
-
-  if (!fromCurrency || !toCurrency) {
-    throw new DocumentValidationError(
-      `Quote ${details.quote.id} is missing currency codes`,
-    );
-  }
-
-  const precisionByCode = await buildCurrencyPrecisionMap(
-    { findByCode: currenciesService.findByCode },
-    [
-      fromCurrency,
-      toCurrency,
-      ...details.legs.flatMap((leg) => [
-        leg.fromCurrency ?? fromCurrency,
-        leg.toCurrency ?? toCurrency,
-      ]),
-      ...details.financialLines.map((line) => line.currency),
-    ],
-  );
-
-  return {
-    quoteId: details.quote.id,
-    idempotencyKey: details.quote.idempotencyKey,
-    fromCurrency,
-    toCurrency,
-    fromAmountMinor: details.quote.fromAmountMinor.toString(),
-    toAmountMinor: details.quote.toAmountMinor.toString(),
-    pricingMode: details.quote.pricingMode,
-    rateNum: details.quote.rateNum.toString(),
-    rateDen: details.quote.rateDen.toString(),
-    expiresAt: details.quote.expiresAt.toISOString(),
-    pricingTrace: (details.quote.pricingTrace ?? {}) as Record<string, unknown>,
-    legs: details.legs.map((leg) => ({
-      idx: leg.idx,
-      fromCurrency: leg.fromCurrency ?? fromCurrency,
-      toCurrency: leg.toCurrency ?? toCurrency,
-      fromAmountMinor: leg.fromAmountMinor.toString(),
-      toAmountMinor: leg.toAmountMinor.toString(),
-      rateNum: leg.rateNum.toString(),
-      rateDen: leg.rateDen.toString(),
-      sourceKind: leg.sourceKind,
-      sourceRef: leg.sourceRef ?? null,
-      asOf: leg.asOf.toISOString(),
-      executionCounterpartyId: leg.executionCounterpartyId ?? null,
-    })),
-    financialLines: details.financialLines.map((line) => {
-      const normalizedLine = normalizeFinancialLine(line);
-      const precision = precisionByCode.get(normalizedLine.currency);
-
-      if (precision === undefined) {
-        throw new DocumentValidationError(
-          `Missing currency precision for ${normalizedLine.currency}`,
-        );
-      }
-
-      return {
-        ...normalizedLine,
-        amount: minorToAmountString(normalizedLine.amountMinor, {
-          precision,
-        }),
-        amountMinor: normalizedLine.amountMinor.toString(),
-        settlementMode: normalizedLine.settlementMode ?? "in_ledger",
-      };
-    }),
-  };
 }
 
 async function loadFxExecuteQuoteSnapshotById(input: {
@@ -213,8 +100,12 @@ export function createIfrsDocumentDeps(input: {
   ledgerReadService: IfrsLedgerReadPort;
   requisitesService: IfrsModuleDeps["requisitesService"];
 }): IfrsModuleDeps {
-  const { currenciesService, treasuryQuotes, ledgerReadService, requisitesService } =
-    input;
+  const {
+    currenciesService,
+    treasuryQuotes,
+    ledgerReadService,
+    requisitesService,
+  } = input;
 
   return {
     requisitesService,
@@ -324,11 +215,7 @@ export function createIfrsDocumentDeps(input: {
       },
     },
     quoteUsage: {
-      async markQuoteUsedForFxExecute({
-        quoteId,
-        fxExecuteDocumentId,
-        at,
-      }) {
+      async markQuoteUsedForFxExecute({ quoteId, fxExecuteDocumentId, at }) {
         await markQuoteUsedForRef({
           treasuryQuotes,
           quoteId,

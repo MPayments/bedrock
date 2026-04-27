@@ -3,9 +3,8 @@ import type {
   PaymentRouteCalculation,
   PaymentRouteCalculationFee,
 } from "@bedrock/treasury/contracts";
-import { mulDivFloor } from "@bedrock/shared/money/math";
 
-export function aggregatePaymentRouteFeeTotals(
+function aggregatePaymentRouteFeeTotals(
   fees: PaymentRouteCalculationFee[],
 ): PaymentRouteAmountTotal[] {
   const totals = new Map<string, bigint>();
@@ -47,42 +46,32 @@ export function getPaymentRouteAdditionalFeeTotals(
   return aggregatePaymentRouteFeeTotals(calculation.additionalFees);
 }
 
-export function getPaymentRouteTotalClientCostInMinor(
+export function getPaymentRouteChargedFeeTotals(
   calculation: PaymentRouteCalculation | null,
-): string | null {
-  if (!calculation) {
-    return null;
-  }
-
-  let additionalCostInMinor = 0n;
-
-  for (const fee of calculation.additionalFees) {
-    if (fee.inputImpactCurrencyId !== calculation.currencyInId) {
-      continue;
-    }
-
-    additionalCostInMinor += BigInt(fee.inputImpactMinor);
-  }
-
-  return (BigInt(calculation.amountInMinor) + additionalCostInMinor).toString();
+): PaymentRouteAmountTotal[] {
+  return calculation?.chargedFeeTotals ?? [];
 }
 
-export function getPaymentRoutePureAmountOutMinor(
+export function getPaymentRouteInternalFeeTotals(
+  calculation: PaymentRouteCalculation | null,
+): PaymentRouteAmountTotal[] {
+  return calculation?.internalFeeTotals ?? [];
+}
+
+export function getPaymentRouteClientTotalInMinor(
   calculation: PaymentRouteCalculation | null,
 ): string | null {
-  if (!calculation) {
-    return null;
-  }
+  return calculation?.clientTotalInMinor ?? null;
+}
 
-  let rollingAmount = BigInt(calculation.amountInMinor);
+export function getPaymentRouteCostPriceInMinor(
+  calculation: PaymentRouteCalculation | null,
+): string | null {
+  return calculation?.costPriceInMinor ?? null;
+}
 
-  for (const leg of calculation.legs) {
-    rollingAmount = mulDivFloor(
-      rollingAmount,
-      BigInt(leg.rateNum),
-      BigInt(leg.rateDen),
-    );
-  }
-
-  return rollingAmount.toString();
+export function getPaymentRouteCleanAmountOutMinor(
+  calculation: PaymentRouteCalculation | null,
+): string | null {
+  return calculation?.cleanAmountOutMinor ?? null;
 }

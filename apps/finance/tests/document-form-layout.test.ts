@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { resolveDocumentFormSectionRows } from "@/features/documents/lib/document-form-registry/layout";
-import type { DocumentFormSection } from "@/features/documents/lib/document-form-registry/types";
+import { resolveDocumentFormSectionRows } from "@bedrock/sdk-documents-form-ui/lib/document-form-registry/layout";
+import type { DocumentFormSection } from "@bedrock/sdk-documents-form-ui/lib/document-form-registry/types";
 
 describe("resolveDocumentFormSectionRows", () => {
   it("falls back to stacked rows when layout metadata is missing", () => {

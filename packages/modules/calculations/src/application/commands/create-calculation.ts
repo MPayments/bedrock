@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-import type { IdempotencyPort } from "@bedrock/platform/idempotency";
 import type { ModuleRuntime } from "@bedrock/shared/core";
 import { NotFoundError } from "@bedrock/shared/core/errors";
 
@@ -30,7 +29,7 @@ type CreateCalculationCommandInput = CreateCalculationInput & {
   idempotencyKey: string;
 };
 
-export async function validateCurrencyReferences(
+async function validateCurrencyReferences(
   input: NormalizedCreateCalculationInput,
   references: CalculationReferencesPort,
 ) {
@@ -52,7 +51,7 @@ export async function validateCurrencyReferences(
   );
 }
 
-export async function validateQuoteProvenance(
+async function validateQuoteProvenance(
   input: NormalizedCreateCalculationInput,
   references: CalculationReferencesPort,
 ) {
@@ -110,7 +109,6 @@ export class CreateCalculationCommand {
   constructor(
     private readonly runtime: ModuleRuntime,
     private readonly commandUow: CalculationsCommandUnitOfWork,
-    private readonly idempotency: IdempotencyPort,
     private readonly references: CalculationReferencesPort,
   ) {}
 
@@ -122,8 +120,7 @@ export class CreateCalculationCommand {
     await validateQuoteProvenance(normalized, this.references);
 
     return this.commandUow.run((tx) =>
-      this.idempotency.withIdempotencyTx({
-        tx: tx.transaction,
+      tx.idempotency.withIdempotency({
         scope: CALCULATIONS_CREATE_IDEMPOTENCY_SCOPE,
         idempotencyKey: validated.idempotencyKey,
         request: {

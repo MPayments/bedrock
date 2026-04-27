@@ -13,15 +13,15 @@ import { type DealWorkflowProjection } from "../contracts/dto";
 import type { DealsCommandUnitOfWork } from "../ports/deals.uow";
 import type { DealReferencesPort } from "../ports/references.port";
 import {
-  buildDealOperationalPositionRows,
   buildDealParticipantRows,
   createTimelinePayloadEvent,
 } from "../shared/workflow-state";
 
-const UpdateDealAgreementCommandInputSchema = UpdateDealAgreementInputSchema.extend({
-  actorUserId: z.string().trim().min(1),
-  id: z.string().uuid(),
-});
+const UpdateDealAgreementCommandInputSchema =
+  UpdateDealAgreementInputSchema.extend({
+    actorUserId: z.string().trim().min(1),
+    id: z.string().uuid(),
+  });
 
 type UpdateDealAgreementCommandInput = z.infer<
   typeof UpdateDealAgreementCommandInputSchema
@@ -35,9 +35,9 @@ export class UpdateDealAgreementCommand {
   ) {}
 
   async execute(
-    raw: UpdateDealAgreementCommandInput,
+    input: UpdateDealAgreementCommandInput,
   ): Promise<DealWorkflowProjection> {
-    const validated = UpdateDealAgreementCommandInputSchema.parse(raw);
+    const validated = UpdateDealAgreementCommandInputSchema.parse(input);
 
     return this.commandUow.run(async (tx) => {
       const existing = await tx.dealReads.findWorkflowById(validated.id);
@@ -71,8 +71,9 @@ export class UpdateDealAgreementCommand {
       }
 
       const customerId =
-        existing.participants.find((participant) => participant.role === "customer")
-          ?.customerId ?? null;
+        existing.participants.find(
+          (participant) => participant.role === "customer",
+        )?.customerId ?? null;
 
       if (!customerId) {
         throw new ValidationError(
@@ -124,14 +125,6 @@ export class UpdateDealAgreementCommand {
       await tx.dealStore.setDealRoot({
         dealId: validated.id,
         nextAction: updated.nextAction,
-      });
-      await tx.dealStore.replaceDealOperationalPositions({
-        dealId: validated.id,
-        positions: buildDealOperationalPositionRows({
-          dealId: validated.id,
-          generateUuid: () => this.runtime.generateUuid(),
-          operationalState: updated.operationalState,
-        }),
       });
 
       return updated;

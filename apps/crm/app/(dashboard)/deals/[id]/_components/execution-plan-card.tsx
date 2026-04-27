@@ -26,24 +26,39 @@ import type {
   ApiDealSectionCompleteness,
   ApiDealTransitionReadiness,
   ApiDealWorkflowLeg,
+  DealLegManualOverride,
   DealLegState,
   DealStatus,
 } from "./types";
 
-const LEG_STATE_TRANSITIONS: Record<DealLegState, DealLegState[]> = {
-  blocked: ["ready", "skipped"],
-  done: [],
-  in_progress: ["done", "blocked"],
-  pending: ["ready", "blocked", "skipped"],
-  ready: ["in_progress", "blocked", "skipped"],
-  skipped: [],
+// Leg state is derived from instruction state + posted documents (+ manual
+// override). Operators can only apply two safety-valve overrides manually:
+// `blocked` (operator-halted, has to be cleared via «Устранить блокер») and
+// `skipped` (operator decided to skip the leg). Forward transitions are no
+// longer manual — they happen automatically as instructions settle and docs
+// get posted.
+const OVERRIDE_LABELS: Record<DealLegManualOverride, string> = {
+  blocked: "Заблокировать",
+  skipped: "Пропустить",
 };
+
+function availableLegOverrides(
+  currentState: DealLegState,
+): DealLegManualOverride[] {
+  if (currentState === "done" || currentState === "skipped") {
+    return [];
+  }
+  if (currentState === "blocked") {
+    return ["skipped"];
+  }
+  return ["blocked", "skipped"];
+}
 
 type ExecutionPlanCardProps = {
   executionPlan: ApiDealWorkflowLeg[];
   isUpdatingLegKey: string | null;
   onBlockedTransitionClick: (status: DealStatus) => void;
-  onUpdateLegState: (idx: number, state: DealLegState) => void;
+  onOverrideLeg: (idx: number, override: DealLegManualOverride) => void;
   sectionCompleteness: ApiDealSectionCompleteness[];
   transitionReadiness: ApiDealTransitionReadiness[];
 };
@@ -52,7 +67,7 @@ export function ExecutionPlanCard({
   executionPlan,
   isUpdatingLegKey,
   onBlockedTransitionClick,
-  onUpdateLegState,
+  onOverrideLeg,
   sectionCompleteness,
   transitionReadiness,
 }: ExecutionPlanCardProps) {
@@ -134,7 +149,7 @@ export function ExecutionPlanCard({
           </div>
           <div className="space-y-3">
             {executionPlan.map((leg) => {
-              const nextStates = LEG_STATE_TRANSITIONS[leg.state];
+              const overrides = availableLegOverrides(leg.state);
               const legKey = String(leg.idx);
 
               return (
@@ -154,30 +169,30 @@ export function ExecutionPlanCard({
                           {DEAL_LEG_STATE_LABELS[leg.state]}
                         </span>
                       </Badge>
-                      {nextStates.length > 0 && (
+                      {overrides.length > 0 && (
                         <DropdownMenu>
                           <DropdownMenuTrigger
                             render={
                               <Button
-                                data-testid={`deal-leg-state-button-${leg.idx}`}
+                                data-testid={`deal-leg-override-button-${leg.idx}`}
                                 size="sm"
                                 variant="outline"
                                 disabled={isUpdatingLegKey === legKey}
                               />
                             }
                           >
-                            Изменить
+                            Действия
                             <ChevronDown className="ml-2 h-4 w-4" />
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            {nextStates.map((state) => (
+                            {overrides.map((override) => (
                               <DropdownMenuItem
-                                key={state}
-                                data-testid={`deal-leg-state-option-${leg.idx}-${state}`}
+                                key={override}
+                                data-testid={`deal-leg-override-option-${leg.idx}-${override}`}
                                 disabled={isUpdatingLegKey === legKey}
-                                onClick={() => onUpdateLegState(leg.idx, state)}
+                                onClick={() => onOverrideLeg(leg.idx, override)}
                               >
-                                {DEAL_LEG_STATE_LABELS[state]}
+                                {OVERRIDE_LABELS[override]}
                               </DropdownMenuItem>
                             ))}
                           </DropdownMenuContent>

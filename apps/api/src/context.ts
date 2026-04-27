@@ -16,7 +16,10 @@ import type { DocumentExtractionPort } from "@bedrock/platform/ai";
 import type { IdempotencyService } from "@bedrock/platform/idempotency-postgres";
 import type { S3ObjectStorageAdapter } from "@bedrock/platform/object-storage";
 import type { Logger } from "@bedrock/platform/observability/logger";
-import type { PersistenceContext } from "@bedrock/platform/persistence";
+import type {
+  PersistenceContext,
+  Transaction,
+} from "@bedrock/platform/persistence";
 import type { ReconciliationService } from "@bedrock/reconciliation";
 import type { TreasuryModule } from "@bedrock/treasury";
 import type { CustomerPortalWorkflow } from "@bedrock/workflow-customer-portal";
@@ -32,6 +35,7 @@ import type { RequisiteAccountingWorkflow } from "@bedrock/workflow-requisite-ac
 
 import { createApplicationServices } from "./composition/application";
 import { createCoreServices } from "./composition/core";
+import type { DealPricingWorkflow } from "./composition/deal-pricing-workflow";
 import type { DealQuoteWorkflow } from "./composition/deal-quote-workflow";
 import type { ApiPartiesReadRuntime } from "./composition/parties-module";
 
@@ -115,9 +119,11 @@ export interface AppContext {
   partiesModule: PartiesModule;
   currenciesService: CurrenciesService;
   treasuryModule: TreasuryModule;
+  createTreasuryModule(tx: Transaction): TreasuryModule;
   reconciliationService: ReconciliationService;
   dealAttachmentIngestionWorkflow: DealAttachmentIngestionWorkflow;
   dealExecutionWorkflow: DealExecutionWorkflow;
+  dealPricingWorkflow: DealPricingWorkflow;
   dealQuoteWorkflow: DealQuoteWorkflow;
   dealProjectionsWorkflow: DealProjectionsWorkflow;
   reconciliationAdjustmentsWorkflow: ReconciliationAdjustmentsWorkflow;
@@ -155,10 +161,12 @@ export function createAppContext(env: Env): AppContext {
     partiesModule: applicationServices.partiesModule,
     currenciesService: applicationServices.currenciesService,
     treasuryModule: applicationServices.treasuryModule,
+    createTreasuryModule: applicationServices.createTreasuryModule,
     reconciliationService: applicationServices.reconciliationService,
     dealAttachmentIngestionWorkflow:
       applicationServices.dealAttachmentIngestionWorkflow,
     dealExecutionWorkflow: applicationServices.dealExecutionWorkflow,
+    dealPricingWorkflow: applicationServices.dealPricingWorkflow,
     dealQuoteWorkflow: applicationServices.dealQuoteWorkflow,
     dealProjectionsWorkflow: applicationServices.dealProjectionsWorkflow,
     reconciliationAdjustmentsWorkflow:

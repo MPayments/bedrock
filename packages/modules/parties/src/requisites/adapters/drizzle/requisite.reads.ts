@@ -99,6 +99,17 @@ function ownerIdColumn(ownerType: RequisiteOwnerType) {
     : requisites.counterpartyId;
 }
 
+function findIdentifierValue(
+  rows: RequisiteIdentifierRow[],
+  scheme: string,
+): string | null {
+  return (
+    rows.find((row) => row.scheme === scheme && row.isPrimary)?.value ??
+    rows.find((row) => row.scheme === scheme)?.value ??
+    null
+  );
+}
+
 export class DrizzleRequisiteReads implements RequisiteReads {
   constructor(private readonly db: Queryable) {}
 
@@ -235,7 +246,7 @@ export class DrizzleRequisiteReads implements RequisiteReads {
       conditions.push(eq(ownerIdColumn(input.ownerType), input.ownerId));
     }
 
-    return this.db
+    const rows = await this.db
       .select({
         id: requisites.id,
         ownerType: requisites.ownerType,
@@ -251,6 +262,26 @@ export class DrizzleRequisiteReads implements RequisiteReads {
       .from(requisites)
       .where(and(...conditions))
       .orderBy(asc(requisites.label), asc(requisites.createdAt));
+    const identifiersByRequisiteId = await this.listIdentifierRows(
+      rows.map((row) => row.id),
+    );
+
+    return rows.map((row) => {
+      const identifiers = identifiersByRequisiteId.get(row.id) ?? [];
+
+      return {
+        ...row,
+        accountNo: findIdentifierValue(identifiers, "local_account_number"),
+        accountRef: findIdentifierValue(identifiers, "account_ref"),
+        address: findIdentifierValue(identifiers, "wallet_address"),
+        assetCode: findIdentifierValue(identifiers, "asset_code"),
+        contact: findIdentifierValue(identifiers, "contact"),
+        iban: findIdentifierValue(identifiers, "iban"),
+        memoTag: findIdentifierValue(identifiers, "memo_tag"),
+        network: findIdentifierValue(identifiers, "network"),
+        subaccountRef: findIdentifierValue(identifiers, "subaccount_ref"),
+      };
+    });
   }
 
   async listLabelsById(ids: string[]) {

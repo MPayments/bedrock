@@ -1,27 +1,17 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@bedrock/sdk-ui/components/card";
+import { DocumentCreateForm } from "@bedrock/sdk-documents-form-ui/components/document-create-form";
+import type { DocumentFormOptions } from "@bedrock/sdk-documents-form-ui/lib/form-options";
 
-import type { UserRole } from "@/lib/auth/types";
 import { getDocumentTypeLabel } from "@/features/documents/lib/doc-types";
-import type { DocumentFormOptions } from "@/features/documents/lib/form-options";
+import { DOCUMENT_FORM_DEFINITIONS } from "@/features/documents/lib/form-definitions";
 import { buildDocumentDetailsHref } from "@/features/documents/lib/routes";
-
 import {
-  CreateDocumentTypedFormProvider,
-  DocumentTypedFormForm,
-  DocumentTypedFormFormError,
-  DocumentTypedFormResetButton,
-  DocumentTypedFormSections,
-  DocumentTypedFormSubmitButton,
-} from "./forms/document-typed-form";
+  createDealScopedDocumentDraft,
+  createDocumentDraft,
+  updateDocumentDraft,
+} from "@/features/operations/documents/lib/mutations";
+import type { UserRole } from "@/lib/auth/types";
 
 type DocumentCreateTypedFormClientProps = {
   dealId?: string;
@@ -33,33 +23,6 @@ type DocumentCreateTypedFormClientProps = {
   successHref?: string;
 };
 
-function DocumentCreateTypedFormCard({ docType }: { docType: string }) {
-  return (
-    <Card className="rounded-sm">
-      <CardHeader className="border-b">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="space-y-1">
-            <CardTitle>{`Создать ${getDocumentTypeLabel(docType)}`}</CardTitle>
-            <CardDescription>
-              Заполните поля формы и создайте черновик документа.
-            </CardDescription>
-          </div>
-          <div className="flex items-center gap-2">
-            <DocumentTypedFormSubmitButton />
-            <DocumentTypedFormResetButton />
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="py-6">
-        <DocumentTypedFormForm className="space-y-6">
-          <DocumentTypedFormSections />
-          <DocumentTypedFormFormError />
-        </DocumentTypedFormForm>
-      </CardContent>
-    </Card>
-  );
-}
-
 export function DocumentCreateTypedFormClient({
   dealId,
   docType,
@@ -69,29 +32,36 @@ export function DocumentCreateTypedFormClient({
   reconciliationAdjustmentExceptionId,
   successHref,
 }: DocumentCreateTypedFormClientProps) {
-  const router = useRouter();
-
   return (
-    <CreateDocumentTypedFormProvider
-      createDealId={dealId}
+    <DocumentCreateForm
+      dealId={dealId}
       docType={docType}
+      docTypeLabel={getDocumentTypeLabel(docType)}
       initialPayload={initialPayload}
-      userRole={userRole}
+      isAdmin={userRole === "admin"}
       options={options}
-      onSuccess={(document) => {
-        const detailsHref = buildDocumentDetailsHref(document.docType, document.id, {
+      formDefinitions={DOCUMENT_FORM_DEFINITIONS}
+      createMutator={async ({ docType: type, dealId: targetDealId, payload }) => {
+        if (targetDealId) {
+          return createDealScopedDocumentDraft({
+            dealId: targetDealId,
+            docType: type,
+            payload,
+          });
+        }
+        return createDocumentDraft({ docType: type, payload });
+      }}
+      updateMutator={async ({ docType: type, documentId, payload }) =>
+        updateDocumentDraft({ docType: type, documentId, payload })
+      }
+      buildSuccessHref={({ docType: type, documentId }) =>
+        buildDocumentDetailsHref(type, documentId, {
           reconciliationExceptionId: reconciliationAdjustmentExceptionId,
           returnTo: successHref,
-        });
-
-        router.push(
-          reconciliationAdjustmentExceptionId
-            ? detailsHref ?? "/documents"
-            : successHref ?? detailsHref ?? "/documents",
-        );
-      }}
-    >
-      <DocumentCreateTypedFormCard docType={docType} />
-    </CreateDocumentTypedFormProvider>
+        }) ??
+        successHref ??
+        "/documents"
+      }
+    />
   );
 }

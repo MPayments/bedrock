@@ -19,6 +19,7 @@ describe("FormalDocumentsCard", () => {
 
     const markup = renderToStaticMarkup(
       createElement(FormalDocumentsCard, {
+        dealId: "00000000-0000-4000-8000-000000000001",
         documents: [
           {
             amount: null,
@@ -29,6 +30,18 @@ describe("FormalDocumentsCard", () => {
             id: "document-1",
             lifecycleStatus: "active",
             postingStatus: "not_required",
+            printForms: [
+              {
+                formats: ["docx", "pdf"],
+                id: "document.acceptance-bilingual",
+                languageMode: "bilingual",
+                languages: ["ru", "en"],
+                ownerType: "document",
+                quality: "ready",
+                title: "Acceptance / Акт",
+                warnings: [],
+              },
+            ],
             submissionStatus: "submitted",
             title: null,
           },
@@ -52,6 +65,38 @@ describe("FormalDocumentsCard", () => {
     expect(normalizedMarkup).toContain("Требуемые документы");
     expect(normalizedMarkup).toContain("Созданные документы");
     expect(normalizedMarkup).toContain("Акт / подтверждение исполнения");
+    expect(normalizedMarkup).toContain("Печатная форма");
     expect(normalizedMarkup).not.toContain(">acceptance<");
+  });
+
+  it("does not render a create action when the requirement is missing but creation is disallowed", () => {
+    (
+      globalThis as typeof globalThis & {
+        React: typeof React;
+      }
+    ).React = React;
+
+    const markup = renderToStaticMarkup(
+      createElement(FormalDocumentsCard, {
+        dealId: "00000000-0000-4000-8000-000000000001",
+        documents: [],
+        requirements: [
+          {
+            activeDocumentId: null,
+            blockingReasons: ["Формальный документ еще не создан"],
+            createAllowed: false,
+            docType: "invoice",
+            openAllowed: false,
+            stage: "opening",
+            state: "missing",
+          },
+        ],
+      }),
+    );
+
+    const normalizedMarkup = normalizeMarkupWhitespace(markup);
+
+    expect(normalizedMarkup).not.toContain("Создать");
+    expect(normalizedMarkup).not.toContain("Выгрузить");
   });
 });

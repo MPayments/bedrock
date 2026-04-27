@@ -155,4 +155,4 @@ afterEach(async () => {
   }
 });
 
-export { db, tb, pool, TEST_BOOK_ID };
+export { db, tb, TEST_BOOK_ID };

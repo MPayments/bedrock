@@ -185,12 +185,3 @@ export class PostingMatrix {
     };
   }
 }
-
-export function validatePostingMatrix(
-  input: PostingMatrixValidationInput,
-): {
-  ok: boolean;
-  errors: PostingMatrixValidationError[];
-} {
-  return new PostingMatrix(input).validate();
-}

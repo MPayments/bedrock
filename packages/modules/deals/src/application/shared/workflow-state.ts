@@ -1,4 +1,5 @@
 import { toMinorAmountString } from "@bedrock/shared/money";
+import type { PaymentRouteDraft } from "@bedrock/treasury/contracts";
 
 import {
   buildDealExecutionPlan,
@@ -6,19 +7,13 @@ import {
   evaluateDealSectionCompleteness,
 } from "../../domain/workflow";
 import type {
-  CreateDealDraftInput,
-  CreatePortalDealInput,
-} from "../contracts/commands";
-import type {
-  DealOperationalState,
   DealIntakeDraft,
   DealQuoteAcceptance,
   DealWorkflowLeg,
 } from "../contracts/dto";
-import type { DealStatus } from "../contracts/zod";
+import type { DealStatus, DealTimelineEventType } from "../contracts/zod";
 import type {
   CreateDealLegStoredInput,
-  ReplaceDealOperationalPositionStoredInput,
   CreateDealParticipantStoredInput,
 } from "../ports/deal.store";
 import type {
@@ -26,74 +21,20 @@ import type {
   DealReferencesPort,
 } from "../ports/references.port";
 
-export function createEmptyDealIntakeDraft(
-  type: CreateDealDraftInput["intake"]["type"],
+export function normalizeDealIntakeDraft(
+  intake: DealIntakeDraft,
 ): DealIntakeDraft {
-  return {
-    common: {
-      applicantCounterpartyId: null,
-      customerNote: null,
-      requestedExecutionDate: null,
-    },
-    externalBeneficiary: {
-      bankInstructionSnapshot: null,
-      beneficiaryCounterpartyId: null,
-      beneficiarySnapshot: null,
-    },
-    incomingReceipt: {
-      contractNumber: null,
-      expectedAmount: null,
-      expectedAt: null,
-      invoiceNumber: null,
-      payerCounterpartyId: null,
-      payerSnapshot: null,
-    },
-    moneyRequest: {
-      purpose: null,
-      sourceAmount: null,
-      sourceCurrencyId: null,
-      targetCurrencyId: null,
-    },
-    settlementDestination: {
-      bankInstructionSnapshot: null,
-      mode: null,
-      requisiteId: null,
-    },
-    type,
-  };
-}
-
-export function buildPortalIntakeDraft(input: CreatePortalDealInput): DealIntakeDraft {
-  const draft = createEmptyDealIntakeDraft(input.type);
-
-  draft.common = {
-    applicantCounterpartyId: input.common.applicantCounterpartyId,
-    customerNote: input.common.customerNote ?? null,
-    requestedExecutionDate: input.common.requestedExecutionDate ?? null,
-  };
-  draft.moneyRequest = {
-    purpose: input.moneyRequest.purpose ?? null,
-    sourceAmount: input.moneyRequest.sourceAmount ?? null,
-    sourceCurrencyId: input.moneyRequest.sourceCurrencyId ?? null,
-    targetCurrencyId: input.moneyRequest.targetCurrencyId ?? null,
-  };
-
-  if (
-    input.type === "payment" ||
-    input.type === "currency_transit" ||
-    input.type === "exporter_settlement"
-  ) {
-    draft.incomingReceipt = {
-      contractNumber: input.incomingReceipt?.contractNumber ?? null,
-      expectedAmount: input.incomingReceipt?.expectedAmount ?? null,
-      expectedAt: input.incomingReceipt?.expectedAt ?? null,
-      invoiceNumber: input.incomingReceipt?.invoiceNumber ?? null,
-      payerCounterpartyId: null,
-      payerSnapshot: null,
-    };
+  if (intake.type !== "payment") {
+    return intake;
   }
 
-  return draft;
+  return {
+    ...intake,
+    moneyRequest: {
+      ...intake.moneyRequest,
+      sourceAmount: null,
+    },
+  };
 }
 
 export async function deriveDealRootState(input: {
@@ -103,28 +44,31 @@ export async function deriveDealRootState(input: {
   references: DealReferencesPort;
   status: DealStatus;
 }) {
-  const sourceCurrency = input.intake.moneyRequest.sourceCurrencyId
+  const intake = normalizeDealIntakeDraft(input.intake);
+  const sourceCurrency = intake.moneyRequest.sourceCurrencyId
     ? await input.references.findCurrencyById(
-        input.intake.moneyRequest.sourceCurrencyId,
+        intake.moneyRequest.sourceCurrencyId,
       )
     : null;
 
   const sourceAmountMinor =
-    input.intake.moneyRequest.sourceAmount && sourceCurrency
+    intake.type !== "payment" &&
+    intake.moneyRequest.sourceAmount &&
+    sourceCurrency
       ? BigInt(
           toMinorAmountString(
-            input.intake.moneyRequest.sourceAmount,
+            intake.moneyRequest.sourceAmount,
             sourceCurrency.code,
           ),
         )
       : null;
 
-  const sectionCompleteness = evaluateDealSectionCompleteness(input.intake);
+  const sectionCompleteness = evaluateDealSectionCompleteness(intake);
   const nextAction = deriveDealNextAction({
     acceptance: input.acceptance,
     calculationId: input.calculationId,
     completeness: sectionCompleteness,
-    intake: input.intake,
+    intake,
     status: input.status,
   });
 
@@ -132,8 +76,8 @@ export async function deriveDealRootState(input: {
     nextAction,
     sectionCompleteness,
     sourceAmountMinor,
-    sourceCurrencyId: input.intake.moneyRequest.sourceCurrencyId ?? null,
-    targetCurrencyId: input.intake.moneyRequest.targetCurrencyId ?? null,
+    sourceCurrencyId: intake.moneyRequest.sourceCurrencyId ?? null,
+    targetCurrencyId: intake.moneyRequest.targetCurrencyId ?? null,
   };
 }
 
@@ -142,18 +86,46 @@ export function buildDealLegRows(input: {
   existingLegs?: DealWorkflowLeg[];
   generateUuid: () => string;
   intake: DealIntakeDraft;
+  routeSnapshot?: PaymentRouteDraft | null;
 }): CreateDealLegStoredInput[] {
-  const existingLegStateByKey = new Map(
-    (input.existingLegs ?? []).map((leg) => [`${leg.idx}:${leg.kind}`, leg.state] as const),
-  );
+  const existingLegs = input.existingLegs ?? [];
+  const existingBySnapshotLegId = new Map<string, DealWorkflowLeg>();
+  const existingByIdxKind = new Map<string, DealWorkflowLeg>();
+  for (const leg of existingLegs) {
+    if (leg.routeSnapshotLegId) {
+      existingBySnapshotLegId.set(leg.routeSnapshotLegId, leg);
+    }
+    existingByIdxKind.set(`${leg.idx}:${leg.kind}`, leg);
+  }
 
-  return buildDealExecutionPlan(input.intake).map((leg) => ({
-    dealId: input.dealId,
-    id: input.generateUuid(),
-    idx: leg.idx,
-    kind: leg.kind,
-    state: existingLegStateByKey.get(`${leg.idx}:${leg.kind}`) ?? leg.state,
-  }));
+  const matchExisting = (
+    plannedLeg: DealWorkflowLeg,
+  ): DealWorkflowLeg | null => {
+    if (plannedLeg.routeSnapshotLegId) {
+      const bySnapshot = existingBySnapshotLegId.get(
+        plannedLeg.routeSnapshotLegId,
+      );
+      if (bySnapshot) return bySnapshot;
+    }
+    return (
+      existingByIdxKind.get(`${plannedLeg.idx}:${plannedLeg.kind}`) ?? null
+    );
+  };
+
+  return buildDealExecutionPlan(input.intake, input.routeSnapshot ?? null).map(
+    (plannedLeg) => {
+      const existing = matchExisting(plannedLeg);
+      return {
+        dealId: input.dealId,
+        fromCurrencyId: plannedLeg.fromCurrencyId,
+        id: existing?.id ?? input.generateUuid(),
+        idx: plannedLeg.idx,
+        kind: plannedLeg.kind,
+        routeSnapshotLegId: plannedLeg.routeSnapshotLegId,
+        toCurrencyId: plannedLeg.toCurrencyId,
+      };
+    },
+  );
 }
 
 export function buildDealParticipantRows(input: {
@@ -218,23 +190,6 @@ export function buildDealParticipantRows(input: {
   return participants;
 }
 
-export function buildDealOperationalPositionRows(input: {
-  dealId: string;
-  generateUuid: () => string;
-  operationalState: DealOperationalState;
-}): ReplaceDealOperationalPositionStoredInput[] {
-  return input.operationalState.positions.map((position) => ({
-    amountMinor: position.amountMinor ? BigInt(position.amountMinor) : null,
-    currencyId: position.currencyId,
-    dealId: input.dealId,
-    id: input.generateUuid(),
-    kind: position.kind,
-    reasonCode: position.reasonCode,
-    sourceRefs: position.sourceRefs,
-    state: position.state,
-  }));
-}
-
 export function createTimelinePayloadEvent(input: {
   actorLabel?: string | null;
   actorUserId?: string | null;
@@ -243,34 +198,7 @@ export function createTimelinePayloadEvent(input: {
   occurredAt: Date;
   payload?: Record<string, unknown>;
   sourceRef?: string | null;
-  type:
-    | "deal_created"
-    | "intake_saved"
-    | "participant_changed"
-    | "status_changed"
-    | "deal_closed"
-    | "quote_created"
-    | "quote_accepted"
-    | "quote_expired"
-    | "quote_used"
-    | "execution_requested"
-    | "leg_operation_created"
-    | "instruction_prepared"
-    | "instruction_submitted"
-    | "instruction_settled"
-    | "instruction_failed"
-    | "instruction_retried"
-    | "instruction_voided"
-    | "return_requested"
-    | "instruction_returned"
-    | "calculation_attached"
-    | "attachment_uploaded"
-    | "attachment_deleted"
-    | "attachment_ingested"
-    | "attachment_ingestion_failed"
-    | "document_created"
-    | "document_status_changed"
-    | "leg_state_changed";
+  type: DealTimelineEventType;
   visibility?: "customer_safe" | "internal";
 }) {
   return {

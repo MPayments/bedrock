@@ -2,15 +2,13 @@ import { DEAL_OPERATIONAL_POSITION_KIND_VALUES } from "./constants";
 import type {
   DealIntakeDraft,
   DealOperationalPosition,
-  DealOperationalState,
-  DealSectionCompleteness,
-  DealWorkflowLeg,
-} from "../application/contracts/dto";
-import type {
   DealOperationalPositionKind,
   DealOperationalPositionState,
+  DealOperationalState,
+  DealSectionCompleteness,
   DealStatus,
-} from "../application/contracts/zod";
+  DealWorkflowLeg,
+} from "./model";
 
 interface CalculationOperationalLine {
   amountMinor: string;
@@ -129,13 +127,13 @@ export function listRequiredOperationalPositionKinds(
   switch (type) {
     case "payment":
     case "currency_exchange":
-      return ["customer_receivable", "provider_payable"];
+      return ["customer_receivable", "downstream_payable"];
     case "currency_transit":
-      return ["customer_receivable", "provider_payable", "in_transit"];
+      return ["customer_receivable", "downstream_payable", "in_transit"];
     case "exporter_settlement":
       return [
         "customer_receivable",
-        "provider_payable",
+        "downstream_payable",
         "exporter_expected_receivable",
       ];
   }
@@ -187,7 +185,7 @@ export function buildDealOperationalState(input: {
               updatedAt: input.updatedAt,
             })
           : buildNotApplicablePosition(kind);
-      case "provider_payable":
+      case "downstream_payable":
         return downstreamLegs.length > 0
           ? buildLegBackedPosition({
               kind,

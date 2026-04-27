@@ -39,7 +39,7 @@ export const acceptanceDocumentDefinition = {
           {
             kind: "text",
             name: "invoiceDocumentId",
-            label: "Исходящий инвойс",
+            label: "Счёт на оплату",
             placeholder: "UUID инвойса",
           },
           { kind: "textarea", name: "memo", label: "Комментарий", rows: 3 },

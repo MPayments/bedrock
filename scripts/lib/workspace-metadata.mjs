@@ -4,9 +4,9 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-export const DEFAULT_ROOT = resolve(__dirname, "../..");
+const DEFAULT_ROOT = resolve(__dirname, "../..");
 
-export const EXCLUDED_DIRS = new Set([
+const EXCLUDED_DIRS = new Set([
   ".git",
   ".next",
   ".turbo",
@@ -15,7 +15,7 @@ export const EXCLUDED_DIRS = new Set([
   "node_modules",
 ]);
 
-export const SOURCE_EXTENSIONS = new Set([
+const SOURCE_EXTENSIONS = new Set([
   ".cjs",
   ".cts",
   ".js",
@@ -26,7 +26,7 @@ export const SOURCE_EXTENSIONS = new Set([
   ".tsx",
 ]);
 
-export const IMPORT_PATTERNS = [
+const IMPORT_PATTERNS = [
   /\bimport\s+(?:[^"'()]*?\s+from\s+)?["']([^"']+)["']/g,
   /\bexport\s+[^"'()]*?\s+from\s+["']([^"']+)["']/g,
   /\bimport\s*\(\s*["']([^"']+)["']\s*\)/g,
@@ -46,11 +46,11 @@ export function resolveRootDir(rootDir = process.env.BEDROCK_GUARDRAIL_ROOT) {
   return resolve(rootDir ?? DEFAULT_ROOT);
 }
 
-export function toPosixPath(filePath) {
+function toPosixPath(filePath) {
   return filePath.replaceAll("\\", "/");
 }
 
-export function readJson(filePath) {
+function readJson(filePath) {
   return JSON.parse(readFileSync(filePath, "utf8"));
 }
 

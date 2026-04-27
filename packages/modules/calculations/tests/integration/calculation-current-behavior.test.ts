@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
+import { COMMERCIAL_CORE_ACTOR_USER_ID } from "../../../../../tests/integration/commercial-core/constants";
 import {
-  COMMERCIAL_CORE_ACTOR_USER_ID,
   createCalculationFixture,
   createCommercialPartiesFixture,
   createFxQuoteFixture,

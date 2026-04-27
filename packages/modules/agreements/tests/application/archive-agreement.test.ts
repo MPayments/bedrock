@@ -1,20 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { createModuleRuntime } from "@bedrock/shared/core";
+import { createTestLogger } from "@bedrock/test-utils";
 
 import { ArchiveAgreementCommand } from "../../src/application/commands/archive-agreement";
-
-function createLogger() {
-  const logger = {
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    debug: vi.fn(),
-    child: vi.fn(),
-  };
-  logger.child.mockReturnValue(logger);
-  return logger;
-}
 
 describe("archive agreement handler", () => {
   it("archives an agreement by toggling isActive to false", async () => {
@@ -35,7 +24,7 @@ describe("archive agreement handler", () => {
     };
     const runtime = createModuleRuntime({
       service: "agreements",
-      logger: createLogger(),
+      logger: createTestLogger(),
       generateUuid: () => "unused",
       now: () => new Date("2026-03-30T12:00:00.000Z"),
     });

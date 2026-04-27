@@ -39,9 +39,10 @@ import { createReconciliationWorkerDefinition } from "@bedrock/reconciliation/wo
 import { createTreasuryModule } from "@bedrock/treasury";
 import {
   DrizzlePaymentRouteTemplatesRepository,
+  DrizzlePaymentStepsRepository,
+  DrizzleQuoteExecutionsRepository,
   DrizzleTreasuryFeeRulesRepository,
-  DrizzleTreasuryInstructionsRepository,
-  DrizzleTreasuryOperationsRepository,
+  DrizzleTreasuryOrdersRepository,
   DrizzleTreasuryQuoteFeeComponentsRepository,
   DrizzleTreasuryQuoteFinancialLinesRepository,
   DrizzleTreasuryQuotesRepository,
@@ -158,12 +159,12 @@ export function createWorkerImplementations(
   const dealsModule = createDealsModule({
     commandUow: new DrizzleDealsUnitOfWork({
       bindDocumentsReadModel: (db) => createDrizzleDocumentsReadModel({ db }),
+      idempotency: {
+        withIdempotencyTx: async ({ handler }) => handler(),
+      },
       persistence: createPersistenceContext(deps.db),
     }),
     generateUuid: randomUUID,
-    idempotency: {
-      withIdempotencyTx: async ({ handler }) => handler(),
-    },
     logger: deps.logger,
     now: () => new Date(),
     reads: new DrizzleDealReads(
@@ -251,8 +252,6 @@ export function createWorkerImplementations(
     now: () => new Date(),
     generateUuid: randomUUID,
     currencies: currenciesService,
-    instructionsRepository: new DrizzleTreasuryInstructionsRepository(deps.db),
-    operationsRepository: new DrizzleTreasuryOperationsRepository(deps.db),
     ratesRepository: new DrizzleTreasuryRatesRepository(deps.db),
     quotesRepository: new DrizzleTreasuryQuotesRepository(deps.db),
     quoteFinancialLinesRepository:
@@ -262,6 +261,9 @@ export function createWorkerImplementations(
     feeRulesRepository: new DrizzleTreasuryFeeRulesRepository(deps.db),
     paymentRouteTemplatesRepository:
       new DrizzlePaymentRouteTemplatesRepository(deps.db),
+    paymentStepsRepository: new DrizzlePaymentStepsRepository(deps.db),
+    quoteExecutionsRepository: new DrizzleQuoteExecutionsRepository(deps.db),
+    treasuryOrdersRepository: new DrizzleTreasuryOrdersRepository(deps.db),
     unitOfWork: new DrizzleTreasuryUnitOfWork({
       persistence: createPersistenceContext(deps.db),
     }),
@@ -297,7 +299,9 @@ export function createWorkerImplementations(
         );
       },
       async treasuryOperationExists(operationId: string) {
-        return (await treasuryModule.operations.queries.findById(operationId)) !== null;
+        return (
+          (await treasuryModule.paymentSteps.queries.findById({ stepId: operationId })) !== null
+        );
       },
     },
     logger: deps.logger,

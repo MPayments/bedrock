@@ -63,7 +63,7 @@ export function hasConsistentCursor(cursor: BalanceProjectorCursor) {
   );
 }
 
-export function projectBalanceSubjects(
+function projectBalanceSubjects(
   dimensions: ProjectionDimensions | null | undefined,
 ): { subjectType: string; subjectId: string }[] {
   if (!dimensions) {

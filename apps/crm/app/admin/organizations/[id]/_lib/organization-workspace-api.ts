@@ -11,14 +11,7 @@ import {
   type HttpResponseLike,
 } from "@/lib/api/response";
 
-export const ORGANIZATION_WORKSPACE_TABS = [
-  "organization",
-  "requisites",
-  "files",
-] as const;
-
-export type OrganizationWorkspaceTab =
-  (typeof ORGANIZATION_WORKSPACE_TABS)[number];
+export type OrganizationWorkspaceTab = "organization" | "requisites" | "files";
 
 export const OrganizationWorkspaceSchema = z.object({
   id: z.uuid(),

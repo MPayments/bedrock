@@ -7,6 +7,7 @@ import {
 } from "./zod";
 
 export const PreviewPaymentRouteInputSchema = z.object({
+  asOf: z.coerce.date().optional(),
   draft: PaymentRouteDraftSchema,
 });
 

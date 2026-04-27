@@ -210,44 +210,6 @@ export function mapFlatBankingToFormValues(
   };
 }
 
-export function createCustomerBankingPayload(
-  values: CustomerBankingFormValues,
-) {
-  const country = normalizeCountryCode(values.bankProvider.country);
-  const routing = normalizeRoutingCode({
-    country,
-    routingCode: values.bankProvider.routingCode,
-  });
-  const bankProviderId =
-    values.bankMode === "existing"
-      ? normalizeNullableText(values.bankProviderId)
-      : null;
-
-  return {
-    account: normalizeNullableText(values.bankRequisite.accountNo),
-    bankAddress: normalizeNullableText(values.bankProvider.address),
-    bankCountry: country,
-    bankMode: values.bankMode,
-    bankName: normalizeNullableText(values.bankProvider.name),
-    bankProvider: {
-      address: normalizeNullableText(values.bankProvider.address),
-      country,
-      name: normalizeNullableText(values.bankProvider.name),
-      routingCode: normalizeNullableText(values.bankProvider.routingCode)?.toUpperCase() ?? null,
-    },
-    bankProviderId,
-    bankRequisite: {
-      accountNo: normalizeNullableText(values.bankRequisite.accountNo),
-      beneficiaryName: normalizeNullableText(values.bankRequisite.beneficiaryName),
-      iban: normalizeNullableText(values.bankRequisite.iban),
-    },
-    beneficiaryName: normalizeNullableText(values.bankRequisite.beneficiaryName),
-    bic: routing.bic,
-    iban: normalizeNullableText(values.bankRequisite.iban),
-    swift: routing.swift,
-  };
-}
-
 function findProviderIdentifier(
   provider: z.infer<typeof RequisiteProviderDetailSchema>,
   scheme: string,

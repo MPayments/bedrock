@@ -1,13 +1,19 @@
-import {
-  COMMERCIAL_DOCUMENT_DEFINITIONS,
-} from "@bedrock/plugin-documents-commercial/contracts";
+import { describe, expect, it } from "vitest";
+
+import { COMMERCIAL_DOCUMENT_DEFINITIONS } from "@bedrock/plugin-documents-commercial/contracts";
 import {
   IFRS_DOCUMENT_DEFINITIONS,
   IFRS_DOCUMENT_TYPE_ORDER,
 } from "@bedrock/plugin-documents-ifrs/contracts";
-import { describe, expect, it } from "vitest";
+import { getDocumentFormDefinitionForRole } from "@bedrock/sdk-documents-form-ui/lib/document-form-registry";
+import type { DocumentFormDefinitions } from "@bedrock/sdk-documents-form-ui/lib/document-form-registry";
 
-import { getDocumentFormDefinitionForRole } from "@/features/documents/lib/document-form-registry";
+const DOCUMENT_FORM_DEFINITIONS = [
+  ...COMMERCIAL_DOCUMENT_DEFINITIONS,
+  ...IFRS_DOCUMENT_DEFINITIONS,
+].flatMap((definition) =>
+  definition.formDefinition ? [definition.formDefinition] : [],
+) satisfies DocumentFormDefinitions;
 
 describe("document form registry", () => {
   it("provides definitions for all typed IFRS doc types", () => {
@@ -21,8 +27,9 @@ describe("document form registry", () => {
 
       expect(
         getDocumentFormDefinitionForRole({
+          definitions: DOCUMENT_FORM_DEFINITIONS,
           docType,
-          role: "admin",
+          isAdmin: true,
         }),
       ).not.toBeNull();
     }
@@ -31,81 +38,50 @@ describe("document form registry", () => {
   it("keeps admin-only and non-typed behavior", () => {
     expect(
       getDocumentFormDefinitionForRole({
+        definitions: DOCUMENT_FORM_DEFINITIONS,
         docType: "fx_execute",
-        role: "finance",
+        isAdmin: false,
       }),
     ).not.toBeNull();
 
     expect(
       getDocumentFormDefinitionForRole({
+        definitions: DOCUMENT_FORM_DEFINITIONS,
         docType: "fx_resolution",
-        role: "admin",
+        isAdmin: true,
       }),
     ).toBeNull();
 
     expect(
       getDocumentFormDefinitionForRole({
+        definitions: DOCUMENT_FORM_DEFINITIONS,
         docType: "period_reopen",
-        role: "admin",
+        isAdmin: true,
       }),
     ).not.toBeNull();
 
     expect(
       getDocumentFormDefinitionForRole({
+        definitions: DOCUMENT_FORM_DEFINITIONS,
         docType: "period_reopen",
-        role: "finance",
+        isAdmin: false,
       }),
     ).toBeNull();
 
     expect(
       getDocumentFormDefinitionForRole({
+        definitions: DOCUMENT_FORM_DEFINITIONS,
         docType: "period_close",
-        role: "admin",
+        isAdmin: true,
       }),
     ).toBeNull();
-  });
-
-  it("keeps fx_execute amount-based and no longer exposes quoteRef input", () => {
-    const definition = getDocumentFormDefinitionForRole({
-      docType: "fx_execute",
-      role: "admin",
-    });
-
-    expect(definition).not.toBeNull();
-
-    const fieldNames =
-      definition?.sections.flatMap((section) =>
-        section.fields.map((field) => field.name),
-      ) ?? [];
-
-    expect(fieldNames).toContain("amount");
-    expect(fieldNames).not.toContain("quoteRef");
-  });
-
-  it("keeps invoice form single-currency without FX authoring fields", () => {
-    const definition = getDocumentFormDefinitionForRole({
-      docType: "invoice",
-      role: "admin",
-    });
-
-    expect(definition).not.toBeNull();
-
-    const fieldNames =
-      definition?.sections.flatMap((section) =>
-        section.fields.map((field) => field.name),
-      ) ?? [];
-
-    expect(fieldNames).toContain("amount");
-    expect(fieldNames).toContain("currency");
-    expect(fieldNames).not.toContain("targetCurrency");
-    expect(fieldNames).not.toContain("quoteRef");
-    expect(fieldNames).not.toContain("quotePreview");
   });
 
   it("exposes an auto-cross quote preview field for fx_execute", () => {
     const definition = getDocumentFormDefinitionForRole({
+      definitions: DOCUMENT_FORM_DEFINITIONS,
       docType: "fx_execute",
-      role: "admin",
+      isAdmin: true,
     });
 
     const previewField = definition?.sections
@@ -121,26 +97,25 @@ describe("document form registry", () => {
     });
   });
 
-  it("exposes percent-enabled financial-lines metadata for invoice and fx_execute", () => {
+  it("exposes percent-enabled financial-lines metadata for fx_execute", () => {
     const definitions = [
       ...COMMERCIAL_DOCUMENT_DEFINITIONS,
       ...IFRS_DOCUMENT_DEFINITIONS,
     ];
 
-    for (const docType of ["invoice", "fx_execute"]) {
-      const definition = definitions.find((item) => item.docType === docType)
-        ?.formDefinition;
-      const financialLinesField = definition?.sections
-        .flatMap((section) => section.fields)
-        .find((field) => field.name === "financialLines");
+    const definition = definitions.find(
+      (item) => item.docType === "fx_execute",
+    )?.formDefinition;
+    const financialLinesField = definition?.sections
+      .flatMap((section) => section.fields)
+      .find((field) => field.name === "financialLines");
 
-      expect(financialLinesField).toMatchObject({
-        kind: "financialLines",
-        supportedCalcMethods: ["fixed", "percent"],
-        baseAmountFieldName: "amount",
-        baseCurrencyFieldName: "currency",
-      });
-    }
+    expect(financialLinesField).toMatchObject({
+      kind: "financialLines",
+      supportedCalcMethods: ["fixed", "percent"],
+      baseAmountFieldName: "amount",
+      baseCurrencyFieldName: "currency",
+    });
   });
 
   it("keeps layout metadata valid for current typed definitions", () => {

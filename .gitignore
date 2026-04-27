@@ -42,6 +42,10 @@ yarn-error.log*
 
 # MCP tool artifacts
 .playwright-mcp/
+.agents/skills/jscpd
+.agents/skills/fallow-skills
+.fallow
+artifacts
 
 # Misc
 .DS_Store

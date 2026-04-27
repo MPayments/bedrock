@@ -1,3 +1,4 @@
+import { buildRequisiteDisplayLabel } from "../../domain/requisite-details";
 import {
   ListRequisiteOptionsQuerySchema,
   type ListRequisiteOptionsInput,
@@ -18,10 +19,7 @@ export class ListRequisiteOptionsQuery {
       currencyId: row.currencyId,
       providerId: row.providerId,
       kind: row.kind,
-      label:
-        row.currencyCode.trim().length > 0
-          ? `${row.label} · ${row.currencyCode.trim().toUpperCase()}`
-          : row.label,
+      label: buildRequisiteDisplayLabel(row),
     }));
   }
 }

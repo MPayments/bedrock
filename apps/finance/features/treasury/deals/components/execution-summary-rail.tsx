@@ -21,7 +21,7 @@ type ExecutionSummaryRailProps = {
     executionPlan: Array<{
       idx: number;
       kind: string;
-      state: string;
+      runtimeState: string;
     }>;
     operationalState: {
       positions: Array<{
@@ -122,7 +122,7 @@ export function ExecutionSummaryRail({ deal }: ExecutionSummaryRailProps) {
                     </div>
                   ) : (
                     <div className="text-sm text-muted-foreground">
-                      Явных операционных блокеров для этапа сейчас нет.
+                      Явных операционных блокеров для шага сейчас нет.
                     </div>
                   )}
                 </div>

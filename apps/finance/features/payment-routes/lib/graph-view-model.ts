@@ -28,7 +28,7 @@ export type PaymentRouteGraphEdgeData = {
   legId: string;
 };
 
-export function getPaymentRouteLegCalculation(
+function getPaymentRouteLegCalculation(
   state: PaymentRouteEditorState,
   legId: string,
 ) {
@@ -76,21 +76,21 @@ function getEdgeFeeLabel(input: {
         const currency = getCurrencyLabel(options, fee.currencyId);
         const amount = formatCurrencyMinorAmount(fee.amountMinor, currency);
 
-        if (fee.kind === "percent") {
-          return `${fee.label ?? "Комиссия"} ${fee.percentage}% (${amount})`;
+        if (fee.kind === "fixed") {
+          return `${fee.label ?? "Комиссия"} ${amount}`;
         }
 
-        return `${fee.label ?? "Комиссия"} ${amount}`;
+        return `${fee.label ?? "Комиссия"} ${fee.percentage}% (${amount})`;
       })
     : leg.fees.map((fee) => {
-        if (fee.kind === "percent") {
-          return `${fee.label ?? "Комиссия"} ${fee.percentage}%`;
+        if (fee.kind === "fixed") {
+          return `${fee.label ?? "Комиссия"} ${formatCurrencyMinorAmount(
+            fee.amountMinor ?? "0",
+            getCurrencyLabel(options, fee.currencyId ?? leg.fromCurrencyId),
+          )}`;
         }
 
-        return `${fee.label ?? "Комиссия"} ${formatCurrencyMinorAmount(
-          fee.amountMinor ?? "0",
-          getCurrencyLabel(options, fee.currencyId ?? leg.fromCurrencyId),
-        )}`;
+        return `${fee.label ?? "Комиссия"} ${fee.percentage}%`;
       });
 
   return feeLabels.length > 0 ? feeLabels.join(" • ") : "Комиссия: нет";

@@ -7,12 +7,12 @@ import {
 
 import { createFeesService } from "./fees/application";
 import type { FeeRuleRepository } from "./fees/application/ports";
-import { createTreasuryInstructionsService } from "./instructions/application";
-import type { TreasuryInstructionsRepository } from "./instructions/application/ports/instructions.repository";
-import { createTreasuryOperationsService } from "./operations/application";
-import type { TreasuryOperationsRepository } from "./operations/application/ports/operations.repository";
 import { createPaymentRoutesService } from "./payment-routes/application";
 import type { PaymentRouteTemplatesRepository } from "./payment-routes/application/ports/payment-routes.repository";
+import { createPaymentStepsService } from "./payment-steps/application";
+import type { PaymentStepsRepository } from "./payment-steps/application/ports/payment-steps.repository";
+import { createQuoteExecutionsService } from "./quote-executions/application";
+import type { QuoteExecutionsRepository } from "./quote-executions/application/ports/quote-executions.repository";
 import { createQuotesService } from "./quotes/application";
 import type {
   QuoteFeeComponentsRepository,
@@ -27,6 +27,8 @@ import type {
   RateSource,
   RateSourceProvider,
 } from "./shared/application/external-ports";
+import { createTreasuryOrdersService } from "./treasury-orders/application";
+import type { TreasuryOrdersRepository } from "./treasury-orders/application/ports/treasury-orders.repository";
 
 export type TreasuryModuleUnitOfWork = QuotesCommandUnitOfWork;
 
@@ -35,14 +37,15 @@ export interface TreasuryModuleDeps {
   now: Clock;
   generateUuid: UuidGenerator;
   currencies: CurrenciesPort;
-  instructionsRepository: TreasuryInstructionsRepository;
-  operationsRepository: TreasuryOperationsRepository;
   ratesRepository: RatesRepository;
   quotesRepository: QuotesRepository;
   quoteFeeComponentsRepository: QuoteFeeComponentsRepository;
   quoteFinancialLinesRepository: QuoteFinancialLinesRepository;
   feeRulesRepository: FeeRuleRepository;
   paymentRouteTemplatesRepository: PaymentRouteTemplatesRepository;
+  paymentStepsRepository: PaymentStepsRepository;
+  quoteExecutionsRepository: QuoteExecutionsRepository;
+  treasuryOrdersRepository: TreasuryOrdersRepository;
   unitOfWork: TreasuryModuleUnitOfWork;
   rateSourceProviders?: Partial<Record<RateSource, RateSourceProvider>>;
 }
@@ -77,31 +80,41 @@ export function createTreasuryModule(deps: TreasuryModuleDeps) {
     getCrossRate: rates.queries.getCrossRate,
   });
 
+  const paymentSteps = createPaymentStepsService({
+    repository: deps.paymentStepsRepository,
+    runtime: createRuntime("treasury.payment_steps"),
+  });
+  const quotes = createQuotesService({
+    runtime: createRuntime("treasury.quotes"),
+    currencies: deps.currencies,
+    fees: {
+      calculateQuoteFeeComponents: fees.queries.calculateQuoteFeeComponents,
+    },
+    quoteFeeComponentsRepository: deps.quoteFeeComponentsRepository,
+    quoteFinancialLinesRepository: deps.quoteFinancialLinesRepository,
+    quotesRepository: deps.quotesRepository,
+    rates: {
+      getCrossRate: rates.queries.getCrossRate,
+    },
+    commandUow: deps.unitOfWork,
+  });
+  const quoteExecutions = createQuoteExecutionsService({
+    quotes: quotes.queries,
+    repository: deps.quoteExecutionsRepository,
+    runtime: createRuntime("treasury.quote_executions"),
+  });
+
   return {
-    instructions: createTreasuryInstructionsService({
-      instructionsRepository: deps.instructionsRepository,
-      operationsRepository: deps.operationsRepository,
-      runtime: createRuntime("treasury.instructions"),
-    }),
-    operations: createTreasuryOperationsService({
-      operationsRepository: deps.operationsRepository,
-      runtime: createRuntime("treasury.operations"),
+    paymentSteps,
+    quoteExecutions,
+    treasuryOrders: createTreasuryOrdersService({
+      paymentSteps,
+      quoteExecutions,
+      repository: deps.treasuryOrdersRepository,
+      runtime: createRuntime("treasury.orders"),
     }),
     rates,
-    quotes: createQuotesService({
-      runtime: createRuntime("treasury.quotes"),
-      currencies: deps.currencies,
-      fees: {
-        calculateQuoteFeeComponents: fees.queries.calculateQuoteFeeComponents,
-      },
-      quoteFeeComponentsRepository: deps.quoteFeeComponentsRepository,
-      quoteFinancialLinesRepository: deps.quoteFinancialLinesRepository,
-      quotesRepository: deps.quotesRepository,
-      rates: {
-        getCrossRate: rates.queries.getCrossRate,
-      },
-      commandUow: deps.unitOfWork,
-    }),
+    quotes,
     paymentRoutes,
     fees,
   };

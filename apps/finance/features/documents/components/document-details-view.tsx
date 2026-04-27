@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import type { DocumentFormOptions } from "@bedrock/sdk-documents-form-ui/lib/form-options";
+import { PrintFormActions } from "@bedrock/sdk-print-forms-ui/components/print-form-actions";
 import { Badge } from "@bedrock/sdk-ui/components/badge";
 import {
   Card,
@@ -10,21 +12,20 @@ import {
 } from "@bedrock/sdk-ui/components/card";
 import { Separator } from "@bedrock/sdk-ui/components/separator";
 
-import type { UserRole } from "@/lib/auth/types";
-import type { DocumentFormOptions } from "@/features/documents/lib/form-options";
 import { getDocumentTypeLabel } from "@/features/documents/lib/doc-types";
-import { OperationDetailsCards } from "@/features/operations/journal/components/operation-details-cards";
 import {
   getApprovalStatusLabel,
   getLifecycleStatusLabel,
   getPostingStatusLabel,
   getSubmissionStatusLabel,
 } from "@/features/documents/lib/status-labels";
-import { formatAmountByCurrency, formatDate } from "@/lib/format";
 import {
   type DocumentDetailsDto,
   type DocumentDto,
 } from "@/features/operations/documents/lib/schemas";
+import { OperationDetailsCards } from "@/features/operations/journal/components/operation-details-cards";
+import { formatAmountByCurrency, formatDate } from "@/lib/format";
+import type { UserRole } from "@/lib/auth/types";
 
 import { DocumentActionButtons } from "./document-action-buttons";
 import { DocumentWorkbenchCard } from "./document-workbench-card";
@@ -134,6 +135,11 @@ function buildDocumentHref(
   return `${basePath}/${document.docType}/${document.id}`;
 }
 
+function isDealReturnHref(returnToHref: string | undefined | null) {
+  if (!returnToHref) return false;
+  return returnToHref.startsWith("/treasury/deals/");
+}
+
 export function DocumentDetailsView({
   dealId,
   details,
@@ -163,8 +169,32 @@ export function DocumentDetailsView({
       .map((operation) => [operation!.operation.id, operation!] as const),
   );
 
+  const shouldAutoReturnToDeal =
+    isDealReturnHref(returnToHref) && !reconciliationAdjustmentExceptionId;
+  const printFormActions = (
+    <PrintFormActions
+      client={{ baseUrl: "/v1", credentials: "include" }}
+      forms={document.printForms}
+      owner={{
+        type: "document",
+        docType: document.docType,
+        documentId: document.id,
+      }}
+      size="sm"
+    />
+  );
+
   return (
     <div className="space-y-6">
+      {returnToHref ? (
+        <Link
+          data-testid="finance-document-return-to-deal"
+          href={returnToHref}
+          className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-sm underline-offset-2 hover:underline"
+        >
+          ← Вернуться к сделке
+        </Link>
+      ) : null}
       <Card className="rounded-sm">
         <CardHeader className="gap-4 border-b">
           <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
@@ -183,20 +213,26 @@ export function DocumentDetailsView({
                 lifecycleStatus={document.lifecycleStatus}
               />
             </div>
-            <DocumentActionButtons
-              docType={document.docType}
-              documentId={document.id}
-              allowedActions={document.allowedActions}
-              reconciliationAdjustment={
-                dealId && reconciliationAdjustmentExceptionId
-                  ? {
-                      dealId,
-                      exceptionId: reconciliationAdjustmentExceptionId,
-                      returnToHref,
-                    }
-                  : undefined
-              }
-            />
+            <div className="flex flex-wrap justify-end gap-2">
+              {printFormActions}
+              <DocumentActionButtons
+                docType={document.docType}
+                documentId={document.id}
+                allowedActions={document.allowedActions}
+                reconciliationAdjustment={
+                  dealId && reconciliationAdjustmentExceptionId
+                    ? {
+                        dealId,
+                        exceptionId: reconciliationAdjustmentExceptionId,
+                        returnToHref,
+                      }
+                    : undefined
+                }
+                returnOnPostedHref={
+                  shouldAutoReturnToDeal ? returnToHref : undefined
+                }
+              />
+            </div>
           </div>
         </CardHeader>
         <CardContent className="grid gap-6 py-6 md:grid-cols-2">

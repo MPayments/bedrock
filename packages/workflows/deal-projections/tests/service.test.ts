@@ -11,11 +11,14 @@ function createExecutionLeg(
   state: "ready" | "pending",
 ) {
   return {
+    fromCurrencyId: null,
     id: `leg-${idx}`,
     idx,
     kind,
     operationRefs: [],
+    routeSnapshotLegId: null,
     state,
+    toCurrencyId: null,
   };
 }
 
@@ -85,7 +88,7 @@ function createBaseWorkflow(): DealWorkflowProjection {
         {
           amountMinor: "100000",
           currencyId: "currency-rub",
-          kind: "provider_payable",
+          kind: "downstream_payable",
           reasonCode: null,
           sourceRefs: [],
           state: "ready",
@@ -272,40 +275,6 @@ function createWorkflow(overrides?: {
     usedByRef: string | null;
     usedDocumentId: string | null;
   }[];
-  treasuryOperations?: {
-    amountMinor: bigint | null;
-    counterAmountMinor: bigint | null;
-    counterCurrencyId: string | null;
-    createdAt: Date;
-    currencyId: string | null;
-    customerId: string | null;
-    dealId: string | null;
-    id: string;
-    internalEntityOrganizationId: string | null;
-    kind: "payin" | "payout" | "fx_conversion" | "intracompany_transfer" | "intercompany_funding";
-    quoteId: string | null;
-    sourceRef: string;
-    state: "planned";
-    updatedAt: Date;
-  }[];
-  latestInstructions?: {
-    attempt: number;
-    createdAt: Date;
-    id: string;
-    operationId: string;
-    providerRef: string | null;
-    providerSnapshot: Record<string, unknown> | null;
-    sourceRef: string;
-    state:
-      | "prepared"
-      | "submitted"
-      | "settled"
-      | "failed"
-      | "voided"
-      | "return_requested"
-      | "returned";
-    updatedAt: Date;
-  }[];
   reconciliationLinks?: {
     exceptions: {
       createdAt: Date;
@@ -320,6 +289,32 @@ function createWorkflow(overrides?: {
     lastActivityAt: Date | null;
     matchCount: number;
     operationId: string;
+  }[];
+  paymentSteps?: {
+    dealId: string | null;
+    fromAmountMinor: bigint | null;
+    fromCurrencyId: string;
+    id: string;
+    kind:
+      | "payin"
+      | "fx_conversion"
+      | "payout"
+      | "intracompany_transfer"
+      | "intercompany_funding"
+      | "internal_transfer";
+    state:
+      | "draft"
+      | "scheduled"
+      | "pending"
+      | "processing"
+      | "completed"
+      | "failed"
+      | "returned"
+      | "cancelled"
+      | "skipped";
+    planLegId: string | null;
+    sequence: number | null;
+    toCurrencyId: string;
   }[];
   workflow?: ReturnType<typeof createBaseWorkflow>;
 }) {
@@ -356,6 +351,16 @@ function createWorkflow(overrides?: {
       queries: {
         findById: vi.fn(async () => ({
           approvals: [],
+        })),
+        findPricingContextByDealId: vi.fn(async () => ({
+          commercialDraft: {
+            fixedFeeAmount: null,
+            fixedFeeCurrency: null,
+            quoteMarkupBps: null,
+          },
+          fundingAdjustments: [],
+          revision: 1,
+          routeAttachment: null,
         })),
         findWorkflowById: vi.fn(async () => workflow),
         list: vi.fn(async () => ({
@@ -425,6 +430,7 @@ function createWorkflow(overrides?: {
     files: {
       files: {
         queries: {
+          listCurrentFileVersionsByAssetIds: vi.fn(async () => []),
           listDealAttachments: vi.fn(async () => attachments),
         },
       },
@@ -487,25 +493,85 @@ function createWorkflow(overrides?: {
       },
     } as never,
     treasury: {
-      instructions: {
+      paymentSteps: {
         queries: {
-          listLatestByOperationIds: vi.fn(
-            async () => overrides?.latestInstructions ?? [],
-          ),
+          list: vi.fn(async () => {
+            const items = (overrides?.paymentSteps ?? []).map((step) => ({
+              amendments: [],
+              artifacts: [],
+              attempts: [],
+              completedAt: null,
+              createdAt: new Date("2026-04-01T10:00:00.000Z"),
+              currentRoute: {
+                fromAmountMinor: step.fromAmountMinor,
+                fromCurrencyId: step.fromCurrencyId,
+                fromParty: { id: "party-1", requisiteId: null },
+                rate: null,
+                toAmountMinor: null,
+                toCurrencyId: step.toCurrencyId,
+                toParty: { id: "party-2", requisiteId: null },
+              },
+              dealId: step.dealId,
+              failureReason: null,
+              fromAmountMinor: step.fromAmountMinor,
+              fromCurrencyId: step.fromCurrencyId,
+              fromParty: { id: "party-1", requisiteId: null },
+              id: step.id,
+              kind: step.kind,
+              origin: {
+                dealId: step.dealId,
+                planLegId: step.planLegId,
+                routeSnapshotLegId: null,
+                sequence: step.sequence,
+                treasuryOrderId: null,
+                type: step.planLegId ? "deal_execution_leg" : "manual",
+              },
+              plannedRoute: {
+                fromAmountMinor: step.fromAmountMinor,
+                fromCurrencyId: step.fromCurrencyId,
+                fromParty: { id: "party-1", requisiteId: null },
+                rate: null,
+                toAmountMinor: null,
+                toCurrencyId: step.toCurrencyId,
+                toParty: { id: "party-2", requisiteId: null },
+              },
+              postingDocumentRefs: [],
+              purpose: "deal_leg" as const,
+              quoteId: null,
+              rate: null,
+              returns: [],
+              scheduledAt: null,
+              sourceRef: `deal:${step.dealId ?? "none"}:plan-leg:${step.planLegId ?? step.id}:${step.kind}:1`,
+              state: step.state,
+              submittedAt: null,
+              toAmountMinor: null,
+              toCurrencyId: step.toCurrencyId,
+              toParty: { id: "party-2", requisiteId: null },
+              treasuryBatchId: null,
+              updatedAt: new Date("2026-04-01T10:00:00.000Z"),
+            }));
+            return {
+              data: items,
+              limit: 100,
+              offset: 0,
+              total: items.length,
+            };
+          }),
         },
       },
-      operations: {
+      quoteExecutions: {
         queries: {
           list: vi.fn(async () => ({
-            data: overrides?.treasuryOperations ?? [],
-            limit: MAX_QUERY_LIST_LIMIT,
+            data: [],
+            limit: 100,
             offset: 0,
-            total: overrides?.treasuryOperations?.length ?? 0,
+            total: 0,
           })),
         },
       },
       quotes: {
         queries: {
+          getQuoteDetails: vi.fn(async () => null),
           listQuotes: vi.fn(async () => ({
             data: overrides?.treasuryQuotes ?? [],
             limit: MAX_QUERY_LIST_LIMIT,
@@ -578,7 +644,7 @@ describe("createDealProjectionsWorkflow", () => {
       operationalState: {
         ...workflowState.operationalState,
         positions: workflowState.operationalState.positions.map((position) =>
-          position.kind === "provider_payable"
+          position.kind === "downstream_payable"
             ? {
                 ...position,
                 reasonCode: "provider_timeout",
@@ -751,6 +817,7 @@ describe("createDealProjectionsWorkflow", () => {
           quoteId: "quote-1",
           quoteStatus: "active",
           replacedByQuoteId: null,
+          revocationReason: null,
           revokedAt: null,
           usedAt: null,
           usedDocumentId: null,
@@ -978,19 +1045,6 @@ describe("createDealProjectionsWorkflow", () => {
         ],
         updatedAt: new Date("2026-04-01T09:00:00.000Z"),
       },
-      latestInstructions: [
-        {
-          attempt: 1,
-          createdAt: new Date("2026-04-01T10:00:00.000Z"),
-          id: "instruction-1",
-          operationId: "operation-1",
-          providerRef: null,
-          providerSnapshot: null,
-          sourceRef: "source-1",
-          state: "settled",
-          updatedAt: new Date("2026-04-01T10:00:00.000Z"),
-        },
-      ],
       reconciliationLinks: [
         {
           exceptions: [
@@ -1010,22 +1064,17 @@ describe("createDealProjectionsWorkflow", () => {
           operationId: "operation-1",
         },
       ],
-      treasuryOperations: [
+      paymentSteps: [
         {
-          amountMinor: 10000000n,
-          counterAmountMinor: null,
-          counterCurrencyId: null,
-          createdAt: new Date("2026-04-01T09:00:00.000Z"),
-          currencyId: "currency-rub",
-          customerId: "customer-1",
           dealId: "deal-1",
+          fromAmountMinor: 10000000n,
+          fromCurrencyId: "currency-rub",
           id: "operation-1",
-          internalEntityOrganizationId: "organization-1",
           kind: "payout",
-          quoteId: null,
-          sourceRef: "deal:deal-1:leg:1:payout:1",
-          state: "planned",
-          updatedAt: new Date("2026-04-01T09:00:00.000Z"),
+          planLegId: "leg-1",
+          sequence: 1,
+          state: "completed",
+          toCurrencyId: "currency-rub",
         },
       ],
       treasuryQuotes: [
@@ -1057,6 +1106,7 @@ describe("createDealProjectionsWorkflow", () => {
         ...createBaseWorkflow(),
         executionPlan: [
           {
+            fromCurrencyId: null,
             id: "leg-1",
             idx: 1,
             kind: "payout",
@@ -1067,7 +1117,9 @@ describe("createDealProjectionsWorkflow", () => {
                 sourceRef: "deal:deal-1:leg:1:payout:1",
               },
             ],
+            routeSnapshotLegId: null,
             state: "ready",
+            toCurrencyId: null,
           },
         ],
         acceptedQuote: {
@@ -1081,6 +1133,7 @@ describe("createDealProjectionsWorkflow", () => {
           quoteId: "quote-1",
           quoteStatus: "active",
           replacedByQuoteId: null,
+          revocationReason: null,
           revokedAt: null,
           usedAt: null,
           usedDocumentId: null,
@@ -1145,7 +1198,7 @@ describe("createDealProjectionsWorkflow", () => {
       ],
       formalDocumentRequirements: [
         {
-          createAllowed: true,
+          createAllowed: false,
           docType: "invoice",
           openAllowed: false,
           state: "missing",
@@ -1160,7 +1213,7 @@ describe("createDealProjectionsWorkflow", () => {
       pricing: {
         quoteAmount: "1000",
         quoteAmountSide: "target",
-        quoteEligibility: false,
+        quoteEligibility: true,
         sourceCurrencyId: "currency-rub",
         targetCurrencyId: "currency-usd",
       },
@@ -1195,17 +1248,16 @@ describe("createDealProjectionsWorkflow", () => {
           },
         ],
       },
-      instructionSummary: {
-        failed: 0,
-        planned: 0,
-        prepared: 0,
-        returnRequested: 0,
-        returned: 0,
-        settled: 1,
-        submitted: 0,
-        terminalOperations: 1,
-        totalOperations: 1,
-        voided: 0,
+      cashflowSummary: {
+        receivedIn: [],
+        scheduledOut: [],
+        settledOut: [
+          {
+            amountMinor: "10000000",
+            currencyCode: "RUB",
+            currencyId: "currency-rub",
+          },
+        ],
       },
       reconciliationSummary: {
         ignoredExceptionCount: 0,
@@ -1262,6 +1314,60 @@ describe("createDealProjectionsWorkflow", () => {
       expect.arrayContaining([
         expect.objectContaining({
           createAllowed: false,
+          docType: "invoice",
+          openAllowed: false,
+          state: "missing",
+        }),
+      ]),
+    );
+  });
+
+  it("keeps createAllowed disabled for missing formal documents in submitted status", async () => {
+    const baseWorkflow = createBaseWorkflow();
+    const workflow = createWorkflow({
+      workflow: {
+        ...baseWorkflow,
+        summary: {
+          ...baseWorkflow.summary,
+          status: "submitted",
+        },
+      },
+    });
+
+    const projection = await workflow.getFinanceDealWorkspaceProjection("deal-1");
+
+    expect(projection).not.toBeNull();
+    expect(projection?.formalDocumentRequirements).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          createAllowed: false,
+          docType: "invoice",
+          openAllowed: false,
+          state: "missing",
+        }),
+      ]),
+    );
+  });
+
+  it("allows creating missing formal documents in preparing_documents status", async () => {
+    const baseWorkflow = createBaseWorkflow();
+    const workflow = createWorkflow({
+      workflow: {
+        ...baseWorkflow,
+        summary: {
+          ...baseWorkflow.summary,
+          status: "preparing_documents",
+        },
+      },
+    });
+
+    const projection = await workflow.getFinanceDealWorkspaceProjection("deal-1");
+
+    expect(projection).not.toBeNull();
+    expect(projection?.formalDocumentRequirements).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          createAllowed: true,
           docType: "invoice",
           openAllowed: false,
           state: "missing",

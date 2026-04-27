@@ -17,6 +17,7 @@
     "test": "vitest run --config vitest.config.ts"
   },
   "dependencies": {
+    "@bedrock/agreements": "workspace:*",
     "@bedrock/deals": "workspace:*",
     "@bedrock/iam": "workspace:*",
     "@bedrock/parties": "workspace:*",
@@ -27,11 +28,11 @@
   },
   "devDependencies": {
     "@bedrock/eslint-config": "workspace:*",
+    "@bedrock/test-utils": "workspace:*",
     "@bedrock/typescript-config": "workspace:*",
     "@types/node": "^24",
     "@types/pg": "^8.16.0",
     "eslint": "^10.2.0",
-    "pg": "^8.18.0",
     "typescript": "^6.0.2",
     "vitest": "^4.1.4"
   },

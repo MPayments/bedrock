@@ -51,7 +51,6 @@ import {
 import type {
   DocumentFormat,
   DocumentLang,
-  OrgFiles,
   PartialOrgFiles,
 } from "./data-assembly";
 import type {
@@ -62,8 +61,6 @@ import type {
 import {
   CustomerContractNotFoundError,
   CustomerContractOrganizationNotFoundError,
-  OrganizationFileMissingInStorageError,
-  OrganizationFilesNotConfiguredError,
 } from "./errors";
 
 export interface TemplateRendererPort {
@@ -440,11 +437,6 @@ function mapContractOrganizationRequisiteData(input: {
   };
 }
 
-function isMissingStorageKeyError(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : String(error);
-  return message.includes("The specified key does not exist");
-}
-
 async function findProviderByIdOrNull(
   parties: Pick<PartiesModule, "requisites">,
   providerId: string | null | undefined,
@@ -481,75 +473,8 @@ export function createDocumentGenerationWorkflow(
     return { buffer: docxBuffer, mimeType: MIME_TYPES.docx! };
   }
 
-  async function fetchOrgFiles(
-    organization: Record<string, unknown>,
-  ): Promise<OrgFiles> {
-    if (!deps.objectStorage) {
-      throw new Error("Object storage not configured");
-    }
-
-    const organizationId =
-      typeof organization.id === "string" ? organization.id : null;
-    const signatureKey =
-      typeof organization.signatureKey === "string"
-        ? organization.signatureKey
-        : organizationId
-          ? `organizations/${organizationId}/signature.png`
-          : null;
-    const sealKey =
-      typeof organization.sealKey === "string"
-        ? organization.sealKey
-        : organizationId
-          ? `organizations/${organizationId}/seal.png`
-          : null;
-
-    if (!signatureKey || !sealKey) {
-      throw new Error("Organization files are not configured");
-    }
-
-    const [signatureBuffer, sealBuffer] = await Promise.all([
-      deps.objectStorage.download(signatureKey),
-      deps.objectStorage.download(sealKey),
-    ]);
-
-    return {
-      signature: bufferToImageContent(signatureBuffer, 150, 50),
-      stamp: bufferToImageContent(sealBuffer, 200, 200),
-    };
-  }
-
-  async function fetchConfiguredOrgFiles(
-    organization: Organization,
-  ): Promise<OrgFiles> {
-    if (!deps.objectStorage) {
-      throw new Error("Object storage not configured");
-    }
-
-    if (!organization.signatureKey || !organization.sealKey) {
-      throw new OrganizationFilesNotConfiguredError();
-    }
-
-    try {
-      const [signatureBuffer, sealBuffer] = await Promise.all([
-        deps.objectStorage.download(organization.signatureKey),
-        deps.objectStorage.download(organization.sealKey),
-      ]);
-
-      return {
-        signature: bufferToImageContent(signatureBuffer, 150, 50),
-        stamp: bufferToImageContent(sealBuffer, 200, 200),
-      };
-    } catch (error) {
-      if (isMissingStorageKeyError(error)) {
-        throw new OrganizationFileMissingInStorageError();
-      }
-
-      throw error;
-    }
-  }
-
   async function fetchConfiguredOrgFilesBestEffort(
-    organization: Organization,
+    organization: Pick<Organization, "id" | "sealKey" | "signatureKey">,
   ): Promise<PartialOrgFiles> {
     if (!deps.objectStorage) {
       return {};
@@ -614,12 +539,8 @@ export function createDocumentGenerationWorkflow(
   ): Promise<GeneratedDocument> {
     const format = (input.format ?? "docx") as DocumentFormat;
     const lang = (input.lang ?? "ru") as DocumentLang;
-    const orgFilesPromise: Promise<OrgFiles | PartialOrgFiles> =
-      format === "pdf"
-        ? fetchConfiguredOrgFiles(input.organization)
-        : fetchConfiguredOrgFilesBestEffort(input.organization);
     const [orgFiles, organizationCurrency] = await Promise.all([
-      orgFilesPromise,
+      fetchConfiguredOrgFilesBestEffort(input.organization),
       deps.currencies.findById(input.organizationRequisite.currencyId),
     ]);
     const client = mapContractClientData({
@@ -779,7 +700,20 @@ export function createDocumentGenerationWorkflow(
       const format = input.format ?? "docx";
       const lang = input.lang ?? "ru";
       const date = input.date ?? new Date();
-      const orgFiles = await fetchOrgFiles(input.organization);
+      const orgFiles = await fetchConfiguredOrgFilesBestEffort({
+        id:
+          typeof input.organization.id === "string"
+            ? input.organization.id
+            : "",
+        signatureKey:
+          typeof input.organization.signatureKey === "string"
+            ? input.organization.signatureKey
+            : null,
+        sealKey:
+          typeof input.organization.sealKey === "string"
+            ? input.organization.sealKey
+            : null,
+      });
 
       const assemblers = {
         application: assembleApplicationData,
@@ -854,21 +788,6 @@ export function createDocumentGenerationWorkflow(
     }): Promise<GeneratedDocument> {
       const format = input.format ?? "docx";
       const mergedData: Record<string, unknown> = { ...input.data };
-
-      if (input.organizationId && deps.objectStorage) {
-        try {
-          const orgFiles = await fetchOrgFiles({
-            id: input.organizationId,
-          });
-          mergedData.signature = orgFiles.signature;
-          mergedData.stamp = orgFiles.stamp;
-        } catch {
-          deps.logger.warn(
-            "Could not load organization files for raw data generation",
-            { organizationId: input.organizationId },
-          );
-        }
-      }
 
       const templateType = input.templateName.replace(/\.docx$/, "");
       const { buffer, mimeType } = await renderAndConvert(

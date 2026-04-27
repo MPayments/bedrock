@@ -1,0 +1,377 @@
+import { describe, expect, it } from "vitest";
+
+import {
+  buildAmendRouteBody,
+  deriveStepPrimaryAction,
+  latestStepAttempt,
+  requiresSettlementEvidence,
+  stepBadgeVariant,
+  STEP_STATE_LABELS,
+} from "@/features/treasury/steps/lib/step-helpers";
+import type {
+  FinanceDealPaymentStep,
+  FinanceDealPaymentStepAttempt,
+} from "@/features/treasury/deals/lib/queries";
+
+function makeValues(): Parameters<typeof buildAmendRouteBody>[0]["before"] {
+  return {
+    fromAmountMinor: "1000",
+    fromCurrencyId: "00000000-0000-4000-8000-000000000001",
+    fromPartyId: "00000000-0000-4000-8000-000000000100",
+    fromRequisiteId: null,
+    rate: null,
+    toAmountMinor: "1000",
+    toCurrencyId: "00000000-0000-4000-8000-000000000001",
+    toPartyId: "00000000-0000-4000-8000-000000000200",
+    toRequisiteId: null,
+  };
+}
+
+describe("stepBadgeVariant", () => {
+  it("returns default for completed (strong positive)", () => {
+    expect(stepBadgeVariant("completed")).toBe("default");
+  });
+
+  it("returns destructive for failed and returned", () => {
+    expect(stepBadgeVariant("failed")).toBe("destructive");
+    expect(stepBadgeVariant("returned")).toBe("destructive");
+  });
+
+  it("returns secondary for skipped/cancelled (neutral terminal)", () => {
+    expect(stepBadgeVariant("cancelled")).toBe("secondary");
+    expect(stepBadgeVariant("skipped")).toBe("secondary");
+  });
+
+  it("returns outline for mutable in-flight states", () => {
+    expect(stepBadgeVariant("draft")).toBe("outline");
+    expect(stepBadgeVariant("scheduled")).toBe("outline");
+    expect(stepBadgeVariant("pending")).toBe("outline");
+    expect(stepBadgeVariant("processing")).toBe("outline");
+  });
+
+  it("has a label for every state", () => {
+    const states = [
+      "draft",
+      "scheduled",
+      "pending",
+      "processing",
+      "completed",
+      "failed",
+      "returned",
+      "cancelled",
+      "skipped",
+    ] as const;
+    for (const state of states) {
+      expect(STEP_STATE_LABELS[state]).toBeTruthy();
+    }
+  });
+});
+
+describe("deriveStepPrimaryAction", () => {
+  it("returns submit for pending and failed (retry)", () => {
+    expect(deriveStepPrimaryAction("pending")).toBe("submit");
+    expect(deriveStepPrimaryAction("failed")).toBe("submit");
+  });
+
+  it("returns confirm while processing", () => {
+    expect(deriveStepPrimaryAction("processing")).toBe("confirm");
+  });
+
+  it("returns null for terminal states", () => {
+    expect(deriveStepPrimaryAction("completed")).toBeNull();
+    expect(deriveStepPrimaryAction("returned")).toBeNull();
+    expect(deriveStepPrimaryAction("cancelled")).toBeNull();
+    expect(deriveStepPrimaryAction("skipped")).toBeNull();
+  });
+
+  it("returns submit for draft/scheduled/pending/failed", () => {
+    expect(deriveStepPrimaryAction("draft")).toBe("submit");
+    expect(deriveStepPrimaryAction("scheduled")).toBe("submit");
+    expect(deriveStepPrimaryAction("pending")).toBe("submit");
+    expect(deriveStepPrimaryAction("failed")).toBe("submit");
+  });
+});
+
+describe("buildAmendRouteBody", () => {
+  it("returns null when nothing changed", () => {
+    const base = makeValues();
+    expect(buildAmendRouteBody({ before: base, after: base })).toBeNull();
+  });
+
+  it("includes only the fields that actually changed", () => {
+    const before = makeValues();
+    const after = { ...before, fromAmountMinor: "2000" };
+    expect(buildAmendRouteBody({ before, after })).toEqual({
+      fromAmountMinor: "2000",
+    });
+  });
+
+  it("wraps requisite changes in full fromParty/toParty payloads", () => {
+    const before = makeValues();
+    const after = {
+      ...before,
+      fromRequisiteId: "00000000-0000-4000-8000-000000000020",
+      toRequisiteId: "00000000-0000-4000-8000-000000000021",
+    };
+    expect(buildAmendRouteBody({ before, after })).toEqual({
+      fromParty: {
+        id: before.fromPartyId,
+        requisiteId: "00000000-0000-4000-8000-000000000020",
+      },
+      toParty: {
+        id: before.toPartyId,
+        requisiteId: "00000000-0000-4000-8000-000000000021",
+      },
+    });
+  });
+
+  it("includes full party payload when the party entity id changes", () => {
+    const before = makeValues();
+    const after = {
+      ...before,
+      fromPartyId: "00000000-0000-4000-8000-000000000999",
+    };
+    expect(buildAmendRouteBody({ before, after })).toEqual({
+      fromParty: {
+        id: "00000000-0000-4000-8000-000000000999",
+        requisiteId: null,
+      },
+    });
+  });
+
+  it("detects rate changes by value-equality", () => {
+    const before = { ...makeValues(), rate: null };
+    const after = {
+      ...makeValues(),
+      rate: { value: "1.25", lockedSide: "in" as const },
+    };
+    expect(buildAmendRouteBody({ before, after })).toEqual({
+      rate: { value: "1.25", lockedSide: "in" },
+    });
+  });
+
+  it("detects rate resets back to null", () => {
+    const before = {
+      ...makeValues(),
+      rate: { value: "1.25", lockedSide: "in" as const },
+    };
+    const after = { ...makeValues(), rate: null };
+    expect(buildAmendRouteBody({ before, after })).toEqual({ rate: null });
+  });
+});
+
+describe("latestStepAttempt", () => {
+  function makeStep(
+    attempts: FinanceDealPaymentStepAttempt[],
+  ): FinanceDealPaymentStep {
+    return {
+      amendments: [],
+      artifacts: [],
+      attempts,
+      completedAt: null,
+      createdAt: "2026-04-01T00:00:00.000Z",
+      currentRoute: {
+        fromAmountMinor: null,
+        fromCurrencyId: "00000000-0000-4000-8000-000000000001",
+        fromParty: {
+          id: "00000000-0000-4000-8000-000000000002",
+          requisiteId: null,
+        },
+        rate: null,
+        toAmountMinor: null,
+        toCurrencyId: "00000000-0000-4000-8000-000000000001",
+        toParty: {
+          id: "00000000-0000-4000-8000-000000000003",
+          requisiteId: null,
+        },
+      },
+      dealId: null,
+      failureReason: null,
+      fromAmountMinor: null,
+      fromCurrencyId: "00000000-0000-4000-8000-000000000001",
+      fromParty: {
+        id: "00000000-0000-4000-8000-000000000002",
+        requisiteId: null,
+      },
+      id: "00000000-0000-4000-8000-000000000010",
+      kind: "payin",
+      origin: {
+        dealId: null,
+        planLegId: null,
+        routeSnapshotLegId: null,
+        sequence: null,
+        treasuryOrderId: null,
+        type: "manual",
+      },
+      plannedRoute: {
+        fromAmountMinor: null,
+        fromCurrencyId: "00000000-0000-4000-8000-000000000001",
+        fromParty: {
+          id: "00000000-0000-4000-8000-000000000002",
+          requisiteId: null,
+        },
+        rate: null,
+        toAmountMinor: null,
+        toCurrencyId: "00000000-0000-4000-8000-000000000001",
+        toParty: {
+          id: "00000000-0000-4000-8000-000000000003",
+          requisiteId: null,
+        },
+      },
+      postingDocumentRefs: [],
+      purpose: "standalone_payment",
+      quoteId: null,
+      rate: null,
+      returns: [],
+      scheduledAt: null,
+      sourceRef: "manual:00000000-0000-4000-8000-000000000010",
+      state: "pending",
+      submittedAt: null,
+      toAmountMinor: null,
+      toCurrencyId: "00000000-0000-4000-8000-000000000001",
+      toParty: {
+        id: "00000000-0000-4000-8000-000000000003",
+        requisiteId: null,
+      },
+      treasuryBatchId: null,
+      updatedAt: "2026-04-01T00:00:00.000Z",
+    };
+  }
+
+  function makeAttempt(
+    attemptNo: number,
+    outcome: FinanceDealPaymentStepAttempt["outcome"] = "pending",
+  ): FinanceDealPaymentStepAttempt {
+    return {
+      attemptNo,
+      createdAt: "2026-04-01T00:00:00.000Z",
+      id: `00000000-0000-4000-8000-00000000010${attemptNo}`,
+      outcome,
+      outcomeAt: outcome === "pending" ? null : "2026-04-01T01:00:00.000Z",
+      paymentStepId: "00000000-0000-4000-8000-000000000010",
+      providerRef: null,
+      providerSnapshot: null,
+      submittedAt: "2026-04-01T00:00:00.000Z",
+      updatedAt: "2026-04-01T00:00:00.000Z",
+    };
+  }
+
+  it("returns null for empty attempts", () => {
+    expect(latestStepAttempt(makeStep([]))).toBeNull();
+  });
+
+  it("returns the attempt with the highest attemptNo even if out of order", () => {
+    const step = makeStep([
+      makeAttempt(1, "failed"),
+      makeAttempt(3, "pending"),
+      makeAttempt(2, "voided"),
+    ]);
+    expect(latestStepAttempt(step)?.attemptNo).toBe(3);
+  });
+});
+
+describe("requiresSettlementEvidence", () => {
+  function makeStep(
+    overrides: Partial<FinanceDealPaymentStep> = {},
+  ): FinanceDealPaymentStep {
+    return {
+      amendments: [],
+      artifacts: [],
+      attempts: [],
+      completedAt: null,
+      createdAt: "2026-04-01T00:00:00.000Z",
+      currentRoute: {
+        fromAmountMinor: null,
+        fromCurrencyId: "00000000-0000-4000-8000-000000000001",
+        fromParty: {
+          id: "00000000-0000-4000-8000-000000000002",
+          requisiteId: null,
+        },
+        rate: null,
+        toAmountMinor: null,
+        toCurrencyId: "00000000-0000-4000-8000-000000000001",
+        toParty: {
+          id: "00000000-0000-4000-8000-000000000003",
+          requisiteId: null,
+        },
+      },
+      dealId: "00000000-0000-4000-8000-000000000011",
+      failureReason: null,
+      fromAmountMinor: null,
+      fromCurrencyId: "00000000-0000-4000-8000-000000000001",
+      fromParty: {
+        id: "00000000-0000-4000-8000-000000000002",
+        requisiteId: null,
+      },
+      id: "00000000-0000-4000-8000-000000000010",
+      kind: "payout",
+      origin: {
+        dealId: "00000000-0000-4000-8000-000000000011",
+        planLegId: "plan-leg-2",
+        routeSnapshotLegId: null,
+        sequence: 2,
+        treasuryOrderId: null,
+        type: "deal_execution_leg",
+      },
+      plannedRoute: {
+        fromAmountMinor: null,
+        fromCurrencyId: "00000000-0000-4000-8000-000000000001",
+        fromParty: {
+          id: "00000000-0000-4000-8000-000000000002",
+          requisiteId: null,
+        },
+        rate: null,
+        toAmountMinor: null,
+        toCurrencyId: "00000000-0000-4000-8000-000000000001",
+        toParty: {
+          id: "00000000-0000-4000-8000-000000000003",
+          requisiteId: null,
+        },
+      },
+      postingDocumentRefs: [],
+      purpose: "deal_leg",
+      quoteId: null,
+      rate: null,
+      returns: [],
+      scheduledAt: null,
+      sourceRef:
+        "deal:00000000-0000-4000-8000-000000000011:plan-leg:plan-leg-2:payout:1",
+      state: "processing",
+      submittedAt: null,
+      toAmountMinor: null,
+      toCurrencyId: "00000000-0000-4000-8000-000000000001",
+      toParty: {
+        id: "00000000-0000-4000-8000-000000000003",
+        requisiteId: null,
+      },
+      treasuryBatchId: null,
+      updatedAt: "2026-04-01T00:00:00.000Z",
+      ...overrides,
+    };
+  }
+
+  it("requires evidence only for deal beneficiary payout steps", () => {
+    expect(requiresSettlementEvidence(makeStep())).toBe(true);
+    expect(
+      requiresSettlementEvidence(
+        makeStep({ kind: "payin" }),
+      ),
+    ).toBe(false);
+    expect(
+      requiresSettlementEvidence(
+        makeStep({
+          dealId: null,
+          origin: {
+            dealId: null,
+            planLegId: null,
+            routeSnapshotLegId: null,
+            sequence: null,
+            treasuryOrderId: null,
+            type: "manual",
+          },
+          purpose: "standalone_payment",
+        }),
+      ),
+    ).toBe(false);
+  });
+});

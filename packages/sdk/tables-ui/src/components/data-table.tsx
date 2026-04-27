@@ -31,17 +31,34 @@ export interface ContextMenuItem<TData> {
 interface DataTableProps<TData> extends React.ComponentProps<"div"> {
   table: TanstackTable<TData>;
   actionBar?: React.ReactNode;
+  onRowClick?: (
+    row: TanstackRow<TData>,
+    event: React.MouseEvent<HTMLTableRowElement>,
+  ) => void;
   onRowDoubleClick?: (
     row: TanstackRow<TData>,
     event: React.MouseEvent<HTMLTableRowElement>,
   ) => void;
-  contextMenuItems?: ContextMenuItem<TData>[] | ((row: TanstackRow<TData>) => ContextMenuItem<TData>[]);
+  contextMenuItems?:
+    | ContextMenuItem<TData>[]
+    | ((row: TanstackRow<TData>) => ContextMenuItem<TData>[]);
 }
 
 interface ContextMenuState<TData> {
   x: number;
   y: number;
   row: TanstackRow<TData>;
+}
+
+function isInteractiveRowTarget(target: EventTarget | null): boolean {
+  return (
+    target instanceof HTMLElement &&
+    Boolean(
+      target.closest(
+        "a,button,input,select,textarea,[role='button'],[role='link'],[data-row-click-stop]",
+      ),
+    )
+  );
 }
 
 function ContextMenuPortal<TData>({
@@ -111,13 +128,15 @@ function ContextMenuPortal<TData>({
 export function DataTable<TData>({
   table,
   actionBar,
+  onRowClick,
   onRowDoubleClick,
   contextMenuItems,
   children,
   className,
   ...props
 }: DataTableProps<TData>) {
-  const [contextMenu, setContextMenu] = React.useState<ContextMenuState<TData> | null>(null);
+  const [contextMenu, setContextMenu] =
+    React.useState<ContextMenuState<TData> | null>(null);
 
   const onRowContextMenu = React.useCallback(
     (event: React.MouseEvent<HTMLTableRowElement>, row: TanstackRow<TData>) => {
@@ -176,7 +195,13 @@ export function DataTable<TData>({
                   <TableRow
                     key={row.id}
                     data-state={row.getIsSelected() && "selected"}
-                    className={cn(onRowDoubleClick && "cursor-pointer")}
+                    className={cn(
+                      (onRowClick || onRowDoubleClick) && "cursor-pointer",
+                    )}
+                    onClick={(event) => {
+                      if (isInteractiveRowTarget(event.target)) return;
+                      onRowClick?.(row, event);
+                    }}
                     onDoubleClick={(event) => onRowDoubleClick?.(row, event)}
                     onContextMenu={(event) => onRowContextMenu(event, row)}
                   >

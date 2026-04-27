@@ -28,7 +28,7 @@ import {
   dealCalculationLinks,
   dealIntakeSnapshots,
   dealLegs,
-  dealLegOperationLinks,
+  dealPricingContexts,
   dealParticipants,
   deals,
   dealTimelineEvents,
@@ -41,6 +41,7 @@ import type {
   DealDetails,
   DealFundingResolution,
   DealIntakeDraft,
+  DealPricingContext,
   DealQuoteAcceptance,
   DealTimelineEvent,
   DealTraceProjection,
@@ -55,12 +56,14 @@ import type {
   DealFundingAssessmentPort,
   DealReads,
 } from "../../application/ports/deal.reads";
+import { normalizeStoredDealPricingContext } from "../../application/shared/pricing-context";
 import { getPrimaryDealAmountFields } from "../../application/shared/primary-amount-fields";
 import { buildDealOperationalState } from "../../domain/operational-state";
 import { listDealTransitionReadiness } from "../../domain/transition-policy";
 import {
   buildEffectiveDealExecutionPlan,
   dealIntakeHasConvertLeg,
+  type DealLegPaymentStepRef,
   deriveDealNextAction,
   evaluateDealSectionCompleteness,
   filterTimelineForPortal,
@@ -128,6 +131,7 @@ function mapQuoteAcceptance(row: {
   quoteId: string;
   quoteStatus: string;
   replacedByQuoteId: string | null;
+  revocationReason: string | null;
   revokedAt: Date | null;
   usedAt: Date | string | null;
   usedDocumentId: string | null;
@@ -143,6 +147,7 @@ function mapQuoteAcceptance(row: {
     quoteId: row.quoteId,
     quoteStatus: row.quoteStatus,
     replacedByQuoteId: row.replacedByQuoteId,
+    revocationReason: row.revocationReason,
     revokedAt: row.revokedAt,
     usedAt: toDateOrNull(row.usedAt),
     usedDocumentId: row.usedDocumentId,
@@ -339,6 +344,11 @@ interface DealQuoteRow {
   usedDocumentId: string | null;
 }
 
+interface DealPricingContextRow {
+  revision: number;
+  snapshot: unknown;
+}
+
 export interface DealTraceDocumentRow {
   approvalStatus: string;
   dealId: string | null;
@@ -432,6 +442,21 @@ export class DrizzleDealReads implements DealReads {
       .filter((row): row is DealSummaryRow => row !== null);
   }
 
+  private async loadPricingContextRow(
+    dealId: string,
+  ): Promise<DealPricingContextRow | null> {
+    const [row] = await this.db
+      .select({
+        revision: dealPricingContexts.revision,
+        snapshot: dealPricingContexts.snapshot,
+      })
+      .from(dealPricingContexts)
+      .where(eq(dealPricingContexts.dealId, dealId))
+      .limit(1);
+
+    return row ?? null;
+  }
+
   private async loadWorkflowParticipants(
     dealId: string,
   ): Promise<DealWorkflowParticipant[]> {
@@ -508,51 +533,29 @@ export class DrizzleDealReads implements DealReads {
   private async loadStoredLegs(
     dealId: string,
   ): Promise<DealWorkflowProjection["executionPlan"]> {
-    const [rows, operationRefRows] = await Promise.all([
-      this.db
-        .select({
-          id: dealLegs.id,
-          idx: dealLegs.idx,
-          kind: dealLegs.kind,
-          state: dealLegs.state,
-        })
-        .from(dealLegs)
-        .where(eq(dealLegs.dealId, dealId))
-        .orderBy(asc(dealLegs.idx)),
-      this.db
-        .select({
-          dealLegId: dealLegOperationLinks.dealLegId,
-          kind: dealLegOperationLinks.operationKind,
-          operationId: dealLegOperationLinks.treasuryOperationId,
-          sourceRef: dealLegOperationLinks.sourceRef,
-        })
-        .from(dealLegOperationLinks)
-        .innerJoin(dealLegs, eq(dealLegOperationLinks.dealLegId, dealLegs.id))
-        .where(eq(dealLegs.dealId, dealId))
-        .orderBy(asc(dealLegs.idx), asc(dealLegOperationLinks.createdAt)),
-    ]);
-
-    const operationRefsByLegId = new Map<
-      string,
-      DealWorkflowProjection["executionPlan"][number]["operationRefs"]
-    >();
-
-    for (const row of operationRefRows) {
-      const operationRefs = operationRefsByLegId.get(row.dealLegId) ?? [];
-      operationRefs.push({
-        kind: row.kind,
-        operationId: row.operationId,
-        sourceRef: row.sourceRef,
-      });
-      operationRefsByLegId.set(row.dealLegId, operationRefs);
-    }
+    const rows = await this.db
+      .select({
+        fromCurrencyId: dealLegs.fromCurrencyId,
+        id: dealLegs.id,
+        idx: dealLegs.idx,
+        kind: dealLegs.kind,
+        manualOverrideState: dealLegs.manualOverrideState,
+        routeSnapshotLegId: dealLegs.routeSnapshotLegId,
+        toCurrencyId: dealLegs.toCurrencyId,
+      })
+      .from(dealLegs)
+      .where(eq(dealLegs.dealId, dealId))
+      .orderBy(asc(dealLegs.idx));
 
     return rows.map((row) => ({
+      fromCurrencyId: row.fromCurrencyId,
       id: row.id,
       idx: row.idx,
       kind: row.kind,
-      operationRefs: operationRefsByLegId.get(row.id) ?? [],
-      state: row.state,
+      operationRefs: [],
+      routeSnapshotLegId: row.routeSnapshotLegId,
+      state: row.manualOverrideState ?? "pending",
+      toCurrencyId: row.toCurrencyId,
     }));
   }
 
@@ -571,6 +574,7 @@ export class DrizzleDealReads implements DealReads {
       quoteId: string;
       quoteStatus: string;
       replacedByQuoteId: string | null;
+      revocationReason: string | null;
       revokedAt: Date | null;
       usedAt: Date | null;
       usedDocumentId: string | null;
@@ -586,6 +590,7 @@ export class DrizzleDealReads implements DealReads {
         a.quote_id as "quoteId",
         q.status as "quoteStatus",
         a.replaced_by_quote_id as "replacedByQuoteId",
+        a.revocation_reason as "revocationReason",
         a.revoked_at as "revokedAt",
         q.used_at as "usedAt",
         q.used_document_id as "usedDocumentId"
@@ -726,6 +731,30 @@ export class DrizzleDealReads implements DealReads {
     return result;
   }
 
+  private async loadDealPaymentSteps(dealId: string) {
+    const result = await this.db.execute<{
+      planLegId: string | null;
+      state: DealLegPaymentStepRef["state"];
+    }>(sql`
+      select
+        origin->>'planLegId' as "planLegId",
+        state
+      from payment_steps
+      where deal_id = ${dealId}
+        and purpose = 'deal_leg'
+    `);
+
+    return result.rows
+      .filter(
+        (row): row is { planLegId: string; state: typeof row.state } =>
+          typeof row.planLegId === "string" && row.planLegId.length > 0,
+      )
+      .map((row) => ({
+        planLegId: row.planLegId,
+        state: row.state,
+      }));
+  }
+
   private async loadQuotes(dealId: string) {
     const result = await this.db.execute<RawDealQuoteRow>(sql`
       select
@@ -798,6 +827,7 @@ export class DrizzleDealReads implements DealReads {
       quotes,
       formalDocuments,
       attachmentIngestions,
+      pricingContextRow,
     ] =
       await Promise.all([
         this.loadWorkflowParticipants(summary.id),
@@ -809,21 +839,31 @@ export class DrizzleDealReads implements DealReads {
         this.loadQuotes(summary.id),
         this.loadFormalDocuments(summary.id),
         this.loadAttachmentIngestions(summary.id),
+        this.loadPricingContextRow(summary.id),
       ]);
     const fundingResolution = await this.assessFundingResolution({
       acceptedQuote,
       intake: summary.snapshot,
       participants,
     });
+    const routeSnapshot = pricingContextRow
+      ? (normalizeStoredDealPricingContext({
+          revision: pricingContextRow.revision,
+          snapshot: pricingContextRow.snapshot,
+        }).routeAttachment?.snapshot ?? null)
+      : null;
 
     const sectionCompleteness = evaluateDealSectionCompleteness(summary.snapshot);
     const now = new Date();
+    const dealPaymentSteps = await this.loadDealPaymentSteps(summary.id);
     const executionPlan = buildEffectiveDealExecutionPlan({
       acceptance: acceptedQuote,
       documents: formalDocuments,
       fundingResolution,
       intake: summary.snapshot,
       now,
+      paymentSteps: dealPaymentSteps,
+      routeSnapshot,
       storedLegs,
     });
     const [calculationOperationalLines] = await Promise.all([
@@ -917,6 +957,15 @@ export class DrizzleDealReads implements DealReads {
     return Promise.all(
       summaries.map((summary) => this.buildWorkflowProjectionFromSummary(summary)),
     );
+  }
+
+  async findPricingContextByDealId(dealId: string): Promise<DealPricingContext> {
+    const row = await this.loadPricingContextRow(dealId);
+
+    return normalizeStoredDealPricingContext({
+      revision: row?.revision,
+      snapshot: row?.snapshot,
+    });
   }
 
   async findAttachmentIngestionByFileAssetId(
@@ -1229,6 +1278,83 @@ export class DrizzleDealReads implements DealReads {
     };
   }
 
+  async listQuoteAcceptances(dealId: string) {
+    const result = await this.db.execute<{
+      acceptanceId: string;
+      acceptedAt: Date | string;
+      acceptedByUserId: string;
+      calculationId: string | null;
+      commercialRevenueMinor: string | null;
+      customerTotalMinor: string | null;
+      expiresAt: Date | string | null;
+      fromAmountMinor: string;
+      fromCurrency: string | null;
+      pricingFingerprint: string | null;
+      quoteId: string;
+      rateDen: string;
+      rateNum: string;
+      replacedByQuoteId: string | null;
+      revocationReason: string | null;
+      revokedAt: Date | string | null;
+      toAmountMinor: string;
+      toCurrency: string | null;
+    }>(sql`
+      select
+        a.id as "acceptanceId",
+        a.accepted_at as "acceptedAt",
+        a.accepted_by_user_id as "acceptedByUserId",
+        dcl.calculation_id as "calculationId",
+        q.pricing_trace #>> '{metadata,crmPricingSnapshot,profitability,commercialRevenueMinor}' as "commercialRevenueMinor",
+        q.pricing_trace #>> '{metadata,crmPricingSnapshot,profitability,customerTotalMinor}' as "customerTotalMinor",
+        q.expires_at as "expiresAt",
+        q.from_amount_minor::text as "fromAmountMinor",
+        fc.code as "fromCurrency",
+        q.pricing_fingerprint as "pricingFingerprint",
+        a.quote_id as "quoteId",
+        q.rate_den::text as "rateDen",
+        q.rate_num::text as "rateNum",
+        a.replaced_by_quote_id as "replacedByQuoteId",
+        a.revocation_reason as "revocationReason",
+        a.revoked_at as "revokedAt",
+        q.to_amount_minor::text as "toAmountMinor",
+        tc.code as "toCurrency"
+      from deal_quote_acceptances a
+      inner join fx_quotes q on q.id = a.quote_id
+      left join lateral (
+        select calculation_id
+        from deal_calculation_links
+        where deal_id = a.deal_id and source_quote_id = a.quote_id
+        order by created_at desc
+        limit 1
+      ) dcl on true
+      left join currencies fc on fc.id = q.from_currency_id
+      left join currencies tc on tc.id = q.to_currency_id
+      where a.deal_id = ${dealId}
+      order by a.accepted_at desc
+    `);
+
+    return result.rows.map((row) => ({
+      acceptanceId: row.acceptanceId,
+      acceptedAt: toDate(row.acceptedAt).toISOString(),
+      acceptedByUserId: row.acceptedByUserId,
+      calculationId: row.calculationId,
+      commercialRevenueMinor: row.commercialRevenueMinor,
+      customerTotalMinor: row.customerTotalMinor,
+      expiresAt: toDateOrNull(row.expiresAt)?.toISOString() ?? null,
+      fromAmountMinor: row.fromAmountMinor,
+      fromCurrency: row.fromCurrency ?? "",
+      pricingFingerprint: row.pricingFingerprint,
+      quoteId: row.quoteId,
+      rateDen: row.rateDen,
+      rateNum: row.rateNum,
+      replacedByQuoteId: row.replacedByQuoteId,
+      revocationReason: row.revocationReason,
+      revokedAt: toDateOrNull(row.revokedAt)?.toISOString() ?? null,
+      toAmountMinor: row.toAmountMinor,
+      toCurrency: row.toCurrency ?? "",
+    }));
+  }
+
   async listCalculationHistory(
     dealId: string,
   ): Promise<DealCalculationHistoryItem[]> {
@@ -1275,6 +1401,251 @@ export class DrizzleDealReads implements DealReads {
       totalInBaseMinor: row.totalInBaseMinor.toString(),
       totalWithExpensesInBaseMinor:
         row.totalWithExpensesInBaseMinor.toString(),
+    }));
+  }
+
+  async listTreasuryExceptionQueue(input: {
+    currencyCode?: string;
+    dealId?: string;
+    internalEntityOrganizationId?: string;
+    kind?:
+      | "ready_leg"
+      | "blocked_leg"
+      | "failed_instruction"
+      | "pre_funded_awaiting_collection"
+      | "intercompany_imbalance"
+      | "reconciliation_mismatch";
+    limit: number;
+  }) {
+    const now = new Date();
+    const dealFilter = input.dealId
+      ? sql`and d.id = ${input.dealId}`
+      : sql``;
+    const entityFilter = input.internalEntityOrganizationId
+      ? sql`and p.organization_id = ${input.internalEntityOrganizationId}`
+      : sql``;
+    const currencyFilter = input.currencyCode
+      ? sql`and cur.code = ${input.currencyCode}`
+      : sql``;
+    const kindFilter = input.kind ? sql`and kind = ${input.kind}` : sql``;
+
+    const queryResult = await this.db.execute<{
+      ageSeconds: number;
+      amountMinor: string | null;
+      counterpartyName: string | null;
+      currencyCode: string | null;
+      currencyId: string | null;
+      dealId: string | null;
+      dealRef: string | null;
+      instructionId: string | null;
+      kind: string;
+      legIdx: number | null;
+      metadata: Record<string, unknown> | null;
+      triggeredAt: Date;
+    }>(sql`
+      with base as (
+        -- ready_leg: stored plan leg with no active payment step
+        select
+          'ready_leg' as kind,
+          d.id as "dealId",
+          left(d.id::text, 8) as "dealRef",
+          dl.idx as "legIdx",
+          null::uuid as "instructionId",
+          cur.code as "currencyCode",
+          d.source_currency_id as "currencyId",
+          d.source_amount_minor::text as "amountMinor",
+          (
+            select c.short_name
+            from deal_participants pb
+            inner join counterparties c on c.id = pb.counterparty_id
+            where pb.deal_id = d.id and pb.role = 'external_beneficiary'
+            limit 1
+          ) as "counterpartyName",
+          coalesce(dl.updated_at, d.updated_at) as "triggeredAt",
+          jsonb_build_object(
+            'legKind', dl.kind,
+            'manualOverrideState', dl.manual_override_state
+          )
+            as metadata
+        from deals d
+        inner join deal_legs dl on dl.deal_id = d.id
+        left join currencies cur on cur.id = d.source_currency_id
+        left join deal_participants p
+          on p.deal_id = d.id and p.role = 'internal_entity'
+        where dl.manual_override_state is null
+          and d.status not in ('draft', 'rejected', 'done', 'cancelled')
+          and not exists (
+            select 1
+            from payment_steps ps
+            where ps.deal_id = d.id
+              and ps.origin->>'planLegId' = dl.id::text
+              and ps.state in ('pending', 'processing', 'completed', 'returned')
+          )
+          ${dealFilter}
+          ${entityFilter}
+          ${currencyFilter}
+
+        union all
+
+        -- blocked_leg
+        select
+          'blocked_leg' as kind,
+          d.id as "dealId",
+          left(d.id::text, 8) as "dealRef",
+          dl.idx as "legIdx",
+          null::uuid as "instructionId",
+          cur.code as "currencyCode",
+          d.source_currency_id as "currencyId",
+          d.source_amount_minor::text as "amountMinor",
+          (
+            select c.short_name
+            from deal_participants pb
+            inner join counterparties c on c.id = pb.counterparty_id
+            where pb.deal_id = d.id and pb.role = 'external_beneficiary'
+            limit 1
+          ) as "counterpartyName",
+          coalesce(dl.updated_at, d.updated_at) as "triggeredAt",
+          jsonb_build_object(
+            'legKind', dl.kind,
+            'manualOverrideState', dl.manual_override_state
+          )
+            as metadata
+        from deals d
+        inner join deal_legs dl on dl.deal_id = d.id
+        left join currencies cur on cur.id = d.source_currency_id
+        left join deal_participants p
+          on p.deal_id = d.id and p.role = 'internal_entity'
+        where dl.manual_override_state = 'blocked'
+          and d.status not in ('draft', 'rejected', 'done', 'cancelled')
+          ${dealFilter}
+          ${entityFilter}
+          ${currencyFilter}
+
+        union all
+
+        -- failed_instruction: payment steps in failed/returned terminal states
+        select
+          'failed_instruction' as kind,
+          d.id as "dealId",
+          left(d.id::text, 8) as "dealRef",
+          case
+            when jsonb_typeof(ps.origin->'sequence') = 'number'
+              then (ps.origin->>'sequence')::integer
+            else null
+          end as "legIdx",
+          ps.id as "instructionId",
+          cur.code as "currencyCode",
+          ps.from_currency_id as "currencyId",
+          ps.from_amount_minor::text as "amountMinor",
+          (
+            select c.short_name
+            from deal_participants pb
+            inner join counterparties c on c.id = pb.counterparty_id
+            where pb.deal_id = d.id and pb.role = 'external_beneficiary'
+            limit 1
+          ) as "counterpartyName",
+          ps.updated_at as "triggeredAt",
+          jsonb_build_object(
+            'instructionState', ps.state,
+            'operationId', ps.id
+          ) as metadata
+        from payment_steps ps
+        left join deals d on d.id = ps.deal_id
+        left join currencies cur on cur.id = ps.from_currency_id
+        left join deal_participants p
+          on p.deal_id = d.id and p.role = 'internal_entity'
+        where ps.state in ('failed', 'returned')
+          ${dealFilter}
+          ${entityFilter}
+          ${currencyFilter}
+
+        union all
+
+        -- reconciliation_mismatch: open exceptions linked to deal via external record normalized payload
+        select
+          'reconciliation_mismatch' as kind,
+          d.id as "dealId",
+          case when d.id is null then null else left(d.id::text, 8) end
+            as "dealRef",
+          null::integer as "legIdx",
+          null::uuid as "instructionId",
+          cur.code as "currencyCode",
+          d.source_currency_id as "currencyId",
+          null as "amountMinor",
+          null as "counterpartyName",
+          re.created_at as "triggeredAt",
+          jsonb_build_object(
+            'exceptionId', re.id,
+            'reasonCode', re.reason_code,
+            'externalRecordId', re.external_record_id
+          ) as metadata
+        from reconciliation_exceptions re
+        inner join reconciliation_external_records er
+          on er.id = re.external_record_id
+        left join deals d on d.id = (er.normalized_payload ->> 'dealId')::uuid
+        left join currencies cur on cur.id = d.source_currency_id
+        left join deal_participants p
+          on p.deal_id = d.id and p.role = 'internal_entity'
+        where re.state = 'open'
+          and er.normalized_payload ? 'dealId'
+          ${dealFilter}
+          ${entityFilter}
+          ${currencyFilter}
+      )
+      select
+        kind,
+        "dealId",
+        "dealRef",
+        "legIdx",
+        "instructionId",
+        "currencyCode",
+        "currencyId",
+        "amountMinor",
+        "counterpartyName",
+        "triggeredAt",
+        extract(epoch from (${now}::timestamptz - "triggeredAt"))::bigint
+          as "ageSeconds",
+        metadata
+      from base
+      where 1=1 ${kindFilter}
+      order by "triggeredAt" desc
+      limit ${input.limit}
+    `);
+
+    const rows = (queryResult.rows ?? []) as {
+      ageSeconds: number | string;
+      amountMinor: string | null;
+      counterpartyName: string | null;
+      currencyCode: string | null;
+      currencyId: string | null;
+      dealId: string | null;
+      dealRef: string | null;
+      instructionId: string | null;
+      kind: string;
+      legIdx: number | null;
+      metadata: Record<string, unknown> | null;
+      triggeredAt: Date | string;
+    }[];
+
+    return rows.map((row) => ({
+      ageSeconds: Math.max(0, Number(row.ageSeconds ?? 0)),
+      amountMinor: row.amountMinor,
+      counterpartyName: row.counterpartyName,
+      currencyCode: row.currencyCode,
+      currencyId: row.currencyId,
+      dealId: row.dealId,
+      dealRef: row.dealRef,
+      instructionId: row.instructionId,
+      kind: row.kind as
+        | "ready_leg"
+        | "blocked_leg"
+        | "failed_instruction"
+        | "pre_funded_awaiting_collection"
+        | "intercompany_imbalance"
+        | "reconciliation_mismatch",
+      legIdx: row.legIdx === null ? null : Number(row.legIdx),
+      metadata: (row.metadata ?? {}) as Record<string, unknown>,
+      triggeredAt: toDate(row.triggeredAt),
     }));
   }
 }

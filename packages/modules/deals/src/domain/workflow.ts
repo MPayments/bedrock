@@ -1,3 +1,5 @@
+import type { PaymentRouteDraft } from "@bedrock/treasury/model";
+
 import {
   DEAL_REQUIRED_SECTION_IDS_BY_TYPE,
   type DEAL_LEG_KIND_VALUES,
@@ -8,16 +10,12 @@ import type {
   DealQuoteAcceptance,
   DealRelatedFormalDocument,
   DealSectionCompleteness,
+  DealStatus,
   DealTransitionReadiness,
+  DealType,
   DealTimelineEvent,
   DealWorkflowLeg,
-  DealWorkflowParticipant,
-} from "../application/contracts/dto";
-import type {
-  DealSectionId,
-  DealStatus,
-  DealType,
-} from "../application/contracts/zod";
+} from "./model";
 
 const NEXT_PROGRESS_STATUS_BY_STATUS: Partial<Record<DealStatus, DealStatus>> = {
   awaiting_funds: "awaiting_payment",
@@ -69,7 +67,7 @@ export function dealIntakeHasConvertLeg(intake: DealIntakeDraft): boolean {
   );
 }
 
-export function isAcceptedQuoteCurrentAndExecutable(input: {
+function isAcceptedQuoteCurrentAndExecutable(input: {
   acceptance: DealQuoteAcceptance | null;
   now: Date;
 }): boolean {
@@ -205,7 +203,7 @@ export function evaluateDealSectionCompleteness(
   return result;
 }
 
-export function isRequiredDealSectionComplete(
+function isRequiredDealSectionComplete(
   type: DealType,
   completeness: DealSectionCompleteness[],
 ): boolean {
@@ -215,20 +213,47 @@ export function isRequiredDealSectionComplete(
   return requiredSections.every((sectionId) => byId.get(sectionId)?.complete);
 }
 
+interface LegOverrides {
+  fromCurrencyId?: string | null;
+  routeSnapshotLegId?: string | null;
+  toCurrencyId?: string | null;
+}
+
 function createLeg(
   idx: number,
   kind: (typeof DEAL_LEG_KIND_VALUES)[number],
+  overrides: LegOverrides = {},
 ): DealWorkflowLeg {
   return {
+    fromCurrencyId: overrides.fromCurrencyId ?? null,
     id: null,
     idx,
     kind,
     operationRefs: [],
+    routeSnapshotLegId: overrides.routeSnapshotLegId ?? null,
     state: "pending",
+    toCurrencyId: overrides.toCurrencyId ?? null,
   };
 }
 
-export function buildDealExecutionPlan(intake: DealIntakeDraft): DealWorkflowLeg[] {
+function mapRouteLegToDealLeg(
+  idx: number,
+  routeLeg: PaymentRouteDraft["legs"][number],
+): DealWorkflowLeg {
+  const kind =
+    routeLeg.fromCurrencyId === routeLeg.toCurrencyId
+      ? "transit_hold"
+      : "convert";
+  return createLeg(idx, kind, {
+    fromCurrencyId: routeLeg.fromCurrencyId,
+    routeSnapshotLegId: routeLeg.id,
+    toCurrencyId: routeLeg.toCurrencyId,
+  });
+}
+
+function buildCanonicalDealExecutionPlan(
+  intake: DealIntakeDraft,
+): DealWorkflowLeg[] {
   const hasConvert = dealIntakeHasConvertLeg(intake);
 
   switch (intake.type) {
@@ -239,7 +264,11 @@ export function buildDealExecutionPlan(intake: DealIntakeDraft): DealWorkflowLeg
         createLeg(hasConvert ? 3 : 2, "payout"),
       ];
     case "currency_exchange":
-      return [createLeg(1, "collect"), createLeg(2, "convert"), createLeg(3, "payout")];
+      return [
+        createLeg(1, "collect"),
+        createLeg(2, "convert"),
+        createLeg(3, "payout"),
+      ];
     case "currency_transit":
       return [
         createLeg(1, "collect"),
@@ -255,6 +284,69 @@ export function buildDealExecutionPlan(intake: DealIntakeDraft): DealWorkflowLeg
         createLeg(hasConvert ? 4 : 3, "settle_exporter"),
       ];
   }
+}
+
+function buildRouteDerivedDealExecutionPlan(
+  intake: DealIntakeDraft,
+  routeSnapshot: PaymentRouteDraft,
+): DealWorkflowLeg[] {
+  const sourceCurrencyId = intake.moneyRequest.sourceCurrencyId ?? null;
+  const targetCurrencyId = intake.moneyRequest.targetCurrencyId ?? null;
+
+  // For each deal type, the route's legs form the body; head and tail come from the deal type.
+  // The route's currencyIn/currencyOut should match the deal's source/target but we don't enforce
+  // that here — the route snapshot is the source of truth for execution steps.
+  const hopLegs = (startIdx: number): DealWorkflowLeg[] =>
+    routeSnapshot.legs.map((routeLeg, offset) =>
+      mapRouteLegToDealLeg(startIdx + offset, routeLeg),
+    );
+
+  switch (intake.type) {
+    case "payment":
+    case "currency_exchange":
+    case "currency_transit": {
+      const hops = hopLegs(2);
+      return [
+        createLeg(1, "collect", {
+          fromCurrencyId: sourceCurrencyId,
+          toCurrencyId: sourceCurrencyId,
+        }),
+        ...hops,
+        createLeg(2 + hops.length, "payout", {
+          fromCurrencyId: targetCurrencyId,
+          toCurrencyId: targetCurrencyId,
+        }),
+      ];
+    }
+    case "exporter_settlement": {
+      const hops = hopLegs(3);
+      return [
+        createLeg(1, "payout", {
+          fromCurrencyId: targetCurrencyId,
+          toCurrencyId: targetCurrencyId,
+        }),
+        createLeg(2, "collect", {
+          fromCurrencyId: sourceCurrencyId,
+          toCurrencyId: sourceCurrencyId,
+        }),
+        ...hops,
+        createLeg(3 + hops.length, "settle_exporter", {
+          fromCurrencyId: targetCurrencyId,
+          toCurrencyId: targetCurrencyId,
+        }),
+      ];
+    }
+  }
+}
+
+export function buildDealExecutionPlan(
+  intake: DealIntakeDraft,
+  routeSnapshot: PaymentRouteDraft | null = null,
+): DealWorkflowLeg[] {
+  if (routeSnapshot && routeSnapshot.legs.length > 0) {
+    return buildRouteDerivedDealExecutionPlan(intake, routeSnapshot);
+  }
+  return buildCanonicalDealExecutionPlan(intake);
 }
 
 function hasPostedConvertDocument(
@@ -281,26 +373,114 @@ function hasPostedTransferDocument(
   );
 }
 
+function findStoredLegMatch(
+  baseLeg: DealWorkflowLeg,
+  storedLegs: DealWorkflowLeg[],
+): DealWorkflowLeg | undefined {
+  if (baseLeg.routeSnapshotLegId) {
+    const bySnapshot = storedLegs.find(
+      (leg) => leg.routeSnapshotLegId === baseLeg.routeSnapshotLegId,
+    );
+    if (bySnapshot) return bySnapshot;
+  }
+  return storedLegs.find(
+    (leg) => leg.idx === baseLeg.idx && leg.kind === baseLeg.kind,
+  );
+}
+
+export interface DealLegPaymentStepRef {
+  planLegId: string;
+  state:
+    | "draft"
+    | "scheduled"
+    | "pending"
+    | "processing"
+    | "completed"
+    | "failed"
+    | "returned"
+    | "cancelled"
+    | "skipped";
+}
+
+function deriveLegStateFromSteps(
+  steps: DealLegPaymentStepRef[],
+): DealWorkflowLeg["state"] | null {
+  if (steps.length === 0) {
+    return null;
+  }
+
+  if (steps.some((step) => step.state === "failed")) {
+    return "blocked";
+  }
+
+  const terminalStates = new Set(["completed", "cancelled", "skipped"]);
+  const allTerminal = steps.every((step) => terminalStates.has(step.state));
+  if (allTerminal) {
+    if (steps.some((step) => step.state === "completed")) {
+      return "done";
+    }
+    return "skipped";
+  }
+
+  const inFlightStates = new Set([
+    "scheduled",
+    "pending",
+    "processing",
+    "returned",
+    "completed",
+  ]);
+  if (steps.some((step) => inFlightStates.has(step.state))) {
+    return "in_progress";
+  }
+
+  // All remaining: draft (materialized but no action taken yet)
+  return "ready";
+}
+
 export function buildEffectiveDealExecutionPlan(input: {
   acceptance: DealQuoteAcceptance | null;
   documents: DealRelatedFormalDocument[];
   fundingResolution: DealFundingResolution;
   intake: DealIntakeDraft;
   now: Date;
+  paymentSteps?: DealLegPaymentStepRef[];
+  routeSnapshot: PaymentRouteDraft | null;
   storedLegs: DealWorkflowLeg[];
 }): DealWorkflowLeg[] {
-  const basePlan = buildDealExecutionPlan(input.intake);
-  const storedByKey = new Map(
-    input.storedLegs.map((leg) => [`${leg.idx}:${leg.kind}`, leg] as const),
-  );
-  const merged = basePlan.map((leg) => ({
-    ...leg,
-    id: storedByKey.get(`${leg.idx}:${leg.kind}`)?.id ?? leg.id,
-    operationRefs:
-      storedByKey.get(`${leg.idx}:${leg.kind}`)?.operationRefs ??
-      leg.operationRefs,
-    state: storedByKey.get(`${leg.idx}:${leg.kind}`)?.state ?? leg.state,
-  }));
+  const basePlan = buildDealExecutionPlan(input.intake, input.routeSnapshot);
+  const merged = basePlan.map((leg) => {
+    const match = findStoredLegMatch(leg, input.storedLegs);
+    if (!match) return leg;
+    return {
+      ...leg,
+      id: match.id ?? leg.id,
+      operationRefs: match.operationRefs,
+      state: match.state,
+    };
+  });
+  const stepsByPlanLegId = new Map<string, DealLegPaymentStepRef[]>();
+  for (const step of input.paymentSteps ?? []) {
+    const bucket = stepsByPlanLegId.get(step.planLegId) ?? [];
+    bucket.push(step);
+    stepsByPlanLegId.set(step.planLegId, bucket);
+  }
+  const stepDerivedByPlanLegId = new Map<string, DealWorkflowLeg["state"]>();
+  for (const [planLegId, steps] of stepsByPlanLegId.entries()) {
+    const derived = deriveLegStateFromSteps(steps);
+    if (derived) {
+      stepDerivedByPlanLegId.set(planLegId, derived);
+    }
+  }
+  const stepAware = merged.map((leg) => {
+    const derived = leg.id ? stepDerivedByPlanLegId.get(leg.id) : undefined;
+    if (derived) {
+      return {
+        ...leg,
+        state: derived,
+      };
+    }
+    return leg;
+  });
   const hasExecutableAcceptedQuote = isAcceptedQuoteCurrentAndExecutable({
     acceptance: input.acceptance,
     now: input.now,
@@ -308,17 +488,19 @@ export function buildEffectiveDealExecutionPlan(input: {
   const hasExecutedConvert =
     input.acceptance?.quoteStatus === "used" ||
     hasPostedConvertDocument(input.documents);
-  const downstreamLegs = merged.filter((leg) =>
+  const downstreamLegs = stepAware.filter((leg) =>
     ["payout", "transit_hold", "settle_exporter"].includes(leg.kind),
   );
   const canAutoCompleteSingleDownstreamLeg =
     downstreamLegs.length === 1 && hasPostedTransferDocument(input.documents);
+  const inventoryFundedRun =
+    input.fundingResolution.state === "resolved" &&
+    input.fundingResolution.strategy === "existing_inventory";
 
-  return merged.map((leg) => {
+  return stepAware.map((leg) => {
     if (
       leg.kind === "convert" &&
-      input.fundingResolution.state === "resolved" &&
-      input.fundingResolution.strategy === "existing_inventory" &&
+      inventoryFundedRun &&
       leg.state !== "done" &&
       leg.state !== "skipped" &&
       leg.operationRefs.length === 0
@@ -464,22 +646,8 @@ export function deriveDealNextAction(input: {
   return "Continue processing";
 }
 
-export function buildParticipantDisplayNameMap(
-  participants: DealWorkflowParticipant[],
-): Map<DealWorkflowParticipant["role"], string | null> {
-  return new Map(
-    participants.map((participant) => [participant.role, participant.displayName]),
-  );
-}
-
 export function filterTimelineForPortal(
   timeline: DealTimelineEvent[],
 ): DealTimelineEvent[] {
   return timeline.filter((event) => event.visibility === "customer_safe");
-}
-
-export function summarizeRequiredSectionsByType(
-  type: DealType,
-): DealSectionId[] {
-  return [...DEAL_REQUIRED_SECTION_IDS_BY_TYPE[type]];
 }

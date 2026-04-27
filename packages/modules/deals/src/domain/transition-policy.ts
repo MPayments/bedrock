@@ -1,10 +1,7 @@
-import { DEAL_REQUIRED_SECTION_IDS_BY_TYPE, DEAL_STATUS_TRANSITIONS } from "./constants";
 import {
-  isOperationalPositionAtLeastReady,
-  isOperationalPositionDone,
-  listRequiredOperationalPositionKinds,
-} from "./operational-state";
-import { dealIntakeHasConvertLeg } from "./workflow";
+  DEAL_REQUIRED_SECTION_IDS_BY_TYPE,
+  DEAL_STATUS_TRANSITIONS,
+} from "./constants";
 import type {
   DealApproval,
   DealIntakeDraft,
@@ -12,12 +9,19 @@ import type {
   DealQuoteAcceptance,
   DealRelatedFormalDocument,
   DealSectionCompleteness,
+  DealStatus,
   DealTransitionBlocker,
   DealTransitionReadiness,
+  DealType,
   DealWorkflowLeg,
   DealWorkflowParticipant,
-} from "../application/contracts/dto";
-import type { DealStatus, DealType } from "../application/contracts/zod";
+} from "./model";
+import {
+  isOperationalPositionAtLeastReady,
+  isOperationalPositionDone,
+  listRequiredOperationalPositionKinds,
+} from "./operational-state";
+import { dealIntakeHasConvertLeg } from "./workflow";
 
 const OPENING_DOCUMENT_TYPE_BY_DEAL_TYPE: Record<DealType, string> = {
   payment: "invoice",

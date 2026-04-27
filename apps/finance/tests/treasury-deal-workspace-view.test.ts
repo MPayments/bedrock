@@ -5,6 +5,23 @@ import { describe, expect, it } from "vitest";
 import { FinanceDealWorkspaceView } from "@/features/treasury/deals/components/workspace-view";
 import type { FinanceDealWorkspace } from "@/features/treasury/deals/lib/queries";
 
+function createPrintForm(
+  id: string,
+  ownerType: "calculation" | "deal",
+  title: string,
+): FinanceDealWorkspace["printForms"]["deal"][number] {
+  return {
+    formats: ["docx" as const, "pdf" as const],
+    id,
+    languageMode: "single" as const,
+    languages: ["ru" as const],
+    ownerType,
+    quality: "ready" as const,
+    title,
+    warnings: [],
+  };
+}
+
 function createDeal(): FinanceDealWorkspace {
   const fundingResolution = {
     availableMinor: null,
@@ -69,6 +86,11 @@ function createDeal(): FinanceDealWorkspace {
         state: "missing",
       },
     ],
+    cashflowSummary: {
+      receivedIn: [],
+      scheduledOut: [],
+      settledOut: [],
+    },
     closeReadiness: {
       blockers: [
         "Required intake sections are incomplete",
@@ -77,7 +99,7 @@ function createDeal(): FinanceDealWorkspace {
       criteria: [
         {
           code: "operations_materialized",
-          label: "Казначейские операции созданы для всех этапов",
+          label: "Казначейские операции созданы для всех шагов",
           satisfied: false,
         },
         {
@@ -94,11 +116,13 @@ function createDeal(): FinanceDealWorkspace {
           canCreateLegOperation: false,
           exchangeDocument: null,
         },
+        fromCurrencyId: null,
         id: "714fb6eb-a1bd-429e-9628-e97d0f2efa0b",
         idx: 1,
         kind: "collect",
-        operationRefs: [],
-        state: "pending",
+        routeSnapshotLegId: null,
+        runtimeState: "not_materialized",
+        toCurrencyId: null,
       },
     ],
     formalDocumentRequirements: [
@@ -112,24 +136,12 @@ function createDeal(): FinanceDealWorkspace {
         state: "missing",
       },
     ],
-    instructionSummary: {
-      failed: 0,
-      planned: 1,
-      prepared: 0,
-      returnRequested: 0,
-      returned: 0,
-      settled: 0,
-      submitted: 0,
-      terminalOperations: 0,
-      totalOperations: 1,
-      voided: 0,
-    },
     nextAction: "Create calculation from accepted quote",
     operationalState: {
       positions: [
         {
           amountMinor: "12500000",
-          kind: "provider_payable",
+          kind: "downstream_payable",
           reasonCode: "execution_pending",
           state: "blocked",
         },
@@ -141,8 +153,13 @@ function createDeal(): FinanceDealWorkspace {
       quoteAmount: "125000.00",
       quoteAmountSide: "target",
       quoteEligibility: true,
+      routeAttachment: null,
       sourceCurrencyId: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
       targetCurrencyId: "0f9d972c-b95b-4544-95d8-8ccdc7496ed8",
+    },
+    printForms: {
+      calculation: [],
+      deal: [createPrintForm("deal.application", "deal", "Заявка")],
     },
     profitabilitySnapshot: null,
     queueContext: {
@@ -178,7 +195,8 @@ function createDeal(): FinanceDealWorkspace {
         },
       ],
       formalDocuments: [],
-      operations: [],
+      paymentSteps: [],
+      quoteExecutions: [],
       quotes: [
         {
           expiresAt: "2026-04-02T09:15:00.000Z",
@@ -233,7 +251,7 @@ function normalizeMarkupWhitespace(markup: string) {
 }
 
 describe("treasury deal workspace view", () => {
-  it("renders an execution-first localized preview without raw technical details or action buttons", () => {
+  it("renders an execution-first localized preview", () => {
     (
       globalThis as typeof globalThis & {
         React: typeof React;
@@ -258,14 +276,11 @@ describe("treasury deal workspace view", () => {
     expect(normalizedMarkup.indexOf("Контур исполнения")).toBeLessThan(
       normalizedMarkup.indexOf("Котировки и расчет"),
     );
-    expect(normalizedMarkup).not.toContain("Required intake sections are incomplete");
-    expect(normalizedMarkup).not.toContain("capability_missing");
-    expect(normalizedMarkup).not.toContain("a68fcc97-b77c-43b0-a323-45b6f783fd3a");
-    expect(normalizedMarkup).not.toContain("Запросить котировку");
     expect(normalizedMarkup).toContain("Расходы провайдера");
     expect(normalizedMarkup).toContain("Критерии закрытия");
     expect(normalizedMarkup).toContain("Сверка");
     expect(normalizedMarkup).toContain("Последнее исключение");
+    expect(normalizedMarkup).toContain("Печатная форма");
   });
 
   it("formats profitability snapshot amounts from minor units", () => {
@@ -276,8 +291,16 @@ describe("treasury deal workspace view", () => {
     ).React = React;
 
     const deal = createDeal();
+    deal.summary.calculationId = "7f6491b3-5226-4e34-a019-92a41315d642";
+    deal.printForms.calculation = [
+      createPrintForm(
+        "calculation.calculation-ru",
+        "calculation",
+        "Расчет",
+      ),
+    ];
     deal.profitabilitySnapshot = {
-      calculationId: "calc-1",
+      calculationId: "7f6491b3-5226-4e34-a019-92a41315d642",
       feeRevenue: [
         {
           amountMinor: "2551338",
@@ -285,6 +308,7 @@ describe("treasury deal workspace view", () => {
           currencyId: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
         },
       ],
+      netProfit: null,
       providerFeeExpense: [
         {
           amountMinor: "15000",

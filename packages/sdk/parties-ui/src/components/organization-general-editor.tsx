@@ -1,9 +1,10 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Save, X } from "lucide-react";
+import type { Control, FieldPath } from "react-hook-form";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 
@@ -63,7 +64,9 @@ const ORGANIZATION_COUNTRY_CODE_SET = new Set<string>(
 
 const OrganizationGeneralFormSchema = z.object({
   shortName: z.string().trim().min(1, "Краткое наименование обязательно"),
+  shortNameEn: z.string(),
   fullName: z.string().trim().min(1, "Полное наименование обязательно"),
+  fullNameEn: z.string(),
   kind: z.enum(["legal_entity", "individual"]),
   country: z
     .string()
@@ -74,17 +77,24 @@ const OrganizationGeneralFormSchema = z.object({
       "Выберите страну из списка",
     ),
   externalRef: z.string().trim(),
-  description: z.string().trim(),
+  description: z.string(),
 });
 
 export type OrganizationGeneralFormValues = z.infer<
   typeof OrganizationGeneralFormSchema
 >;
 
+export type OrganizationGeneralBilingualMode = "ru" | "en" | "all";
+
 type OrganizationGeneralFormSubmit =
   | Promise<OrganizationGeneralFormValues | void>
   | OrganizationGeneralFormValues
   | void;
+
+export type OrganizationGeneralEditorExternalPatch = {
+  nonce: number;
+  patch: Partial<OrganizationGeneralFormValues>;
+};
 
 type OrganizationGeneralEditorProps = {
   initialValues?: Partial<OrganizationGeneralFormValues>;
@@ -92,6 +102,8 @@ type OrganizationGeneralEditorProps = {
   updatedAt?: string | null;
   submitting?: boolean;
   error?: string | null;
+  externalPatch?: OrganizationGeneralEditorExternalPatch | null;
+  bilingualMode?: OrganizationGeneralBilingualMode;
   onDirtyChange?: (dirty: boolean) => void;
   onValuesChange?: (values: OrganizationGeneralFormValues) => void;
   onSubmit?: (
@@ -102,6 +114,7 @@ type OrganizationGeneralEditorProps = {
   submittingLabel?: string;
   disableSubmitUntilDirty?: boolean;
   kindReadonly?: boolean;
+  readOnlyNames?: boolean;
   headerActions?: ReactNode;
   showDates?: boolean;
   title?: string;
@@ -110,7 +123,9 @@ type OrganizationGeneralEditorProps = {
 
 const DEFAULT_VALUES: OrganizationGeneralFormValues = {
   shortName: "",
+  shortNameEn: "",
   fullName: "",
+  fullNameEn: "",
   kind: "legal_entity",
   country: "",
   externalRef: "",
@@ -141,12 +156,123 @@ function formatDateLabel(value?: string | null) {
   }
 }
 
+type BilingualTextFieldProps = {
+  bilingualMode: OrganizationGeneralBilingualMode;
+  control: Control<OrganizationGeneralFormValues>;
+  ruName: FieldPath<OrganizationGeneralFormValues>;
+  enName: FieldPath<OrganizationGeneralFormValues>;
+  idBase: string;
+  label: ReactNode;
+  placeholderRu?: string;
+  placeholderEn?: string;
+  required?: boolean;
+  multiline?: boolean;
+  rows?: number;
+  disabled?: boolean;
+};
+
+function BilingualTextField({
+  bilingualMode,
+  control,
+  ruName,
+  enName,
+  idBase,
+  label,
+  placeholderRu,
+  placeholderEn,
+  required,
+  multiline,
+  rows = 3,
+  disabled,
+}: BilingualTextFieldProps) {
+  const showBoth = bilingualMode === "all";
+  const showEnOnly = bilingualMode === "en";
+
+  const renderInput = (
+    name: FieldPath<OrganizationGeneralFormValues>,
+    inputId: string,
+    placeholder?: string,
+  ) => (
+    <Controller
+      name={name}
+      control={control}
+      render={({ field, fieldState }) => {
+        const fieldValue = typeof field.value === "string" ? field.value : "";
+        const commonProps = {
+          id: inputId,
+          "aria-invalid": fieldState.invalid,
+          placeholder,
+          disabled,
+        } as const;
+        return (
+          <>
+            {multiline ? (
+              <Textarea
+                {...commonProps}
+                name={field.name}
+                ref={field.ref}
+                value={fieldValue}
+                onBlur={field.onBlur}
+                onChange={field.onChange}
+                rows={rows}
+              />
+            ) : (
+              <Input
+                {...commonProps}
+                name={field.name}
+                ref={field.ref}
+                value={fieldValue}
+                onBlur={field.onBlur}
+                onChange={field.onChange}
+              />
+            )}
+            {fieldState.invalid ? (
+              <FieldError errors={[fieldState.error]} />
+            ) : null}
+          </>
+        );
+      }}
+    />
+  );
+
+  return (
+    <Field className="md:col-span-2">
+      <FieldLabel htmlFor={showEnOnly ? `${idBase}-en` : idBase}>
+        {label}
+        {required ? <span className="text-destructive"> *</span> : null}
+      </FieldLabel>
+      {showBoth ? (
+        <div className="grid gap-3 md:grid-cols-2">
+          <div className="space-y-1">
+            <span className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
+              RU
+            </span>
+            {renderInput(ruName, idBase, placeholderRu)}
+          </div>
+          <div className="space-y-1">
+            <span className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
+              EN
+            </span>
+            {renderInput(enName, `${idBase}-en`, placeholderEn)}
+          </div>
+        </div>
+      ) : showEnOnly ? (
+        renderInput(enName, `${idBase}-en`, placeholderEn)
+      ) : (
+        renderInput(ruName, idBase, placeholderRu)
+      )}
+    </Field>
+  );
+}
+
 export function OrganizationGeneralEditor({
   initialValues,
   createdAt,
   updatedAt,
   submitting = false,
   error,
+  externalPatch,
+  bilingualMode = "ru",
   onDirtyChange,
   onValuesChange,
   onSubmit,
@@ -155,6 +281,7 @@ export function OrganizationGeneralEditor({
   submittingLabel = "Сохранение...",
   disableSubmitUntilDirty = true,
   kindReadonly = false,
+  readOnlyNames = false,
   headerActions,
   showDates = true,
   title = "Общая информация",
@@ -167,10 +294,10 @@ export function OrganizationGeneralEditor({
 
   const {
     control,
-    formState: { errors, isDirty },
+    getValues,
     handleSubmit,
-    register,
     reset,
+    formState: { isDirty },
   } = useForm<OrganizationGeneralFormValues>({
     resolver: zodResolver(OrganizationGeneralFormSchema),
     defaultValues: resolvedInitialValues,
@@ -190,20 +317,43 @@ export function OrganizationGeneralEditor({
     reset(resolvedInitialValues);
   }, [reset, resolvedInitialValues]);
 
+  const externalPatchNonce = externalPatch?.nonce ?? null;
+  const externalPatchRef = useRef(externalPatch);
+  externalPatchRef.current = externalPatch;
   useEffect(() => {
-    onShortNameChange?.(watchedShortName ?? "");
-  }, [onShortNameChange, watchedShortName]);
+    const currentPatch = externalPatchRef.current;
+    if (!currentPatch) {
+      return;
+    }
+
+    const current = getValues();
+    reset(
+      { ...current, ...currentPatch.patch },
+      { keepDirty: true, keepTouched: true },
+    );
+  }, [externalPatchNonce, getValues, reset]);
+
+  const onShortNameChangeRef = useRef(onShortNameChange);
+  onShortNameChangeRef.current = onShortNameChange;
+  const onValuesChangeRef = useRef(onValuesChange);
+  onValuesChangeRef.current = onValuesChange;
+  const onDirtyChangeRef = useRef(onDirtyChange);
+  onDirtyChangeRef.current = onDirtyChange;
 
   useEffect(() => {
-    onValuesChange?.({
+    onShortNameChangeRef.current?.(watchedShortName ?? "");
+  }, [watchedShortName]);
+
+  useEffect(() => {
+    onValuesChangeRef.current?.({
       ...DEFAULT_VALUES,
       ...watchedValues,
     });
-  }, [onValuesChange, watchedValues]);
+  }, [watchedValues]);
 
   useEffect(() => {
-    onDirtyChange?.(isDirty);
-  }, [isDirty, onDirtyChange]);
+    onDirtyChangeRef.current?.(isDirty);
+  }, [isDirty]);
 
   async function handleFormSubmit(values: OrganizationGeneralFormValues) {
     if (!onSubmit) {
@@ -220,6 +370,7 @@ export function OrganizationGeneralEditor({
   const submitDisabled =
     submitting || !onSubmit || (disableSubmitUntilDirty && !isDirty);
   const resetDisabled = submitting || !isDirty;
+  const namesDisabled = submitting || readOnlyNames;
 
   return (
     <Card className="w-full rounded-sm">
@@ -262,162 +413,164 @@ export function OrganizationGeneralEditor({
         >
           <FieldGroup>
             <FieldSet>
-              <FieldGroup>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <Controller
-                    name="shortName"
-                    control={control}
-                    render={({ field, fieldState }) => (
-                      <Field data-invalid={fieldState.invalid}>
-                        <FieldLabel htmlFor="organization-short-name">
-                          Краткое наименование
-                        </FieldLabel>
-                        <Input
-                          {...field}
-                          id="organization-short-name"
-                          aria-invalid={fieldState.invalid}
-                          placeholder="Например: Bedrock"
-                        />
-                        {fieldState.invalid ? (
-                          <FieldError errors={[fieldState.error]} />
-                        ) : null}
-                      </Field>
-                    )}
-                  />
-                  <Controller
-                    name="fullName"
-                    control={control}
-                    render={({ field, fieldState }) => (
-                      <Field data-invalid={fieldState.invalid}>
-                        <FieldLabel htmlFor="organization-full-name">
-                          Полное наименование
-                        </FieldLabel>
-                        <Input
-                          {...field}
-                          id="organization-full-name"
-                          aria-invalid={fieldState.invalid}
-                          placeholder="Например: Bedrock Holdings Limited"
-                        />
-                        {fieldState.invalid ? (
-                          <FieldError errors={[fieldState.error]} />
-                        ) : null}
-                      </Field>
-                    )}
-                  />
-                </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <BilingualTextField
+                  bilingualMode={bilingualMode}
+                  control={control}
+                  ruName="shortName"
+                  enName="shortNameEn"
+                  idBase="organization-short-name"
+                  label="Краткое наименование"
+                  placeholderRu="Например: Bedrock"
+                  placeholderEn="e.g., Bedrock"
+                  required
+                  disabled={namesDisabled}
+                />
+                <BilingualTextField
+                  bilingualMode={bilingualMode}
+                  control={control}
+                  ruName="fullName"
+                  enName="fullNameEn"
+                  idBase="organization-full-name"
+                  label="Полное наименование"
+                  placeholderRu="Например: Bedrock Holdings Limited"
+                  placeholderEn="e.g., Bedrock Holdings Limited"
+                  required
+                  disabled={namesDisabled}
+                />
 
-                <div className="grid gap-4 md:grid-cols-2">
-                  <Controller
-                    name="kind"
-                    control={control}
-                    render={({ field, fieldState }) => (
-                      <Field data-invalid={fieldState.invalid}>
-                        <FieldLabel htmlFor="organization-kind">
-                          Тип субъекта
-                        </FieldLabel>
-                        <Select
-                          name={field.name}
-                          value={field.value}
-                          onValueChange={field.onChange}
-                          disabled={kindReadonly || submitting}
+                <Controller
+                  name="kind"
+                  control={control}
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel htmlFor="organization-kind">
+                        Тип субъекта
+                      </FieldLabel>
+                      <Select
+                        name={field.name}
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        disabled={kindReadonly || submitting}
+                      >
+                        <SelectTrigger
+                          id="organization-kind"
+                          aria-invalid={fieldState.invalid}
+                          className="w-full"
                         >
-                          <SelectTrigger
-                            id="organization-kind"
-                            aria-invalid={fieldState.invalid}
-                            className="w-full"
-                          >
-                            <SelectValue placeholder="Выберите тип">
-                              {
-                                ORGANIZATION_KIND_OPTIONS.find(
-                                  (option) => option.value === field.value,
-                                )?.label
-                              }
-                            </SelectValue>
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectGroup>
-                              {ORGANIZATION_KIND_OPTIONS.map((option) => (
-                                <SelectItem
-                                  key={option.value}
-                                  value={option.value}
-                                >
-                                  {option.label}
-                                </SelectItem>
-                              ))}
-                            </SelectGroup>
-                          </SelectContent>
-                        </Select>
-                        {fieldState.invalid ? (
-                          <FieldError errors={[fieldState.error]} />
-                        ) : null}
-                      </Field>
-                    )}
-                  />
-                  <Controller
-                    name="country"
-                    control={control}
-                    render={({ field, fieldState }) => (
-                      <Field data-invalid={fieldState.invalid}>
-                        <FieldLabel htmlFor="organization-country">
-                          Страна
-                        </FieldLabel>
-                        <CountrySelect
-                          id="organization-country"
-                          value={field.value}
-                          onValueChange={field.onChange}
-                          disabled={submitting}
-                          invalid={fieldState.invalid}
-                          placeholder="Выберите страну"
-                          searchPlaceholder="Поиск страны..."
-                          emptyLabel="Страна не найдена"
-                          clearable
-                          clearLabel="Очистить"
-                        />
-                        {fieldState.invalid ? (
-                          <FieldError errors={[fieldState.error]} />
-                        ) : null}
-                      </Field>
-                    )}
-                  />
-                </div>
+                          <SelectValue placeholder="Выберите тип">
+                            {
+                              ORGANIZATION_KIND_OPTIONS.find(
+                                (option) => option.value === field.value,
+                              )?.label
+                            }
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectGroup>
+                            {ORGANIZATION_KIND_OPTIONS.map((option) => (
+                              <SelectItem
+                                key={option.value}
+                                value={option.value}
+                              >
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                      {fieldState.invalid ? (
+                        <FieldError errors={[fieldState.error]} />
+                      ) : null}
+                    </Field>
+                  )}
+                />
+                <Controller
+                  name="country"
+                  control={control}
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel htmlFor="organization-country">
+                        Страна
+                      </FieldLabel>
+                      <CountrySelect
+                        id="organization-country"
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        disabled={submitting}
+                        invalid={fieldState.invalid}
+                        placeholder="Выберите страну"
+                        searchPlaceholder="Поиск страны..."
+                        emptyLabel="Страна не найдена"
+                        clearable
+                        clearLabel="Очистить"
+                      />
+                      {fieldState.invalid ? (
+                        <FieldError errors={[fieldState.error]} />
+                      ) : null}
+                    </Field>
+                  )}
+                />
 
-                <div className="grid gap-4 md:grid-cols-2">
-                  <Controller
-                    name="externalRef"
-                    control={control}
-                    render={({ field, fieldState }) => (
-                      <Field data-invalid={fieldState.invalid}>
-                        <FieldLabel htmlFor="organization-external-id">
-                          Внешний ID
-                        </FieldLabel>
-                        <Input
-                          {...field}
-                          id="organization-external-id"
-                          aria-invalid={fieldState.invalid}
-                        />
-                        {fieldState.invalid ? (
-                          <FieldError errors={[fieldState.error]} />
-                        ) : null}
-                      </Field>
-                    )}
-                  />
-                  <Field data-invalid={Boolean(errors.description)}>
-                    <FieldLabel htmlFor="organization-description">
-                      Описание
-                    </FieldLabel>
-                    <FieldDescription>
-                      Дополнительная информация об организации
-                    </FieldDescription>
-                    <Textarea
-                      {...register("description")}
-                      id="organization-description"
-                      aria-invalid={Boolean(errors.description)}
-                      rows={3}
-                    />
-                    <FieldError errors={[errors.description]} />
-                  </Field>
-                </div>
-              </FieldGroup>
+                <Controller
+                  name="externalRef"
+                  control={control}
+                  render={({ field, fieldState }) => (
+                    <Field
+                      data-invalid={fieldState.invalid}
+                      className="md:col-span-2"
+                    >
+                      <FieldLabel htmlFor="organization-external-id">
+                        Внешний ID
+                      </FieldLabel>
+                      <FieldDescription>
+                        Идентификатор во внешней системе (напр. 1С), только RU-поле.
+                      </FieldDescription>
+                      <Input
+                        {...field}
+                        id="organization-external-id"
+                        aria-invalid={fieldState.invalid}
+                        disabled={submitting}
+                      />
+                      {fieldState.invalid ? (
+                        <FieldError errors={[fieldState.error]} />
+                      ) : null}
+                    </Field>
+                  )}
+                />
+
+                <Controller
+                  name="description"
+                  control={control}
+                  render={({ field, fieldState }) => (
+                    <Field
+                      data-invalid={fieldState.invalid}
+                      className="md:col-span-2"
+                    >
+                      <FieldLabel htmlFor="organization-description">
+                        Описание
+                      </FieldLabel>
+                      <Textarea
+                        id="organization-description"
+                        name={field.name}
+                        ref={field.ref}
+                        value={
+                          typeof field.value === "string" ? field.value : ""
+                        }
+                        onBlur={field.onBlur}
+                        onChange={field.onChange}
+                        rows={3}
+                        aria-invalid={fieldState.invalid}
+                        placeholder="Дополнительная информация об организации"
+                        disabled={submitting}
+                      />
+                      {fieldState.invalid ? (
+                        <FieldError errors={[fieldState.error]} />
+                      ) : null}
+                    </Field>
+                  )}
+                />
+              </div>
             </FieldSet>
             {showDates ? (
               <>

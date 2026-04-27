@@ -21,7 +21,7 @@ function resolveBucket(
   return component.kind === "fx_spread" ? "spread_revenue" : "fee_revenue";
 }
 
-export function financialLineFromFeeComponent(
+function financialLineFromFeeComponent(
   component: FeeComponent,
 ): FinancialLine {
   return normalizeFinancialLine({

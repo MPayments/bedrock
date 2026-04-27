@@ -5,10 +5,8 @@ import {
   CreateCalculationInputSchema,
   ListCalculationsQuerySchema,
   PaginatedCalculationsSchema,
-  type CalculationDetails,
 } from "@bedrock/calculations/contracts";
-import { formatFractionDecimal } from "@bedrock/shared/money";
-import type { CalculationDocumentData } from "@bedrock/workflow-document-generation";
+import { PrintFormDescriptorSchema } from "@bedrock/workflow-document-generation";
 
 import { DeletedSchema, ErrorSchema, IdParamSchema } from "../common";
 import { handleRouteError } from "../common/errors";
@@ -17,128 +15,12 @@ import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";
 import { withRequiredIdempotency } from "../middleware/idempotency";
 import { requirePermission } from "../middleware/permission";
-
-interface CalculationCurrencyMetadata {
-  code: string;
-  id: string;
-  precision: number;
-}
-
-function minorToDecimalString(amountMinor: bigint | string, precision: number) {
-  const value = typeof amountMinor === "string" ? BigInt(amountMinor) : amountMinor;
-  const negative = value < 0n;
-  const absolute = negative ? -value : value;
-  const digits = absolute.toString();
-
-  if (precision === 0) {
-    return `${negative ? "-" : ""}${digits}`;
-  }
-
-  const padded = digits.padStart(precision + 1, "0");
-  const integerPart = padded.slice(0, padded.length - precision);
-  const fractionPart = padded.slice(padded.length - precision);
-
-  return `${negative ? "-" : ""}${integerPart}.${fractionPart}`;
-}
-
-function feeBpsToPercentString(feeBps: bigint | string) {
-  return minorToDecimalString(feeBps, 2);
-}
-
-function rationalToDecimalString(
-  numerator: bigint | string,
-  denominator: bigint | string,
-  scale = 6,
-) {
-  return formatFractionDecimal(numerator, denominator, {
-    scale,
-    trimTrailingZeros: true,
-  });
-}
-
-function serializeRateSource(rateSource: string) {
-  return rateSource === "cbr" ? "cbru" : rateSource;
-}
-
-function serializeCalculationForDocumentGeneration(input: {
-  calculation: CalculationDetails;
-  currencies: Map<string, CalculationCurrencyMetadata>;
-}): CalculationDocumentData {
-  const snapshot = input.calculation.currentSnapshot;
-  const calculationCurrency = input.currencies.get(snapshot.calculationCurrencyId);
-  const baseCurrency = input.currencies.get(snapshot.baseCurrencyId);
-  const additionalExpensesCurrency = snapshot.additionalExpensesCurrencyId
-    ? input.currencies.get(snapshot.additionalExpensesCurrencyId) ?? null
-    : null;
-
-  if (!calculationCurrency || !baseCurrency) {
-    throw new Error("Missing currency metadata for calculation export");
-  }
-
-  return {
-    id: input.calculation.id,
-    currencyCode: calculationCurrency.code,
-    originalAmount: minorToDecimalString(
-      snapshot.originalAmountMinor,
-      calculationCurrency.precision,
-    ),
-    agreementFeePercentage: feeBpsToPercentString(snapshot.agreementFeeBps),
-    agreementFeeAmount: minorToDecimalString(
-      snapshot.agreementFeeAmountMinor,
-      calculationCurrency.precision,
-    ),
-    quoteMarkupPercentage: feeBpsToPercentString(snapshot.quoteMarkupBps),
-    quoteMarkupAmount: minorToDecimalString(
-      snapshot.quoteMarkupAmountMinor,
-      calculationCurrency.precision,
-    ),
-    totalFeePercentage: feeBpsToPercentString(snapshot.totalFeeBps),
-    totalFeeAmount: minorToDecimalString(
-      snapshot.totalFeeAmountMinor,
-      calculationCurrency.precision,
-    ),
-    totalAmount: minorToDecimalString(
-      snapshot.totalAmountMinor,
-      calculationCurrency.precision,
-    ),
-    finalRate: rationalToDecimalString(snapshot.rateNum, snapshot.rateDen),
-    rateSource: serializeRateSource(snapshot.rateSource),
-    rate: rationalToDecimalString(snapshot.rateNum, snapshot.rateDen),
-    additionalExpenses: minorToDecimalString(
-      snapshot.additionalExpensesAmountMinor,
-      additionalExpensesCurrency?.precision ?? baseCurrency.precision,
-    ),
-    baseCurrencyCode: baseCurrency.code,
-    totalFeeAmountInBase: minorToDecimalString(
-      snapshot.totalFeeAmountInBaseMinor,
-      baseCurrency.precision,
-    ),
-    fixedFeeAmount: snapshot.fixedFeeCurrencyId
-      ? minorToDecimalString(
-          snapshot.fixedFeeAmountMinor,
-          input.currencies.get(snapshot.fixedFeeCurrencyId)?.precision ??
-            baseCurrency.precision,
-        )
-      : minorToDecimalString(snapshot.fixedFeeAmountMinor, baseCurrency.precision),
-    fixedFeeCurrencyCode:
-      snapshot.fixedFeeCurrencyId != null
-        ? (input.currencies.get(snapshot.fixedFeeCurrencyId)?.code ?? null)
-        : null,
-    totalInBase: minorToDecimalString(
-      snapshot.totalInBaseMinor,
-      baseCurrency.precision,
-    ),
-    additionalExpensesInBase: minorToDecimalString(
-      snapshot.additionalExpensesInBaseMinor,
-      baseCurrency.precision,
-    ),
-    totalWithExpensesInBase: minorToDecimalString(
-      snapshot.totalWithExpensesInBaseMinor,
-      baseCurrency.precision,
-    ),
-    calculationTimestamp: snapshot.calculationTimestamp.toISOString(),
-  };
-}
+import {
+  generateCalculationPrintForm,
+  listCalculationPrintForms,
+  PrintFormFormatQuerySchema,
+  writeGeneratedDocumentResponse,
+} from "./internal/print-forms";
 
 export function calculationsRoutes(ctx: AppContext) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();
@@ -274,18 +156,46 @@ export function calculationsRoutes(ctx: AppContext) {
     },
   });
 
-  const exportRoute = createRoute({
+  const listPrintFormsRoute = createRoute({
     middleware: [requirePermission({ calculations: ["list"] })],
     method: "get",
-    path: "/{id}/export",
+    path: "/{id}/print-forms",
     tags: ["Calculations"],
-    summary: "Export calculation as DOCX/PDF",
+    summary: "List calculation print forms",
     request: {
       params: IdParamSchema,
-      query: z.object({
-        format: z.enum(["docx", "pdf"]).default("pdf"),
-        lang: z.enum(["ru", "en"]).default("ru"),
+    },
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: z.array(PrintFormDescriptorSchema),
+          },
+        },
+        description: "Calculation print forms",
+      },
+      404: {
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+        description: "Calculation not found",
+      },
+    },
+  });
+
+  const downloadPrintFormRoute = createRoute({
+    middleware: [requirePermission({ calculations: ["list"] })],
+    method: "get",
+    path: "/{id}/print-forms/{formId}",
+    tags: ["Calculations"],
+    summary: "Download calculation print form as DOCX/PDF",
+    request: {
+      params: IdParamSchema.extend({
+        formId: z.string().min(1),
       }),
+      query: PrintFormFormatQuerySchema,
     },
     responses: {
       200: { description: "Generated file" },
@@ -295,7 +205,7 @@ export function calculationsRoutes(ctx: AppContext) {
             schema: ErrorSchema,
           },
         },
-        description: "Calculation not found",
+        description: "Calculation or print form not found",
       },
     },
   });
@@ -352,53 +262,31 @@ export function calculationsRoutes(ctx: AppContext) {
         return handleRouteError(c, error);
       }
     })
-    .openapi(exportRoute, async (c): Promise<any> => {
+    .openapi(listPrintFormsRoute, async (c) => {
       try {
         const { id } = c.req.valid("param");
-        const { format, lang } = c.req.valid("query");
-        const calculation =
-          await ctx.calculationsModule.calculations.queries.findById(id);
-        const snapshot = calculation.currentSnapshot;
-        const currencyIds = Array.from(
-          new Set(
-            [
-              snapshot.calculationCurrencyId,
-              snapshot.baseCurrencyId,
-              snapshot.additionalExpensesCurrencyId,
-            ].filter((value): value is string => Boolean(value)),
-          ),
-        );
-        const currencies = new Map(
-          await Promise.all(
-            currencyIds.map(async (currencyId) => {
-              const currency = await ctx.currenciesService.findById(currencyId);
-              return [
-                currencyId,
-                {
-                  code: currency.code,
-                  id: currency.id,
-                  precision: currency.precision,
-                },
-              ] as const;
-            }),
-          ),
-        );
-        const serialized = serializeCalculationForDocumentGeneration({
-          calculation,
-          currencies,
-        });
-        const result = await ctx.documentGenerationWorkflow.generateCalculation({
-          calculationData: serialized,
-          format,
-          lang,
+        const result = await listCalculationPrintForms({
+          calculationId: id,
+          ctx,
         });
 
-        c.header("Content-Type", result.mimeType);
-        c.header(
-          "Content-Disposition",
-          `attachment; filename="${result.fileName}"`,
-        );
-        return c.body(result.buffer as unknown as ArrayBuffer);
+        return jsonOk(c, result);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(downloadPrintFormRoute, async (c): Promise<any> => {
+      try {
+        const { formId, id } = c.req.valid("param");
+        const { format } = c.req.valid("query");
+        const result = await generateCalculationPrintForm({
+          calculationId: id,
+          ctx,
+          formId,
+          format,
+        });
+
+        return writeGeneratedDocumentResponse(c, result);
       } catch (error) {
         return handleRouteError(c, error);
       }

@@ -1,5 +1,6 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { FilePlus2 } from "lucide-react";
+import { canDealCreateFormalDocuments } from "@bedrock/deals";
 
 import { EntityListPageShell } from "@/components/entities/entity-list-page-shell";
 import { getAgreementContextById } from "@/features/agreements/lib/queries";
@@ -96,6 +97,16 @@ export default async function DocumentCreateByTypePage({
   const successHref = dealId
     ? requestedReturnTo ?? buildDealDocumentsTabHref(dealId)
     : undefined;
+  if (
+    dealId &&
+    deal &&
+    !canDealCreateFormalDocuments({
+      status: deal.summary.status,
+      type: deal.summary.type,
+    })
+  ) {
+    redirect(successHref ?? buildDealDocumentsTabHref(dealId));
+  }
   const agreement =
     deal && docType === "invoice" && deal.workflow?.summary.agreementId
       ? await getAgreementContextById(deal.workflow.summary.agreementId).catch(

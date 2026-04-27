@@ -51,22 +51,6 @@ export function normalizeMonthStart(input: Date): Date {
   return CalendarMonth.fromDate(input).start;
 }
 
-export function normalizeMonthEndExclusive(input: Date): Date {
-  return CalendarMonth.fromDate(input).endExclusive;
-}
-
 export function formatPeriodLabel(periodStart: Date): string {
   return CalendarMonth.fromDate(periodStart).label;
-}
-
-export function getPreviousCalendarMonthRange(now: Date): {
-  periodStart: Date;
-  periodEnd: Date;
-} {
-  const previousMonth = CalendarMonth.fromDate(now).previous();
-
-  return {
-    periodStart: previousMonth.start,
-    periodEnd: previousMonth.endExclusive,
-  };
 }

@@ -81,12 +81,17 @@ function createFinanceWorkspacePayload(): SerializedDates<FinanceDealWorkspace> 
         state: "missing",
       },
     ],
+    cashflowSummary: {
+      receivedIn: [],
+      scheduledOut: [],
+      settledOut: [],
+    },
     closeReadiness: {
       blockers: ["Required intake sections are incomplete"],
       criteria: [
         {
           code: "operations_materialized",
-          label: "Казначейские операции созданы для всех этапов",
+          label: "Казначейские операции созданы для всех шагов",
           satisfied: false,
         },
       ],
@@ -98,11 +103,13 @@ function createFinanceWorkspacePayload(): SerializedDates<FinanceDealWorkspace> 
           canCreateLegOperation: false,
           exchangeDocument: null,
         },
+        fromCurrencyId: null,
         id: "714fb6eb-a1bd-429e-9628-e97d0f2efa0b",
         idx: 1,
         kind: "collect",
-        operationRefs: [],
-        state: "pending",
+        routeSnapshotLegId: null,
+        runtimeState: "not_materialized",
+        toCurrencyId: null,
       },
     ],
     formalDocumentRequirements: [
@@ -116,18 +123,6 @@ function createFinanceWorkspacePayload(): SerializedDates<FinanceDealWorkspace> 
         state: "missing",
       },
     ],
-    instructionSummary: {
-      failed: 0,
-      planned: 0,
-      prepared: 0,
-      returnRequested: 0,
-      returned: 0,
-      settled: 0,
-      submitted: 0,
-      terminalOperations: 0,
-      totalOperations: 0,
-      voided: 0,
-    },
     nextAction: "Create calculation from accepted quote",
     operationalState: {
       positions: [
@@ -145,8 +140,13 @@ function createFinanceWorkspacePayload(): SerializedDates<FinanceDealWorkspace> 
       quoteAmount: "125000.00",
       quoteAmountSide: "target",
       quoteEligibility: true,
+      routeAttachment: null,
       sourceCurrencyId: "fdcf4040-4a4e-4c90-b550-6898ab3789f4",
       targetCurrencyId: "0f9d972c-b95b-4544-95d8-8ccdc7496ed8",
+    },
+    printForms: {
+      calculation: [],
+      deal: [],
     },
     profitabilitySnapshot: null,
     queueContext: {
@@ -179,7 +179,8 @@ function createFinanceWorkspacePayload(): SerializedDates<FinanceDealWorkspace> 
         },
       ],
       formalDocuments: [],
-      operations: [],
+      paymentSteps: [],
+      quoteExecutions: [],
       quotes: [
         {
           expiresAt: "2026-04-02T09:15:00.000Z",
@@ -595,79 +596,17 @@ describe("treasury deals queries", () => {
     );
   });
 
-  it("accepts treasury instruction timestamps serialized as strings in deal operations", async () => {
-    const workspacePayload = createFinanceWorkspacePayload();
-
-    workspacePayload.relatedResources.operations = [
-      {
-        actions: {
-          canPrepareInstruction: false,
-          canRequestReturn: false,
-          canRetryInstruction: false,
-          canSubmitInstruction: true,
-          canVoidInstruction: false,
-        },
-        availableOutcomeTransitions: [],
-        id: "114fb6eb-a1bd-429e-9628-e97d0f2efa0b",
-        instructionStatus: "prepared",
-        kind: "payout",
-        latestInstruction: {
-          attempt: 1,
-          createdAt: "2026-04-02T08:20:00.000Z",
-          failedAt: null,
-          id: "214fb6eb-a1bd-429e-9628-e97d0f2efa0b",
-          operationId: "114fb6eb-a1bd-429e-9628-e97d0f2efa0b",
-          providerRef: null,
-          providerSnapshot: null,
-          returnRequestedAt: null,
-          returnedAt: null,
-          settledAt: null,
-          sourceRef: "deal:614fb6eb-a1bd-429e-9628-e97d0f2efa0b:leg:2:payout:1",
-          state: "prepared",
-          submittedAt: null,
-          updatedAt: "2026-04-02T08:21:00.000Z",
-          voidedAt: null,
-        },
-        operationHref: "/treasury/operations/114fb6eb-a1bd-429e-9628-e97d0f2efa0b",
-        sourceRef: "deal:614fb6eb-a1bd-429e-9628-e97d0f2efa0b:leg:2:payout:1",
-        state: "planned",
-      },
-    ];
-
-    fetchMock.mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: async () => workspacePayload,
-    });
-
-    const { getFinanceDealWorkspaceById } = await import(
-      "@/features/treasury/deals/lib/queries"
-    );
-
-    await expect(
-      getFinanceDealWorkspaceById("614fb6eb-a1bd-429e-9628-e97d0f2efa0b"),
-    ).resolves.toEqual(
-      expect.objectContaining({
-        relatedResources: expect.objectContaining({
-          operations: [
-            expect.objectContaining({
-              latestInstruction: expect.objectContaining({
-                createdAt: expect.any(Date),
-                updatedAt: expect.any(Date),
-              }),
-            }),
-          ],
-        }),
-      }),
-    );
-  });
-
   it("merges finance workspace with quotes and calculations for the treasury workbench", async () => {
     fetchMock
       .mockResolvedValueOnce({
         ok: true,
         status: 200,
         json: async () => createFinanceWorkspacePayload(),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => [],
       })
       .mockResolvedValueOnce({
         ok: true,
@@ -785,7 +724,7 @@ describe("treasury deals queries", () => {
     );
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
-      "http://localhost:3000/v1/deals/614fb6eb-a1bd-429e-9628-e97d0f2efa0b/quotes",
+      "http://localhost:3000/v1/deals/614fb6eb-a1bd-429e-9628-e97d0f2efa0b/print-forms",
       {
         cache: "no-store",
         headers: {
@@ -796,6 +735,17 @@ describe("treasury deals queries", () => {
     );
     expect(fetchMock).toHaveBeenNthCalledWith(
       3,
+      "http://localhost:3000/v1/deals/614fb6eb-a1bd-429e-9628-e97d0f2efa0b/quotes",
+      {
+        cache: "no-store",
+        headers: {
+          cookie: "session=token",
+          "x-bedrock-app-audience": "finance",
+        },
+      },
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      4,
       "http://localhost:3000/v1/deals/614fb6eb-a1bd-429e-9628-e97d0f2efa0b/calculations",
       {
         cache: "no-store",

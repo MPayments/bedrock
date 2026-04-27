@@ -27,6 +27,7 @@ export interface CreateFileVersionStoredInput {
 }
 
 export interface CreateFileLinkStoredInput {
+  agreementVersionId: string | null;
   attachmentPurpose: FileAttachmentPurpose | null;
   attachmentVisibility: FileAttachmentVisibility | null;
   counterpartyId: string | null;
@@ -36,6 +37,7 @@ export interface CreateFileLinkStoredInput {
   generatedLang: FileGeneratedLang | null;
   id: string;
   linkKind: FileLinkKind;
+  paymentStepId: string | null;
 }
 
 export interface FileStore {

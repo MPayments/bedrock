@@ -1,43 +1,24 @@
 import type {
   PaymentRouteCalculation,
+  PaymentRouteDraft,
+  PaymentRouteTemplateRecord,
+  PaymentRouteTemplateWriteModel,
+} from "../../domain/model";
+import type {
   PaymentRouteTemplate,
   PaymentRouteTemplateListItem,
 } from "../contracts/dto";
 import { PaymentRouteCalculationSchema } from "../contracts/dto";
 import type { ListPaymentRouteTemplatesQuery } from "../contracts/queries";
-import type {
-  PaymentRouteDraft,
-  PaymentRouteTemplateStatus,
-  PaymentRouteVisualMetadata,
-} from "../contracts/zod";
 import {
   PaymentRouteDraftSchema,
   normalizePaymentRouteDraft,
 } from "../contracts/zod";
 
-export interface PaymentRouteTemplateRecord {
-  createdAt: Date;
-  draft: PaymentRouteDraft;
-  id: string;
-  lastCalculation: PaymentRouteCalculation | null;
-  name: string;
-  snapshotPolicy: "clone_on_attach";
-  status: PaymentRouteTemplateStatus;
-  updatedAt: Date;
-  visual: PaymentRouteVisualMetadata;
-}
-
-export interface PaymentRouteTemplateWriteModel {
-  createdAt: Date;
-  draft: PaymentRouteDraft;
-  id: string;
-  lastCalculation: PaymentRouteCalculation | null;
-  name: string;
-  snapshotPolicy: "clone_on_attach";
-  status: PaymentRouteTemplateStatus;
-  updatedAt: Date;
-  visual: PaymentRouteVisualMetadata;
-}
+export type {
+  PaymentRouteTemplateRecord,
+  PaymentRouteTemplateWriteModel,
+} from "../../domain/model";
 
 export interface PaymentRouteTemplatesRepository {
   insertTemplate(
@@ -48,7 +29,14 @@ export interface PaymentRouteTemplatesRepository {
     input: Partial<
       Pick<
         PaymentRouteTemplateWriteModel,
-        "draft" | "lastCalculation" | "name" | "status" | "updatedAt" | "visual"
+        | "draft"
+        | "lastCalculation"
+        | "maxMarginBps"
+        | "minMarginBps"
+        | "name"
+        | "status"
+        | "updatedAt"
+        | "visual"
       >
     >,
   ): Promise<PaymentRouteTemplateRecord | null>;
@@ -67,7 +55,13 @@ function normalizeRecordDraft(
 function normalizeRecordCalculation(
   calculation: PaymentRouteTemplateRecord["lastCalculation"],
 ): PaymentRouteCalculation | null {
-  return calculation ? PaymentRouteCalculationSchema.parse(calculation) : null;
+  if (!calculation) {
+    return null;
+  }
+
+  const parsed = PaymentRouteCalculationSchema.safeParse(calculation);
+
+  return parsed.success ? parsed.data : null;
 }
 
 export function mapPaymentRouteTemplateRecord(
@@ -80,6 +74,8 @@ export function mapPaymentRouteTemplateRecord(
     ...record,
     draft,
     lastCalculation,
+    maxMarginBps: record.maxMarginBps,
+    minMarginBps: record.minMarginBps,
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString(),
   };

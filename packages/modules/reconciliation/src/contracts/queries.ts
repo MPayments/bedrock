@@ -1,14 +1,9 @@
 import { z } from "zod";
 
 import { RECONCILIATION_EXCEPTION_STATES } from "../domain/exceptions";
-import { RECONCILIATION_MATCH_STATUSES } from "../domain/matching";
 
-export const ReconciliationExceptionStateSchema = z.enum(
+const ReconciliationExceptionStateSchema = z.enum(
   RECONCILIATION_EXCEPTION_STATES,
-);
-
-export const ReconciliationMatchStatusSchema = z.enum(
-  RECONCILIATION_MATCH_STATUSES,
 );
 
 export const ListReconciliationExceptionsInputSchema = z.object({

@@ -45,7 +45,6 @@ export function createApiAgreementsModule(input: {
     logger: input.logger,
     now: input.now ?? (() => new Date()),
     generateUuid: input.generateUuid ?? randomUUID,
-    idempotency: input.idempotency,
     reads: new DrizzleAgreementReads(input.db, currenciesQueries),
     references: {
       async findCustomerById(id: string) {
@@ -73,6 +72,9 @@ export function createApiAgreementsModule(input: {
         await input.currencies.findById(id);
       },
     },
-    commandUow: new DrizzleAgreementsUnitOfWork({ persistence }),
+    commandUow: new DrizzleAgreementsUnitOfWork({
+      idempotency: input.idempotency,
+      persistence,
+    }),
   });
 }

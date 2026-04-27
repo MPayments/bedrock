@@ -297,16 +297,6 @@ export const organizationRequisiteBindings = pgTable(
   ],
 );
 
-export const schema = {
-  requisites,
-  requisiteProviders,
-  requisiteProviderIdentifiers,
-  requisiteProviderBranches,
-  requisiteProviderBranchIdentifiers,
-  requisiteIdentifiers,
-  organizationRequisiteBindings,
-};
-
 export type RequisiteRow = typeof requisites.$inferSelect;
 export type RequisiteProviderRow = typeof requisiteProviders.$inferSelect;
 export type RequisiteProviderIdentifierRow =

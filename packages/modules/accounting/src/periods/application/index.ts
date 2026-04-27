@@ -1,6 +1,5 @@
 import type { ModuleRuntime } from "@bedrock/shared/core";
 
-import { getPreviousCalendarMonthRange } from "../domain";
 import { AssertOrganizationPeriodsOpenCommand } from "./commands/assert-organization-periods-open";
 import { ClosePeriodCommand } from "./commands/close-period";
 import { ReopenPeriodCommand } from "./commands/reopen-period";
@@ -53,5 +52,3 @@ export function createPeriodsService(input: PeriodsServiceDeps) {
     },
   };
 }
-
-export { getPreviousCalendarMonthRange };

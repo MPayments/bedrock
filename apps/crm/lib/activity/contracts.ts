@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const CrmActivityEntityTypeSchema = z.enum([
+const CrmActivityEntityTypeSchema = z.enum([
   "customer",
   "agreement",
   "deal",

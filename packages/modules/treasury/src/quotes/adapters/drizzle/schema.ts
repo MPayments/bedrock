@@ -60,6 +60,7 @@ export const fxQuotes = pgTable(
     usedAt: timestamp("used_at", { withTimezone: true }),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     idempotencyKey: text("idempotency_key").notNull(),
+    pricingFingerprint: text("pricing_fingerprint"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .default(sql`now()`),
@@ -70,6 +71,10 @@ export const fxQuotes = pgTable(
     index("fx_quotes_status_idx").on(table.status),
     index("fx_quotes_expires_idx").on(table.expiresAt),
     index("fx_quotes_used_document_idx").on(table.usedDocumentId),
+    index("fx_quotes_deal_fingerprint_idx").on(
+      table.dealId,
+      table.pricingFingerprint,
+    ),
   ],
 );
 

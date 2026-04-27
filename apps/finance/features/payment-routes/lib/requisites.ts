@@ -118,7 +118,7 @@ export function getPaymentRouteParticipantOwnerKey(
   return `${participant.entityKind}:${participant.entityId}`;
 }
 
-export function getPaymentRouteParticipantOperationalCurrencyOption(input: {
+function getPaymentRouteParticipantOperationalCurrencyOption(input: {
   draft: PaymentRouteDraft;
   index: number;
   options: Pick<PaymentRouteConstructorOptions, "currencies">;
@@ -222,7 +222,7 @@ export function getPaymentRouteParticipantRequisiteContext(input: {
   } satisfies PaymentRouteParticipantRequisiteContext;
 }
 
-export function getRecommendedParticipantRequisiteId(
+function getRecommendedParticipantRequisiteId(
   context: PaymentRouteParticipantRequisiteContext,
 ) {
   if (context.matchingRequisites.length === 1) {

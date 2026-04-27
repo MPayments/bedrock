@@ -5,7 +5,6 @@ export { assembleAcceptanceData } from "./acceptance-data";
 export { assembleCalculationData } from "./calculation-data";
 export {
   bufferToImageContent,
-  formatDateByLang,
   type DocumentFormat,
   type DocumentLang,
   type ImageContent,

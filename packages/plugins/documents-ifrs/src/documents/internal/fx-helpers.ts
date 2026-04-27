@@ -242,7 +242,7 @@ function aggregateFxExecuteFinancialLinePayloads(
   return [...grouped.values()];
 }
 
-export function mergeFxExecuteFinancialLines(input: {
+function mergeFxExecuteFinancialLines(input: {
   quoteSnapshot: FxExecuteQuoteSnapshot;
   manualFinancialLines: FxExecuteFinancialLineInput[];
 }) {

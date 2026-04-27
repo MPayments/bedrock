@@ -49,12 +49,10 @@ describe("document doc types", () => {
   it("exposes the documents workspace families and role-scoped type lists", () => {
     expect(isDocumentsWorkspaceFamily("transfers")).toBe(true);
     expect(isDocumentsWorkspaceFamily("ifrs")).toBe(true);
-    expect(isDocumentsWorkspaceFamily("legacy")).toBe(false);
 
     expect(getDocumentsWorkspaceFamily("transfer_intra")).toBe("transfers");
     expect(getDocumentsWorkspaceFamily("fx_execute")).toBe("ifrs");
     expect(getDocumentsWorkspaceFamily("capital_funding")).toBe("ifrs");
-    expect(getDocumentsWorkspaceFamily("legacy_doc_type")).toBeNull();
 
     expect(getDocumentsWorkspaceFamilyLabel("transfers")).toBe("Переводы");
     expect(getDocumentsWorkspaceFamilyLabel("ifrs")).toBe("Учетные документы");

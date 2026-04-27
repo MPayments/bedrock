@@ -247,7 +247,7 @@ export async function requestPortalDealProjections(input?: {
   return (await response.json()) as PortalDealListProjectionResponse;
 }
 
-export async function requestPortalDealProjection(id: string) {
+async function requestPortalDealProjection(id: string) {
   const response = await fetch(
     `${API_BASE_URL}/customer/deals/${id}/projection`,
     {
@@ -266,7 +266,7 @@ export async function requestPortalDealProjection(id: string) {
   return (await response.json()) as PortalDealProjectionResponse;
 }
 
-export async function requestPortalDealDetail(id: string) {
+async function requestPortalDealDetail(id: string) {
   const response = await fetch(`${API_BASE_URL}/customer/deals/${id}`, {
     credentials: "include",
   });
@@ -294,21 +294,6 @@ export async function requestPortalDealPageData(
     ...projection,
     calculation: detail.calculation,
   };
-}
-
-export async function requestPortalDealAttachments(id: string) {
-  const response = await fetch(
-    `${API_BASE_URL}/customer/deals/${id}/attachments`,
-    {
-      credentials: "include",
-    },
-  );
-
-  if (!response.ok) {
-    throw new Error(`Ошибка загрузки вложений: ${response.status}`);
-  }
-
-  return (await response.json()) as PortalDealAttachment[];
 }
 
 export async function uploadPortalDealAttachment(input: {

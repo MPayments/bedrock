@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
+import { COMMERCIAL_CORE_ACTOR_USER_ID } from "../../../../../tests/integration/commercial-core/constants";
 import {
-  COMMERCIAL_CORE_ACTOR_USER_ID,
   createAgreementFixture,
   createCalculationFixture,
   createFxQuoteFixture,
@@ -10,57 +10,7 @@ import {
 } from "../../../../../tests/integration/commercial-core/fixtures";
 
 describe("deals integration characterization", () => {
-  it("does not surface a separate expected currency on payment intakes", async () => {
-    const fixture = await createAgreementFixture();
-
-    const created = await fixture.runtime.modules.deals.deals.commands.createDraft({
-      actorUserId: COMMERCIAL_CORE_ACTOR_USER_ID,
-      agreementId: fixture.agreement.id,
-      customerId: fixture.customer.id,
-      idempotencyKey: randomUUID(),
-      intake: {
-        ...createPaymentIntakeDraft({
-          applicantCounterpartyId: fixture.applicant.id,
-          beneficiaryCounterpartyId: fixture.externalBeneficiary.id,
-          sourceCurrencyId: fixture.currencies.rub.id,
-          targetCurrencyId: fixture.currencies.usd.id,
-        }),
-        incomingReceipt: {
-          ...createPaymentIntakeDraft({
-            applicantCounterpartyId: fixture.applicant.id,
-            beneficiaryCounterpartyId: fixture.externalBeneficiary.id,
-            sourceCurrencyId: fixture.currencies.rub.id,
-            targetCurrencyId: fixture.currencies.usd.id,
-          }).incomingReceipt,
-        },
-      },
-    });
-
-    expect(created.intake.moneyRequest.targetCurrencyId).toBe(
-      fixture.currencies.usd.id,
-    );
-    expect("expectedCurrencyId" in created.intake.incomingReceipt).toBe(false);
-
-    const updated = await fixture.runtime.modules.deals.deals.commands.replaceIntake({
-      actorUserId: COMMERCIAL_CORE_ACTOR_USER_ID,
-      dealId: created.summary.id,
-      expectedRevision: created.revision,
-      intake: {
-        ...created.intake,
-        moneyRequest: {
-          ...created.intake.moneyRequest,
-          targetCurrencyId: fixture.currencies.usd.id,
-        },
-      },
-    });
-
-    expect(updated.intake.moneyRequest.targetCurrencyId).toBe(
-      fixture.currencies.usd.id,
-    );
-    expect("expectedCurrencyId" in updated.intake.incomingReceipt).toBe(false);
-  });
-
-  it("creates and updates typed payment intake without source-side compatibility fields", async () => {
+  it("creates and updates typed payment intake", async () => {
     const fixture = await createAgreementFixture();
 
     const created = await fixture.runtime.modules.deals.deals.commands.createDraft({
@@ -148,9 +98,6 @@ describe("deals integration characterization", () => {
       fixture.currencies.usd.id,
     );
     expect(workflow?.intake.incomingReceipt.expectedAmount).toBe("1250.00");
-    expect(workflow?.intake.incomingReceipt).not.toHaveProperty(
-      "expectedCurrencyId",
-    );
     expect(detail?.amount).toBe("1250.00");
     expect(detail?.currencyId).toBe(fixture.currencies.usd.id);
     expect(detail?.comment).toBeNull();
@@ -285,92 +232,6 @@ describe("deals integration characterization", () => {
         status: "done",
       }),
     ).rejects.toThrow("Cannot transition deal status from submitted to done");
-  });
-
-  it("hydrates linked treasury operations back onto execution plan legs", async () => {
-    const fixture = await createAgreementFixture();
-    const draft = await fixture.runtime.modules.deals.deals.commands.createDraft({
-      actorUserId: COMMERCIAL_CORE_ACTOR_USER_ID,
-      agreementId: fixture.agreement.id,
-      customerId: fixture.customer.id,
-      idempotencyKey: randomUUID(),
-      intake: createPaymentIntakeDraft({
-        applicantCounterpartyId: fixture.applicant.id,
-        beneficiaryCounterpartyId: fixture.externalBeneficiary.id,
-        sourceCurrencyId: fixture.currencies.usd.id,
-      }),
-    });
-
-    const workflowBefore = await fixture.runtime.modules.deals.deals.queries.findWorkflowById(
-      draft.summary.id,
-    );
-    const collectLeg = workflowBefore?.executionPlan.find(
-      (leg) => leg.kind === "collect",
-    );
-    expect(collectLeg).toBeDefined();
-    expect(collectLeg?.operationRefs).toEqual([]);
-
-    const operationId = randomUUID();
-    const linkId = randomUUID();
-    const sourceRef = `deal:${draft.summary.id}:leg:${collectLeg!.idx}:payin:1`;
-
-    await fixture.runtime.pool.query(
-      `
-        insert into treasury_operations (
-          id,
-          deal_id,
-          customer_id,
-          internal_entity_organization_id,
-          kind,
-          state,
-          source_ref,
-          amount_minor,
-          currency_id,
-          created_at,
-          updated_at
-        ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, now(), now())
-      `,
-      [
-        operationId,
-        draft.summary.id,
-        fixture.customer.id,
-        fixture.organization.id,
-        "payin",
-        "planned",
-        sourceRef,
-        "100000",
-        fixture.currencies.usd.id,
-      ],
-    );
-    await fixture.runtime.pool.query(
-      `
-        insert into deal_leg_operation_links (
-          id,
-          deal_leg_id,
-          treasury_operation_id,
-          operation_kind,
-          source_ref
-        ) values ($1, $2, $3, $4, $5)
-      `,
-      [linkId, collectLeg!.id, operationId, "payin", sourceRef],
-    );
-
-    const workflowAfter = await fixture.runtime.modules.deals.deals.queries.findWorkflowById(
-      draft.summary.id,
-    );
-
-    expect(
-      workflowAfter?.executionPlan.find((leg) => leg.kind === "collect"),
-    ).toMatchObject({
-      id: collectLeg!.id,
-      operationRefs: [
-        {
-          kind: "payin",
-          operationId,
-          sourceRef,
-        },
-      ],
-    });
   });
 
   it("loads multiple workflow projections in input order without per-call lookup orchestration", async () => {

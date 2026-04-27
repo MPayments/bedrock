@@ -1,8 +1,8 @@
 import { z } from "zod";
 import { describe, expect, it } from "vitest";
 
-import type { DocumentFormDefinition } from "@/features/documents/lib/document-form-registry";
-import type { DocumentFormField } from "@/features/documents/lib/document-form-registry";
+import type { DocumentFormDefinition } from "@bedrock/sdk-documents-form-ui/lib/document-form-registry";
+import type { DocumentFormField } from "@bedrock/sdk-documents-form-ui/lib/document-form-registry";
 import {
   buildWatchedValueMap,
   collectVisibilityDependencyNames,
@@ -13,12 +13,12 @@ import {
   mapDocumentFormZodError,
   resolveAccountRequisiteRequests,
   resolveDocumentFormDefaultValues,
-} from "@/features/documents/components/forms/document-typed-form/helpers";
+} from "@bedrock/sdk-documents-form-ui/components/typed-form/helpers";
 import {
   DOCUMENT_TYPED_FORM_RENDERER_KINDS,
   DOCUMENT_TYPED_FORM_RENDERERS_ARE_EXHAUSTIVE,
   documentTypedFormFieldRenderers,
-} from "@/features/documents/components/forms/document-typed-form/renderers/registry";
+} from "@bedrock/sdk-documents-form-ui/components/typed-form/renderers/registry";
 
 const accountField = {
   kind: "account",

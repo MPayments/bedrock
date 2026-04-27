@@ -2,7 +2,6 @@ import { lookup } from "node:dns/promises";
 import {
   createClient,
   TransferFlags,
-  AccountFlags,
   CreateAccountError,
   CreateTransferError,
   type Account,
@@ -12,7 +11,7 @@ import {
 import { TigerBeetleBatchError } from "../../errors";
 
 export type TbClient = ReturnType<typeof createClient>;
-export { TransferFlags, AccountFlags, CreateAccountError, CreateTransferError };
+export { TransferFlags, CreateAccountError, CreateTransferError };
 
 export const TB_AMOUNT_MAX = (1n << 128n) - 1n;
 

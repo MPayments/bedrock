@@ -155,7 +155,7 @@ function mapMinorByCurrency(value: bigint, currency: string) {
   return minorToAmountString(value, { currency });
 }
 
-export function mapReportScopeMetaDto<TMeta extends ReportScopeMetaLike>(
+function mapReportScopeMetaDto<TMeta extends ReportScopeMetaLike>(
   meta: TMeta,
 ) {
   return {

@@ -134,14 +134,6 @@ export const counterpartyGroupMemberships = pgTable(
   ],
 );
 
-export const schema = {
-  counterparties,
-  customerCounterpartyAssignments,
-  counterpartyGroups,
-  counterpartyGroupMemberships,
-  counterpartyRelationshipKindEnum,
-};
-
 export type CounterpartyRow = typeof counterparties.$inferSelect;
 export type CounterpartyGroupRow = typeof counterpartyGroups.$inferSelect;
 export type CustomerCounterpartyAssignmentRow =

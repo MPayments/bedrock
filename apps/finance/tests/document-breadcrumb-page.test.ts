@@ -90,7 +90,7 @@ describe("document breadcrumb page", () => {
         icon: "book-open",
       },
       {
-        label: "Исходящий инвойс",
+        label: "Счёт на оплату",
         href: "/documents/commercial?docType=invoice",
       },
       {

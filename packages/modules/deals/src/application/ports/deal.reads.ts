@@ -6,12 +6,18 @@ import type {
   DealCalculationHistoryItem,
   DealDetails,
   DealFundingResolution,
+  DealPricingContext,
+  DealQuoteAcceptanceHistoryItem,
   DealTraceProjection,
   DealWorkflowProjection,
   PortalDealListProjection,
   PortalDealProjection,
 } from "../contracts/dto";
 import type { ListDealsQuery } from "../contracts/queries";
+import type {
+  ListTreasuryExceptionQueueInput,
+  TreasuryExceptionQueueRow,
+} from "../queries/list-treasury-exception-queue";
 
 export interface DealFundingAssessmentPort {
   assessFunding(input: {
@@ -27,6 +33,7 @@ export interface DealReads {
   findAttachmentIngestionByFileAssetId(
     fileAssetId: string,
   ): Promise<DealAttachmentIngestion | null>;
+  findPricingContextByDealId(dealId: string): Promise<DealPricingContext>;
   findPortalProjectionById(id: string): Promise<PortalDealProjection | null>;
   findTraceById(id: string): Promise<DealTraceProjection | null>;
   findWorkflowById(id: string): Promise<DealWorkflowProjection | null>;
@@ -36,9 +43,15 @@ export interface DealReads {
   ): Promise<DealAttachmentIngestion[]>;
   list(input: ListDealsQuery): Promise<PaginatedList<Deal>>;
   listCalculationHistory(dealId: string): Promise<DealCalculationHistoryItem[]>;
+  listQuoteAcceptances(
+    dealId: string,
+  ): Promise<DealQuoteAcceptanceHistoryItem[]>;
   listPortalDeals(input: {
     customerId: string;
     limit: number;
     offset: number;
   }): Promise<PortalDealListProjection>;
+  listTreasuryExceptionQueue?(
+    input: ListTreasuryExceptionQueueInput,
+  ): Promise<TreasuryExceptionQueueRow[]>;
 }

@@ -3,9 +3,13 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const NOT_FOUND = new Error("NOT_FOUND");
+const REDIRECT = new Error("REDIRECT");
 
 const notFound = vi.fn(() => {
   throw NOT_FOUND;
+});
+const redirect = vi.fn(() => {
+  throw REDIRECT;
 });
 
 const getServerSessionSnapshot = vi.fn();
@@ -26,6 +30,7 @@ const createEmptyDocumentFormOptions = vi.fn(() => ({
 
 vi.mock("next/navigation", () => ({
   notFound,
+  redirect,
 }));
 
 vi.mock("@/lib/auth/session", () => ({
@@ -104,34 +109,6 @@ describe("document pages", () => {
     getOrganizationRequisitesForOrganization.mockResolvedValue([]);
   });
 
-  it("returns notFound for removed /documents/create family route", async () => {
-    const { default: FamilyPage } = await import(
-      "@/app/(shell)/documents/[family]/page"
-    );
-
-    await expect(
-      FamilyPage({
-        params: Promise.resolve({ family: "create" }),
-        searchParams: Promise.resolve({}),
-      }),
-    ).rejects.toBe(NOT_FOUND);
-  }, 15000);
-
-  it("returns notFound for removed /documents/create/[docType] route shape", async () => {
-    const { default: FamilyPage } = await import(
-      "@/app/(shell)/documents/[family]/page"
-    );
-
-    await expect(
-      FamilyPage({
-        params: Promise.resolve({
-          family: "transfers",
-        }),
-        searchParams: Promise.resolve({ docType: "legacy_doc_type" }),
-      }),
-    ).rejects.toBe(NOT_FOUND);
-  }, 15000);
-
   it("returns notFound for family filter mismatches", async () => {
     const { default: FamilyPage } = await import(
       "@/app/(shell)/documents/[family]/page"
@@ -197,6 +174,13 @@ describe("document pages", () => {
       formalDocumentRequirements: [],
       summary: {
         calculationId: "00000000-0000-4000-8000-000000000668",
+        createdAt: "2026-03-03T10:00:00.000Z",
+        id: "00000000-0000-4000-8000-000000000999",
+        internalEntityDisplayName: null,
+        applicantDisplayName: null,
+        status: "preparing_documents",
+        type: "payment",
+        updatedAt: "2026-03-03T10:00:00.000Z",
       },
       workflow: {
         intake: {
@@ -281,7 +265,7 @@ describe("document pages", () => {
       }),
       searchParams: Promise.resolve({
         dealId: "00000000-0000-4000-8000-000000000999",
-        returnTo: "/treasury/deals/00000000-0000-4000-8000-000000000999?tab=documents",
+        returnTo: "/treasury/deals/00000000-0000-4000-8000-000000000999",
       }),
     });
     renderToStaticMarkup(page);
@@ -296,8 +280,7 @@ describe("document pages", () => {
     expect(props).toMatchObject({
       dealId: "00000000-0000-4000-8000-000000000999",
       docType: "invoice",
-      successHref:
-        "/treasury/deals/00000000-0000-4000-8000-000000000999?tab=documents",
+      successHref: "/treasury/deals/00000000-0000-4000-8000-000000000999",
       initialPayload: {
         amount: "1015",
         counterpartyId: "00000000-0000-4000-8000-000000000222",
@@ -344,6 +327,13 @@ describe("document pages", () => {
       formalDocumentRequirements: [],
       summary: {
         calculationId: "00000000-0000-4000-8000-000000000668",
+        createdAt: "2026-03-03T10:00:00.000Z",
+        id: "00000000-0000-4000-8000-000000000999",
+        internalEntityDisplayName: null,
+        applicantDisplayName: null,
+        status: "preparing_documents",
+        type: "payment",
+        updatedAt: "2026-03-03T10:00:00.000Z",
       },
       workflow: {
         intake: {
@@ -451,6 +441,13 @@ describe("document pages", () => {
       ],
       summary: {
         calculationId: null,
+        createdAt: "2026-03-03T10:00:00.000Z",
+        id: "00000000-0000-4000-8000-000000000999",
+        internalEntityDisplayName: null,
+        applicantDisplayName: null,
+        status: "preparing_documents",
+        type: "payment",
+        updatedAt: "2026-03-03T10:00:00.000Z",
       },
       workflow: {
         intake: {
@@ -488,8 +485,7 @@ describe("document pages", () => {
     expect(props).toMatchObject({
       dealId: "00000000-0000-4000-8000-000000000999",
       docType: "acceptance",
-      successHref:
-        "/treasury/deals/00000000-0000-4000-8000-000000000999?tab=documents",
+      successHref: "/treasury/deals/00000000-0000-4000-8000-000000000999",
       initialPayload: {
         invoiceDocumentId: "00000000-0000-4000-8000-000000000777",
       },
@@ -517,6 +513,13 @@ describe("document pages", () => {
       },
       summary: {
         calculationId: null,
+        createdAt: "2026-03-03T10:00:00.000Z",
+        id: "00000000-0000-4000-8000-000000000999",
+        internalEntityDisplayName: null,
+        applicantDisplayName: null,
+        status: "preparing_documents",
+        type: "payment",
+        updatedAt: "2026-03-03T10:00:00.000Z",
       },
       workflow: {
         intake: {
@@ -657,5 +660,93 @@ describe("document pages", () => {
       returnToHref:
         "/treasury/deals/00000000-0000-4000-8000-000000000999?tab=execution",
     });
+  });
+
+  it("redirects deal-scoped create pages before preparing_documents", async () => {
+    getFinanceDealWorkbenchById.mockResolvedValue({
+      calculationHistory: [],
+      formalDocumentRequirements: [],
+      summary: {
+        calculationId: null,
+        createdAt: "2026-03-03T10:00:00.000Z",
+        id: "00000000-0000-4000-8000-000000000999",
+        internalEntityDisplayName: null,
+        applicantDisplayName: null,
+        status: "submitted",
+        type: "payment",
+        updatedAt: "2026-03-03T10:00:00.000Z",
+      },
+      workflow: {
+        intake: {
+          common: {
+            applicantCounterpartyId: null,
+          },
+        },
+        participants: [],
+      },
+    });
+
+    const { default: CreatePage } = await import(
+      "@/app/(shell)/documents/create/[docType]/page"
+    );
+
+    await expect(
+      CreatePage({
+        params: Promise.resolve({
+          docType: "invoice",
+        }),
+        searchParams: Promise.resolve({
+          dealId: "00000000-0000-4000-8000-000000000999",
+          returnTo:
+            "/treasury/deals/00000000-0000-4000-8000-000000000999?tab=documents",
+        }),
+      }),
+    ).rejects.toBe(REDIRECT);
+    expect(redirect).toHaveBeenCalledWith(
+      "/treasury/deals/00000000-0000-4000-8000-000000000999?tab=documents",
+    );
+  });
+
+  it("redirects deal-scoped create pages to the deal workbench when returnTo is absent", async () => {
+    getFinanceDealWorkbenchById.mockResolvedValue({
+      calculationHistory: [],
+      formalDocumentRequirements: [],
+      summary: {
+        calculationId: null,
+        createdAt: "2026-03-03T10:00:00.000Z",
+        id: "00000000-0000-4000-8000-000000000999",
+        internalEntityDisplayName: null,
+        applicantDisplayName: null,
+        status: "draft",
+        type: "payment",
+        updatedAt: "2026-03-03T10:00:00.000Z",
+      },
+      workflow: {
+        intake: {
+          common: {
+            applicantCounterpartyId: null,
+          },
+        },
+        participants: [],
+      },
+    });
+
+    const { default: CreatePage } = await import(
+      "@/app/(shell)/documents/create/[docType]/page"
+    );
+
+    await expect(
+      CreatePage({
+        params: Promise.resolve({
+          docType: "invoice",
+        }),
+        searchParams: Promise.resolve({
+          dealId: "00000000-0000-4000-8000-000000000999",
+        }),
+      }),
+    ).rejects.toBe(REDIRECT);
+    expect(redirect).toHaveBeenCalledWith(
+      "/treasury/deals/00000000-0000-4000-8000-000000000999",
+    );
   });
 });

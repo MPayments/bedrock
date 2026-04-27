@@ -5,7 +5,6 @@ import { createModuleRuntime } from "@bedrock/shared/core";
 import { createMockCurrenciesService, currencyIdForCode } from "./helpers";
 import { createPaymentRoutesService } from "../src/payment-routes/application";
 import {
-  PaymentRouteCalculationSchema,
   PaymentRouteCalculationFeeSchema,
   type PaymentRouteCalculation,
 } from "../src/payment-routes/application/contracts/dto";
@@ -146,6 +145,24 @@ function createService() {
         };
       }
 
+      if (pair === "AED/USDT") {
+        return {
+          base,
+          quote,
+          rateDen: 367n,
+          rateNum: 100n,
+        };
+      }
+
+      if (pair === "USD/USDT" || pair === "USDT/USD") {
+        return {
+          base,
+          quote,
+          rateDen: 1n,
+          rateNum: 1n,
+        };
+      }
+
       if (pair === "USD/EUR") {
         return {
           base,
@@ -204,6 +221,7 @@ describe("payment routes", () => {
       additionalFees: [
         {
           amountMinor: "50",
+          chargeToCustomer: true,
           currencyId: USD,
           id: "fee-extra",
           kind: "fixed",
@@ -215,6 +233,7 @@ describe("payment routes", () => {
           fees: [
             {
               amountMinor: "100",
+              chargeToCustomer: true,
               currencyId: USD,
               id: "fee-leg",
               kind: "fixed",
@@ -239,8 +258,9 @@ describe("payment routes", () => {
     const draft = createDraft({
       additionalFees: [
         {
+          chargeToCustomer: true,
           id: "fee-extra",
-          kind: "percent",
+          kind: "gross_percent",
           label: "Bank",
           percentage: "5",
         },
@@ -249,8 +269,9 @@ describe("payment routes", () => {
         {
           fees: [
             {
+              chargeToCustomer: true,
               id: "fee-leg",
-              kind: "percent",
+              kind: "gross_percent",
               label: "Hop",
               percentage: "10",
             },
@@ -274,6 +295,7 @@ describe("payment routes", () => {
       additionalFees: [
         {
           amountMinor: "20000",
+          chargeToCustomer: true,
           currencyId: USD,
           id: "fee-extra",
           kind: "fixed",
@@ -298,19 +320,158 @@ describe("payment routes", () => {
     expectCalculationTotal(calculation, USD, "20000");
   });
 
+  it("keeps internal leg fees out of the customer payout while increasing cost price", async () => {
+    const { service } = createService();
+    const draft = createDraft({
+      legs: [
+        {
+          fees: [
+            {
+              amountMinor: "100",
+              chargeToCustomer: false,
+              currencyId: USD,
+              id: "fee-leg-internal",
+              kind: "fixed",
+              label: "Internal bank fee",
+            },
+          ],
+          fromCurrencyId: USD,
+          id: "leg-1",
+          toCurrencyId: USD,
+        },
+      ],
+    });
+
+    const calculation = await service.queries.previewTemplate({ draft });
+
+    expect(calculation.amountOutMinor).toBe("10000");
+    expect(calculation.clientTotalInMinor).toBe("10000");
+    expect(calculation.costPriceInMinor).toBe("10100");
+    expect(calculation.internalFeeTotals).toEqual([
+      {
+        amountMinor: "100",
+        currencyId: USD,
+      },
+    ]);
+  });
+
+  it("keeps internal additional fees out of the client total while increasing cost price", async () => {
+    const { service } = createService();
+    const draft = createDraft({
+      additionalFees: [
+        {
+          amountMinor: "125",
+          chargeToCustomer: false,
+          currencyId: USD,
+          id: "fee-extra-internal",
+          kind: "fixed",
+          label: "Internal uplift",
+        },
+      ],
+    });
+
+    const calculation = await service.queries.previewTemplate({ draft });
+
+    expect(calculation.amountOutMinor).toBe("10000");
+    expect(calculation.clientTotalInMinor).toBe("10000");
+    expect(calculation.costPriceInMinor).toBe("10125");
+    expect(calculation.internalFeeTotals).toEqual([
+      {
+        amountMinor: "125",
+        currencyId: USD,
+      },
+    ]);
+  });
+
+  it("separates clean, client, and cost totals for mixed charged and internal fees", async () => {
+    const { service } = createService();
+    const draft = createDraft({
+      additionalFees: [
+        {
+          amountMinor: "25",
+          chargeToCustomer: true,
+          currencyId: USD,
+          id: "fee-extra-charged",
+          kind: "fixed",
+          label: "Client surcharge",
+        },
+        {
+          amountMinor: "10",
+          chargeToCustomer: false,
+          currencyId: USD,
+          id: "fee-extra-internal",
+          kind: "fixed",
+          label: "Internal surcharge",
+        },
+      ],
+      legs: [
+        {
+          fees: [
+            {
+              amountMinor: "100",
+              chargeToCustomer: true,
+              currencyId: USD,
+              id: "fee-leg-charged",
+              kind: "fixed",
+              label: "Charged hop fee",
+            },
+            {
+              amountMinor: "50",
+              chargeToCustomer: false,
+              currencyId: USD,
+              id: "fee-leg-internal",
+              kind: "fixed",
+              label: "Internal hop fee",
+            },
+          ],
+          fromCurrencyId: USD,
+          id: "leg-1",
+          toCurrencyId: USD,
+        },
+      ],
+    });
+
+    const calculation = await service.queries.previewTemplate({ draft });
+
+    expect(calculation.cleanAmountOutMinor).toBe("10000");
+    expect(calculation.amountOutMinor).toBe("9900");
+    expect(calculation.clientTotalInMinor).toBe("10025");
+    expect(calculation.costPriceInMinor).toBe("10185");
+    expect(calculation.chargedFeeTotals).toEqual([
+      {
+        amountMinor: "125",
+        currencyId: USD,
+      },
+    ]);
+    expect(calculation.internalFeeTotals).toEqual([
+      {
+        amountMinor: "60",
+        currencyId: USD,
+      },
+    ]);
+    expect(calculation.feeTotals).toEqual([
+      {
+        amountMinor: "185",
+        currencyId: USD,
+      },
+    ]);
+  });
+
   it("accepts computed amount fields for percentage fees in calculations", () => {
     expect(() =>
       PaymentRouteCalculationFeeSchema.parse({
         amountMinor: "1000",
+        chargeToCustomer: true,
         currencyId: USD,
         id: "fee-leg",
         inputImpactCurrencyId: USD,
         inputImpactMinor: "1000",
-        kind: "percent",
+        kind: "gross_percent",
         label: "Hop",
         outputImpactCurrencyId: USD,
         outputImpactMinor: "1000",
         percentage: "10",
+        routeInputImpactMinor: "1000",
       }),
     ).not.toThrow();
   });
@@ -325,54 +486,6 @@ describe("payment routes", () => {
         label: "Legacy",
         outputImpactCurrencyId: USD,
         outputImpactMinor: "1000",
-      }),
-    ).toThrow();
-  });
-
-  it("rejects route drafts that still include leg kind", () => {
-    expect(() =>
-      PaymentRouteDraftSchema.parse({
-        ...createDraft(),
-        legs: [
-          {
-            ...createDraft().legs[0],
-            kind: "transfer",
-          },
-        ],
-      }),
-    ).toThrow();
-  });
-
-  it("rejects calculations that still include leg kind", () => {
-    expect(() =>
-      PaymentRouteCalculationSchema.parse({
-        additionalFees: [],
-        amountInMinor: "10000",
-        amountOutMinor: "10000",
-        computedAt: "2026-04-16T08:00:00.000Z",
-        currencyInId: USD,
-        currencyOutId: USD,
-        feeTotals: [],
-        grossAmountOutMinor: "10000",
-        legs: [
-          {
-            asOf: "2026-04-16T08:00:00.000Z",
-            fees: [],
-            fromCurrencyId: USD,
-            grossOutputMinor: "10000",
-            id: "leg-1",
-            idx: 1,
-            inputAmountMinor: "10000",
-            kind: "transfer",
-            netOutputMinor: "10000",
-            rateDen: "1",
-            rateNum: "1",
-            rateSource: "identity",
-            toCurrencyId: USD,
-          },
-        ],
-        lockedSide: "currency_in",
-        netAmountOutMinor: "10000",
       }),
     ).toThrow();
   });
@@ -392,8 +505,9 @@ describe("payment routes", () => {
         {
           fees: [
             {
+              chargeToCustomer: true,
               id: "fee-leg",
-              kind: "percent",
+              kind: "gross_percent",
               label: "FX spread",
               percentage: "10",
             },
@@ -450,8 +564,9 @@ describe("payment routes", () => {
         {
           fees: [
             {
+              chargeToCustomer: true,
               id: "fee-leg",
-              kind: "percent",
+              kind: "gross_percent",
               label: "Hop",
               percentage: "10",
             },
@@ -480,6 +595,7 @@ describe("payment routes", () => {
           fees: [
             {
               amountMinor: "100",
+              chargeToCustomer: true,
               currencyId: USD,
               id: "fee-leg",
               kind: "fixed",
@@ -497,6 +613,38 @@ describe("payment routes", () => {
 
     expect(calculation.amountInMinor).toBe("9100");
     expect(calculation.amountOutMinor).toBe("9000");
+  });
+
+  it("ignores internal leg fees when solving currencyOut targets", async () => {
+    const { service } = createService();
+    const draft = createDraft({
+      amountInMinor: "1",
+      amountOutMinor: "9000",
+      lockedSide: "currency_out",
+      legs: [
+        {
+          fees: [
+            {
+              amountMinor: "100",
+              chargeToCustomer: false,
+              currencyId: USD,
+              id: "fee-leg-internal",
+              kind: "fixed",
+              label: "Internal hop fee",
+            },
+          ],
+          fromCurrencyId: USD,
+          id: "leg-1",
+          toCurrencyId: USD,
+        },
+      ],
+    });
+
+    const calculation = await service.queries.previewTemplate({ draft });
+
+    expect(calculation.amountInMinor).toBe("9000");
+    expect(calculation.amountOutMinor).toBe("9000");
+    expect(calculation.costPriceInMinor).toBe("9100");
   });
 
   it("reports the actual payout amount when locked output rounds up", async () => {
@@ -561,6 +709,20 @@ describe("payment routes", () => {
       createdAt: now,
       draft: {
         ...createDraft(),
+        legs: [
+          {
+            ...createDraft().legs[0],
+            fees: [
+              {
+                amountMinor: "100",
+                currencyId: USD,
+                id: "fee-leg-legacy",
+                kind: "fixed",
+                label: "Legacy bank fee",
+              },
+            ],
+          },
+        ],
         participants: [
           {
             displayName: "Legacy Customer",
@@ -577,7 +739,19 @@ describe("payment routes", () => {
         ],
       } as PaymentRouteDraft,
       id: "00000000-0000-4000-8000-000000000099",
-      lastCalculation: null,
+      lastCalculation: {
+        additionalFees: [],
+        amountInMinor: "10000",
+        amountOutMinor: "9900",
+        computedAt: now.toISOString(),
+        currencyInId: USD,
+        currencyOutId: USD,
+        feeTotals: [],
+        grossAmountOutMinor: "10000",
+        legs: [],
+        lockedSide: "currency_in",
+        netAmountOutMinor: "9900",
+      } as PaymentRouteCalculation,
       name: "Legacy route",
       snapshotPolicy: "clone_on_attach",
       status: "active",
@@ -606,6 +780,8 @@ describe("payment routes", () => {
       entityKind: "organization",
       role: "destination",
     });
+    expect(template.draft.legs[0]?.fees[0]?.chargeToCustomer).toBe(false);
+    expect(template.lastCalculation).toBeNull();
     expect(list.data[0]?.sourceEndpoint).toMatchObject({
       binding: "bound",
       entityKind: "customer",
@@ -617,6 +793,7 @@ describe("payment routes", () => {
       role: "destination",
       requisiteId: null,
     });
+    expect(list.data[0]?.lastCalculation).toBeNull();
   });
 
   it("normalizes missing participant requisite ids to null", () => {
@@ -644,6 +821,38 @@ describe("payment routes", () => {
 
     expect(draft.participants[0]?.requisiteId).toBeNull();
     expect(draft.participants[1]?.requisiteId).toBeNull();
+  });
+
+  it("defaults missing chargeToCustomer flags to false for legacy fee drafts", () => {
+    const draft = PaymentRouteDraftSchema.parse({
+      ...createDraft(),
+      additionalFees: [
+        {
+          amountMinor: "25",
+          currencyId: USD,
+          id: "fee-extra-legacy",
+          kind: "fixed",
+          label: "Legacy additional fee",
+        },
+      ],
+      legs: [
+        {
+          ...createDraft().legs[0],
+          fees: [
+            {
+              amountMinor: "100",
+              currencyId: USD,
+              id: "fee-leg-legacy",
+              kind: "fixed",
+              label: "Legacy leg fee",
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(draft.additionalFees[0]?.chargeToCustomer).toBe(false);
+    expect(draft.legs[0]?.fees[0]?.chargeToCustomer).toBe(false);
   });
 
   it("derives stable route semantics labels from participants and currencies", () => {

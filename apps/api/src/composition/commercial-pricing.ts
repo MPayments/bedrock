@@ -1,6 +1,5 @@
 import type { AgreementDetails } from "@bedrock/agreements/contracts";
 import { ValidationError } from "@bedrock/shared/core/errors";
-import { BPS_SCALE, mulDivRoundHalfUp } from "@bedrock/shared/money";
 
 export function normalizeOptionalDecimalString(
   value: string | null | undefined,
@@ -44,22 +43,6 @@ function parseDecimalParts(value: string, field: string) {
   };
 }
 
-export function percentStringToBps(
-  value: string | null | undefined,
-  field = "quoteMarkupPercent",
-) {
-  const normalized = normalizeOptionalDecimalString(value, field);
-
-  if (normalized === undefined || normalized === null) {
-    return 0n;
-  }
-
-  const parts = parseDecimalParts(normalized, field);
-  const denominator = 10n ** BigInt(parts.scale);
-
-  return (parts.digits * 100n + denominator / 2n) / denominator;
-}
-
 function decimalStringToRoundedInteger(
   value: string | null | undefined,
   field: string,
@@ -74,25 +57,6 @@ function decimalStringToRoundedInteger(
   const denominator = 10n ** BigInt(parts.scale);
 
   return (parts.digits + denominator / 2n) / denominator;
-}
-
-export function calculatePercentAmountMinorHalfUp(
-  amountMinor: bigint,
-  bps: bigint,
-): bigint {
-  if (amountMinor === 0n || bps === 0n) {
-    return 0n;
-  }
-
-  return mulDivRoundHalfUp(amountMinor, bps, BPS_SCALE);
-}
-
-export function ratioToRoundedBps(numerator: bigint, denominator: bigint) {
-  if (denominator === 0n) {
-    return 0n;
-  }
-
-  return mulDivRoundHalfUp(numerator, BPS_SCALE, denominator);
 }
 
 export function extractAgreementCommercialDefaults(input: {

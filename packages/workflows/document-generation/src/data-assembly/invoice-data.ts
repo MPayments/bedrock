@@ -7,7 +7,7 @@ import {
   getCurrencySymbol,
 } from "../russian-language";
 import { resolveDocumentNumber } from "./document-number";
-import type { DocumentLang, OrgFiles } from "./types";
+import type { DocumentLang, PartialOrgFiles } from "./types";
 import { formatDateByLang, prune } from "./types";
 
 export function assembleInvoiceData(
@@ -17,7 +17,7 @@ export function assembleInvoiceData(
   contract: Record<string, unknown>,
   organization: Record<string, unknown>,
   organizationRequisite: Record<string, unknown>,
-  orgFiles: OrgFiles,
+  orgFiles: PartialOrgFiles,
   date: Date,
   lang: DocumentLang,
 ): Record<string, unknown> {

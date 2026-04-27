@@ -19,9 +19,27 @@ export type DocumentTemplateType = (typeof DOCUMENT_TEMPLATE_TYPES)[number];
 
 export const CLIENT_CONTRACT_FORMATS = ["docx", "pdf"] as const;
 export const DOCUMENT_LANGS = ["ru", "en"] as const;
+export const PRINT_FORM_OWNER_TYPES = [
+  "agreement_version",
+  "calculation",
+  "deal",
+  "document",
+] as const;
+export const PRINT_FORM_LANGUAGE_MODES = ["single", "bilingual"] as const;
+export const PRINT_FORM_QUALITY_VALUES = ["ready", "draft"] as const;
+export const PRINT_FORM_WARNING_CODES = [
+  "missing_signing_asset",
+  "missing_translation",
+  "missing_source_data",
+] as const;
 
 export type ClientContractFormat = (typeof CLIENT_CONTRACT_FORMATS)[number];
 export type DocumentLanguage = (typeof DOCUMENT_LANGS)[number];
+export type PrintFormOwnerType = (typeof PRINT_FORM_OWNER_TYPES)[number];
+export type PrintFormLanguageMode =
+  (typeof PRINT_FORM_LANGUAGE_MODES)[number];
+export type PrintFormQuality = (typeof PRINT_FORM_QUALITY_VALUES)[number];
+export type PrintFormWarningCode = (typeof PRINT_FORM_WARNING_CODES)[number];
 
 export const GenerateDocumentInputSchema = z.object({
   templateType: z.enum(DOCUMENT_TEMPLATE_TYPES),
@@ -39,6 +57,197 @@ export const GeneratedDocumentSchema = z.object({
 });
 
 export type GeneratedDocument = z.infer<typeof GeneratedDocumentSchema>;
+
+export const PrintFormWarningSchema = z.object({
+  code: z.enum(PRINT_FORM_WARNING_CODES),
+  message: z.string(),
+  field: z.string().optional(),
+});
+
+export const PrintFormDescriptorSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  ownerType: z.enum(PRINT_FORM_OWNER_TYPES),
+  formats: z.array(z.enum(CLIENT_CONTRACT_FORMATS)),
+  languageMode: z.enum(PRINT_FORM_LANGUAGE_MODES),
+  languages: z.array(z.enum(DOCUMENT_LANGS)),
+  quality: z.enum(PRINT_FORM_QUALITY_VALUES),
+  warnings: z.array(PrintFormWarningSchema),
+});
+
+export type PrintFormWarning = z.infer<typeof PrintFormWarningSchema>;
+export type PrintFormDescriptor = z.infer<typeof PrintFormDescriptorSchema>;
+
+export interface PrintFormDefinition {
+  docTypes?: readonly string[];
+  formats: readonly ClientContractFormat[];
+  id: string;
+  languageMode: PrintFormLanguageMode;
+  languages: readonly DocumentLanguage[];
+  ownerType: PrintFormOwnerType;
+  requiredData: readonly string[];
+  templateType: DocumentTemplateType;
+  title: string;
+}
+
+export const PRINT_FORM_DEFINITIONS = [
+  {
+    docTypes: ["invoice"],
+    formats: CLIENT_CONTRACT_FORMATS,
+    id: "document.invoice-ru",
+    languageMode: "single",
+    languages: ["ru"],
+    ownerType: "document",
+    requiredData: [
+      "document",
+      "deal",
+      "agreement",
+      "counterparty",
+      "organization",
+      "organizationRequisite",
+      "signingAssets",
+    ],
+    templateType: "invoice",
+    title: "Счет на оплату",
+  },
+  {
+    docTypes: ["invoice"],
+    formats: CLIENT_CONTRACT_FORMATS,
+    id: "document.invoice-en",
+    languageMode: "single",
+    languages: ["en"],
+    ownerType: "document",
+    requiredData: [
+      "document",
+      "deal",
+      "agreement",
+      "counterparty",
+      "organization",
+      "organizationRequisite",
+      "signingAssets",
+    ],
+    templateType: "invoice",
+    title: "Invoice",
+  },
+  {
+    docTypes: ["acceptance"],
+    formats: CLIENT_CONTRACT_FORMATS,
+    id: "document.acceptance-bilingual",
+    languageMode: "bilingual",
+    languages: ["ru", "en"],
+    ownerType: "document",
+    requiredData: [
+      "document",
+      "deal",
+      "agreement",
+      "counterparty",
+      "organization",
+      "organizationRequisite",
+      "signingAssets",
+      "translations",
+    ],
+    templateType: "acceptance",
+    title: "Acceptance / Акт",
+  },
+  {
+    formats: CLIENT_CONTRACT_FORMATS,
+    id: "deal.application",
+    languageMode: "single",
+    languages: ["ru"],
+    ownerType: "deal",
+    requiredData: [
+      "deal",
+      "agreement",
+      "counterparty",
+      "organization",
+      "organizationRequisite",
+      "calculation",
+      "signingAssets",
+    ],
+    templateType: "application",
+    title: "Заявка",
+  },
+  {
+    formats: CLIENT_CONTRACT_FORMATS,
+    id: "calculation.calculation-ru",
+    languageMode: "single",
+    languages: ["ru"],
+    ownerType: "calculation",
+    requiredData: ["calculationSnapshot", "currencies"],
+    templateType: "calculation",
+    title: "Расчет",
+  },
+  {
+    formats: CLIENT_CONTRACT_FORMATS,
+    id: "agreement_version.customer-contract-bilingual",
+    languageMode: "bilingual",
+    languages: ["ru", "en"],
+    ownerType: "agreement_version",
+    requiredData: [
+      "agreementVersion",
+      "customerCounterparty",
+      "organization",
+      "organizationRequisite",
+      "signingAssets",
+      "translations",
+    ],
+    templateType: "contract",
+    title: "Customer contract / Договор",
+  },
+] as const satisfies readonly PrintFormDefinition[];
+
+export function listPrintFormDefinitions(input: {
+  docType?: string | null;
+  ownerType: PrintFormOwnerType;
+}): PrintFormDefinition[] {
+  return PRINT_FORM_DEFINITIONS.filter((definition) => {
+    if (definition.ownerType !== input.ownerType) {
+      return false;
+    }
+
+    const docTypes = "docTypes" in definition ? definition.docTypes : null;
+
+    if (!docTypes) {
+      return true;
+    }
+
+    return Boolean(
+      input.docType && (docTypes as readonly string[]).includes(input.docType),
+    );
+  });
+}
+
+export function findPrintFormDefinition(input: {
+  docType?: string | null;
+  formId: string;
+  ownerType: PrintFormOwnerType;
+}): PrintFormDefinition | null {
+  return (
+    listPrintFormDefinitions({
+      docType: input.docType,
+      ownerType: input.ownerType,
+    }).find((definition) => definition.id === input.formId) ?? null
+  );
+}
+
+export function toPrintFormDescriptor(
+  definition: PrintFormDefinition,
+  input?: {
+    quality?: PrintFormQuality;
+    warnings?: PrintFormWarning[];
+  },
+): PrintFormDescriptor {
+  return {
+    id: definition.id,
+    title: definition.title,
+    ownerType: definition.ownerType,
+    formats: [...definition.formats],
+    languageMode: definition.languageMode,
+    languages: [...definition.languages],
+    quality: input?.quality ?? "ready",
+    warnings: input?.warnings ?? [],
+  };
+}
 
 export interface DocumentLocalizedText {
   en?: string | null;

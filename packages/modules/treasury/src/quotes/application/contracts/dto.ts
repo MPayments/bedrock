@@ -15,7 +15,7 @@ import {
   quoteStatusSchema,
 } from "./zod";
 
-export const QuoteDealRefSchema = z
+const QuoteDealRefSchema = z
   .object({
     applicantName: z.string().nullable(),
     dealId: z.uuid(),
@@ -51,6 +51,7 @@ export const QuoteSchema = z.object({
   usedAt: z.iso.datetime().nullable(),
   expiresAt: z.iso.datetime(),
   idempotencyKey: z.string(),
+  pricingFingerprint: z.string().nullable(),
   createdAt: z.iso.datetime(),
   dealRef: QuoteDealRefSchema.optional(),
 });

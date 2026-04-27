@@ -279,19 +279,18 @@ export function createDealIntakeFormContext({
   const moneyRequestSectionTitle = isPaymentDeal
     ? "Параметры платежа"
     : "Сумма и валюта сделки";
-  const primaryAmountLabel = isPaymentDeal ? "Сумма оплаты" : "Сумма";
+  const primaryAmountLabel = isPaymentDeal
+    ? "Сумма к выплате бенефициару"
+    : "Сумма";
   const sourceCurrencyTitle = isPaymentDeal
-    ? "Валюта списания"
+    ? "Валюта списания / фондирования"
     : "Валюта списания";
   const targetCurrencyTitle = isPaymentDeal
-    ? "Валюта оплаты"
+    ? "Валюта выплаты"
     : "Целевая валюта";
   const incomingReceiptCurrencyTitle = isPaymentDeal
-    ? "Валюта оплаты"
+    ? "Валюта выплаты"
     : "Валюта поступления";
-  const sourceAmountLabel = isPaymentDeal
-    ? "Сумма списания, если согласована"
-    : "Сумма списания";
   const incomingReceiptSectionTitle = isPaymentDeal
     ? "Инвойс поставщика"
     : "Входящее поступление";
@@ -299,7 +298,7 @@ export function createDealIntakeFormContext({
     ? "Данные из инвойса поставщика: сумма, номер и договор. Их можно заполнить вручную или подтянуть из OCR."
     : "Данные о платеже, который ожидается от покупателя или плательщика.";
   const expectedAmountLabel = isPaymentDeal
-    ? "Сумма инвойса"
+    ? "Сумма к выплате бенефициару"
     : "Ожидаемая сумма";
   const expectedDateLabel = isPaymentDeal
     ? "Плановая дата выплаты"
@@ -500,7 +499,6 @@ export function createDealIntakeFormContext({
     shouldInlineMoneyRequestFields,
     shouldRenderPayerDetails,
     incomingReceiptCurrencyTitle,
-    sourceAmountLabel,
     sourceCurrencyLabel,
     sourceCurrencyTitle,
     targetCurrencyLabel,
@@ -614,13 +612,11 @@ export function DealIntakeMoneyRequestSection({
     hasDedicatedIncomingReceiptCurrency,
     currencyOptions,
     intake,
-    isPaymentDeal,
     moneyRequestSectionTitle,
     primaryAmountLabel,
     primaryAmountValue,
     readOnly,
     shouldInlineMoneyRequestFields,
-    sourceAmountLabel,
     sourceCurrencyLabel,
     sourceCurrencyTitle,
     targetCurrencyLabel,
@@ -723,21 +719,6 @@ export function DealIntakeMoneyRequestSection({
           </Select>
         </div>
       </div>
-      {isPaymentDeal ? (
-        <div className="space-y-2">
-          <Label htmlFor="deal-source-amount">{sourceAmountLabel}</Label>
-          <Input
-            id="deal-source-amount"
-            data-testid="deal-source-amount-input"
-            disabled={readOnly}
-            inputMode="decimal"
-            value={snapshotFieldValue(intake.moneyRequest.sourceAmount)}
-            onChange={(event) =>
-              updateMoneyRequest("sourceAmount", event.target.value || null)
-            }
-          />
-        </div>
-      ) : null}
       <div className="space-y-2">
         <Label htmlFor="deal-purpose">Назначение</Label>
         <Textarea
@@ -947,13 +928,7 @@ export function DealIntakeExternalBeneficiarySection({
 
   return (
     <section className="space-y-4">
-      <div>
-        <h3 className="font-medium">Получатель выплаты</h3>
-        <p className="text-sm text-muted-foreground">
-          Кому и по каким банковским реквизитам отправляем выплату.
-        </p>
-      </div>
-      <div className="grid gap-4">
+      <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="deal-beneficiary-display-name">Получатель</Label>
           <Input
@@ -1013,7 +988,7 @@ export function DealIntakeExternalBeneficiarySection({
           />
         </div>
       </div>
-      <div className="grid gap-4">
+      <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="deal-beneficiary-bank-name">Банк получателя</Label>
           <Input
@@ -1218,7 +1193,7 @@ export function DealIntakeSettlementDestinationSection({
       ) : null}
 
       {intake.settlementDestination.mode === "manual" ? (
-        <div className="grid gap-4">
+        <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="deal-settlement-bank-name">Банк</Label>
             <Input

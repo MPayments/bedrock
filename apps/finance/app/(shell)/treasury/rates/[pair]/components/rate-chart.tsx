@@ -30,7 +30,7 @@ export type ChartDataPoint = {
   rate: number;
 };
 
-export const TIME_RANGES = [
+const TIME_RANGES = [
   { key: "1D", label: "День", days: 1 },
   { key: "1W", label: "Неделя", days: 7 },
   { key: "1M", label: "Месяц", days: 30 },

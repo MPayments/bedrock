@@ -8,8 +8,7 @@ import {
   dealCalculationLinks,
   dealIntakeSnapshots,
   dealLegs,
-  dealLegOperationLinks,
-  dealOperationalPositions,
+  dealPricingContexts,
   dealParticipants,
   deals,
   dealQuoteAcceptances,
@@ -19,14 +18,13 @@ import type {
   CreateDealApprovalStoredInput,
   CreateDealAttachmentIngestionStoredInput,
   CreateDealIntakeSnapshotStoredInput,
-  CreateDealLegOperationLinkStoredInput,
   CreateDealLegStoredInput,
+  CreateDealPricingContextStoredInput,
   CreateDealParticipantStoredInput,
   CreateDealQuoteAcceptanceStoredInput,
   CreateDealRootInput,
   CreateDealTimelineEventStoredInput,
   DealStore,
-  ReplaceDealOperationalPositionStoredInput,
 } from "../../application/ports/deal.store";
 
 export class DrizzleDealStore implements DealStore {
@@ -143,27 +141,14 @@ export class DrizzleDealStore implements DealStore {
     });
   }
 
-  async createDealLegOperationLinks(
-    input: CreateDealLegOperationLinkStoredInput[],
+  async createDealPricingContext(
+    input: CreateDealPricingContextStoredInput,
   ): Promise<void> {
-    if (input.length === 0) {
-      return;
-    }
-
-    await this.db
-      .insert(dealLegOperationLinks)
-      .values(
-        input.map((link) => ({
-          dealLegId: link.dealLegId,
-          id: link.id,
-          operationKind: link.operationKind,
-          sourceRef: link.sourceRef,
-          treasuryOperationId: link.treasuryOperationId,
-        })),
-      )
-      .onConflictDoNothing({
-        target: dealLegOperationLinks.sourceRef,
-      });
+    await this.db.insert(dealPricingContexts).values({
+      dealId: input.dealId,
+      revision: input.revision,
+      snapshot: input.snapshot,
+    });
   }
 
   async replaceIntakeSnapshot(input: {
@@ -185,6 +170,29 @@ export class DrizzleDealStore implements DealStore {
         ),
       )
       .returning({ dealId: dealIntakeSnapshots.dealId });
+
+    return updated.length > 0;
+  }
+
+  async replaceDealPricingContext(input: {
+    dealId: string;
+    expectedRevision: number;
+    nextRevision: number;
+    snapshot: CreateDealPricingContextStoredInput["snapshot"];
+  }): Promise<boolean> {
+    const updated = await this.db
+      .update(dealPricingContexts)
+      .set({
+        revision: input.nextRevision,
+        snapshot: input.snapshot,
+      })
+      .where(
+        and(
+          eq(dealPricingContexts.dealId, input.dealId),
+          eq(dealPricingContexts.revision, input.expectedRevision),
+        ),
+      )
+      .returning({ dealId: dealPricingContexts.dealId });
 
     return updated.length > 0;
   }
@@ -229,10 +237,12 @@ export class DrizzleDealStore implements DealStore {
     await this.db.insert(dealLegs).values(
       input.legs.map((leg) => ({
         dealId: leg.dealId,
+        fromCurrencyId: leg.fromCurrencyId,
         id: leg.id,
         idx: leg.idx,
         kind: leg.kind,
-        state: leg.state,
+        routeSnapshotLegId: leg.routeSnapshotLegId,
+        toCurrencyId: leg.toCurrencyId,
       })),
     );
   }
@@ -257,32 +267,6 @@ export class DrizzleDealStore implements DealStore {
         id: participant.id,
         organizationId: participant.organizationId,
         role: participant.role,
-      })),
-    );
-  }
-
-  async replaceDealOperationalPositions(input: {
-    dealId: string;
-    positions: ReplaceDealOperationalPositionStoredInput[];
-  }): Promise<void> {
-    await this.db
-      .delete(dealOperationalPositions)
-      .where(eq(dealOperationalPositions.dealId, input.dealId));
-
-    if (input.positions.length === 0) {
-      return;
-    }
-
-    await this.db.insert(dealOperationalPositions).values(
-      input.positions.map((position) => ({
-        amountMinor: position.amountMinor,
-        currencyId: position.currencyId,
-        dealId: position.dealId,
-        id: position.id,
-        kind: position.kind,
-        reasonCode: position.reasonCode,
-        sourceRefs: position.sourceRefs,
-        state: position.state,
       })),
     );
   }
@@ -398,6 +382,28 @@ export class DrizzleDealStore implements DealStore {
           isNull(dealQuoteAcceptances.revokedAt),
         ),
       );
+  }
+
+  async revokeCurrentQuoteAcceptances(input: {
+    dealId: string;
+    revocationReason: string;
+    revokedAt: Date;
+  }): Promise<boolean> {
+    const updated = await this.db
+      .update(dealQuoteAcceptances)
+      .set({
+        revocationReason: input.revocationReason,
+        revokedAt: input.revokedAt,
+      })
+      .where(
+        and(
+          eq(dealQuoteAcceptances.dealId, input.dealId),
+          isNull(dealQuoteAcceptances.revokedAt),
+        ),
+      )
+      .returning({ id: dealQuoteAcceptances.id });
+
+    return updated.length > 0;
   }
 
   async upsertDealAttachmentIngestion(input: {
@@ -517,15 +523,19 @@ export class DrizzleDealStore implements DealStore {
     await this.db.update(deals).set(values).where(eq(deals.id, input.dealId));
   }
 
-  async updateDealLegState(input: {
+  async setDealLegManualOverride(input: {
     dealId: string;
     idx: number;
-    state: CreateDealLegStoredInput["state"];
+    manualOverrideState: "blocked" | "skipped" | null;
+    reasonCode: string | null;
+    comment: string | null;
   }): Promise<boolean> {
     const updated = await this.db
       .update(dealLegs)
       .set({
-        state: input.state,
+        manualOverrideState: input.manualOverrideState,
+        overrideReasonCode: input.reasonCode,
+        overrideComment: input.comment,
       })
       .where(and(eq(dealLegs.dealId, input.dealId), eq(dealLegs.idx, input.idx)))
       .returning({ id: dealLegs.id });

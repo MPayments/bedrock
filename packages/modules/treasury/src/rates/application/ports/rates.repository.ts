@@ -6,6 +6,7 @@ import type {
 } from "../../../shared/application/external-ports";
 
 export type { RateSource } from "../../../shared/application/external-ports";
+export type { CrossRate } from "../../domain/model";
 
 export interface RateRowRecord {
   source: string;
@@ -36,13 +37,6 @@ export interface RateSourceRowRecord {
   lastStatus: RateSourceSyncStatus;
   lastError: string | null;
   updatedAt: Date;
-}
-
-export interface CrossRate {
-  base: string;
-  quote: string;
-  rateNum: bigint;
-  rateDen: bigint;
 }
 
 export interface SourceRateWriteModel {

@@ -28,7 +28,7 @@ const COUNTRY_FILTER_OPTIONS = COUNTERPARTY_COUNTRY_OPTIONS.map((country) => ({
 
 const columns: ColumnDef<SerializedRequisiteProvider>[] = [
   {
-    accessorKey: "name",
+    accessorKey: "displayName",
     header: ({ column }) => (
       <DataTableColumnHeader column={column} label="Название" />
     ),

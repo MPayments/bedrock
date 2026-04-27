@@ -35,6 +35,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Card, CardContent } from "@bedrock/sdk-ui/components/card";
+import { Separator } from "@bedrock/sdk-ui/components/separator";
 
 interface ClientsResponse {
   data: ClientListItem[];
@@ -129,9 +131,7 @@ export default function ClientsPage() {
         setTotalItems(response.total ?? 0);
       } catch (err) {
         console.error("Clients fetch error:", err);
-        setError(
-          err instanceof Error ? err.message : "Ошибка загрузки данных",
-        );
+        setError(err instanceof Error ? err.message : "Ошибка загрузки данных");
       } finally {
         setLoading(false);
       }
@@ -250,7 +250,7 @@ export default function ClientsPage() {
     <div className="flex flex-col gap-4">
       <div className="flex w-full flex-wrap items-start justify-between gap-4">
         <div className="flex items-start gap-3">
-          <div className="bg-muted rounded-lg p-2.5">
+          <div className="bg-background rounded-lg p-2.5">
             <Handshake className="text-muted-foreground h-5 w-5" />
           </div>
           <div>
@@ -280,7 +280,7 @@ export default function ClientsPage() {
         </div>
       </div>
 
-      <div className="bg-background h-px w-full" />
+      <Separator orientation="horizontal" className="h-px" />
 
       <div className="relative">
         {loading && (
@@ -293,25 +293,29 @@ export default function ClientsPage() {
             {error}
           </div>
         )}
-        <DataTable
-          table={table}
-          onRowDoubleClick={(row) =>
-            router.push(`/customers/${row.original.id}`)
-          }
-          contextMenuItems={(row) => [
-            {
-              label: "Открыть",
-              onClick: () => router.push(`/customers/${row.original.id}`),
-            },
-            {
-              label: "Удалить",
-              icon: <Trash2 className="text-destructive" />,
-              onClick: () => openDeleteDialog(row.original),
-            },
-          ]}
-        >
-          <DataTableToolbar table={table} />
-        </DataTable>
+        <Card>
+          <CardContent>
+            <DataTable
+              table={table}
+              onRowDoubleClick={(row) =>
+                router.push(`/customers/${row.original.id}`)
+              }
+              contextMenuItems={(row) => [
+                {
+                  label: "Открыть",
+                  onClick: () => router.push(`/customers/${row.original.id}`),
+                },
+                {
+                  label: "Удалить",
+                  icon: <Trash2 className="text-destructive" />,
+                  onClick: () => openDeleteDialog(row.original),
+                },
+              ]}
+            >
+              <DataTableToolbar table={table} />
+            </DataTable>
+          </CardContent>
+        </Card>
       </div>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

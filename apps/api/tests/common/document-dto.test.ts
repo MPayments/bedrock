@@ -55,7 +55,7 @@ function createDocumentWithOperation() {
       submissionStatus: "draft",
       submittedAt: null,
       submittedBy: null,
-      title: "Исходящий инвойс",
+      title: "Счёт на оплату",
       updatedAt: now,
       version: 1,
       amountMinor: 257685098n,

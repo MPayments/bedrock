@@ -4,8 +4,6 @@ import {
   createDocumentGenerationWorkflow,
   CustomerContractNotFoundError,
   CustomerContractOrganizationNotFoundError,
-  OrganizationFileMissingInStorageError,
-  OrganizationFilesNotConfiguredError,
 } from "../src";
 
 const IDS = {
@@ -711,7 +709,7 @@ describe("document generation workflow", () => {
     ).rejects.toBeInstanceOf(CustomerContractOrganizationNotFoundError);
   });
 
-  it("fails with a validation-style error when signature or seal metadata is missing", async () => {
+  it("renders PDF when signature or seal metadata is missing", async () => {
     const { fixtures, workflow } = createWorkflow();
 
     await expect(
@@ -735,10 +733,13 @@ describe("document generation workflow", () => {
         organizationRequisite: fixtures.organizationRequisite as any,
         organizationRequisiteProvider: fixtures.organizationProvider as any,
       }),
-    ).rejects.toBeInstanceOf(OrganizationFilesNotConfiguredError);
+    ).resolves.toMatchObject({
+      fileName: expect.stringMatching(/^contract-00000000-[A-Z0-9]{8}\.pdf$/u),
+      mimeType: "application/pdf",
+    });
   });
 
-  it("fails with a validation-style error when signature or seal objects are missing in storage", async () => {
+  it("renders PDF when signature or seal objects are missing in storage", async () => {
     const { workflow } = createWorkflow({
       downloadError: new Error(
         "Failed to download file from S3: The specified key does not exist.",
@@ -751,7 +752,10 @@ describe("document generation workflow", () => {
         counterpartyId: IDS.counterparty,
         format: "pdf",
       }),
-    ).rejects.toBeInstanceOf(OrganizationFileMissingInStorageError);
+    ).resolves.toMatchObject({
+      fileName: expect.stringMatching(/^contract-00000000-[A-Z0-9]{8}\.pdf$/u),
+      mimeType: "application/pdf",
+    });
   });
 
   it("renders DOCX without sign or seal when organization signing metadata is missing", async () => {
