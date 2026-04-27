@@ -11,7 +11,7 @@ export const QuoteExecutionStateSchema = z.enum(
   QUOTE_EXECUTION_STATE_VALUES,
 );
 
-export const QuoteExecutionSettlementRouteSchema = z.object({
+export const QuoteExecutionPartiesSchema = z.object({
   creditParty: PaymentStepPartyRefSchema,
   debitParty: PaymentStepPartyRefSchema,
 });
@@ -33,7 +33,7 @@ export const QuoteExecutionSchema = z.object({
   quoteSnapshot: z.unknown(),
   rateDen: z.bigint(),
   rateNum: z.bigint(),
-  settlementRoute: QuoteExecutionSettlementRouteSchema,
+  executionParties: QuoteExecutionPartiesSchema.nullable(),
   sourceRef: z.string(),
   state: QuoteExecutionStateSchema,
   submittedAt: z.date().nullable(),
@@ -44,7 +44,7 @@ export const QuoteExecutionSchema = z.object({
 });
 
 export type QuoteExecution = z.infer<typeof QuoteExecutionSchema>;
-export type QuoteExecutionSettlementRoute = z.infer<
-  typeof QuoteExecutionSettlementRouteSchema
+export type QuoteExecutionParties = z.infer<
+  typeof QuoteExecutionPartiesSchema
 >;
 export type QuoteExecutionState = z.infer<typeof QuoteExecutionStateSchema>;

@@ -8,7 +8,10 @@ import type {
   QuoteExecutionsListQuery,
   QuoteExecutionsRepository,
 } from "../../application/ports/quote-executions.repository";
-import type { QuoteExecutionRecord } from "../../domain/types";
+import type {
+  QuoteExecutionRecord,
+  QuoteExecutionParties,
+} from "../../domain/types";
 
 type QuoteExecutionRow = typeof quoteExecutions.$inferSelect;
 type QuoteExecutionInsertRow = typeof quoteExecutions.$inferInsert;
@@ -21,6 +24,42 @@ type TransactionalQueryable = Queryable & {
 
 function hasTransaction(db: Queryable): db is TransactionalQueryable {
   return typeof (db as { transaction?: unknown }).transaction === "function";
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isPartyRef(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    typeof value.id === "string" &&
+    (typeof value.requisiteId === "string" || value.requisiteId === null)
+  );
+}
+
+function extractParties(quoteSnapshot: unknown): QuoteExecutionParties | null {
+  if (!isRecord(quoteSnapshot)) return null;
+  const parties = isRecord(quoteSnapshot.executionParties);
+  if (!isRecord(parties)) return null;
+  if (!isPartyRef(parties.creditParty) || !isPartyRef(parties.debitParty)) {
+    return null;
+  }
+  return parties as unknown as QuoteExecutionParties;
+}
+
+function attachPartiesToSnapshot(
+  quoteSnapshot: unknown,
+  executionParties: QuoteExecutionParties | null,
+): unknown {
+  if (!executionParties) return quoteSnapshot;
+  if (isRecord(quoteSnapshot)) {
+    return {
+      ...quoteSnapshot,
+      executionParties,
+    };
+  }
+  return { quoteSnapshot, executionParties };
 }
 
 function toRecord(row: QuoteExecutionRow): QuoteExecutionRecord {
@@ -41,7 +80,7 @@ function toRecord(row: QuoteExecutionRow): QuoteExecutionRecord {
     quoteSnapshot: row.quoteSnapshot,
     rateDen: row.rateDen,
     rateNum: row.rateNum,
-    settlementRoute: row.settlementRoute,
+    executionParties: extractParties(row.quoteSnapshot),
     sourceRef: row.sourceRef,
     state: row.state,
     submittedAt: row.submittedAt,
@@ -67,10 +106,12 @@ function toInsertRow(record: QuoteExecutionRecord): QuoteExecutionInsertRow {
     providerSnapshot: record.providerSnapshot,
     quoteId: record.quoteId,
     quoteLegIdx: record.quoteLegIdx,
-    quoteSnapshot: record.quoteSnapshot,
+    quoteSnapshot: attachPartiesToSnapshot(
+      record.quoteSnapshot,
+      record.executionParties,
+    ),
     rateDen: record.rateDen,
     rateNum: record.rateNum,
-    settlementRoute: record.settlementRoute,
     sourceRef: record.sourceRef,
     state: record.state,
     submittedAt: record.submittedAt,
@@ -81,9 +122,7 @@ function toInsertRow(record: QuoteExecutionRecord): QuoteExecutionInsertRow {
   };
 }
 
-export class DrizzleQuoteExecutionsRepository
-  implements QuoteExecutionsRepository
-{
+export class DrizzleQuoteExecutionsRepository implements QuoteExecutionsRepository {
   constructor(private readonly db: Queryable) {}
 
   async findById(
@@ -122,10 +161,13 @@ export class DrizzleQuoteExecutionsRepository
     const database = (tx as Transaction | undefined) ?? this.db;
     const conditions: SQL[] = [];
     if (input.dealId) conditions.push(eq(quoteExecutions.dealId, input.dealId));
-    if (input.quoteId) conditions.push(eq(quoteExecutions.quoteId, input.quoteId));
+    if (input.quoteId)
+      conditions.push(eq(quoteExecutions.quoteId, input.quoteId));
     if (input.state) conditions.push(eq(quoteExecutions.state, input.state));
     if (input.treasuryOrderId) {
-      conditions.push(eq(quoteExecutions.treasuryOrderId, input.treasuryOrderId));
+      conditions.push(
+        eq(quoteExecutions.treasuryOrderId, input.treasuryOrderId),
+      );
     }
     const where = conditions.length ? and(...conditions) : undefined;
 

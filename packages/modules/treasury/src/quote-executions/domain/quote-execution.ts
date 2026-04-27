@@ -2,7 +2,7 @@ import { AggregateRoot, invariant } from "@bedrock/shared/core/domain";
 
 import type {
   QuoteExecutionRecord,
-  QuoteExecutionSettlementRoute,
+  QuoteExecutionParties,
   QuoteExecutionState,
 } from "./types";
 import type {
@@ -24,7 +24,7 @@ export interface CreateQuoteExecutionProps {
   quoteSnapshot?: unknown;
   rateDen: bigint;
   rateNum: bigint;
-  settlementRoute: QuoteExecutionSettlementRoute;
+  executionParties?: QuoteExecutionParties | null;
   sourceRef: string;
   toAmountMinor: bigint;
   toCurrencyId: string;
@@ -95,15 +95,19 @@ function clonePartyRef(
   };
 }
 
-function cloneSettlementRoute(
-  route: QuoteExecutionSettlementRoute,
-): QuoteExecutionSettlementRoute {
+function cloneParties(
+  parties: QuoteExecutionParties | null | undefined,
+): QuoteExecutionParties | null {
+  if (!parties) return null;
   return {
     creditParty: clonePartyRef(
-      route.creditParty,
-      "settlementRoute.creditParty",
+      parties.creditParty,
+      "executionParties.creditParty",
     ),
-    debitParty: clonePartyRef(route.debitParty, "settlementRoute.debitParty"),
+    debitParty: clonePartyRef(
+      parties.debitParty,
+      "executionParties.debitParty",
+    ),
   };
 }
 
@@ -168,7 +172,7 @@ function normalizeSnapshot(snapshot: QuoteExecutionSnapshot) {
     quoteLegIdx: snapshot.quoteLegIdx ?? null,
     rateDen: normalizeRatePart(snapshot.rateDen, "rateDen"),
     rateNum: normalizeRatePart(snapshot.rateNum, "rateNum"),
-    settlementRoute: cloneSettlementRoute(snapshot.settlementRoute),
+    executionParties: cloneParties(snapshot.executionParties),
     sourceRef: normalizeRequiredText(snapshot.sourceRef, "sourceRef"),
     submittedAt: cloneNullableDate(snapshot.submittedAt),
     toAmountMinor: normalizeAmount(snapshot.toAmountMinor, "toAmountMinor"),
@@ -202,7 +206,7 @@ export class QuoteExecution extends AggregateRoot<string> {
         quoteSnapshot: input.quoteSnapshot ?? null,
         rateDen: input.rateDen,
         rateNum: input.rateNum,
-        settlementRoute: input.settlementRoute,
+        executionParties: input.executionParties ?? null,
         sourceRef: input.sourceRef,
         state: "draft",
         submittedAt: null,

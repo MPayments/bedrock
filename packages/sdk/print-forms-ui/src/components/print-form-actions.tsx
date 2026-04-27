@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 
 import { AlertTriangle, Download, FileText, Loader2 } from "lucide-react";
 
@@ -9,6 +9,7 @@ import { Button } from "@bedrock/sdk-ui/components/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -86,39 +87,41 @@ export function PrintFormActions({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-64">
           {forms.map((form, index) => (
-            <div key={form.id}>
+            <Fragment key={form.id}>
               {index > 0 ? <DropdownMenuSeparator /> : null}
-              <DropdownMenuLabel>
-                <span className="flex items-center justify-between gap-2">
-                  <span className="truncate">{form.title}</span>
-                  {form.quality === "draft" ? (
-                    <Badge variant="warning">Draft</Badge>
-                  ) : null}
-                </span>
-              </DropdownMenuLabel>
-              {form.formats.map((format) => {
-                const key = `${form.id}:${format}`;
-                return (
-                  <DropdownMenuItem
-                    key={key}
-                    disabled={activeKey !== null}
-                    onClick={() => void runDownload(form, format)}
-                  >
-                    {activeKey === key ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Download className="h-4 w-4" />
-                    )}
-                    {format.toUpperCase()}
-                  </DropdownMenuItem>
-                );
-              })}
-              {form.warnings.length > 0 ? (
-                <DropdownMenuLabel className="whitespace-normal">
-                  {form.warnings[0]?.message}
+              <DropdownMenuGroup>
+                <DropdownMenuLabel>
+                  <span className="flex items-center justify-between gap-2">
+                    <span className="truncate">{form.title}</span>
+                    {form.quality === "draft" ? (
+                      <Badge variant="warning">Draft</Badge>
+                    ) : null}
+                  </span>
                 </DropdownMenuLabel>
-              ) : null}
-            </div>
+                {form.formats.map((format) => {
+                  const key = `${form.id}:${format}`;
+                  return (
+                    <DropdownMenuItem
+                      key={key}
+                      disabled={activeKey !== null}
+                      onClick={() => void runDownload(form, format)}
+                    >
+                      {activeKey === key ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Download className="h-4 w-4" />
+                      )}
+                      {format.toUpperCase()}
+                    </DropdownMenuItem>
+                  );
+                })}
+                {form.warnings.length > 0 ? (
+                  <DropdownMenuLabel className="whitespace-normal">
+                    {form.warnings[0]?.message}
+                  </DropdownMenuLabel>
+                ) : null}
+              </DropdownMenuGroup>
+            </Fragment>
           ))}
         </DropdownMenuContent>
       </DropdownMenu>

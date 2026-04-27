@@ -7,6 +7,7 @@ import type {
 
 import { deriveFinanceDealReadiness } from "../close-readiness";
 import type {
+  FinanceDealRouteAttachment,
   FinanceDealPaymentStep,
   FinanceDealQuoteExecution,
   FinanceDealWorkspaceProjection,
@@ -142,9 +143,72 @@ function serializeFinanceDealPaymentStep(
   };
 }
 
+function deriveQuoteExecutionParties(
+  execution: QuoteExecution,
+  routeAttachment: FinanceDealRouteAttachment | null,
+): FinanceDealQuoteExecution["executionParties"] {
+  if (execution.executionParties) return execution.executionParties;
+
+  const sequence = execution.origin.sequence ?? execution.quoteLegIdx;
+  if (!routeAttachment || !sequence) return null;
+
+  const debitParticipant = routeAttachment.participants[sequence - 1];
+  const creditParticipant = routeAttachment.participants[sequence];
+  if (!debitParticipant?.entityId || !creditParticipant?.entityId) {
+    return null;
+  }
+
+  return {
+    creditParty: {
+      displayName: creditParticipant.displayName,
+      entityKind: creditParticipant.entityKind,
+      id: creditParticipant.entityId,
+      requisiteId: creditParticipant.requisiteId,
+    },
+    debitParty: {
+      displayName: debitParticipant.displayName,
+      entityKind: debitParticipant.entityKind,
+      id: debitParticipant.entityId,
+      requisiteId: debitParticipant.requisiteId,
+    },
+  };
+}
+
+function deriveQuoteExecutionPartiesFromSteps(
+  execution: QuoteExecution,
+  paymentStepBySequence: ReadonlyMap<number, PaymentStep>,
+): FinanceDealQuoteExecution["executionParties"] {
+  const sequence = execution.origin.sequence ?? execution.quoteLegIdx;
+  if (!sequence) return null;
+
+  const previousStep = paymentStepBySequence.get(sequence - 1);
+  const nextStep = paymentStepBySequence.get(sequence + 1);
+  const debitParty = previousStep?.toParty ?? nextStep?.fromParty ?? null;
+  const creditParty = nextStep?.fromParty ?? previousStep?.toParty ?? null;
+
+  if (!debitParty || !creditParty) return null;
+
+  return {
+    creditParty,
+    debitParty,
+  };
+}
+
 function serializeFinanceDealQuoteExecution(
   execution: QuoteExecution,
+  paymentStepBySequence: ReadonlyMap<number, PaymentStep>,
+  routeAttachment: FinanceDealRouteAttachment | null,
 ): FinanceDealQuoteExecution {
+  const executionParties =
+    deriveQuoteExecutionParties(
+      execution,
+      routeAttachment,
+    ) ??
+    deriveQuoteExecutionPartiesFromSteps(
+      execution,
+      paymentStepBySequence,
+    );
+
   return {
     completedAt: execution.completedAt
       ? execution.completedAt.toISOString()
@@ -163,7 +227,7 @@ function serializeFinanceDealQuoteExecution(
     quoteLegIdx: execution.quoteLegIdx,
     rateDen: execution.rateDen.toString(),
     rateNum: execution.rateNum.toString(),
-    settlementRoute: execution.settlementRoute,
+    executionParties,
     sourceRef: execution.sourceRef,
     state: execution.state,
     submittedAt: execution.submittedAt
@@ -257,12 +321,19 @@ export async function getFinanceDealWorkspaceProjection(
     ) ?? null;
   const queueContext = classifyFinanceQueue(workflow);
   const paymentStepByPlanLegId = new Map<string, PaymentStep>();
+  const paymentStepBySequence = new Map<number, PaymentStep>();
   for (const step of paymentStepsResult.data) {
     if (
       step.origin.type === "deal_execution_leg" &&
       step.origin.planLegId !== null
     ) {
       paymentStepByPlanLegId.set(step.origin.planLegId, step);
+    }
+    if (
+      step.origin.type === "deal_execution_leg" &&
+      step.origin.sequence !== null
+    ) {
+      paymentStepBySequence.set(step.origin.sequence, step);
     }
   }
   const quoteExecutionByPlanLegId = new Map<string, QuoteExecution>();
@@ -411,7 +482,12 @@ export async function getFinanceDealWorkspaceProjection(
         serializeFinanceDealPaymentStep,
       ),
       quoteExecutions: quoteExecutionsResult.data.map(
-        serializeFinanceDealQuoteExecution,
+        (execution) =>
+          serializeFinanceDealQuoteExecution(
+            execution,
+            paymentStepBySequence,
+            financeRouteAttachment,
+          ),
       ),
       quotes: workflow.relatedResources.quotes,
       reconciliationExceptions,

@@ -17,10 +17,7 @@ import type {
   PaymentStepOrigin,
   PostingDocumentRef,
 } from "../../../payment-steps/domain/types";
-import type {
-  QuoteExecutionSettlementRoute,
-  QuoteExecutionState,
-} from "../../domain/types";
+import type { QuoteExecutionState } from "../../domain/types";
 
 export const quoteExecutions = pgTable(
   "quote_executions",
@@ -44,9 +41,6 @@ export const quoteExecutions = pgTable(
     toAmountMinor: bigint("to_amount_minor", { mode: "bigint" }).notNull(),
     rateNum: bigint("rate_num", { mode: "bigint" }).notNull(),
     rateDen: bigint("rate_den", { mode: "bigint" }).notNull(),
-    settlementRoute: jsonb("settlement_route")
-      .$type<QuoteExecutionSettlementRoute>()
-      .notNull(),
     providerRef: text("provider_ref"),
     providerSnapshot: jsonb("provider_snapshot").$type<unknown>(),
     postingDocumentRefs: jsonb("posting_document_refs")

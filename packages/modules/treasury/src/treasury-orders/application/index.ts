@@ -81,7 +81,7 @@ export function createTreasuryOrdersService(deps: TreasuryOrdersServiceDeps) {
           quoteId: step.quoteId,
           quoteLegIdx: null,
           quoteSnapshot: null,
-          settlementRoute: {
+          executionParties: {
             creditParty: step.toParty,
             debitParty: step.fromParty,
           },

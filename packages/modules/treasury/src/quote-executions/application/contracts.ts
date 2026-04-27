@@ -8,7 +8,7 @@ import {
 } from "../../payment-steps/contracts/dto";
 import {
   QuoteExecutionSchema,
-  QuoteExecutionSettlementRouteSchema,
+  QuoteExecutionPartiesSchema,
   QuoteExecutionStateSchema,
 } from "../contracts/dto";
 
@@ -36,7 +36,9 @@ export const CreateQuoteExecutionInputSchema = z
     quoteSnapshot: z.unknown().optional().default(null),
     rateDen: z.bigint().positive().optional(),
     rateNum: z.bigint().positive().optional(),
-    settlementRoute: QuoteExecutionSettlementRouteSchema,
+    executionParties: QuoteExecutionPartiesSchema.nullable()
+      .optional()
+      .default(null),
     sourceRef: z.string().trim().min(1).max(512),
     toAmountMinor: z.bigint().positive(),
     toCurrencyId: z.uuid(),

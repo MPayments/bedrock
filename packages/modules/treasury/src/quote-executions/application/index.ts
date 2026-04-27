@@ -99,7 +99,7 @@ export function createQuoteExecutionsService(
         quoteSnapshot: input.quoteSnapshot ?? serializeBigInt(quoteDetails),
         rateDen: input.rateDen ?? quoteLeg?.rateDen ?? quoteDetails.quote.rateDen,
         rateNum: input.rateNum ?? quoteLeg?.rateNum ?? quoteDetails.quote.rateNum,
-        settlementRoute: input.settlementRoute,
+        executionParties: input.executionParties,
         sourceRef: input.sourceRef,
         toAmountMinor: input.toAmountMinor,
         toCurrencyId: input.toCurrencyId,

@@ -70,10 +70,10 @@ const QuoteExecutionResponseSchema = z.object({
   quoteLegIdx: z.number().int().positive().nullable(),
   rateDen: z.string(),
   rateNum: z.string(),
-  settlementRoute: z.object({
+  executionParties: z.object({
     creditParty: PaymentStepPartyRefSchema,
     debitParty: PaymentStepPartyRefSchema,
-  }),
+  }).nullable(),
   sourceRef: z.string(),
   state: QuoteExecutionStateSchema,
   submittedAt: z.iso.datetime().nullable(),
@@ -119,7 +119,7 @@ function serializeQuoteExecution(
     quoteLegIdx: execution.quoteLegIdx,
     rateDen: execution.rateDen.toString(),
     rateNum: execution.rateNum.toString(),
-    settlementRoute: execution.settlementRoute,
+    executionParties: execution.executionParties,
     sourceRef: execution.sourceRef,
     state: execution.state,
     submittedAt: serializeNullableDate(execution.submittedAt),

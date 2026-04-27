@@ -11963,12 +11963,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "settlement_route": {
-          "name": "settlement_route",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
         "provider_ref": {
           "name": "provider_ref",
           "type": "text",

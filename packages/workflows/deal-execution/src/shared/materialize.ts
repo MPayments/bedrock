@@ -469,7 +469,7 @@ export async function materializeCompiledOperation(input: {
         acceptedQuote: input.acceptedQuote,
         compiled: input.compiled,
       }),
-      settlementRoute: {
+      executionParties: {
         creditParty: partyRefs.toParty,
         debitParty: partyRefs.fromParty,
       },

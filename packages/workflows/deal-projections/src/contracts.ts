@@ -747,10 +747,10 @@ export const FinanceDealQuoteExecutionSchema = z.object({
   quoteLegIdx: z.number().int().positive().nullable(),
   rateDen: z.string(),
   rateNum: z.string(),
-  settlementRoute: z.object({
+  executionParties: z.object({
     creditParty: PaymentStepPartyRefSchema,
     debitParty: PaymentStepPartyRefSchema,
-  }),
+  }).nullable(),
   sourceRef: z.string(),
   state: QuoteExecutionStateSchema,
   submittedAt: z.iso.datetime().nullable(),

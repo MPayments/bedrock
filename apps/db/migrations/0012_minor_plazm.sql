@@ -14,7 +14,6 @@ CREATE TABLE "quote_executions" (
 	"to_amount_minor" bigint NOT NULL,
 	"rate_num" bigint NOT NULL,
 	"rate_den" bigint NOT NULL,
-	"settlement_route" jsonb NOT NULL,
 	"provider_ref" text,
 	"provider_snapshot" jsonb,
 	"posting_document_refs" jsonb DEFAULT '[]'::jsonb NOT NULL,

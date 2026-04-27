@@ -110,9 +110,16 @@ export function QuoteExecutionCard({
 
   useEffect(() => {
     let cancelled = false;
+    if (!execution.executionParties) {
+      setPartyLabelsById({});
+      setRequisiteLabelsById({});
+      return () => {
+        cancelled = true;
+      };
+    }
     const parties = [
-      execution.settlementRoute.debitParty,
-      execution.settlementRoute.creditParty,
+      execution.executionParties.debitParty,
+      execution.executionParties.creditParty,
     ];
 
     async function resolveSettlementLabels() {
@@ -163,8 +170,7 @@ export function QuoteExecutionCard({
       cancelled = true;
     };
   }, [
-    execution.settlementRoute.creditParty,
-    execution.settlementRoute.debitParty,
+    execution.executionParties,
   ]);
 
   function formatAmount(amountMinor: string, currencyId: string) {
@@ -287,9 +293,12 @@ export function QuoteExecutionCard({
     execution.state === "draft" || execution.state === "pending";
   const executionRate = formatExecutionRate();
   const hasFooterActions = canCancel || canExpire || canSubmit || canComplete;
+  const executionParties = execution.executionParties;
 
   function settlementPartyView(input: {
-    party: FinanceDealQuoteExecution["settlementRoute"]["debitParty"];
+    party: NonNullable<
+      FinanceDealQuoteExecution["executionParties"]
+    >["debitParty"];
     title: string;
   }) {
     const label =
@@ -360,17 +369,28 @@ export function QuoteExecutionCard({
           ) : null}
         </div>
       </dl>
-      <div className="grid gap-3 border-t p-4 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-center">
-        {settlementPartyView({
-          party: execution.settlementRoute.debitParty,
-          title: "Списать с",
-        })}
-        <ArrowRight className="text-muted-foreground mx-auto hidden size-4 sm:block" />
-        {settlementPartyView({
-          party: execution.settlementRoute.creditParty,
-          title: "Зачислить на",
-        })}
-      </div>
+      {executionParties ? (
+        <div className="grid gap-3 border-t p-4 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-center">
+          {settlementPartyView({
+            party: executionParties.debitParty,
+            title: "Списать с",
+          })}
+          <ArrowRight className="text-muted-foreground mx-auto hidden size-4 sm:block" />
+          {settlementPartyView({
+            party: executionParties.creditParty,
+            title: "Зачислить на",
+          })}
+        </div>
+      ) : (
+        <div className="border-t p-4 text-sm">
+          <div className="text-destructive font-medium">
+            Участники исполнения не сохранены
+          </div>
+          <div className="text-muted-foreground mt-1">
+            Для этой FX-задачи нет юрлиц и реквизитов в снимке исполнения.
+          </div>
+        </div>
+      )}
       {canSubmit ? (
         <div className="grid gap-3 border-t p-4 text-sm sm:grid-cols-2">
           <div className="space-y-2">

@@ -17,7 +17,7 @@ export const QUOTE_EXECUTION_STATE_VALUES = [
 export type QuoteExecutionState =
   (typeof QUOTE_EXECUTION_STATE_VALUES)[number];
 
-export interface QuoteExecutionSettlementRoute {
+export interface QuoteExecutionParties {
   creditParty: PaymentStepPartyRef;
   debitParty: PaymentStepPartyRef;
 }
@@ -39,7 +39,7 @@ export interface QuoteExecutionRecord {
   quoteSnapshot: unknown;
   rateDen: bigint;
   rateNum: bigint;
-  settlementRoute: QuoteExecutionSettlementRoute;
+  executionParties: QuoteExecutionParties | null;
   sourceRef: string;
   state: QuoteExecutionState;
   submittedAt: Date | null;

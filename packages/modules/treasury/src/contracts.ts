@@ -80,10 +80,10 @@ export {
 } from "./quote-executions/application/contracts";
 export {
   QuoteExecutionSchema,
-  QuoteExecutionSettlementRouteSchema,
+  QuoteExecutionPartiesSchema,
   QuoteExecutionStateSchema,
   type QuoteExecution,
-  type QuoteExecutionSettlementRoute,
+  type QuoteExecutionParties,
   type QuoteExecutionState,
 } from "./quote-executions/contracts/dto";
 export {
