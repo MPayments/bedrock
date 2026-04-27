@@ -54,43 +54,8 @@
     {
       "idx": 7,
       "version": "7",
-      "when": 1777140644789,
-      "tag": "0007_oval_mauler",
-      "breakpoints": true
-    },
-    {
-      "idx": 8,
-      "version": "7",
-      "when": 1777282990137,
-      "tag": "0008_shocking_brother_voodoo",
-      "breakpoints": true
-    },
-    {
-      "idx": 9,
-      "version": "7",
-      "when": 1777283682066,
-      "tag": "0009_material_shadow_king",
-      "breakpoints": true
-    },
-    {
-      "idx": 10,
-      "version": "7",
-      "when": 1777287406159,
-      "tag": "0010_brief_jack_murdock",
-      "breakpoints": true
-    },
-    {
-      "idx": 11,
-      "version": "7",
-      "when": 1777290405633,
-      "tag": "0011_tiny_arachne",
-      "breakpoints": true
-    },
-    {
-      "idx": 12,
-      "version": "7",
-      "when": 1777293143188,
-      "tag": "0012_minor_plazm",
+      "when": 1777313237620,
+      "tag": "0007_steep_hardball",
       "breakpoints": true
     }
   ]
