@@ -1054,6 +1054,41 @@ describe("deal pricing workflow", () => {
       expect(deps.deals.deals.commands.swapDealRouteTemplate).not.toHaveBeenCalled();
     });
 
+    it("rejects when an executing step is beyond the first page", async () => {
+      const { deps, swapTemplateId } = setupSwapDeps();
+      deps.treasury.paymentSteps.queries.list = vi.fn(async ({ offset }) => ({
+        data:
+          offset === 0
+            ? Array.from({ length: 100 }, (_, index) => ({
+                id: `draft-${index}`,
+                state: "draft",
+              }))
+            : [{ id: "step-101", state: "processing" }],
+        limit: 100,
+        offset,
+        total: 101,
+      }));
+      const workflow = createDealPricingWorkflow(deps as any);
+
+      await expect(
+        workflow.swapRouteTemplate({
+          actorUserId: "user-1",
+          dealId: IDS.deal,
+          newRouteTemplateId: swapTemplateId,
+          reasonCode: "market_moved",
+        }),
+      ).rejects.toThrow(/payment steps are already in execution/);
+
+      expect(deps.treasury.paymentSteps.queries.list).toHaveBeenCalledWith({
+        dealId: IDS.deal,
+        limit: 100,
+        offset: 100,
+        purpose: "deal_leg",
+      });
+      expect(deps.treasury.paymentSteps.commands.cancelDrafts).not.toHaveBeenCalled();
+      expect(deps.deals.deals.commands.swapDealRouteTemplate).not.toHaveBeenCalled();
+    });
+
     it("rejects bad route template id BEFORE cancelling drafts", async () => {
       const { deps } = setupSwapDeps([{ id: "step-1", state: "draft" }]);
       deps.treasury.paymentRoutes.queries.findTemplateById = vi.fn(

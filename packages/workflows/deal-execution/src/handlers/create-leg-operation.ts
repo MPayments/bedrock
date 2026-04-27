@@ -8,6 +8,7 @@ import {
   materializeCompiledOperation,
   resolveRecipeContext,
 } from "../shared/materialize";
+import { listAllDealLegRuntimes } from "../shared/runtime-pages";
 import { buildTimelineEvent } from "../shared/timeline";
 import {
   findLegById,
@@ -43,27 +44,18 @@ export async function createLegOperation(
         );
       }
 
-      const [existingSteps, existingQuoteExecutions] = await Promise.all([
-        treasuryModule.paymentSteps.queries.list({
-          dealId: input.dealId,
-          limit: 100,
-          offset: 0,
-          purpose: "deal_leg",
-        }),
-        treasuryModule.quoteExecutions.queries.list({
-          dealId: input.dealId,
-          limit: 100,
-          offset: 0,
-        }),
-      ]);
+      const { paymentSteps, quoteExecutions } = await listAllDealLegRuntimes(
+        treasuryModule,
+        input.dealId,
+      );
       if (
-        existingSteps.data.some(
+        paymentSteps.some(
           (step) =>
             step.origin.type === "deal_execution_leg" &&
             step.origin.planLegId === leg.id &&
             !["cancelled", "skipped"].includes(step.state),
         ) ||
-        existingQuoteExecutions.data.some(
+        quoteExecutions.some(
           (execution) =>
             execution.origin.type === "deal_execution_leg" &&
             execution.origin.planLegId === leg.id &&

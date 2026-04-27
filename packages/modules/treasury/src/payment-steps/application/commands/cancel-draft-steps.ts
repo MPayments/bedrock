@@ -24,24 +24,30 @@ export function createCancelDraftPaymentStepsHandler(
   ): Promise<CancelDraftPaymentStepsResult> {
     const input = CancelDraftPaymentStepsInputSchema.parse(raw);
     const now = context.runtime.now();
-    const drafts = await context.repository.listSteps({
-      dealId: input.dealId,
-      limit: 100,
-      offset: 0,
-      purpose: "deal_leg",
-      state: ["draft"],
-    });
-
     let cancelledCount = 0;
 
-    for (const snapshot of drafts.rows) {
-      const aggregate = await loadPaymentStep(context, snapshot.id);
-      if (aggregate.toSnapshot().state !== "draft") {
-        continue;
+    while (true) {
+      const drafts = await context.repository.listSteps({
+        dealId: input.dealId,
+        limit: 100,
+        offset: 0,
+        purpose: "deal_leg",
+        state: ["draft"],
+      });
+
+      if (drafts.rows.length === 0) {
+        break;
       }
-      const cancelled = aggregate.cancel(now);
-      await context.repository.updateStep(cancelled.toSnapshot());
-      cancelledCount += 1;
+
+      for (const snapshot of drafts.rows) {
+        const aggregate = await loadPaymentStep(context, snapshot.id);
+        if (aggregate.toSnapshot().state !== "draft") {
+          continue;
+        }
+        const cancelled = aggregate.cancel(now);
+        await context.repository.updateStep(cancelled.toSnapshot());
+        cancelledCount += 1;
+      }
     }
 
     return { cancelledCount };

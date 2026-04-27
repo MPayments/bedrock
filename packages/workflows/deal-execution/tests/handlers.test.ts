@@ -340,6 +340,58 @@ describe("createLegOperation payment-steps idempotency", () => {
     expect(harness.createPaymentStep).not.toHaveBeenCalled();
   });
 
+  it("returns early when a step for the leg is beyond the first page", async () => {
+    const harness = createHarness({
+      paymentStepsListResult: { data: [], total: 0 },
+      workflow: createWorkflowProjection(),
+    });
+    harness.listPaymentSteps
+      .mockResolvedValueOnce({
+        data: Array.from({ length: 100 }, (_, index) => ({
+          id: `step-${index}`,
+          origin: {
+            planLegId: `other-leg-${index}`,
+            type: "deal_execution_leg",
+          },
+          state: "pending",
+        })),
+        limit: 100,
+        offset: 0,
+        total: 101,
+      })
+      .mockResolvedValueOnce({
+        data: [
+          {
+            id: "step-101",
+            origin: {
+              planLegId: "leg-1",
+              type: "deal_execution_leg",
+            },
+            state: "pending",
+          },
+        ],
+        limit: 100,
+        offset: 100,
+        total: 101,
+      });
+
+    await harness.workflow.createLegOperation({
+      actorUserId: "user-1",
+      dealId: "deal-1",
+      idempotencyKey: "idem-1",
+      legId: "leg-1",
+    });
+
+    expect(harness.listPaymentSteps).toHaveBeenCalledWith({
+      dealId: "deal-1",
+      limit: 100,
+      offset: 100,
+      purpose: "deal_leg",
+    });
+    expect(harness.createOrGetPlanned).not.toHaveBeenCalled();
+    expect(harness.createPaymentStep).not.toHaveBeenCalled();
+  });
+
   it("proceeds when a step for a different leg exists", async () => {
     const harness = createHarness({
       paymentStepsListResult: {

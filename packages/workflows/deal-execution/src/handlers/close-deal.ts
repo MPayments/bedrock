@@ -10,6 +10,7 @@ import { deriveFinanceDealReadiness } from "@bedrock/workflow-deal-projections";
 import { DEAL_EXECUTION_CLOSE_SCOPE } from "../shared/constants";
 import type { DealExecutionWorkflowDeps } from "../shared/deps";
 import { runIdempotent } from "../shared/idempotency";
+import { listAllDealLegRuntimes } from "../shared/runtime-pages";
 import { buildTimelineEvent } from "../shared/timeline";
 import { requireWorkflow } from "../shared/workflow-helpers";
 
@@ -36,21 +37,12 @@ export async function closeDeal(
         return workflow;
       }
 
-      const [paymentStepsResult, quoteExecutionsResult] = await Promise.all([
-        treasuryModule.paymentSteps.queries.list({
-          dealId: input.dealId,
-          limit: 100,
-          offset: 0,
-          purpose: "deal_leg",
-        }),
-        treasuryModule.quoteExecutions.queries.list({
-          dealId: input.dealId,
-          limit: 100,
-          offset: 0,
-        }),
-      ]);
+      const { paymentSteps, quoteExecutions } = await listAllDealLegRuntimes(
+        treasuryModule,
+        input.dealId,
+      );
       const paymentStepByPlanLegId = new Map<string, PaymentStep>();
-      for (const step of paymentStepsResult.data) {
+      for (const step of paymentSteps) {
         if (
           step.origin.type === "deal_execution_leg" &&
           step.origin.planLegId !== null
@@ -59,7 +51,7 @@ export async function closeDeal(
         }
       }
       const quoteExecutionByPlanLegId = new Map<string, QuoteExecution>();
-      for (const execution of quoteExecutionsResult.data) {
+      for (const execution of quoteExecutions) {
         if (
           execution.origin.type === "deal_execution_leg" &&
           execution.origin.planLegId !== null
@@ -71,9 +63,9 @@ export async function closeDeal(
         }
       }
       const reconciliationLinks =
-        paymentStepsResult.data.length > 0
+        paymentSteps.length > 0
           ? await reconciliation.links.listOperationLinks({
-              operationIds: paymentStepsResult.data.map((step) => step.id),
+              operationIds: paymentSteps.map((step) => step.id),
             })
           : [];
       const reconciliationLinksByStepId = new Map(
@@ -114,8 +106,7 @@ export async function closeDeal(
           dealId: input.dealId,
           payload: {
             comment: input.comment ?? null,
-            stepCount:
-              paymentStepsResult.data.length + quoteExecutionsResult.data.length,
+            stepCount: paymentSteps.length + quoteExecutions.length,
           },
           sourceRef: `execution:${input.dealId}:close:${input.idempotencyKey}`,
           type: "deal_closed",

@@ -1,6 +1,8 @@
 import { cache } from "react";
+import type { z } from "zod";
 
 import { readEntityById, readPaginatedList } from "@/lib/api/query";
+import type { HttpResponseLike } from "@/lib/api/response";
 import { createPaginatedResponseSchema } from "@/lib/api/schemas";
 import { getServerApiClient } from "@/lib/api/server-client";
 import {
@@ -19,6 +21,7 @@ const TreasuryStepsListResponseSchema = createPaginatedResponseSchema(
 );
 const TreasuryQuoteExecutionsListResponseSchema =
   createPaginatedResponseSchema(FinanceDealQuoteExecutionSchema);
+const TREASURY_OPERATION_PAGE_LIMIT = 100;
 
 export type TreasuryPaymentStepOperation = FinanceDealPaymentStep & {
   runtimeType: "payment_step";
@@ -38,6 +41,22 @@ export type TreasuryOperationsListResult = {
   total: number;
 };
 export type TreasuryOperationDetails = TreasuryOperationRow;
+
+type PaginatedResponse<TItem> = {
+  data: TItem[];
+  limit: number;
+  offset: number;
+  total: number;
+};
+
+function emptyPage<TItem>(): PaginatedResponse<TItem> {
+  return {
+    data: [],
+    limit: TREASURY_OPERATION_PAGE_LIMIT,
+    offset: 0,
+    total: 0,
+  };
+}
 
 const PAYMENT_STEP_PURPOSE_VALUES = [
   "deal_leg",
@@ -111,6 +130,44 @@ function resolvePagination(search: TreasuryOperationsSearchParams) {
     limit: perPage,
     offset: Math.max(0, (page - 1) * perPage),
   };
+}
+
+async function readAllPaginatedRows<TItem>({
+  context,
+  request,
+  schema,
+}: {
+  context: string;
+  request: (pagination: {
+    limit: string;
+    offset: string;
+  }) => Promise<HttpResponseLike>;
+  schema: z.ZodType<PaginatedResponse<TItem>>;
+}): Promise<PaginatedResponse<TItem>> {
+  const rows: TItem[] = [];
+  let offset = 0;
+
+  while (true) {
+    const { data } = await readPaginatedList({
+      request: () =>
+        request({
+          limit: String(TREASURY_OPERATION_PAGE_LIMIT),
+          offset: String(offset),
+        }),
+      schema,
+      context,
+    });
+    rows.push(...data.data);
+    offset += data.limit;
+    if (offset >= data.total) {
+      return {
+        data: rows,
+        limit: TREASURY_OPERATION_PAGE_LIMIT,
+        offset: 0,
+        total: data.total,
+      };
+    }
+  }
 }
 
 /**
@@ -192,37 +249,35 @@ export async function getTreasuryOperations(
   const quoteExecutionsQuery = buildQuoteExecutionsListQuery(search);
   const [stepsResult, quoteExecutionsResult] = await Promise.all([
     stepsQuery
-      ? readPaginatedList({
-          request: () =>
+      ? readAllPaginatedRows<FinanceDealPaymentStep>({
+          request: ({ limit: pageLimit, offset: pageOffset }) =>
             client.v1.treasury.steps.$get(
               {
-                query: { ...stepsQuery, limit: "100", offset: "0" },
+                query: { ...stepsQuery, limit: pageLimit, offset: pageOffset },
               },
               { init: { cache: "no-store" } },
             ),
           schema: TreasuryStepsListResponseSchema,
           context: "Не удалось загрузить операции казначейства",
         })
-      : Promise.resolve({
-          data: { data: [] as FinanceDealPaymentStep[], limit: 100, offset: 0, total: 0 },
-          response: null,
-        }),
+      : Promise.resolve(emptyPage<FinanceDealPaymentStep>()),
     quoteExecutionsQuery
-      ? readPaginatedList({
-          request: () =>
+      ? readAllPaginatedRows<FinanceDealQuoteExecution>({
+          request: ({ limit: pageLimit, offset: pageOffset }) =>
             client.v1.treasury["quote-executions"].$get(
               {
-                query: quoteExecutionsQuery,
+                query: {
+                  ...quoteExecutionsQuery,
+                  limit: pageLimit,
+                  offset: pageOffset,
+                },
               },
               { init: { cache: "no-store" } },
             ),
           schema: TreasuryQuoteExecutionsListResponseSchema,
           context: "Не удалось загрузить исполнения FX-котировок",
         })
-      : Promise.resolve({
-          data: { data: [], limit: 100, offset: 0, total: 0 },
-          response: null,
-        }),
+      : Promise.resolve(emptyPage<FinanceDealQuoteExecution>()),
   ]);
 
   const purpose = parsePurpose(search.purpose);
@@ -230,7 +285,7 @@ export async function getTreasuryOperations(
   const createdRange = Array.isArray(search.createdAt) ? search.createdAt : [];
   const createdFrom = coerceIsoDateTime(createdRange[0]);
   const createdTo = coerceIsoDateTime(createdRange[1]);
-  const quoteRows = quoteExecutionsResult.data.data
+  const quoteRows = quoteExecutionsResult.data
     .filter((execution) =>
       purpose === "deal_leg"
         ? execution.origin.type === "deal_execution_leg"
@@ -255,7 +310,7 @@ export async function getTreasuryOperations(
       runtimeType: "quote_execution",
     }));
   const data = [
-    ...stepsResult.data.data.map((step): TreasuryPaymentStepOperation => ({
+    ...stepsResult.data.map((step): TreasuryPaymentStepOperation => ({
       ...step,
       runtimeType: "payment_step",
     })),

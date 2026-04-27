@@ -24,6 +24,7 @@ import type { TreasuryModule } from "@bedrock/treasury";
 import {
   computePricingFingerprint,
   type CreateQuoteInput,
+  type PaymentStep,
   type PaymentRouteCalculation,
   type PaymentRouteDraft,
   type PaymentRouteTemplateListItem,
@@ -75,6 +76,11 @@ interface CurrencyPairRequirement {
   fromCurrency: string;
   toCurrency: string;
 }
+
+type PaymentStepsQueries = TreasuryModule["paymentSteps"]["queries"];
+type PaymentStepsListInput = Parameters<PaymentStepsQueries["list"]>[0];
+
+const PAYMENT_STEP_PAGE_LIMIT = 100;
 
 export interface DealPricingPreviewRecord {
   benchmarks: DealPricingBenchmarks;
@@ -177,6 +183,29 @@ function assertDealAllowsCommercialWrite(deal: DealRecord) {
       `Deal ${deal.id} cannot start treasury quotes from status ${deal.status}`,
     );
   }
+}
+
+async function listAllPaymentSteps(
+  queries: PaymentStepsQueries,
+  input: Omit<PaymentStepsListInput, "limit" | "offset">,
+): Promise<PaymentStep[]> {
+  const rows: PaymentStep[] = [];
+  let offset = 0;
+
+  while (true) {
+    const page = await queries.list({
+      ...input,
+      limit: PAYMENT_STEP_PAGE_LIMIT,
+      offset,
+    });
+    rows.push(...page.data);
+    offset += page.limit;
+    if (offset >= page.total) {
+      break;
+    }
+  }
+
+  return rows;
 }
 
 async function requireDealRecord(
@@ -1626,13 +1655,11 @@ export function createDealPricingWorkflow(
         routeTemplateId: input.newRouteTemplateId,
       });
 
-      const steps = await deps.treasury.paymentSteps.queries.list({
+      const steps = await listAllPaymentSteps(deps.treasury.paymentSteps.queries, {
         dealId: input.dealId,
-        limit: 100,
-        offset: 0,
         purpose: "deal_leg",
       });
-      const blocking = steps.data.filter(
+      const blocking = steps.filter(
         (step) =>
           !["draft", "cancelled", "skipped"].includes(step.state),
       );

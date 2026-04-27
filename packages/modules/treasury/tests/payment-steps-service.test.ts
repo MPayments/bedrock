@@ -121,6 +121,10 @@ function createStepInput(id = STEP_ID) {
   };
 }
 
+function indexedUuid(index: number): string {
+  return `00000000-0000-4000-8000-${String(index).padStart(12, "0")}`;
+}
+
 describe("PaymentSteps service", () => {
   it("creates and queries a standalone payment step", async () => {
     const { service } = createHarness();
@@ -346,5 +350,43 @@ describe("PaymentSteps service", () => {
       dealId,
     });
     expect(secondResult.cancelledCount).toBe(0);
+  });
+
+  it("cancelDrafts cancels draft deal_leg steps beyond the first page", async () => {
+    const dealId = "00000000-0000-4000-8000-000000006003";
+    const { service } = createHarness();
+
+    for (let index = 0; index < 101; index += 1) {
+      const id = indexedUuid(7000 + index);
+      await service.commands.create({
+        ...createStepInput(id),
+        dealId,
+        origin: {
+          dealId,
+          planLegId: `plan-leg-${index}`,
+          routeSnapshotLegId: null,
+          sequence: index,
+          treasuryOrderId: null,
+          type: "deal_execution_leg",
+        },
+        purpose: "deal_leg",
+        sourceRef: `deal:${dealId}:plan-leg:plan-leg-${index}:payout:1`,
+      });
+    }
+
+    const result = await service.commands.cancelDrafts({
+      actorUserId: "user-1",
+      dealId,
+    });
+    expect(result.cancelledCount).toBe(101);
+
+    const remainingDrafts = await service.queries.list({
+      dealId,
+      limit: 100,
+      offset: 0,
+      purpose: "deal_leg",
+      state: ["draft"],
+    });
+    expect(remainingDrafts.total).toBe(0);
   });
 });

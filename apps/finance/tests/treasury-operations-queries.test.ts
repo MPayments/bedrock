@@ -71,6 +71,87 @@ describe("treasury operations queries", () => {
     );
   }, 15_000);
 
+  it("fetches payment step pages beyond the first page before slicing", async () => {
+    stepsGet.mockImplementation(async ({ query }) => ({
+      json: async () => ({
+        kind: "steps",
+        offset: Number(query.offset),
+      }),
+      ok: true,
+      status: 200,
+    }));
+    quoteExecutionsGet.mockImplementation(async ({ query }) => ({
+      json: async () => ({
+        kind: "quoteExecutions",
+        offset: Number(query.offset),
+      }),
+      ok: true,
+      status: 200,
+    }));
+    readPaginatedList.mockImplementation(async ({ request }) => {
+      const response = await request();
+      const marker = await response.json();
+      if (marker.kind === "steps" && marker.offset === 0) {
+        return {
+          data: {
+            data: Array.from({ length: 100 }, (_, index) => ({
+              createdAt: "2026-04-02T00:00:00.000Z",
+              id: `step-${index}`,
+            })),
+            limit: 100,
+            offset: 0,
+            total: 101,
+          },
+        };
+      }
+      if (marker.kind === "steps") {
+        return {
+          data: {
+            data: [
+              {
+                createdAt: "2026-04-01T00:00:00.000Z",
+                id: "step-late",
+              },
+            ],
+            limit: 100,
+            offset: 100,
+            total: 101,
+          },
+        };
+      }
+      return {
+        data: {
+          data: [],
+          limit: 100,
+          offset: marker.offset,
+          total: 0,
+        },
+      };
+    });
+    const { getTreasuryOperations } = await import(
+      "@/features/treasury/operations/lib/queries"
+    );
+
+    const result = await getTreasuryOperations({ page: 11, perPage: 10 });
+
+    expect(stepsGet).toHaveBeenCalledWith(
+      {
+        query: {
+          limit: "100",
+          offset: "100",
+        },
+      },
+      { init: { cache: "no-store" } },
+    );
+    expect(result.total).toBe(101);
+    expect(result.data).toEqual([
+      expect.objectContaining({
+        id: "step-late",
+        runtimeType: "payment_step",
+      }),
+    ]);
+  });
+
   it("forwards purpose/state/dealId filters when provided", async () => {
     const { getTreasuryOperations } = await import(
       "@/features/treasury/operations/lib/queries"
