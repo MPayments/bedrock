@@ -1,27 +1,31 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
+import { Loader2, Plus } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
+import type { PartyProfileBundleInput } from "@bedrock/parties/contracts";
 import {
-  LOCALIZED_TEXT_VARIANTS,
-  type LocalizedTextVariant,
-} from "@bedrock/sdk-parties-ui/lib/localized-text";
-import {
-  Card,
-  CardContent,
-} from "@bedrock/sdk-ui/components/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@bedrock/sdk-ui/components/select";
+  BilingualToolbar,
+  type BilingualMode,
+} from "@bedrock/sdk-parties-ui/components/bilingual-toolbar";
+import type {
+  CounterpartyGeneralEditorExternalPatch,
+  CounterpartyGeneralFormValues,
+} from "@bedrock/sdk-parties-ui/components/counterparty-general-editor";
+import { computePartyProfileCompleteness } from "@bedrock/sdk-parties-ui/lib/party-profile-completeness";
+import { Card, CardContent } from "@bedrock/sdk-ui/components/card";
 
 import { useCrmBreadcrumbs } from "@/components/app/breadcrumbs-provider";
+import { EntityPageHeader } from "@/components/app/entity-page-header";
+import { translateCounterpartyToEnglish } from "@/lib/translate-party-profile";
+import {
+  CounterpartyInputMethodCard,
+  type CounterpartyInputMethod,
+  type CounterpartyPrefillPatch,
+} from "../../components/counterparty-input-method-card";
 import { CustomerCounterpartyCreateEditor } from "../../components/customer-counterparty-create-editor";
+import type { PartyProfileOverride } from "../../components/customer-counterparty-create-editor";
 import {
   buildCustomerCounterpartyDetailsHref,
 } from "../../lib/customer-detail";
@@ -35,8 +39,19 @@ export default function CustomerCounterpartyCreatePage() {
   const [customerName, setCustomerName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [localizedTextVariant, setLocalizedTextVariant] =
-    useState<LocalizedTextVariant>("base");
+  const [bilingualMode, setBilingualMode] = useState<BilingualMode>("all");
+  const [inputMethod, setInputMethod] =
+    useState<CounterpartyInputMethod>("manual");
+  const [externalPatch, setExternalPatch] =
+    useState<CounterpartyGeneralEditorExternalPatch | null>(null);
+  const [partyProfileOverride, setPartyProfileOverride] =
+    useState<PartyProfileOverride | null>(null);
+  const [generalValues, setGeneralValues] =
+    useState<CounterpartyGeneralFormValues | null>(null);
+  const [partyProfileDraft, setPartyProfileDraft] =
+    useState<PartyProfileBundleInput | null>(null);
+  const [translating, setTranslating] = useState(false);
+  const [translateError, setTranslateError] = useState<string | null>(null);
 
   useCrmBreadcrumbs(
     customerName
@@ -71,6 +86,76 @@ export default function CustomerCounterpartyCreatePage() {
     void loadCustomer();
   }, [loadCustomer]);
 
+  const counterpartyKind: "legal_entity" | "individual" =
+    generalValues?.kind ?? "legal_entity";
+
+  useEffect(() => {
+    if (counterpartyKind === "individual" && inputMethod !== "manual") {
+      setInputMethod("manual");
+    }
+  }, [counterpartyKind, inputMethod]);
+
+  const completeness = useMemo(
+    () =>
+      computePartyProfileCompleteness(partyProfileDraft, {
+        excludeProfileNames: true,
+        extraPairs: [
+          {
+            ru: generalValues?.shortName ?? "",
+            en: generalValues?.shortNameEn ?? "",
+          },
+          {
+            ru: generalValues?.fullName ?? "",
+            en: generalValues?.fullNameEn ?? "",
+          },
+        ],
+      }).ratio,
+    [partyProfileDraft, generalValues],
+  );
+
+  const handlePrefill = useCallback((patch: CounterpartyPrefillPatch) => {
+    const now = Date.now();
+    setExternalPatch({ nonce: now, patch: patch.general });
+    setPartyProfileOverride({ nonce: now, patch: patch.profile });
+  }, []);
+
+  const handleTranslateAll = useCallback(async () => {
+    if (!partyProfileDraft && !generalValues) {
+      return;
+    }
+
+    setTranslating(true);
+    setTranslateError(null);
+    try {
+      const next = await translateCounterpartyToEnglish({
+        bundle: partyProfileDraft,
+        general: generalValues
+          ? {
+              shortName: generalValues.shortName,
+              shortNameEn: generalValues.shortNameEn,
+              fullName: generalValues.fullName,
+              fullNameEn: generalValues.fullNameEn,
+            }
+          : null,
+      });
+      const nonce = Date.now();
+      if (next.profile) {
+        setPartyProfileOverride({ nonce, patch: next.profile });
+      }
+      if (Object.keys(next.general).length > 0) {
+        setExternalPatch({ nonce, patch: next.general });
+      }
+    } catch (translationError) {
+      setTranslateError(
+        translationError instanceof Error
+          ? translationError.message
+          : "Ошибка перевода полей",
+      );
+    } finally {
+      setTranslating(false);
+    }
+  }, [partyProfileDraft, generalValues]);
+
   if (loading) {
     return (
       <div className="flex h-[50vh] items-center justify-center">
@@ -93,42 +178,43 @@ export default function CustomerCounterpartyCreatePage() {
     );
   }
 
+  const createHeaderTitle =
+    generalValues?.shortNameEn?.trim() ||
+    generalValues?.shortName?.trim() ||
+    "Новый контрагент";
+
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-bold">Новый контрагент</h1>
-          <p className="text-sm text-muted-foreground">
-            Клиент: {customerName}
-          </p>
-        </div>
+      <EntityPageHeader
+        avatar={{ icon: <Plus className="size-4" /> }}
+        title={createHeaderTitle}
+        badge={{ label: "Draft", variant: "warning" }}
+        infoItems={[
+          "Новый контрагент",
+          customerName ? `Клиент ${customerName}` : null,
+        ]}
+      />
 
-        <div className="w-full max-w-[220px] space-y-1">
-          <Select
-            value={localizedTextVariant}
-            onValueChange={(value) =>
-              setLocalizedTextVariant((value as LocalizedTextVariant) ?? "base")
-            }
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue>
-                {
-                  LOCALIZED_TEXT_VARIANTS.find(
-                    (option) => option.value === localizedTextVariant,
-                  )?.label
-                }
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {LOCALIZED_TEXT_VARIANTS.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+      <CounterpartyInputMethodCard
+        counterpartyKind={counterpartyKind}
+        mode={inputMethod}
+        onModeChange={setInputMethod}
+        onPrefill={handlePrefill}
+      />
+
+      <BilingualToolbar
+        value={bilingualMode}
+        onChange={setBilingualMode}
+        completeness={completeness}
+        onTranslateAll={handleTranslateAll}
+        translating={translating}
+      />
+
+      {translateError ? (
+        <div className="rounded-md bg-destructive/10 p-4 text-sm text-destructive">
+          {translateError}
         </div>
-      </div>
+      ) : null}
 
       {error ? (
         <div className="rounded-md bg-destructive/10 p-4 text-sm text-destructive">
@@ -138,13 +224,18 @@ export default function CustomerCounterpartyCreatePage() {
 
       <CustomerCounterpartyCreateEditor
         customerId={customerId}
-        localizedTextVariant={localizedTextVariant}
+        externalPatch={externalPatch}
+        bilingualMode={bilingualMode}
+        localizedTextVariant={bilingualMode}
+        partyProfileOverride={partyProfileOverride}
         onCreated={(counterpartyId) => {
           router.replace(
             buildCustomerCounterpartyDetailsHref(customerId, counterpartyId),
           );
         }}
         onDirtyChange={() => {}}
+        onGeneralValuesChange={setGeneralValues}
+        onPartyProfileChange={setPartyProfileDraft}
       />
     </div>
   );

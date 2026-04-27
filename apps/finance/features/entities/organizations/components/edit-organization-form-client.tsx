@@ -1,23 +1,45 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import type { PartyProfileBundleInput } from "@bedrock/parties/contracts";
 import {
+  BilingualToolbar,
+  type BilingualMode,
+} from "@bedrock/sdk-parties-ui/components/bilingual-toolbar";
+import {
   OrganizationGeneralEditor,
+  type OrganizationGeneralEditorExternalPatch,
   type OrganizationGeneralFormValues,
 } from "@bedrock/sdk-parties-ui/components/organization-general-editor";
 import { PartyProfileEditor } from "@bedrock/sdk-parties-ui/components/party-profile-editor";
-import { Button } from "@bedrock/sdk-ui/components/button";
+import { readLocalizedTextLocale } from "@bedrock/sdk-parties-ui/lib/localized-text";
+import {
+  createSeededPartyProfileBundle,
+  toPartyProfileBundleInput,
+} from "@bedrock/sdk-parties-ui/lib/party-profile";
 import type { PartyProfileBundleSource } from "@bedrock/sdk-parties-ui/lib/party-profile";
+import { computePartyProfileCompleteness } from "@bedrock/sdk-parties-ui/lib/party-profile-completeness";
+import { Alert, AlertDescription } from "@bedrock/sdk-ui/components/alert";
+import { Button } from "@bedrock/sdk-ui/components/button";
 import { toast } from "@bedrock/sdk-ui/components/sonner";
 
 import { EntityDeleteDialog } from "@/components/entities/entity-delete-dialog";
-import type { SerializedOrganization } from "../lib/types";
-import { useOrganizationDraftName } from "../lib/create-draft-name-context";
+import {
+  EntityPageHeader,
+  getEntityInitials,
+} from "@/components/entities/entity-page-header";
 import { apiClient } from "@/lib/api-client";
+import {
+  applyPartyProfilePatch,
+  type PartyProfileOverride,
+} from "@/lib/party-profile-patch";
 import { executeMutation } from "@/lib/resources/http";
+import { translateOrganizationToEnglish } from "@/lib/translate-organization";
+
+import { useOrganizationDraftName } from "../lib/create-draft-name-context";
+import type { SerializedOrganization } from "../lib/types";
 
 type EditOrganizationFormClientProps = {
   organization: SerializedOrganization;
@@ -27,9 +49,20 @@ type EditOrganizationFormClientProps = {
 function toFormValues(
   organization: SerializedOrganization,
 ): OrganizationGeneralFormValues {
+  const bundle = organization.partyProfile as PartyProfileBundleSource | null;
+  const fullNameI18n = bundle?.profile.fullNameI18n ?? null;
+  const shortNameI18n = bundle?.profile.shortNameI18n ?? null;
   return {
     shortName: organization.shortName,
+    shortNameEn: readLocalizedTextLocale({
+      localeMap: shortNameI18n,
+      locale: "en",
+    }),
     fullName: organization.fullName,
+    fullNameEn: readLocalizedTextLocale({
+      localeMap: fullNameI18n,
+      locale: "en",
+    }),
     kind: organization.kind,
     country: organization.country ?? "",
     externalRef: organization.externalRef ?? "",
@@ -52,6 +85,17 @@ export function EditOrganizationFormClient({
   const [deleting, setDeleting] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [bilingualMode, setBilingualMode] = useState<BilingualMode>("all");
+  const [generalValues, setGeneralValues] =
+    useState<OrganizationGeneralFormValues>(initialValues);
+  const [externalPatch, setExternalPatch] =
+    useState<OrganizationGeneralEditorExternalPatch | null>(null);
+  const [overriddenBundle, setOverriddenBundle] =
+    useState<PartyProfileBundleInput | null>(null);
+  const [partyProfileOverride, setPartyProfileOverride] =
+    useState<PartyProfileOverride | null>(null);
+  const [translating, setTranslating] = useState(false);
+  const [translateError, setTranslateError] = useState<string | null>(null);
 
   const handleShortNameChange = useCallback(
     (name: string) => {
@@ -67,6 +111,94 @@ export function EditOrganizationFormClient({
     }),
     [current.country, current.fullName, current.shortName],
   );
+
+  const effectiveBundle:
+    | PartyProfileBundleSource
+    | PartyProfileBundleInput
+    | null =
+    overriddenBundle ??
+    (current.partyProfile as PartyProfileBundleSource | null);
+
+  const partyProfileDraft: PartyProfileBundleInput | null = useMemo(() => {
+    if (overriddenBundle) {
+      return overriddenBundle;
+    }
+    if (current.partyProfile) {
+      return toPartyProfileBundleInput(
+        current.partyProfile as PartyProfileBundleSource,
+        partyProfileSeed,
+      );
+    }
+    return null;
+  }, [current.partyProfile, overriddenBundle, partyProfileSeed]);
+
+  const completeness = useMemo(
+    () =>
+      computePartyProfileCompleteness(partyProfileDraft, {
+        excludeProfileNames: true,
+        extraPairs: [
+          { ru: generalValues.shortName, en: generalValues.shortNameEn },
+          { ru: generalValues.fullName, en: generalValues.fullNameEn },
+        ],
+      }).ratio,
+    [generalValues, partyProfileDraft],
+  );
+
+  const partyProfileOverrideNonce = partyProfileOverride?.nonce ?? null;
+  useEffect(() => {
+    if (!partyProfileOverride) {
+      return;
+    }
+
+    const base =
+      overriddenBundle ??
+      (current.partyProfile
+        ? toPartyProfileBundleInput(
+            current.partyProfile as PartyProfileBundleSource,
+            partyProfileSeed,
+          )
+        : createSeededPartyProfileBundle({
+            fullName: current.fullName,
+            shortName: current.shortName,
+            countryCode: current.country,
+          }));
+
+    const next = applyPartyProfilePatch(base, partyProfileOverride.patch);
+    setOverriddenBundle(next);
+    // Triggered by nonce change; dependencies intentionally narrow.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [partyProfileOverrideNonce]);
+
+  const handleTranslateAll = useCallback(async () => {
+    setTranslating(true);
+    setTranslateError(null);
+    try {
+      const next = await translateOrganizationToEnglish({
+        bundle: partyProfileDraft,
+        general: {
+          shortName: generalValues.shortName,
+          shortNameEn: generalValues.shortNameEn,
+          fullName: generalValues.fullName,
+          fullNameEn: generalValues.fullNameEn,
+        },
+      });
+      const nonce = Date.now();
+      if (next.profile) {
+        setPartyProfileOverride({ nonce, patch: next.profile });
+      }
+      if (Object.keys(next.general).length > 0) {
+        setExternalPatch({ nonce, patch: next.general });
+      }
+    } catch (translationError) {
+      setTranslateError(
+        translationError instanceof Error
+          ? translationError.message
+          : "Ошибка перевода полей",
+      );
+    } finally {
+      setTranslating(false);
+    }
+  }, [generalValues, partyProfileDraft]);
 
   async function handleSubmit(
     values: OrganizationGeneralFormValues,
@@ -91,7 +223,8 @@ export function EditOrganizationFormClient({
           },
         }),
       fallbackMessage: "Не удалось обновить организацию",
-      parseData: async (response) => (await response.json()) as SerializedOrganization,
+      parseData: async (response) =>
+        (await response.json()) as SerializedOrganization,
     });
 
     setSubmitting(false);
@@ -111,19 +244,18 @@ export function EditOrganizationFormClient({
     return nextValues;
   }
 
-  async function handleLegalEntitySubmit(
-    bundle: PartyProfileBundleInput,
-  ) {
+  async function handleLegalEntitySubmit(bundle: PartyProfileBundleInput) {
     setError(null);
     setSavingLegalEntity(true);
 
     const result = await executeMutation<SerializedOrganization>({
       request: async () => {
-        const response =
-          await apiClient.v1.organizations[":id"]["party-profile"].$put({
-            param: { id: current.id },
-            json: bundle,
-          });
+        const response = await apiClient.v1.organizations[":id"][
+          "party-profile"
+        ].$put({
+          param: { id: current.id },
+          json: bundle,
+        });
 
         if (!response.ok) {
           return response;
@@ -134,7 +266,8 @@ export function EditOrganizationFormClient({
         });
       },
       fallbackMessage: "Не удалось обновить юридические данные организации",
-      parseData: async (response) => (await response.json()) as SerializedOrganization,
+      parseData: async (response) =>
+        (await response.json()) as SerializedOrganization,
     });
 
     setSavingLegalEntity(false);
@@ -146,11 +279,14 @@ export function EditOrganizationFormClient({
     }
 
     setCurrent(result.data);
+    setOverriddenBundle(null);
     setInitialValues(toFormValues(result.data));
     toast.success("Юридические данные организации обновлены");
     router.refresh();
 
-    return (result.data.partyProfile as PartyProfileBundleSource | null) ?? bundle;
+    return (
+      (result.data.partyProfile as PartyProfileBundleSource | null) ?? bundle
+    );
   }
 
   async function handleDelete() {
@@ -180,16 +316,81 @@ export function EditOrganizationFormClient({
     return true;
   }
 
+  const showBilingualToolbar = current.kind === "legal_entity";
+
+  const displayName =
+    generalValues.shortNameEn.trim() ||
+    generalValues.shortName.trim() ||
+    current.shortName ||
+    current.fullName ||
+    "Организация";
+  const displaySecondaryName =
+    generalValues.shortNameEn.trim() &&
+    generalValues.shortName.trim() &&
+    generalValues.shortNameEn.trim() !== generalValues.shortName.trim()
+      ? generalValues.shortName.trim()
+      : null;
+  const headerInn =
+    partyProfileDraft?.identifiers?.find(
+      (identifier) => identifier.scheme === "inn",
+    )?.value ?? null;
+  const kindLabel = current.kind === "legal_entity" ? "Юр. лицо" : "Физ. лицо";
+  const countryLabel = generalValues.country || current.country || "—";
+
   return (
     <div className="space-y-6">
+      <EntityPageHeader
+        avatar={{ initials: getEntityInitials(displayName) }}
+        title={displayName}
+        titleSecondary={displaySecondaryName ?? undefined}
+        infoItems={[
+          <span key="id" className="font-mono">
+            ID {shortenUuid(current.id)}
+          </span>,
+          kindLabel,
+          countryLabel,
+          current.kind === "legal_entity" ? (
+            <span key="inn" className="font-mono">
+              ИНН {headerInn ?? "—"}
+            </span>
+          ) : null,
+        ]}
+      />
+
+      {showBilingualToolbar ? (
+        <BilingualToolbar
+          value={bilingualMode}
+          onChange={setBilingualMode}
+          completeness={completeness}
+          onTranslateAll={handleTranslateAll}
+          translating={translating}
+        />
+      ) : null}
+
+      {translateError ? (
+        <Alert variant="destructive">
+          <AlertDescription>{translateError}</AlertDescription>
+        </Alert>
+      ) : null}
+
+      {error ? (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
+
       <OrganizationGeneralEditor
         initialValues={initialValues}
         createdAt={current.createdAt}
         updatedAt={current.updatedAt}
         submitting={submitting}
         error={error}
+        bilingualMode={bilingualMode}
+        externalPatch={externalPatch}
+        readOnlyNames
         onSubmit={handleSubmit}
         onShortNameChange={handleShortNameChange}
+        onValuesChange={setGeneralValues}
         headerActions={
           <EntityDeleteDialog
             open={deleteDialogOpen}
@@ -200,21 +401,37 @@ export function EditOrganizationFormClient({
             title="Удалить организацию?"
             description="Организация будет удалена без возможности восстановления."
             trigger={
-              <Button variant="destructive" type="button" disabled={submitting} />
+              <Button
+                variant="destructive"
+                type="button"
+                disabled={submitting}
+              />
             }
           />
         }
       />
       {current.kind === "legal_entity" ? (
         <PartyProfileEditor
-          bundle={current.partyProfile as PartyProfileBundleSource | null}
+          bundle={effectiveBundle}
           seed={partyProfileSeed}
+          localizedTextVariant={bilingualMode}
           submitting={savingLegalEntity}
           error={error}
+          onChange={(bundle) => {
+            setOverriddenBundle(bundle);
+          }}
           onSubmit={handleLegalEntitySubmit}
+          showLocalizedTextModeSwitcher={false}
           title="Мастер-данные организации"
         />
       ) : null}
     </div>
   );
+}
+
+function shortenUuid(id: string) {
+  if (id.length <= 10) {
+    return id;
+  }
+  return `${id.slice(0, 8)}…`;
 }

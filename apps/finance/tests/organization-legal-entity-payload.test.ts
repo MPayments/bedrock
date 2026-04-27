@@ -7,7 +7,9 @@ describe("organization legal entity payload", () => {
     const payload = buildOrganizationLegalEntityPayload(
       {
         shortName: "Acme",
+        shortNameEn: "",
         fullName: "Acme LLC",
+        fullNameEn: "",
         kind: "legal_entity",
         country: "US",
         externalRef: "ext-1",

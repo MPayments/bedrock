@@ -5,18 +5,29 @@ import type { ChangeEvent, ReactNode } from "react";
 import {
   FileSignature,
   Loader2,
+  Plus,
   Stamp,
   Upload,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { PartyProfileEditor } from "@bedrock/sdk-parties-ui/components/party-profile-editor";
+import type { PartyProfileBundleInput } from "@bedrock/parties/contracts";
+import {
+  BilingualToolbar,
+  type BilingualMode,
+} from "@bedrock/sdk-parties-ui/components/bilingual-toolbar";
 import {
   OrganizationGeneralEditor,
+  type OrganizationGeneralEditorExternalPatch,
   type OrganizationGeneralFormValues,
 } from "@bedrock/sdk-parties-ui/components/organization-general-editor";
-import { createSeededPartyProfileBundle } from "@bedrock/sdk-parties-ui/lib/party-profile";
+import { PartyProfileEditor } from "@bedrock/sdk-parties-ui/components/party-profile-editor";
+import { updateLocalizedTextLocale } from "@bedrock/sdk-parties-ui/lib/localized-text";
+import { computePartyProfileCompleteness } from "@bedrock/sdk-parties-ui/lib/party-profile-completeness";
+import {
+  createSeededPartyProfileBundle,
+} from "@bedrock/sdk-parties-ui/lib/party-profile";
 import { Alert, AlertDescription } from "@bedrock/sdk-ui/components/alert";
 import { Button } from "@bedrock/sdk-ui/components/button";
 import {
@@ -26,7 +37,22 @@ import {
   CardTitle,
 } from "@bedrock/sdk-ui/components/card";
 
+import {
+  EntityPageHeader,
+  getEntityInitials,
+} from "@/components/app/entity-page-header";
 import { ImageCropper, type ImageType } from "@/components/ui/image-cropper";
+import {
+  applyPartyProfilePatch,
+  type PartyProfileOverride,
+} from "@/lib/party-profile-patch";
+import { translateOrganizationToEnglish } from "@/lib/translate-party-profile";
+
+import {
+  OrganizationInputMethodCard,
+  type OrganizationInputMethod,
+  type OrganizationPrefillPatch,
+} from "../_components/organization-input-method-card";
 
 import {
   buildOrganizationWorkspaceHref,
@@ -34,11 +60,11 @@ import {
   uploadOrganizationWorkspaceFiles,
 } from "../[id]/_lib/organization-workspace-api";
 
-import type { PartyProfileBundleInput } from "@bedrock/parties/contracts";
-
 const EMPTY_VALUES: OrganizationGeneralFormValues = {
   shortName: "",
+  shortNameEn: "",
   fullName: "",
+  fullNameEn: "",
   kind: "legal_entity",
   country: "",
   externalRef: "",
@@ -106,6 +132,23 @@ export default function NewOrganizationPage() {
     useState<ImageType>("signature");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [bilingualMode, setBilingualMode] = useState<BilingualMode>("all");
+  const [inputMethod, setInputMethod] =
+    useState<OrganizationInputMethod>("manual");
+  const [externalPatch, setExternalPatch] =
+    useState<OrganizationGeneralEditorExternalPatch | null>(null);
+  const [partyProfileOverride, setPartyProfileOverride] =
+    useState<PartyProfileOverride | null>(null);
+  const [translating, setTranslating] = useState(false);
+  const [translateError, setTranslateError] = useState<string | null>(null);
+
+  const organizationKind: "legal_entity" | "individual" = generalValues.kind;
+
+  useEffect(() => {
+    if (organizationKind === "individual" && inputMethod !== "manual") {
+      setInputMethod("manual");
+    }
+  }, [organizationKind, inputMethod]);
 
   const partyProfileSeed = useMemo(
     () => ({
@@ -115,6 +158,44 @@ export default function NewOrganizationPage() {
     }),
     [generalValues.country, generalValues.fullName, generalValues.shortName],
   );
+
+  const completeness = useMemo(
+    () =>
+      computePartyProfileCompleteness(partyProfileDraft, {
+        excludeProfileNames: true,
+        extraPairs: [
+          {
+            ru: generalValues.shortName,
+            en: generalValues.shortNameEn,
+          },
+          {
+            ru: generalValues.fullName,
+            en: generalValues.fullNameEn,
+          },
+        ],
+      }).ratio,
+    [partyProfileDraft, generalValues],
+  );
+
+  const partyProfileOverrideNonce = partyProfileOverride?.nonce ?? null;
+  useEffect(() => {
+    if (!partyProfileOverride) {
+      return;
+    }
+
+    const base =
+      partyProfileDraft ??
+      createSeededPartyProfileBundle({
+        fullName: generalValues.fullName,
+        shortName: generalValues.shortName,
+        countryCode: generalValues.country || null,
+      });
+
+    const next = applyPartyProfilePatch(base, partyProfileOverride.patch);
+    setPartyProfileDraft(next);
+    // Triggered by nonce change; dependencies intentionally narrow.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [partyProfileOverrideNonce]);
 
   useEffect(() => {
     const currentSignaturePreview = signaturePreview;
@@ -129,6 +210,43 @@ export default function NewOrganizationPage() {
       }
     };
   }, [sealPreview, signaturePreview]);
+
+  const handlePrefill = useCallback((patch: OrganizationPrefillPatch) => {
+    const now = Date.now();
+    setExternalPatch({ nonce: now, patch: patch.general });
+    setPartyProfileOverride({ nonce: now, patch: patch.profile });
+  }, []);
+
+  const handleTranslateAll = useCallback(async () => {
+    setTranslating(true);
+    setTranslateError(null);
+    try {
+      const next = await translateOrganizationToEnglish({
+        bundle: partyProfileDraft,
+        general: {
+          shortName: generalValues.shortName,
+          shortNameEn: generalValues.shortNameEn,
+          fullName: generalValues.fullName,
+          fullNameEn: generalValues.fullNameEn,
+        },
+      });
+      const nonce = Date.now();
+      if (next.profile) {
+        setPartyProfileOverride({ nonce, patch: next.profile });
+      }
+      if (Object.keys(next.general).length > 0) {
+        setExternalPatch({ nonce, patch: next.general });
+      }
+    } catch (translationError) {
+      setTranslateError(
+        translationError instanceof Error
+          ? translationError.message
+          : "Ошибка перевода полей",
+      );
+    } finally {
+      setTranslating(false);
+    }
+  }, [partyProfileDraft, generalValues]);
 
   function handleImageSelection(
     event: ChangeEvent<HTMLInputElement>,
@@ -175,27 +293,38 @@ export default function NewOrganizationPage() {
 
   function resolvePartyProfileBundle(values: OrganizationGeneralFormValues) {
     const fallbackCountryCode = values.country.trim() || null;
+    const base =
+      partyProfileDraft ??
+      createSeededPartyProfileBundle({
+        fullName: values.fullName.trim(),
+        shortName: values.shortName.trim(),
+        countryCode: fallbackCountryCode,
+      });
 
-    return partyProfileDraft
-      ? {
-          ...partyProfileDraft,
-          profile: {
-            ...partyProfileDraft.profile,
-            fullName:
-              partyProfileDraft.profile.fullName.trim() ||
-              values.fullName.trim(),
-            shortName:
-              partyProfileDraft.profile.shortName.trim() ||
-              values.shortName.trim(),
-            countryCode:
-              partyProfileDraft.profile.countryCode ?? fallbackCountryCode,
-          },
-        }
-      : createSeededPartyProfileBundle({
-          fullName: values.fullName.trim(),
-          shortName: values.shortName.trim(),
-          countryCode: fallbackCountryCode,
-        });
+    const nextFullNameI18n = updateLocalizedTextLocale({
+      baseValue: values.fullName.trim(),
+      localeMap: base.profile.fullNameI18n,
+      nextValue: values.fullNameEn.trim(),
+      locale: "en",
+    }).localeMap;
+    const nextShortNameI18n = updateLocalizedTextLocale({
+      baseValue: values.shortName.trim(),
+      localeMap: base.profile.shortNameI18n,
+      nextValue: values.shortNameEn.trim(),
+      locale: "en",
+    }).localeMap;
+
+    return {
+      ...base,
+      profile: {
+        ...base.profile,
+        fullName: base.profile.fullName.trim() || values.fullName.trim(),
+        shortName: base.profile.shortName.trim() || values.shortName.trim(),
+        fullNameI18n: nextFullNameI18n,
+        shortNameI18n: nextShortNameI18n,
+        countryCode: base.profile.countryCode ?? fallbackCountryCode,
+      },
+    };
   }
 
   async function handleSubmit(values: OrganizationGeneralFormValues) {
@@ -250,11 +379,48 @@ export default function NewOrganizationPage() {
     }
   }
 
+  const createHeaderTitle =
+    generalValues.shortNameEn.trim() ||
+    generalValues.shortName.trim() ||
+    "Новая организация";
+  const hasTypedName =
+    generalValues.shortNameEn.trim() !== "" ||
+    generalValues.shortName.trim() !== "";
+  const createHeaderAvatar = hasTypedName
+    ? { initials: getEntityInitials(createHeaderTitle) }
+    : { icon: <Plus className="size-4" /> };
+  const kindLabel =
+    generalValues.kind === "legal_entity" ? "Юр. лицо" : "Физ. лицо";
+
   return (
     <div className="space-y-6">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-bold">Новая организация</h1>
-      </div>
+      <EntityPageHeader
+        avatar={createHeaderAvatar}
+        title={createHeaderTitle}
+        badge={{ label: "Draft", variant: "warning" }}
+        infoItems={["Новая организация", kindLabel]}
+      />
+
+      <OrganizationInputMethodCard
+        organizationKind={organizationKind}
+        mode={inputMethod}
+        onModeChange={setInputMethod}
+        onPrefill={handlePrefill}
+      />
+
+      <BilingualToolbar
+        value={bilingualMode}
+        onChange={setBilingualMode}
+        completeness={completeness}
+        onTranslateAll={handleTranslateAll}
+        translating={translating}
+      />
+
+      {translateError ? (
+        <Alert variant="destructive">
+          <AlertDescription>{translateError}</AlertDescription>
+        </Alert>
+      ) : null}
 
       {error ? (
         <Alert variant="destructive">
@@ -266,6 +432,8 @@ export default function NewOrganizationPage() {
         initialValues={EMPTY_VALUES}
         submitting={submitting}
         error={error}
+        externalPatch={externalPatch}
+        bilingualMode={bilingualMode}
         onValuesChange={setGeneralValues}
         onSubmit={handleSubmit}
         onShortNameChange={() => {}}
@@ -281,9 +449,11 @@ export default function NewOrganizationPage() {
         <PartyProfileEditor
           bundle={partyProfileDraft}
           seed={partyProfileSeed}
+          localizedTextVariant={bilingualMode}
           submitting={submitting}
           error={error}
           showActions={false}
+          showLocalizedTextModeSwitcher={false}
           onChange={setPartyProfileDraft}
           title="Юридическое лицо"
         />
