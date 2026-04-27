@@ -9,7 +9,7 @@ export interface RateObservation {
   asOf: Date;
 }
 
-const USDT_ORDER: RateSource[] = ["grinex", "cbr", "xe", "investing"];
+const USDT_ORDER: RateSource[] = ["cbr", "xe", "investing"];
 const RUB_ORDER: RateSource[] = ["cbr", "xe", "investing"];
 const USD_ORDER: RateSource[] = ["xe", "cbr", "investing"];
 const DEFAULT_ORDER: RateSource[] = ["investing", "cbr", "xe"];

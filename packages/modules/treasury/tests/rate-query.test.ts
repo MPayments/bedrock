@@ -23,7 +23,7 @@ function createHarness() {
 
   const pairKey = (baseId: string, quoteId: string) => `${baseId}|${quoteId}`;
   const sourcePairKey = (
-    source: "cbr" | "investing" | "xe" | "grinex",
+    source: "cbr" | "investing" | "xe",
     baseId: string,
     quoteId: string,
   ) => `${source}|${pairKey(baseId, quoteId)}`;
@@ -47,7 +47,7 @@ function createHarness() {
         baseId: string,
         quoteId: string,
         _asOf: Date,
-        source: "cbr" | "investing" | "xe" | "grinex",
+        source: "cbr" | "investing" | "xe",
       ) => sourceRates.get(sourcePairKey(source, baseId, quoteId)),
     ),
   };
@@ -82,7 +82,7 @@ function createHarness() {
       manualRates.set(pairKey(baseId, quoteId), row);
     },
     setSourceRate(
-      source: "cbr" | "investing" | "xe" | "grinex",
+      source: "cbr" | "investing" | "xe",
       base: "USD" | "EUR" | "RUB",
       quote: "USD" | "EUR" | "RUB",
       row: RateRow,
