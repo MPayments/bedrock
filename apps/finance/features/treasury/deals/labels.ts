@@ -119,9 +119,12 @@ const DEAL_LEG_KIND_LABELS: Record<string, string> = {
 
 const DEAL_LEG_STATE_LABELS: Record<string, string> = {
   blocked: "Заблокирован",
+  completed: "Завершен",
   done: "Завершен",
   in_progress: "В работе",
+  not_materialized: "Не создан",
   pending: "Ожидает",
+  processing: "В обработке",
   ready: "Подготовлен",
   skipped: "Пропущен",
 };

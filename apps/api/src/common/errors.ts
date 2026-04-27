@@ -23,9 +23,12 @@ import {
 } from "@bedrock/shared/core/errors";
 import {
   PaymentStepNotFoundError,
+  PaymentStepConflictError,
   RateNotFoundError,
   RateSourceStaleError,
   RateSourceSyncError,
+  TreasuryOrderConflictError,
+  TreasuryOrderNotFoundError,
 } from "@bedrock/treasury";
 
 type ErrorConstructorLike = abstract new (...args: any[]) => Error;
@@ -36,6 +39,7 @@ const ROUTE_ERROR_STATUS_GROUPS = [
     status: 404,
     errors: [
       PaymentStepNotFoundError,
+      TreasuryOrderNotFoundError,
       RateNotFoundError,
       DocumentNotFoundError,
       NotFoundError,
@@ -55,6 +59,8 @@ const ROUTE_ERROR_STATUS_GROUPS = [
       DocumentSystemOnlyTypeError,
       InvalidStateError,
       ConflictError,
+      PaymentStepConflictError,
+      TreasuryOrderConflictError,
       DocumentPostingNotRequiredError,
       ActionReceiptConflictError,
       ActionReceiptStoredError,

@@ -25,6 +25,8 @@ import type {
   RateSource,
   RateSourceProvider,
 } from "./shared/application/external-ports";
+import { createTreasuryOrdersService } from "./treasury-orders/application";
+import type { TreasuryOrdersRepository } from "./treasury-orders/application/ports/treasury-orders.repository";
 
 export type TreasuryModuleUnitOfWork = QuotesCommandUnitOfWork;
 
@@ -40,6 +42,7 @@ export interface TreasuryModuleDeps {
   feeRulesRepository: FeeRuleRepository;
   paymentRouteTemplatesRepository: PaymentRouteTemplatesRepository;
   paymentStepsRepository: PaymentStepsRepository;
+  treasuryOrdersRepository: TreasuryOrdersRepository;
   unitOfWork: TreasuryModuleUnitOfWork;
   rateSourceProviders?: Partial<Record<RateSource, RateSourceProvider>>;
 }
@@ -74,10 +77,17 @@ export function createTreasuryModule(deps: TreasuryModuleDeps) {
     getCrossRate: rates.queries.getCrossRate,
   });
 
+  const paymentSteps = createPaymentStepsService({
+    repository: deps.paymentStepsRepository,
+    runtime: createRuntime("treasury.payment_steps"),
+  });
+
   return {
-    paymentSteps: createPaymentStepsService({
-      repository: deps.paymentStepsRepository,
-      runtime: createRuntime("treasury.payment_steps"),
+    paymentSteps,
+    treasuryOrders: createTreasuryOrdersService({
+      paymentSteps,
+      repository: deps.treasuryOrdersRepository,
+      runtime: createRuntime("treasury.orders"),
     }),
     rates,
     quotes: createQuotesService({

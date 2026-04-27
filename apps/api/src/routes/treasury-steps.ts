@@ -6,8 +6,8 @@ import type { Transaction } from "@bedrock/platform/persistence";
 import type { TreasuryModule } from "@bedrock/treasury";
 import {
   ArtifactRefSchema,
-  PaymentStepDealLegRoleSchema,
   PaymentStepKindSchema,
+  PaymentStepOriginSchema,
   PaymentStepPartyRefSchema,
   PaymentStepPurposeSchema,
   PaymentStepRateLockedSideSchema,
@@ -50,7 +50,9 @@ const CreateStandalonePaymentStepBodySchema = z.object({
   id: z.uuid().optional(),
   initialState: z.enum(["draft", "pending"]).optional().default("draft"),
   kind: PaymentStepKindSchema,
+  quoteId: z.uuid().nullable().optional().default(null),
   rate: PaymentStepRateSchema.nullable().optional().default(null),
+  sourceRef: z.string().trim().min(1).max(512).optional(),
   toAmountMinor: OptionalMinorStringSchema,
   toCurrencyId: z.uuid(),
   toParty: PaymentStepPartyInputSchema,
@@ -67,6 +69,14 @@ const ConfirmPaymentStepBodySchema = z.object({
   attemptId: z.uuid().optional(),
   failureReason: z.string().trim().max(1000).nullable().optional().default(null),
   outcome: z.enum(["settled", "failed", "returned"]),
+});
+
+const RecordPaymentStepReturnBodySchema = z.object({
+  amountMinor: OptionalMinorStringSchema,
+  currencyId: z.uuid().nullable().optional().default(null),
+  providerRef: z.string().trim().min(1).max(255).nullable().optional().default(null),
+  reason: z.string().trim().max(1000).nullable().optional().default(null),
+  returnId: z.uuid().optional(),
 });
 
 const AmendPaymentStepBodySchema = z.object({
@@ -113,29 +123,68 @@ const PaymentStepAttemptResponseSchema = z.object({
   updatedAt: z.iso.datetime(),
 });
 
-const PaymentStepResponseSchema = z.object({
-  artifacts: z.array(ArtifactRefSchema),
-  attempts: z.array(PaymentStepAttemptResponseSchema),
-  completedAt: z.iso.datetime().nullable(),
-  createdAt: z.iso.datetime(),
-  dealId: z.uuid().nullable(),
-  dealLegIdx: z.number().int().nonnegative().nullable(),
-  dealLegRole: PaymentStepDealLegRoleSchema.nullable(),
-  failureReason: z.string().nullable(),
+const PaymentStepRouteResponseSchema = z.object({
   fromAmountMinor: z.string().nullable(),
   fromCurrencyId: z.uuid(),
   fromParty: PaymentStepPartyRefSchema,
-  id: z.uuid(),
-  kind: PaymentStepKindSchema,
-  postings: z.array(PostingDocumentRefSchema),
-  purpose: PaymentStepPurposeSchema,
   rate: z
     .object({
       lockedSide: PaymentStepRateLockedSideSchema,
       value: z.string(),
     })
     .nullable(),
+  toAmountMinor: z.string().nullable(),
+  toCurrencyId: z.uuid(),
+  toParty: PaymentStepPartyRefSchema,
+});
+
+const PaymentStepAmendmentResponseSchema = z.object({
+  after: PaymentStepRouteResponseSchema,
+  before: PaymentStepRouteResponseSchema,
+  createdAt: z.iso.datetime(),
+  id: z.string(),
+});
+
+const PaymentStepReturnResponseSchema = z.object({
+  amountMinor: z.string().nullable(),
+  createdAt: z.iso.datetime(),
+  currencyId: z.uuid().nullable(),
+  id: z.string(),
+  paymentStepId: z.uuid(),
+  providerRef: z.string().nullable(),
+  reason: z.string().nullable(),
+  returnedAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+});
+
+const PaymentStepResponseSchema = z.object({
+  amendments: z.array(PaymentStepAmendmentResponseSchema),
+  artifacts: z.array(ArtifactRefSchema),
+  attempts: z.array(PaymentStepAttemptResponseSchema),
+  completedAt: z.iso.datetime().nullable(),
+  createdAt: z.iso.datetime(),
+  dealId: z.uuid().nullable(),
+  failureReason: z.string().nullable(),
+  fromAmountMinor: z.string().nullable(),
+  fromCurrencyId: z.uuid(),
+  fromParty: PaymentStepPartyRefSchema,
+  id: z.uuid(),
+  kind: PaymentStepKindSchema,
+  currentRoute: PaymentStepRouteResponseSchema,
+  origin: PaymentStepOriginSchema,
+  plannedRoute: PaymentStepRouteResponseSchema,
+  postingDocumentRefs: z.array(PostingDocumentRefSchema),
+  purpose: PaymentStepPurposeSchema,
+  quoteId: z.uuid().nullable(),
+  rate: z
+    .object({
+      lockedSide: PaymentStepRateLockedSideSchema,
+      value: z.string(),
+    })
+    .nullable(),
+  returns: z.array(PaymentStepReturnResponseSchema),
   scheduledAt: z.iso.datetime().nullable(),
+  sourceRef: z.string(),
   state: PaymentStepStateSchema,
   submittedAt: z.iso.datetime().nullable(),
   toAmountMinor: z.string().nullable(),
@@ -166,9 +215,23 @@ function serializeMinor(value: bigint | string | null): string | null {
   return value === null ? null : value.toString();
 }
 
+function serializeRoute(route: PaymentStep["currentRoute"]) {
+  return {
+    ...route,
+    fromAmountMinor: serializeMinor(route.fromAmountMinor),
+    toAmountMinor: serializeMinor(route.toAmountMinor),
+  };
+}
+
 function serializePaymentStep(step: PaymentStep): PaymentStepResponse {
   return {
     ...step,
+    amendments: step.amendments.map((amendment) => ({
+      after: serializeRoute(amendment.after),
+      before: serializeRoute(amendment.before),
+      createdAt: serializeDate(amendment.createdAt),
+      id: amendment.id,
+    })),
     attempts: step.attempts.map((attempt) => ({
       ...attempt,
       createdAt: serializeDate(attempt.createdAt),
@@ -178,7 +241,18 @@ function serializePaymentStep(step: PaymentStep): PaymentStepResponse {
     })),
     completedAt: serializeNullableDate(step.completedAt),
     createdAt: serializeDate(step.createdAt),
+    currentRoute: serializeRoute(step.currentRoute),
     fromAmountMinor: serializeMinor(step.fromAmountMinor),
+    origin: step.origin,
+    plannedRoute: serializeRoute(step.plannedRoute),
+    postingDocumentRefs: step.postingDocumentRefs,
+    returns: step.returns.map((record) => ({
+      ...record,
+      amountMinor: serializeMinor(record.amountMinor),
+      createdAt: serializeDate(record.createdAt),
+      returnedAt: serializeDate(record.returnedAt),
+      updatedAt: serializeDate(record.updatedAt),
+    })),
     scheduledAt: serializeNullableDate(step.scheduledAt),
     submittedAt: serializeNullableDate(step.submittedAt),
     toAmountMinor: serializeMinor(step.toAmountMinor),
@@ -403,6 +477,59 @@ export function treasuryStepsRoutes(ctx: AppContext) {
     responses: {
       200: {
         description: "Payment step outcome recorded",
+        content: {
+          "application/json": {
+            schema: PaymentStepResponseSchema,
+          },
+        },
+      },
+      400: {
+        description: "Validation or idempotency header error",
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+      },
+      404: {
+        description: "Payment step not found",
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+      },
+      409: {
+        description: "Invalid state or idempotency conflict",
+        content: {
+          "application/json": {
+            schema: ErrorSchema,
+          },
+        },
+      },
+    },
+  });
+
+  const recordReturnRoute = createRoute({
+    middleware: [requirePermission({ deals: ["update"] })],
+    method: "post",
+    path: "/{stepId}/returns",
+    tags: ["Treasury"],
+    summary: "Record a return/reversal event for a completed payment step",
+    request: {
+      params: PaymentStepIdParamsSchema,
+      body: {
+        content: {
+          "application/json": {
+            schema: RecordPaymentStepReturnBodySchema,
+          },
+        },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        description: "Payment step return recorded",
         content: {
           "application/json": {
             schema: PaymentStepResponseSchema,
@@ -680,10 +807,21 @@ export function treasuryStepsRoutes(ctx: AppContext) {
             paymentSteps.commands.create({
               ...body,
               dealId: null,
-              dealLegIdx: null,
-              dealLegRole: null,
+              origin: {
+                dealId: null,
+                planLegId: null,
+                routeSnapshotLegId: null,
+                sequence: null,
+                treasuryOrderId: null,
+                type: "manual",
+              },
               purpose: "standalone_payment",
+              planLegId: null,
+              routeSnapshotLegId: null,
+              sequence: null,
+              sourceRef: body.sourceRef ?? `manual:${body.id ?? crypto.randomUUID()}`,
               treasuryBatchId: null,
+              treasuryOrderId: null,
             }),
         });
 
@@ -761,6 +899,25 @@ export function treasuryStepsRoutes(ctx: AppContext) {
           request: { body, stepId },
           run: (paymentSteps) =>
             paymentSteps.commands.confirm({
+              ...body,
+              stepId,
+            }),
+        });
+
+        return result instanceof Response ? result : c.json(result, 200);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(recordReturnRoute, async (c) => {
+      try {
+        const { stepId } = c.req.valid("param");
+        const body = c.req.valid("json");
+        const result = await runIdempotentStepMutation(ctx, c, {
+          action: "record_return",
+          request: { body, stepId },
+          run: (paymentSteps) =>
+            paymentSteps.commands.recordReturn({
               ...body,
               stepId,
             }),

@@ -37,8 +37,8 @@ import {
 } from "@bedrock/shared/core/pagination";
 import {
   ArtifactRefSchema,
-  PaymentStepDealLegRoleSchema,
   PaymentStepKindSchema,
+  PaymentStepOriginSchema,
   PaymentStepPartyRefSchema,
   PaymentStepPurposeSchema,
   PaymentStepRateLockedSideSchema,
@@ -610,8 +610,21 @@ export const FinanceDealExecutionLegActionsSchema = z.object({
   exchangeDocument: FinanceDealExecutionLegDocumentActionSchema.nullable(),
 });
 
-export const FinanceDealExecutionLegSchema = DealWorkflowLegSchema.extend({
+export const FinanceDealPlanLegRuntimeStateSchema = z.enum([
+  "not_materialized",
+  "ready",
+  "processing",
+  "completed",
+  "blocked",
+  "skipped",
+]);
+
+export const FinanceDealExecutionLegSchema = DealWorkflowLegSchema.omit({
+  operationRefs: true,
+  state: true,
+}).extend({
   actions: FinanceDealExecutionLegActionsSchema,
+  runtimeState: FinanceDealPlanLegRuntimeStateSchema,
 });
 
 export type FinanceDealExecutionLeg = z.infer<
@@ -642,29 +655,68 @@ export type FinanceDealPaymentStepAttempt = z.infer<
   typeof FinanceDealPaymentStepAttemptSchema
 >;
 
-export const FinanceDealPaymentStepSchema = z.object({
-  artifacts: z.array(ArtifactRefSchema),
-  attempts: z.array(FinanceDealPaymentStepAttemptSchema),
-  completedAt: z.iso.datetime().nullable(),
-  createdAt: z.iso.datetime(),
-  dealId: z.uuid().nullable(),
-  dealLegIdx: z.number().int().nonnegative().nullable(),
-  dealLegRole: PaymentStepDealLegRoleSchema.nullable(),
-  failureReason: z.string().nullable(),
+const FinanceDealPaymentStepRouteSchema = z.object({
   fromAmountMinor: z.string().nullable(),
   fromCurrencyId: z.uuid(),
   fromParty: PaymentStepPartyRefSchema,
-  id: z.uuid(),
-  kind: PaymentStepKindSchema,
-  postings: z.array(PostingDocumentRefSchema),
-  purpose: PaymentStepPurposeSchema,
   rate: z
     .object({
       lockedSide: PaymentStepRateLockedSideSchema,
       value: z.string(),
     })
     .nullable(),
+  toAmountMinor: z.string().nullable(),
+  toCurrencyId: z.uuid(),
+  toParty: PaymentStepPartyRefSchema,
+});
+
+const FinanceDealPaymentStepAmendmentSchema = z.object({
+  after: FinanceDealPaymentStepRouteSchema,
+  before: FinanceDealPaymentStepRouteSchema,
+  createdAt: z.iso.datetime(),
+  id: z.string(),
+});
+
+const FinanceDealPaymentStepReturnSchema = z.object({
+  amountMinor: z.string().nullable(),
+  createdAt: z.iso.datetime(),
+  currencyId: z.uuid().nullable(),
+  id: z.string(),
+  paymentStepId: z.uuid(),
+  providerRef: z.string().nullable(),
+  reason: z.string().nullable(),
+  returnedAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+});
+
+export const FinanceDealPaymentStepSchema = z.object({
+  amendments: z.array(FinanceDealPaymentStepAmendmentSchema),
+  artifacts: z.array(ArtifactRefSchema),
+  attempts: z.array(FinanceDealPaymentStepAttemptSchema),
+  completedAt: z.iso.datetime().nullable(),
+  createdAt: z.iso.datetime(),
+  dealId: z.uuid().nullable(),
+  failureReason: z.string().nullable(),
+  fromAmountMinor: z.string().nullable(),
+  fromCurrencyId: z.uuid(),
+  fromParty: PaymentStepPartyRefSchema,
+  id: z.uuid(),
+  kind: PaymentStepKindSchema,
+  currentRoute: FinanceDealPaymentStepRouteSchema,
+  origin: PaymentStepOriginSchema,
+  plannedRoute: FinanceDealPaymentStepRouteSchema,
+  postingDocumentRefs: z.array(PostingDocumentRefSchema),
+  purpose: PaymentStepPurposeSchema,
+  quoteId: z.uuid().nullable(),
+  rate: z
+    .object({
+      lockedSide: PaymentStepRateLockedSideSchema,
+      value: z.string(),
+    })
+    .nullable(),
+  returns: z.array(FinanceDealPaymentStepReturnSchema),
   scheduledAt: z.iso.datetime().nullable(),
+  sourceRef: z.string(),
   state: PaymentStepStateSchema,
   submittedAt: z.iso.datetime().nullable(),
   toAmountMinor: z.string().nullable(),

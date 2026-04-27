@@ -49,7 +49,14 @@ export async function createLegOperation(
         offset: 0,
         purpose: "deal_leg",
       });
-      if (existingSteps.data.some((step) => step.dealLegIdx === leg.idx)) {
+      if (
+        existingSteps.data.some(
+          (step) =>
+            step.origin.type === "deal_execution_leg" &&
+            step.origin.planLegId === leg.id &&
+            !["cancelled", "skipped"].includes(step.state),
+        )
+      ) {
         return workflow;
       }
 

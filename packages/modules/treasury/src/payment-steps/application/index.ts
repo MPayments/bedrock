@@ -4,6 +4,7 @@ import { createCancelDraftPaymentStepsHandler } from "./commands/cancel-draft-st
 import { createCancelPaymentStepHandler } from "./commands/cancel-step";
 import { createConfirmPaymentStepHandler } from "./commands/confirm-step";
 import { createCreatePaymentStepHandler } from "./commands/create-step";
+import { createRecordPaymentStepReturnHandler } from "./commands/record-return";
 import { createSkipPaymentStepHandler } from "./commands/skip-step";
 import { createSubmitPaymentStepHandler } from "./commands/submit-step";
 import {
@@ -24,6 +25,7 @@ export function createPaymentStepsService(deps: PaymentStepsServiceDeps) {
       cancelDrafts: createCancelDraftPaymentStepsHandler(context),
       confirm: createConfirmPaymentStepHandler(context),
       create: createCreatePaymentStepHandler(context),
+      recordReturn: createRecordPaymentStepReturnHandler(context),
       skip: createSkipPaymentStepHandler(context),
       submit: createSubmitPaymentStepHandler(context),
     },

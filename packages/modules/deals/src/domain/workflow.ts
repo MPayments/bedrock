@@ -389,7 +389,7 @@ function findStoredLegMatch(
 }
 
 export interface DealLegPaymentStepRef {
-  dealLegIdx: number;
+  planLegId: string;
   state:
     | "draft"
     | "scheduled"
@@ -458,21 +458,21 @@ export function buildEffectiveDealExecutionPlan(input: {
       state: match.state,
     };
   });
-  const stepsByLegIdx = new Map<number, DealLegPaymentStepRef[]>();
+  const stepsByPlanLegId = new Map<string, DealLegPaymentStepRef[]>();
   for (const step of input.paymentSteps ?? []) {
-    const bucket = stepsByLegIdx.get(step.dealLegIdx) ?? [];
+    const bucket = stepsByPlanLegId.get(step.planLegId) ?? [];
     bucket.push(step);
-    stepsByLegIdx.set(step.dealLegIdx, bucket);
+    stepsByPlanLegId.set(step.planLegId, bucket);
   }
-  const stepDerivedByIdx = new Map<number, DealWorkflowLeg["state"]>();
-  for (const [legIdx, steps] of stepsByLegIdx.entries()) {
+  const stepDerivedByPlanLegId = new Map<string, DealWorkflowLeg["state"]>();
+  for (const [planLegId, steps] of stepsByPlanLegId.entries()) {
     const derived = deriveLegStateFromSteps(steps);
     if (derived) {
-      stepDerivedByIdx.set(legIdx, derived);
+      stepDerivedByPlanLegId.set(planLegId, derived);
     }
   }
   const stepAware = merged.map((leg) => {
-    const derived = stepDerivedByIdx.get(leg.idx);
+    const derived = leg.id ? stepDerivedByPlanLegId.get(leg.id) : undefined;
     if (derived) {
       return {
         ...leg,

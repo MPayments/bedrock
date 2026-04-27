@@ -1,10 +1,12 @@
 ALTER TABLE "file_links" DROP CONSTRAINT "file_links_generated_variant_shape_chk";--> statement-breakpoint
+DROP INDEX "file_links_agreement_signed_contract_uq";--> statement-breakpoint
+DROP INDEX "file_links_generated_deal_variant_uq";--> statement-breakpoint
+DROP INDEX "file_links_generated_counterparty_variant_uq";--> statement-breakpoint
 ALTER TABLE "file_links" ALTER COLUMN "link_kind" SET DATA TYPE text;--> statement-breakpoint
 DROP TYPE "public"."file_link_kind";--> statement-breakpoint
 CREATE TYPE "public"."file_link_kind" AS ENUM('deal_attachment', 'legal_entity_attachment', 'agreement_signed_contract', 'payment_step_evidence');--> statement-breakpoint
 ALTER TABLE "file_links" ALTER COLUMN "link_kind" SET DATA TYPE "public"."file_link_kind" USING "link_kind"::"public"."file_link_kind";--> statement-breakpoint
-DROP INDEX "file_links_generated_deal_variant_uq";--> statement-breakpoint
-DROP INDEX "file_links_generated_counterparty_variant_uq";--> statement-breakpoint
+CREATE UNIQUE INDEX "file_links_agreement_signed_contract_uq" ON "file_links" USING btree ("agreement_version_id","link_kind") WHERE "file_links"."agreement_version_id" is not null and "file_links"."link_kind" = 'agreement_signed_contract';--> statement-breakpoint
 ALTER TABLE "file_links" ADD CONSTRAINT "file_links_generated_variant_shape_chk" CHECK ((
         "file_links"."link_kind" in ('deal_attachment', 'legal_entity_attachment', 'payment_step_evidence')
         and "file_links"."attachment_purpose" is not null

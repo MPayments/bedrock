@@ -6,6 +6,7 @@ import type { PersistenceSession } from "@bedrock/shared/core/persistence";
 import {
   paymentStepArtifacts,
   paymentStepAttempts,
+  paymentStepReturns,
   paymentSteps,
 } from "./schema";
 import type {
@@ -14,16 +15,21 @@ import type {
 } from "../../application/ports/payment-steps.repository";
 import type {
   ArtifactRef,
+  PaymentStepAmendmentRecord,
   PaymentStepAttemptRecord,
   PaymentStepRecord,
+  PaymentStepReturnRecord,
+  PaymentStepRouteSnapshot,
 } from "../../domain/types";
 
 type PaymentStepRow = typeof paymentSteps.$inferSelect;
 type PaymentStepArtifactRow = typeof paymentStepArtifacts.$inferSelect;
 type PaymentStepAttemptRow = typeof paymentStepAttempts.$inferSelect;
+type PaymentStepReturnRow = typeof paymentStepReturns.$inferSelect;
 type PaymentStepInsertRow = typeof paymentSteps.$inferInsert;
 type PaymentStepArtifactInsertRow = typeof paymentStepArtifacts.$inferInsert;
 type PaymentStepAttemptInsertRow = typeof paymentStepAttempts.$inferInsert;
+type PaymentStepReturnInsertRow = typeof paymentStepReturns.$inferInsert;
 
 type TransactionalQueryable = Queryable & {
   transaction: <TResult>(
@@ -35,19 +41,77 @@ function hasTransaction(db: Queryable): db is TransactionalQueryable {
   return typeof (db as { transaction?: unknown }).transaction === "function";
 }
 
+function serializeJsonAmount(value: bigint | null): string | null {
+  return value === null ? null : value.toString();
+}
+
+function deserializeJsonAmount(value: unknown): bigint | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === "bigint") return value;
+  if (typeof value === "number" && Number.isFinite(value)) return BigInt(value);
+  if (typeof value === "string" && value.trim().length > 0) {
+    return BigInt(value);
+  }
+  return null;
+}
+
+function serializeRouteSnapshot(route: PaymentStepRouteSnapshot): unknown {
+  return {
+    ...route,
+    fromAmountMinor: serializeJsonAmount(route.fromAmountMinor),
+    toAmountMinor: serializeJsonAmount(route.toAmountMinor),
+  };
+}
+
+function deserializeRouteSnapshot(value: unknown): PaymentStepRouteSnapshot {
+  const route = value as PaymentStepRouteSnapshot;
+  return {
+    ...route,
+    fromAmountMinor: deserializeJsonAmount(route.fromAmountMinor),
+    toAmountMinor: deserializeJsonAmount(route.toAmountMinor),
+  };
+}
+
+function serializeAmendments(
+  records: PaymentStepAmendmentRecord[],
+): unknown {
+  return records.map((record) => ({
+    ...record,
+    after: serializeRouteSnapshot(record.after),
+    before: serializeRouteSnapshot(record.before),
+  }));
+}
+
+function deserializeAmendments(value: unknown): PaymentStepAmendmentRecord[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((record) => {
+    const item = record as PaymentStepAmendmentRecord;
+    return {
+      ...item,
+      after: deserializeRouteSnapshot(item.after),
+      before: deserializeRouteSnapshot(item.before),
+      createdAt:
+        item.createdAt instanceof Date
+          ? item.createdAt
+          : new Date(item.createdAt),
+    };
+  });
+}
+
 function toStepRecord(
   row: PaymentStepRow,
   attempts: PaymentStepAttemptRecord[] = [],
   artifacts: ArtifactRef[] = [],
+  returns: PaymentStepReturnRecord[] = [],
 ): PaymentStepRecord {
   return {
+    amendments: deserializeAmendments(row.amendments),
     artifacts,
     attempts,
     completedAt: row.completedAt,
+    currentRoute: deserializeRouteSnapshot(row.currentRoute),
     createdAt: row.createdAt,
     dealId: row.dealId,
-    dealLegIdx: row.dealLegIdx,
-    dealLegRole: row.dealLegRole,
     failureReason: row.failureReason,
     fromAmountMinor: row.fromAmountMinor,
     fromCurrencyId: row.fromCurrencyId,
@@ -57,15 +121,20 @@ function toStepRecord(
     },
     id: row.id,
     kind: row.kind,
-    postings: row.postings,
+    origin: row.origin,
+    plannedRoute: deserializeRouteSnapshot(row.plannedRoute),
+    postingDocumentRefs: row.postingDocumentRefs,
     purpose: row.purpose,
+    quoteId: row.quoteId,
     rate: row.rateValue
       ? {
           lockedSide: row.rateLockedSide ?? "in",
           value: row.rateValue,
-        }
+      }
       : null,
+    returns,
     scheduledAt: row.scheduledAt,
+    sourceRef: row.sourceRef,
     state: row.state,
     submittedAt: row.submittedAt,
     toAmountMinor: row.toAmountMinor,
@@ -101,6 +170,20 @@ function toAttemptRecord(row: PaymentStepAttemptRow): PaymentStepAttemptRecord {
   };
 }
 
+function toReturnRecord(row: PaymentStepReturnRow): PaymentStepReturnRecord {
+  return {
+    amountMinor: row.amountMinor,
+    createdAt: row.createdAt,
+    currencyId: row.currencyId,
+    id: row.id,
+    paymentStepId: row.paymentStepId,
+    providerRef: row.providerRef,
+    reason: row.reason,
+    returnedAt: row.returnedAt,
+    updatedAt: row.updatedAt,
+  };
+}
+
 function toArtifactInsertRow(
   paymentStepId: string,
   artifact: ArtifactRef,
@@ -114,11 +197,15 @@ function toArtifactInsertRow(
 
 function toStepInsertRow(record: PaymentStepRecord): PaymentStepInsertRow {
   return {
+    amendments: serializeAmendments(
+      record.amendments,
+    ) as PaymentStepInsertRow["amendments"],
     completedAt: record.completedAt,
+    currentRoute: serializeRouteSnapshot(
+      record.currentRoute,
+    ) as PaymentStepInsertRow["currentRoute"],
     createdAt: record.createdAt,
     dealId: record.dealId,
-    dealLegIdx: record.dealLegIdx,
-    dealLegRole: record.dealLegRole,
     failureReason: record.failureReason,
     fromAmountMinor: record.fromAmountMinor,
     fromCurrencyId: record.fromCurrencyId,
@@ -126,11 +213,17 @@ function toStepInsertRow(record: PaymentStepRecord): PaymentStepInsertRow {
     fromRequisiteId: record.fromParty.requisiteId,
     id: record.id,
     kind: record.kind,
-    postings: record.postings,
+    origin: record.origin,
+    plannedRoute: serializeRouteSnapshot(
+      record.plannedRoute,
+    ) as PaymentStepInsertRow["plannedRoute"],
+    postingDocumentRefs: record.postingDocumentRefs,
     purpose: record.purpose,
+    quoteId: record.quoteId,
     rateLockedSide: record.rate?.lockedSide ?? null,
     rateValue: record.rate?.value ?? null,
     scheduledAt: record.scheduledAt,
+    sourceRef: record.sourceRef,
     state: record.state,
     submittedAt: record.submittedAt,
     toAmountMinor: record.toAmountMinor,
@@ -138,6 +231,7 @@ function toStepInsertRow(record: PaymentStepRecord): PaymentStepInsertRow {
     toPartyId: record.toParty.id,
     toRequisiteId: record.toParty.requisiteId,
     treasuryBatchId: record.treasuryBatchId,
+    treasuryOrderId: record.origin.treasuryOrderId,
     updatedAt: record.updatedAt,
   };
 }
@@ -155,6 +249,22 @@ function toAttemptInsertRow(
     providerRef: record.providerRef,
     providerSnapshot: record.providerSnapshot,
     submittedAt: record.submittedAt,
+    updatedAt: record.updatedAt,
+  };
+}
+
+function toReturnInsertRow(
+  record: PaymentStepReturnRecord,
+): PaymentStepReturnInsertRow {
+  return {
+    amountMinor: record.amountMinor,
+    createdAt: record.createdAt,
+    currencyId: record.currencyId,
+    id: record.id,
+    paymentStepId: record.paymentStepId,
+    providerRef: record.providerRef,
+    reason: record.reason,
+    returnedAt: record.returnedAt,
     updatedAt: record.updatedAt,
   };
 }
@@ -177,12 +287,18 @@ export class DrizzlePaymentStepsRepository implements PaymentStepsRepository {
       return undefined;
     }
 
-    const [attempts, artifacts] = await Promise.all([
+    const [attempts, artifacts, returns] = await Promise.all([
       this.loadAttemptRecords(database, [id]),
       this.loadArtifactRecords(database, [id]),
+      this.loadReturnRecords(database, [id]),
     ]);
 
-    return toStepRecord(row, attempts.get(id) ?? [], artifacts.get(id) ?? []);
+    return toStepRecord(
+      row,
+      attempts.get(id) ?? [],
+      artifacts.get(id) ?? [],
+      returns.get(id) ?? [],
+    );
   }
 
   async insertStep(
@@ -203,6 +319,7 @@ export class DrizzlePaymentStepsRepository implements PaymentStepsRepository {
       await Promise.all([
         this.upsertAttempts(database, input.attempts),
         this.upsertArtifacts(database, input.id, input.artifacts),
+        this.upsertReturns(database, input.returns),
       ]);
 
       return (await this.findStepById(input.id, database)) ?? null;
@@ -250,9 +367,10 @@ export class DrizzlePaymentStepsRepository implements PaymentStepsRepository {
         .where(where),
     ]);
     const stepIds = rows.map((row) => row.id);
-    const [attempts, artifacts] = await Promise.all([
+    const [attempts, artifacts, returns] = await Promise.all([
       this.loadAttemptRecords(database, stepIds),
       this.loadArtifactRecords(database, stepIds),
+      this.loadReturnRecords(database, stepIds),
     ]);
 
     return {
@@ -261,6 +379,7 @@ export class DrizzlePaymentStepsRepository implements PaymentStepsRepository {
           row,
           attempts.get(row.id) ?? [],
           artifacts.get(row.id) ?? [],
+          returns.get(row.id) ?? [],
         ),
       ),
       total: countRows[0]?.total ?? 0,
@@ -285,6 +404,7 @@ export class DrizzlePaymentStepsRepository implements PaymentStepsRepository {
       await Promise.all([
         this.upsertAttempts(database, input.attempts),
         this.upsertArtifacts(database, input.id, input.artifacts),
+        this.upsertReturns(database, input.returns),
       ]);
 
       return this.findStepById(input.id, database);
@@ -337,6 +457,30 @@ export class DrizzlePaymentStepsRepository implements PaymentStepsRepository {
       const attempts = byStepId.get(row.paymentStepId) ?? [];
       attempts.push(toAttemptRecord(row));
       byStepId.set(row.paymentStepId, attempts);
+    }
+
+    return byStepId;
+  }
+
+  private async loadReturnRecords(
+    database: Queryable,
+    stepIds: string[],
+  ): Promise<Map<string, PaymentStepReturnRecord[]>> {
+    if (stepIds.length === 0) {
+      return new Map();
+    }
+
+    const rows = await database
+      .select()
+      .from(paymentStepReturns)
+      .where(inArray(paymentStepReturns.paymentStepId, stepIds))
+      .orderBy(paymentStepReturns.paymentStepId, paymentStepReturns.returnedAt);
+    const byStepId = new Map<string, PaymentStepReturnRecord[]>();
+
+    for (const row of rows) {
+      const records = byStepId.get(row.paymentStepId) ?? [];
+      records.push(toReturnRecord(row));
+      byStepId.set(row.paymentStepId, records);
     }
 
     return byStepId;
@@ -404,6 +548,30 @@ export class DrizzlePaymentStepsRepository implements PaymentStepsRepository {
           paymentStepArtifacts.purpose,
         ],
         set: {
+          updatedAt: sql`excluded.updated_at`,
+        },
+      });
+  }
+
+  private async upsertReturns(
+    database: Queryable,
+    records: PaymentStepReturnRecord[],
+  ): Promise<void> {
+    if (records.length === 0) {
+      return;
+    }
+
+    await database
+      .insert(paymentStepReturns)
+      .values(records.map(toReturnInsertRow))
+      .onConflictDoUpdate({
+        target: paymentStepReturns.id,
+        set: {
+          amountMinor: sql`excluded.amount_minor`,
+          currencyId: sql`excluded.currency_id`,
+          providerRef: sql`excluded.provider_ref`,
+          reason: sql`excluded.reason`,
+          returnedAt: sql`excluded.returned_at`,
           updatedAt: sql`excluded.updated_at`,
         },
       });

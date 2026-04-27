@@ -292,14 +292,6 @@ function createWorkflow(overrides?: {
   }[];
   paymentSteps?: {
     dealId: string | null;
-    dealLegIdx: number | null;
-    dealLegRole:
-      | "collect"
-      | "convert"
-      | "payout"
-      | "settle_exporter"
-      | "transit_hold"
-      | null;
     fromAmountMinor: bigint | null;
     fromCurrencyId: string;
     id: string;
@@ -320,6 +312,8 @@ function createWorkflow(overrides?: {
       | "returned"
       | "cancelled"
       | "skipped";
+    planLegId: string | null;
+    sequence: number | null;
     toCurrencyId: string;
   }[];
   workflow?: ReturnType<typeof createBaseWorkflow>;
@@ -503,23 +497,51 @@ function createWorkflow(overrides?: {
         queries: {
           list: vi.fn(async () => {
             const items = (overrides?.paymentSteps ?? []).map((step) => ({
+              amendments: [],
               artifacts: [],
               attempts: [],
               completedAt: null,
               createdAt: new Date("2026-04-01T10:00:00.000Z"),
+              currentRoute: {
+                fromAmountMinor: step.fromAmountMinor,
+                fromCurrencyId: step.fromCurrencyId,
+                fromParty: { id: "party-1", requisiteId: null },
+                rate: null,
+                toAmountMinor: null,
+                toCurrencyId: step.toCurrencyId,
+                toParty: { id: "party-2", requisiteId: null },
+              },
               dealId: step.dealId,
-              dealLegIdx: step.dealLegIdx,
-              dealLegRole: step.dealLegRole,
               failureReason: null,
               fromAmountMinor: step.fromAmountMinor,
               fromCurrencyId: step.fromCurrencyId,
               fromParty: { id: "party-1", requisiteId: null },
               id: step.id,
               kind: step.kind,
-              postings: [],
+              origin: {
+                dealId: step.dealId,
+                planLegId: step.planLegId,
+                routeSnapshotLegId: null,
+                sequence: step.sequence,
+                treasuryOrderId: null,
+                type: step.planLegId ? "deal_execution_leg" : "manual",
+              },
+              plannedRoute: {
+                fromAmountMinor: step.fromAmountMinor,
+                fromCurrencyId: step.fromCurrencyId,
+                fromParty: { id: "party-1", requisiteId: null },
+                rate: null,
+                toAmountMinor: null,
+                toCurrencyId: step.toCurrencyId,
+                toParty: { id: "party-2", requisiteId: null },
+              },
+              postingDocumentRefs: [],
               purpose: "deal_leg" as const,
+              quoteId: null,
               rate: null,
+              returns: [],
               scheduledAt: null,
+              sourceRef: `deal:${step.dealId ?? "none"}:plan-leg:${step.planLegId ?? step.id}:${step.kind}:1`,
               state: step.state,
               submittedAt: null,
               toAmountMinor: null,
@@ -1035,12 +1057,12 @@ describe("createDealProjectionsWorkflow", () => {
       paymentSteps: [
         {
           dealId: "deal-1",
-          dealLegIdx: 1,
-          dealLegRole: "payout",
           fromAmountMinor: 10000000n,
           fromCurrencyId: "currency-rub",
           id: "operation-1",
           kind: "payout",
+          planLegId: "leg-1",
+          sequence: 1,
           state: "completed",
           toCurrencyId: "currency-rub",
         },

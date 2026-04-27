@@ -2,6 +2,7 @@ import type {
   DealOperationalPosition,
   DealWorkflowProjection,
 } from "@bedrock/deals/contracts";
+import type { PaymentStep } from "@bedrock/treasury/contracts";
 
 import type { FinanceDealQueue } from "../contracts";
 import { collectBlockingReasons } from "../shared/workflow-helpers";
@@ -10,12 +11,6 @@ const DOWNSTREAM_POSITION_KINDS = new Set([
   "exporter_expected_receivable",
   "in_transit",
   "downstream_payable",
-]);
-
-const DOWNSTREAM_LEG_KINDS = new Set([
-  "payout",
-  "settle_exporter",
-  "transit_hold",
 ]);
 
 function getPositionByKind(
@@ -78,14 +73,23 @@ export function buildFinanceQuoteRequestContext(
   };
 }
 
-export function summarizeExecutionPlan(workflow: DealWorkflowProjection) {
+export function summarizeExecutionPlan(input: {
+  paymentStepByPlanLegId: ReadonlyMap<string, PaymentStep>;
+  workflow: DealWorkflowProjection;
+}) {
+  const linkedSteps = input.workflow.executionPlan
+    .map((leg) =>
+      leg.id ? input.paymentStepByPlanLegId.get(leg.id) : undefined,
+    )
+    .filter((step): step is PaymentStep => Boolean(step));
+
   return {
-    blockedLegCount: workflow.executionPlan.filter(
-      (leg) => leg.state === "blocked",
+    blockedLegCount: linkedSteps.filter(
+      (step) => step.state === "failed" || step.state === "returned",
     ).length,
-    doneLegCount: workflow.executionPlan.filter((leg) => leg.state === "done")
+    doneLegCount: linkedSteps.filter((step) => step.state === "completed")
       .length,
-    totalLegCount: workflow.executionPlan.length,
+    totalLegCount: input.workflow.executionPlan.length,
   };
 }
 
@@ -95,9 +99,6 @@ export function classifyFinanceQueue(workflow: DealWorkflowProjection): {
   queueReason: string;
 } {
   const downstreamBlocked =
-    workflow.executionPlan.some(
-      (leg) => DOWNSTREAM_LEG_KINDS.has(leg.kind) && leg.state === "blocked",
-    ) ||
     workflow.operationalState.positions.some(
       (position) =>
         DOWNSTREAM_POSITION_KINDS.has(position.kind) &&

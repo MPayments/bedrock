@@ -2,8 +2,8 @@ import { z } from "zod";
 
 import {
   ArtifactRefSchema,
-  PaymentStepDealLegRoleSchema,
   PaymentStepKindSchema,
+  PaymentStepOriginSchema,
   PaymentStepPartyRefSchema,
   PaymentStepPurposeSchema,
   PaymentStepRateSchema,
@@ -18,26 +18,47 @@ const OptionalFailureReasonSchema =
 const OptionalProviderRefSchema =
   z.string().trim().min(1).max(255).nullable().optional().default(null);
 
-export const CreatePaymentStepInputSchema = z.object({
-  dealId: OptionalUuidSchema,
-  dealLegIdx: z.number().int().nonnegative().nullable().optional().default(null),
-  dealLegRole: PaymentStepDealLegRoleSchema.nullable().optional().default(null),
-  fromAmountMinor: OptionalAmountMinorSchema,
-  fromCurrencyId: z.uuid(),
-  fromParty: PaymentStepPartyRefSchema,
-  id: z.uuid().optional(),
-  initialState: z
-    .enum([PaymentStepStateSchema.enum.draft, PaymentStepStateSchema.enum.pending])
-    .optional()
-    .default("draft"),
-  kind: PaymentStepKindSchema,
-  purpose: PaymentStepPurposeSchema,
-  rate: PaymentStepRateSchema.nullable().optional().default(null),
-  toAmountMinor: OptionalAmountMinorSchema,
-  toCurrencyId: z.uuid(),
-  toParty: PaymentStepPartyRefSchema,
-  treasuryBatchId: OptionalUuidSchema,
-});
+export const CreatePaymentStepInputSchema = z
+  .object({
+    dealId: OptionalUuidSchema,
+    fromAmountMinor: OptionalAmountMinorSchema,
+    fromCurrencyId: z.uuid(),
+    fromParty: PaymentStepPartyRefSchema,
+    id: z.uuid().optional(),
+    initialState: z
+      .enum([PaymentStepStateSchema.enum.draft, PaymentStepStateSchema.enum.pending])
+      .optional()
+      .default("draft"),
+    kind: PaymentStepKindSchema,
+    origin: PaymentStepOriginSchema.optional(),
+    planLegId: z.string().trim().min(1).nullable().optional().default(null),
+    purpose: PaymentStepPurposeSchema,
+    quoteId: z.uuid().nullable().optional().default(null),
+    rate: PaymentStepRateSchema.nullable().optional().default(null),
+    routeSnapshotLegId: z.string().trim().min(1).nullable().optional().default(null),
+    sequence: z.number().int().nonnegative().nullable().optional().default(null),
+    sourceRef: z.string().trim().min(1).max(512).optional(),
+    toAmountMinor: OptionalAmountMinorSchema,
+    toCurrencyId: z.uuid(),
+    toParty: PaymentStepPartyRefSchema,
+    treasuryBatchId: OptionalUuidSchema,
+    treasuryOrderId: OptionalUuidSchema,
+  })
+  .superRefine((value, context) => {
+    if (value.purpose !== "deal_leg") return;
+    if (
+      value.origin?.type !== "deal_execution_leg" ||
+      value.origin.dealId !== value.dealId ||
+      value.origin.planLegId === null
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          "Deal execution payment steps require origin.type=deal_execution_leg and origin.planLegId",
+        path: ["origin"],
+      });
+    }
+  });
 
 export const SubmitPaymentStepInputSchema = z.object({
   attemptId: z.uuid().optional(),
@@ -51,6 +72,16 @@ export const ConfirmPaymentStepInputSchema = z.object({
   attemptId: z.uuid().optional(),
   failureReason: OptionalFailureReasonSchema,
   outcome: z.enum(["settled", "failed", "returned"]),
+  stepId: z.uuid(),
+});
+
+export const RecordPaymentStepReturnInputSchema = z.object({
+  amountMinor: OptionalAmountMinorSchema,
+  currencyId: z.uuid().nullable().optional().default(null),
+  providerRef: OptionalProviderRefSchema,
+  reason: OptionalFailureReasonSchema,
+  returnId: z.uuid().optional(),
+  returnedAt: z.date().optional(),
   stepId: z.uuid(),
 });
 
@@ -86,5 +117,8 @@ export type AttachPaymentStepPostingInput = z.infer<
 export type CancelPaymentStepInput = z.infer<typeof CancelPaymentStepInputSchema>;
 export type ConfirmPaymentStepInput = z.infer<typeof ConfirmPaymentStepInputSchema>;
 export type CreatePaymentStepInput = z.infer<typeof CreatePaymentStepInputSchema>;
+export type RecordPaymentStepReturnInput = z.infer<
+  typeof RecordPaymentStepReturnInputSchema
+>;
 export type SkipPaymentStepInput = z.infer<typeof SkipPaymentStepInputSchema>;
 export type SubmitPaymentStepInput = z.infer<typeof SubmitPaymentStepInputSchema>;

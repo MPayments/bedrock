@@ -166,23 +166,51 @@ function createStep(input: {
   state: PaymentStep["state"];
 }): PaymentStep {
   return {
+    amendments: [],
     artifacts: [],
     attempts: [],
     completedAt: null,
     createdAt: new Date("2026-04-03T10:00:00.000Z"),
+    currentRoute: {
+      fromAmountMinor: null,
+      fromCurrencyId: "currency-usd",
+      fromParty: { id: "party-1", requisiteId: null },
+      rate: null,
+      toAmountMinor: null,
+      toCurrencyId: "currency-eur",
+      toParty: { id: "party-2", requisiteId: null },
+    },
     dealId: "deal-1",
-    dealLegIdx: input.legIdx,
-    dealLegRole: null,
     failureReason: null,
     fromAmountMinor: null,
     fromCurrencyId: "currency-usd",
     fromParty: { id: "party-1", requisiteId: null },
     id: input.id,
     kind: "payout",
-    postings: [],
+    origin: {
+      dealId: "deal-1",
+      planLegId: `leg-${input.legIdx}`,
+      routeSnapshotLegId: null,
+      sequence: input.legIdx,
+      treasuryOrderId: null,
+      type: "deal_execution_leg",
+    },
+    plannedRoute: {
+      fromAmountMinor: null,
+      fromCurrencyId: "currency-usd",
+      fromParty: { id: "party-1", requisiteId: null },
+      rate: null,
+      toAmountMinor: null,
+      toCurrencyId: "currency-eur",
+      toParty: { id: "party-2", requisiteId: null },
+    },
+    postingDocumentRefs: [],
     purpose: "deal_leg",
+    quoteId: null,
     rate: null,
+    returns: [],
     scheduledAt: null,
+    sourceRef: `deal:deal-1:plan-leg:leg-${input.legIdx}:payout:1`,
     state: input.state,
     submittedAt: null,
     toAmountMinor: null,
@@ -195,10 +223,10 @@ function createStep(input: {
 
 function createStepMap(
   entries: [legIdx: number, id: string, state: PaymentStep["state"]][],
-): ReadonlyMap<number, PaymentStep> {
+): ReadonlyMap<string, PaymentStep> {
   return new Map(
     entries.map(([legIdx, id, state]) => [
-      legIdx,
+      `leg-${legIdx}`,
       createStep({ id, legIdx, state }),
     ]),
   );
@@ -255,12 +283,12 @@ describe("finance close readiness", () => {
     const workflow = createWorkflow({
       formalDocuments: [createActiveAcceptanceDocument()],
     });
-    const paymentStepByLegIdx = createStepMap([
+    const paymentStepByPlanLegId = createStepMap([
       [1, "step-1", "cancelled"],
       [2, "step-2", "completed"],
     ]);
     const readiness = deriveFinanceDealReadiness({
-      paymentStepByLegIdx,
+      paymentStepByPlanLegId,
       reconciliationLinksByStepId: createReconciliationLinkMap([
         ["step-2", 0],
       ]),
@@ -271,7 +299,7 @@ describe("finance close readiness", () => {
       agreementOrganizationId: "org-internal",
       closeReadiness: readiness.closeReadiness,
       internalEntityOrganizationId: "org-internal",
-      paymentStepByLegIdx,
+      paymentStepByPlanLegId,
       reconciliationSummary: readiness.reconciliationSummary,
       workflow,
     });
@@ -288,12 +316,12 @@ describe("finance close readiness", () => {
     const workflow = createWorkflow({
       formalDocuments: [createActiveAcceptanceDocument()],
     });
-    const paymentStepByLegIdx = createStepMap([
+    const paymentStepByPlanLegId = createStepMap([
       [1, "step-1", "cancelled"],
       [2, "step-2", "completed"],
     ]);
     const readiness = deriveFinanceDealReadiness({
-      paymentStepByLegIdx,
+      paymentStepByPlanLegId,
       reconciliationLinksByStepId: createReconciliationLinkMap([
         ["step-2", 1],
       ]),
@@ -304,7 +332,7 @@ describe("finance close readiness", () => {
       agreementOrganizationId: "org-internal",
       closeReadiness: readiness.closeReadiness,
       internalEntityOrganizationId: "org-internal",
-      paymentStepByLegIdx,
+      paymentStepByPlanLegId,
       reconciliationSummary: readiness.reconciliationSummary,
       workflow,
     });
@@ -351,13 +379,13 @@ describe("finance close readiness", () => {
       type: "currency_exchange",
     });
 
-    const paymentStepByLegIdx = createStepMap([
+    const paymentStepByPlanLegId = createStepMap([
       [1, "step-1", "cancelled"],
       [2, "step-2", "completed"],
       [3, "step-3", "returned"],
     ]);
     const readiness = deriveFinanceDealReadiness({
-      paymentStepByLegIdx,
+      paymentStepByPlanLegId,
       reconciliationLinksByStepId: createReconciliationLinkMap([
         ["step-2", 1],
         ["step-3", 1],
@@ -400,11 +428,11 @@ describe("finance close readiness", () => {
       ],
       type: "currency_transit",
     });
-    const paymentStepByLegIdx = createStepMap([
+    const paymentStepByPlanLegId = createStepMap([
       [1, "step-1", "completed"],
     ]);
     const readiness = deriveFinanceDealReadiness({
-      paymentStepByLegIdx,
+      paymentStepByPlanLegId,
       reconciliationLinksByStepId: createReconciliationLinkMap([
         ["step-1", 1],
       ]),
@@ -416,7 +444,7 @@ describe("finance close readiness", () => {
         agreementOrganizationId: "org-internal",
         closeReadiness: readiness.closeReadiness,
         internalEntityOrganizationId: "org-internal",
-        paymentStepByLegIdx,
+        paymentStepByPlanLegId,
         reconciliationSummary: readiness.reconciliationSummary,
         workflow,
       }).stage,
@@ -426,7 +454,7 @@ describe("finance close readiness", () => {
         agreementOrganizationId: "org-external",
         closeReadiness: readiness.closeReadiness,
         internalEntityOrganizationId: "org-internal",
-        paymentStepByLegIdx,
+        paymentStepByPlanLegId,
         reconciliationSummary: readiness.reconciliationSummary,
         workflow,
       }).stage,
@@ -469,13 +497,13 @@ describe("finance close readiness", () => {
       type: "exporter_settlement",
     });
 
-    const paymentStepByLegIdx = createStepMap([
+    const paymentStepByPlanLegId = createStepMap([
       [1, "step-1", "completed"],
       [2, "step-2", "cancelled"],
       [3, "step-3", "cancelled"],
     ]);
     const readiness = deriveFinanceDealReadiness({
-      paymentStepByLegIdx,
+      paymentStepByPlanLegId,
       reconciliationLinksByStepId: createReconciliationLinkMap([
         ["step-1", 1],
       ]),
@@ -512,7 +540,7 @@ describe("finance close readiness", () => {
       type: "currency_exchange",
     });
 
-    const paymentStepByLegIdx = createStepMap([
+    const paymentStepByPlanLegId = createStepMap([
       [1, "step-1", "completed"],
       [2, "step-2", "completed"],
       [3, "step-3", "completed"],
@@ -521,7 +549,7 @@ describe("finance close readiness", () => {
       [6, "step-6", "pending"],
     ]);
     const readiness = deriveFinanceDealReadiness({
-      paymentStepByLegIdx,
+      paymentStepByPlanLegId,
       reconciliationLinksByStepId: createReconciliationLinkMap([]),
       workflow,
     });

@@ -165,13 +165,27 @@ describe("latestStepAttempt", () => {
     attempts: FinanceDealPaymentStepAttempt[],
   ): FinanceDealPaymentStep {
     return {
+      amendments: [],
       artifacts: [],
       attempts,
       completedAt: null,
       createdAt: "2026-04-01T00:00:00.000Z",
+      currentRoute: {
+        fromAmountMinor: null,
+        fromCurrencyId: "00000000-0000-4000-8000-000000000001",
+        fromParty: {
+          id: "00000000-0000-4000-8000-000000000002",
+          requisiteId: null,
+        },
+        rate: null,
+        toAmountMinor: null,
+        toCurrencyId: "00000000-0000-4000-8000-000000000001",
+        toParty: {
+          id: "00000000-0000-4000-8000-000000000003",
+          requisiteId: null,
+        },
+      },
       dealId: null,
-      dealLegIdx: null,
-      dealLegRole: null,
       failureReason: null,
       fromAmountMinor: null,
       fromCurrencyId: "00000000-0000-4000-8000-000000000001",
@@ -181,10 +195,36 @@ describe("latestStepAttempt", () => {
       },
       id: "00000000-0000-4000-8000-000000000010",
       kind: "payin",
-      postings: [],
+      origin: {
+        dealId: null,
+        planLegId: null,
+        routeSnapshotLegId: null,
+        sequence: null,
+        treasuryOrderId: null,
+        type: "manual",
+      },
+      plannedRoute: {
+        fromAmountMinor: null,
+        fromCurrencyId: "00000000-0000-4000-8000-000000000001",
+        fromParty: {
+          id: "00000000-0000-4000-8000-000000000002",
+          requisiteId: null,
+        },
+        rate: null,
+        toAmountMinor: null,
+        toCurrencyId: "00000000-0000-4000-8000-000000000001",
+        toParty: {
+          id: "00000000-0000-4000-8000-000000000003",
+          requisiteId: null,
+        },
+      },
+      postingDocumentRefs: [],
       purpose: "standalone_payment",
+      quoteId: null,
       rate: null,
+      returns: [],
       scheduledAt: null,
+      sourceRef: "manual:00000000-0000-4000-8000-000000000010",
       state: "pending",
       submittedAt: null,
       toAmountMinor: null,
@@ -235,13 +275,27 @@ describe("requiresSettlementEvidence", () => {
     overrides: Partial<FinanceDealPaymentStep> = {},
   ): FinanceDealPaymentStep {
     return {
+      amendments: [],
       artifacts: [],
       attempts: [],
       completedAt: null,
       createdAt: "2026-04-01T00:00:00.000Z",
+      currentRoute: {
+        fromAmountMinor: null,
+        fromCurrencyId: "00000000-0000-4000-8000-000000000001",
+        fromParty: {
+          id: "00000000-0000-4000-8000-000000000002",
+          requisiteId: null,
+        },
+        rate: null,
+        toAmountMinor: null,
+        toCurrencyId: "00000000-0000-4000-8000-000000000001",
+        toParty: {
+          id: "00000000-0000-4000-8000-000000000003",
+          requisiteId: null,
+        },
+      },
       dealId: "00000000-0000-4000-8000-000000000011",
-      dealLegIdx: 2,
-      dealLegRole: "payout",
       failureReason: null,
       fromAmountMinor: null,
       fromCurrencyId: "00000000-0000-4000-8000-000000000001",
@@ -251,10 +305,37 @@ describe("requiresSettlementEvidence", () => {
       },
       id: "00000000-0000-4000-8000-000000000010",
       kind: "payout",
-      postings: [],
+      origin: {
+        dealId: "00000000-0000-4000-8000-000000000011",
+        planLegId: "plan-leg-2",
+        routeSnapshotLegId: null,
+        sequence: 2,
+        treasuryOrderId: null,
+        type: "deal_execution_leg",
+      },
+      plannedRoute: {
+        fromAmountMinor: null,
+        fromCurrencyId: "00000000-0000-4000-8000-000000000001",
+        fromParty: {
+          id: "00000000-0000-4000-8000-000000000002",
+          requisiteId: null,
+        },
+        rate: null,
+        toAmountMinor: null,
+        toCurrencyId: "00000000-0000-4000-8000-000000000001",
+        toParty: {
+          id: "00000000-0000-4000-8000-000000000003",
+          requisiteId: null,
+        },
+      },
+      postingDocumentRefs: [],
       purpose: "deal_leg",
+      quoteId: null,
       rate: null,
+      returns: [],
       scheduledAt: null,
+      sourceRef:
+        "deal:00000000-0000-4000-8000-000000000011:plan-leg:plan-leg-2:payout:1",
       state: "processing",
       submittedAt: null,
       toAmountMinor: null,
@@ -273,15 +354,21 @@ describe("requiresSettlementEvidence", () => {
     expect(requiresSettlementEvidence(makeStep())).toBe(true);
     expect(
       requiresSettlementEvidence(
-        makeStep({ dealLegRole: "collect", kind: "payin" }),
+        makeStep({ kind: "payin" }),
       ),
     ).toBe(false);
     expect(
       requiresSettlementEvidence(
         makeStep({
           dealId: null,
-          dealLegIdx: null,
-          dealLegRole: null,
+          origin: {
+            dealId: null,
+            planLegId: null,
+            routeSnapshotLegId: null,
+            sequence: null,
+            treasuryOrderId: null,
+            type: "manual",
+          },
           purpose: "standalone_payment",
         }),
       ),

@@ -548,20 +548,37 @@ describe("buildEffectiveDealExecutionPlan — step-derived leg state", () => {
     storedLegs: [],
   };
 
+  function createStoredLegs(snapshot: PaymentRouteDraft) {
+    return buildDealExecutionPlan(createPaymentIntake(), snapshot).map((leg) => ({
+      ...leg,
+      id: `plan-leg-${leg.idx}`,
+    }));
+  }
+
+  function createPaymentStepRef(
+    legIdx: number,
+    state: NonNullable<
+      Parameters<typeof buildEffectiveDealExecutionPlan>[0]["paymentSteps"]
+    >[number]["state"],
+  ) {
+    return { planLegId: `plan-leg-${legIdx}`, state };
+  }
+
   it("derives every leg as done when each leg has a completed payment step", () => {
     const snapshot = createFourHopRouteSnapshot();
     const plan = buildEffectiveDealExecutionPlan({
       ...baseInput,
       intake: createPaymentIntake(),
       paymentSteps: [
-        { dealLegIdx: 1, state: "completed" },
-        { dealLegIdx: 2, state: "completed" },
-        { dealLegIdx: 3, state: "completed" },
-        { dealLegIdx: 4, state: "completed" },
-        { dealLegIdx: 5, state: "completed" },
-        { dealLegIdx: 6, state: "completed" },
+        createPaymentStepRef(1, "completed"),
+        createPaymentStepRef(2, "completed"),
+        createPaymentStepRef(3, "completed"),
+        createPaymentStepRef(4, "completed"),
+        createPaymentStepRef(5, "completed"),
+        createPaymentStepRef(6, "completed"),
       ],
       routeSnapshot: snapshot,
+      storedLegs: createStoredLegs(snapshot),
     });
 
     expect(plan.every((leg) => leg.state === "done")).toBe(true);
@@ -572,8 +589,9 @@ describe("buildEffectiveDealExecutionPlan — step-derived leg state", () => {
     const plan = buildEffectiveDealExecutionPlan({
       ...baseInput,
       intake: createPaymentIntake(),
-      paymentSteps: [{ dealLegIdx: 1, state: "processing" }],
+      paymentSteps: [createPaymentStepRef(1, "processing")],
       routeSnapshot: snapshot,
+      storedLegs: createStoredLegs(snapshot),
     });
 
     const leg = plan.find((entry) => entry.idx === 1);
@@ -585,8 +603,9 @@ describe("buildEffectiveDealExecutionPlan — step-derived leg state", () => {
     const plan = buildEffectiveDealExecutionPlan({
       ...baseInput,
       intake: createPaymentIntake(),
-      paymentSteps: [{ dealLegIdx: 1, state: "draft" }],
+      paymentSteps: [createPaymentStepRef(1, "draft")],
       routeSnapshot: snapshot,
+      storedLegs: createStoredLegs(snapshot),
     });
 
     const leg = plan.find((entry) => entry.idx === 1);
@@ -598,8 +617,9 @@ describe("buildEffectiveDealExecutionPlan — step-derived leg state", () => {
     const plan = buildEffectiveDealExecutionPlan({
       ...baseInput,
       intake: createPaymentIntake(),
-      paymentSteps: [{ dealLegIdx: 1, state: "failed" }],
+      paymentSteps: [createPaymentStepRef(1, "failed")],
       routeSnapshot: snapshot,
+      storedLegs: createStoredLegs(snapshot),
     });
 
     const leg = plan.find((entry) => entry.idx === 1);
@@ -611,8 +631,9 @@ describe("buildEffectiveDealExecutionPlan — step-derived leg state", () => {
     const plan = buildEffectiveDealExecutionPlan({
       ...baseInput,
       intake: createPaymentIntake(),
-      paymentSteps: [{ dealLegIdx: 1, state: "cancelled" }],
+      paymentSteps: [createPaymentStepRef(1, "cancelled")],
       routeSnapshot: snapshot,
+      storedLegs: createStoredLegs(snapshot),
     });
 
     const leg = plan.find((entry) => entry.idx === 1);
@@ -637,10 +658,11 @@ describe("buildEffectiveDealExecutionPlan — step-derived leg state", () => {
       ...baseInput,
       intake: createPaymentIntake(),
       paymentSteps: [
-        { dealLegIdx: 1, state: "completed" },
-        { dealLegIdx: 1, state: "processing" },
+        createPaymentStepRef(1, "completed"),
+        createPaymentStepRef(1, "processing"),
       ],
       routeSnapshot: snapshot,
+      storedLegs: createStoredLegs(snapshot),
     });
 
     const leg = plan.find((entry) => entry.idx === 1);

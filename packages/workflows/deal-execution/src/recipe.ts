@@ -166,7 +166,7 @@ export function compileDealExecutionRecipe(input: {
         operationKind,
         quoteId,
         quoteLegIdx,
-        sourceRef: `deal:${input.workflow.summary.id}:leg:${leg.idx}:${operationKind}:1`,
+        sourceRef: `deal:${input.workflow.summary.id}:plan-leg:${leg.id}:${operationKind}:1`,
       };
     });
 }

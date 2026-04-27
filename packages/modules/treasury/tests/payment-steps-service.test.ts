@@ -277,24 +277,45 @@ describe("PaymentSteps service", () => {
     await service.commands.create({
       ...createStepInput(STEP_ID),
       dealId,
-      dealLegIdx: 1,
-      dealLegRole: "payout",
+      origin: {
+        dealId,
+        planLegId: "plan-leg-1",
+        routeSnapshotLegId: null,
+        sequence: 1,
+        treasuryOrderId: null,
+        type: "deal_execution_leg",
+      },
       purpose: "deal_leg",
+      sourceRef: `deal:${dealId}:plan-leg:plan-leg-1:payout:1`,
     });
     await service.commands.create({
       ...createStepInput(SECOND_STEP_ID),
       dealId,
-      dealLegIdx: 2,
-      dealLegRole: "payout",
       initialState: "pending",
+      origin: {
+        dealId,
+        planLegId: "plan-leg-2",
+        routeSnapshotLegId: null,
+        sequence: 2,
+        treasuryOrderId: null,
+        type: "deal_execution_leg",
+      },
       purpose: "deal_leg",
+      sourceRef: `deal:${dealId}:plan-leg:plan-leg-2:payout:1`,
     });
     await service.commands.create({
       ...createStepInput(THIRD_STEP_ID),
       dealId: otherDealId,
-      dealLegIdx: 1,
-      dealLegRole: "payout",
+      origin: {
+        dealId: otherDealId,
+        planLegId: "plan-leg-1",
+        routeSnapshotLegId: null,
+        sequence: 1,
+        treasuryOrderId: null,
+        type: "deal_execution_leg",
+      },
       purpose: "deal_leg",
+      sourceRef: `deal:${otherDealId}:plan-leg:plan-leg-1:payout:1`,
     });
 
     const firstResult = await service.commands.cancelDrafts({

@@ -85,7 +85,10 @@ export {
   paymentRouteTemplates,
   paymentStepArtifacts,
   paymentStepAttempts,
+  paymentStepReturns,
   paymentSteps,
+  treasuryOrders,
+  treasuryOrderSteps,
 } from "@bedrock/treasury/schema";
 export {
   balanceEvents,

@@ -477,12 +477,6 @@ const FinanceDealSummarySchema = z.object({
   updatedAt: z.iso.datetime(),
 });
 
-const FinanceDealLegOperationRefSchema = z.object({
-  kind: z.string(),
-  operationId: z.string().uuid(),
-  sourceRef: z.string(),
-});
-
 const FinanceDealReconciliationExceptionSchema = z.object({
   actions: z.object({
     adjustmentDocumentDocType: z.string().nullable(),
@@ -561,9 +555,15 @@ const FinanceDealWorkspaceSchema = z.object({
       id: z.string().uuid().nullable(),
       idx: z.number().int().positive(),
       kind: z.string(),
-      operationRefs: z.array(FinanceDealLegOperationRefSchema),
       routeSnapshotLegId: z.string().nullable().default(null),
-      state: z.string(),
+      runtimeState: z.enum([
+        "not_materialized",
+        "ready",
+        "processing",
+        "completed",
+        "blocked",
+        "skipped",
+      ]),
       toCurrencyId: z.string().uuid().nullable().default(null),
     }),
   ),
@@ -782,10 +782,9 @@ export type FinanceDealWorkspace = z.infer<typeof FinanceDealWorkspaceSchema>;
 export type FinanceDealWorkbench = FinanceDealWorkspace & {
   calculationHistory: FinanceDealCalculationHistoryItem[];
   /**
-   * Payment steps that materialize the deal execution plan, ordered by
-   * `dealLegIdx` ascending. Empty until commit 6's dual-write flag is on for
-   * the deal. New step-based UI should read from here; legacy components
-   * continue to read from {@link FinanceDealWorkspace.executionPlan}.
+   * Payment steps that materialize the deal execution plan, ordered by their
+   * origin sequence. Runtime status lives here; executionPlan is only the
+   * plan descriptor.
    */
   executionSteps: FinanceDealPaymentStep[];
   quoteHistory: FinanceDealQuoteItem[];
@@ -902,7 +901,8 @@ const getFinanceDealWorkbenchByIdUncached = async (
       right.createdAt.localeCompare(left.createdAt),
     ),
     executionSteps: [...workspace.relatedResources.paymentSteps].sort(
-      (left, right) => (left.dealLegIdx ?? 0) - (right.dealLegIdx ?? 0),
+      (left, right) =>
+        (left.origin.sequence ?? 0) - (right.origin.sequence ?? 0),
     ),
     quoteHistory: [...quoteHistory].sort((left, right) =>
       right.createdAt.localeCompare(left.createdAt),

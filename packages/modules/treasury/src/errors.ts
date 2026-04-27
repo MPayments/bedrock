@@ -52,6 +52,30 @@ export class PaymentStepNotFoundError extends TreasuryError {
   }
 }
 
+export class PaymentStepConflictError extends TreasuryError {
+  name = "PaymentStepConflictError";
+
+  constructor(sourceRef: string) {
+    super(`Payment step already exists for source reference: ${sourceRef}`);
+  }
+}
+
+export class TreasuryOrderNotFoundError extends TreasuryError {
+  name = "TreasuryOrderNotFoundError";
+
+  constructor(orderId: string) {
+    super(`Treasury order not found: ${orderId}`);
+  }
+}
+
+export class TreasuryOrderConflictError extends TreasuryError {
+  name = "TreasuryOrderConflictError";
+
+  constructor(orderId: string) {
+    super(`Treasury order already exists: ${orderId}`);
+  }
+}
+
 export class TreasuryInstructionNotFoundError extends TreasuryError {
   name = "TreasuryInstructionNotFoundError";
 

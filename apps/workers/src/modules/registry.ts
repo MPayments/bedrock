@@ -41,6 +41,7 @@ import {
   DrizzlePaymentRouteTemplatesRepository,
   DrizzlePaymentStepsRepository,
   DrizzleTreasuryFeeRulesRepository,
+  DrizzleTreasuryOrdersRepository,
   DrizzleTreasuryQuoteFeeComponentsRepository,
   DrizzleTreasuryQuoteFinancialLinesRepository,
   DrizzleTreasuryQuotesRepository,
@@ -260,6 +261,7 @@ export function createWorkerImplementations(
     paymentRouteTemplatesRepository:
       new DrizzlePaymentRouteTemplatesRepository(deps.db),
     paymentStepsRepository: new DrizzlePaymentStepsRepository(deps.db),
+    treasuryOrdersRepository: new DrizzleTreasuryOrdersRepository(deps.db),
     unitOfWork: new DrizzleTreasuryUnitOfWork({
       persistence: createPersistenceContext(deps.db),
     }),

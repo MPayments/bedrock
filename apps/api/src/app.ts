@@ -40,6 +40,7 @@ import {
   requisitesRoutes,
   subAgentProfilesRoutes,
   treasuryOrganizationBalancesRoutes,
+  treasuryOrdersRoutes,
   treasuryQueueRoutes,
   treasuryQuotesRoutes,
   treasuryRatesRoutes,
@@ -225,6 +226,7 @@ function createV1Routes(ctx: AppContext) {
       "/treasury/organizations/balances",
       treasuryOrganizationBalancesRoutes(ctx),
     )
+    .route("/treasury/orders", treasuryOrdersRoutes(ctx))
     .route("/treasury/queue", treasuryQueueRoutes(ctx))
     .route("/treasury/quotes", treasuryQuotesRoutes(ctx))
     .route("/treasury/rates", treasuryRatesRoutes(ctx))

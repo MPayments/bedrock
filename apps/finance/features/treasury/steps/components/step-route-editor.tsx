@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, Check, Loader2, TriangleAlert } from "lucide-react";
 
+import { Button } from "@bedrock/sdk-ui/components/button";
 import { Input } from "@bedrock/sdk-ui/components/input";
 import { Label } from "@bedrock/sdk-ui/components/label";
 import {
@@ -36,7 +37,6 @@ import {
   type PartyOption,
   type RequisiteOption,
 } from "../lib/party-options";
-import { useDebouncedCallback } from "../lib/use-debounced-callback";
 
 function createIdempotencyKey() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -102,13 +102,11 @@ export interface StepRouteEditorProps {
   toPartyKind?: PartyKind | null;
   fromPartyDisplayName?: string | null;
   toPartyDisplayName?: string | null;
-  debounceMs?: number;
   onAmended?: () => void;
   disabled?: boolean;
 }
 
 export function StepRouteEditor({
-  debounceMs = 500,
   disabled,
   fromPartyDisplayName = null,
   fromPartyKind = null,
@@ -202,11 +200,9 @@ export function StepRouteEditor({
     if (onAmended) onAmended();
   }
 
-  const debouncedSave = useDebouncedCallback(save, debounceMs);
-
   function applyChange(next: AmendFieldValues) {
     setValues(next);
-    debouncedSave(next);
+    if (status === "saved") setStatus("idle");
   }
 
   function updateField<K extends keyof AmendFieldValues>(
@@ -214,6 +210,12 @@ export function StepRouteEditor({
     value: AmendFieldValues[K],
   ) {
     applyChange({ ...values, [key]: value });
+  }
+
+  const hasChanges = buildAmendRouteBody({ after: values, before: initialValues }) !== null;
+
+  async function handleSave() {
+    await save(values);
   }
 
   return (
@@ -299,6 +301,9 @@ export function StepRouteEditor({
       </div>
 
       <div className="flex items-center justify-end gap-2 text-xs">
+        {hasChanges && status !== "saving" ? (
+          <span className="text-muted-foreground">Есть несохранённые изменения</span>
+        ) : null}
         {status === "saving" ? (
           <span
             className="text-muted-foreground inline-flex items-center gap-1"
@@ -323,6 +328,14 @@ export function StepRouteEditor({
             <TriangleAlert className="size-3" /> Не сохранилось
           </span>
         ) : null}
+        <Button
+          size="sm"
+          type="button"
+          disabled={!isEditable || !hasChanges || status === "saving"}
+          onClick={handleSave}
+        >
+          Сохранить
+        </Button>
       </div>
     </div>
   );

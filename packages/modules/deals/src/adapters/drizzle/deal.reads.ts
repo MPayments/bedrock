@@ -734,7 +734,7 @@ export class DrizzleDealReads implements DealReads {
   private async loadDealPaymentSteps(dealId: string) {
     const rows = await this.db
       .select({
-        dealLegIdx: paymentSteps.dealLegIdx,
+        planLegId: sql<string>`${paymentSteps.origin}->>'planLegId'`,
         state: paymentSteps.state,
       })
       .from(paymentSteps)
@@ -747,11 +747,11 @@ export class DrizzleDealReads implements DealReads {
 
     return rows
       .filter(
-        (row): row is { dealLegIdx: number; state: typeof row.state } =>
-          row.dealLegIdx !== null,
+        (row): row is { planLegId: string; state: typeof row.state } =>
+          typeof row.planLegId === "string" && row.planLegId.length > 0,
       )
       .map((row) => ({
-        dealLegIdx: row.dealLegIdx,
+        planLegId: row.planLegId,
         state: row.state,
       }));
   }
@@ -1445,7 +1445,7 @@ export class DrizzleDealReads implements DealReads {
       triggeredAt: Date;
     }>(sql`
       with base as (
-        -- ready_leg: leg state ready AND no non-voided instruction exists
+        -- ready_leg: stored plan leg with no active payment step
         select
           'ready_leg' as kind,
           d.id as "dealId",
@@ -1463,20 +1463,23 @@ export class DrizzleDealReads implements DealReads {
             limit 1
           ) as "counterpartyName",
           coalesce(dl.updated_at, d.updated_at) as "triggeredAt",
-          jsonb_build_object('legKind', dl.kind, 'legState', dl.state)
+          jsonb_build_object(
+            'legKind', dl.kind,
+            'manualOverrideState', dl.manual_override_state
+          )
             as metadata
         from deals d
         inner join deal_legs dl on dl.deal_id = d.id
         left join currencies cur on cur.id = d.source_currency_id
         left join deal_participants p
           on p.deal_id = d.id and p.role = 'internal_entity'
-        where dl.state = 'ready'
+        where dl.manual_override_state is null
           and d.status not in ('draft', 'rejected', 'done', 'cancelled')
           and not exists (
             select 1
             from payment_steps ps
             where ps.deal_id = d.id
-              and ps.deal_leg_idx = dl.idx
+              and ps.origin->>'planLegId' = dl.id::text
               and ps.state in ('pending', 'processing', 'completed', 'returned')
           )
           ${dealFilter}
@@ -1503,14 +1506,17 @@ export class DrizzleDealReads implements DealReads {
             limit 1
           ) as "counterpartyName",
           coalesce(dl.updated_at, d.updated_at) as "triggeredAt",
-          jsonb_build_object('legKind', dl.kind, 'legState', dl.state)
+          jsonb_build_object(
+            'legKind', dl.kind,
+            'manualOverrideState', dl.manual_override_state
+          )
             as metadata
         from deals d
         inner join deal_legs dl on dl.deal_id = d.id
         left join currencies cur on cur.id = d.source_currency_id
         left join deal_participants p
           on p.deal_id = d.id and p.role = 'internal_entity'
-        where dl.state = 'blocked'
+        where dl.manual_override_state = 'blocked'
           and d.status not in ('draft', 'rejected', 'done', 'cancelled')
           ${dealFilter}
           ${entityFilter}
@@ -1523,7 +1529,11 @@ export class DrizzleDealReads implements DealReads {
           'failed_instruction' as kind,
           d.id as "dealId",
           left(d.id::text, 8) as "dealRef",
-          ps.deal_leg_idx as "legIdx",
+          case
+            when jsonb_typeof(ps.origin->'sequence') = 'number'
+              then (ps.origin->>'sequence')::integer
+            else null
+          end as "legIdx",
           ps.id as "instructionId",
           cur.code as "currencyCode",
           ps.from_currency_id as "currencyId",

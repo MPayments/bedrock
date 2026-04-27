@@ -27,7 +27,7 @@ type FinanceDealFormalDocumentRequirement = {
 type FinanceDealExecutionLeg = {
   idx: number;
   kind: string;
-  state: string;
+  runtimeState: string;
 };
 
 type FinanceDealOperationalPosition = {
@@ -82,9 +82,12 @@ export function deriveFinanceDealBlockerState(
 export function getFinanceDealExecutionProgress(
   deal: Pick<FinanceDealExecutionInput, "executionPlan" | "operationalState">,
 ) {
-  const blockedLegCount = deal.executionPlan.filter((leg) => leg.state === "blocked")
-    .length;
-  const doneLegCount = deal.executionPlan.filter((leg) => leg.state === "done").length;
+  const blockedLegCount = deal.executionPlan.filter(
+    (leg) => leg.runtimeState === "blocked",
+  ).length;
+  const doneLegCount = deal.executionPlan.filter(
+    (leg) => leg.runtimeState === "completed",
+  ).length;
 
   return {
     blockedLegCount,
@@ -98,7 +101,7 @@ function getFinanceDealExecutionIssueCount(
   deal: Pick<FinanceDealExecutionInput, "executionPlan" | "operationalState">,
 ) {
   return (
-    deal.executionPlan.filter((leg) => leg.state === "blocked").length +
+    deal.executionPlan.filter((leg) => leg.runtimeState === "blocked").length +
     deal.operationalState.positions.filter(
       (position) =>
         isPrimaryOperationalPositionVisible(position.kind) &&
@@ -167,7 +170,7 @@ export function deriveFinanceDealExecutionLegSummaries(
 
     let blocker: string | null = null;
 
-    if (leg.state === "blocked") {
+    if (leg.runtimeState === "blocked") {
       blocker = formatDealWorkflowMessage(`Execution leg is blocked: ${leg.kind}`);
     } else if (primaryPosition?.state === "blocked") {
       blocker = formatOperationalPositionIssue({
@@ -184,7 +187,7 @@ export function deriveFinanceDealExecutionLegSummaries(
         primaryPositionKind === null
           ? null
           : getFinancePrimaryOperationalPositionLabel(primaryPositionKind),
-      state: leg.state,
+      state: leg.runtimeState,
     };
   });
 }

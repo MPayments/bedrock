@@ -21,7 +21,7 @@ type ExecutionSummaryRailProps = {
     executionPlan: Array<{
       idx: number;
       kind: string;
-      state: string;
+      runtimeState: string;
     }>;
     operationalState: {
       positions: Array<{

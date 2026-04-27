@@ -2,8 +2,8 @@ import { z } from "zod";
 
 import {
   ArtifactRefSchema,
-  PaymentStepDealLegRoleSchema,
   PaymentStepKindSchema,
+  PaymentStepOriginSchema,
   PaymentStepPartyRefSchema,
   PaymentStepPurposeSchema,
   PaymentStepRateLockedSideSchema,
@@ -33,29 +33,68 @@ const FinanceDealPaymentStepAttemptSchema = z.object({
   updatedAt: z.iso.datetime(),
 });
 
-export const FinanceDealPaymentStepSchema = z.object({
-  artifacts: z.array(ArtifactRefSchema),
-  attempts: z.array(FinanceDealPaymentStepAttemptSchema),
-  completedAt: z.iso.datetime().nullable(),
-  createdAt: z.iso.datetime(),
-  dealId: z.string().uuid().nullable(),
-  dealLegIdx: z.number().int().nonnegative().nullable(),
-  dealLegRole: PaymentStepDealLegRoleSchema.nullable(),
-  failureReason: z.string().nullable(),
+const FinancePaymentStepRouteSchema = z.object({
   fromAmountMinor: z.string().nullable(),
   fromCurrencyId: z.string().uuid(),
   fromParty: PaymentStepPartyRefSchema,
-  id: z.string().uuid(),
-  kind: PaymentStepKindSchema,
-  postings: z.array(PostingDocumentRefSchema),
-  purpose: PaymentStepPurposeSchema,
   rate: z
     .object({
       lockedSide: PaymentStepRateLockedSideSchema,
       value: z.string(),
     })
     .nullable(),
+  toAmountMinor: z.string().nullable(),
+  toCurrencyId: z.string().uuid(),
+  toParty: PaymentStepPartyRefSchema,
+});
+
+const FinancePaymentStepAmendmentSchema = z.object({
+  after: FinancePaymentStepRouteSchema,
+  before: FinancePaymentStepRouteSchema,
+  createdAt: z.iso.datetime(),
+  id: z.string(),
+});
+
+const FinancePaymentStepReturnSchema = z.object({
+  amountMinor: z.string().nullable(),
+  createdAt: z.iso.datetime(),
+  currencyId: z.string().uuid().nullable(),
+  id: z.string(),
+  paymentStepId: z.string().uuid(),
+  providerRef: z.string().nullable(),
+  reason: z.string().nullable(),
+  returnedAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+});
+
+export const FinanceDealPaymentStepSchema = z.object({
+  amendments: z.array(FinancePaymentStepAmendmentSchema),
+  artifacts: z.array(ArtifactRefSchema),
+  attempts: z.array(FinanceDealPaymentStepAttemptSchema),
+  completedAt: z.iso.datetime().nullable(),
+  createdAt: z.iso.datetime(),
+  dealId: z.string().uuid().nullable(),
+  failureReason: z.string().nullable(),
+  fromAmountMinor: z.string().nullable(),
+  fromCurrencyId: z.string().uuid(),
+  fromParty: PaymentStepPartyRefSchema,
+  id: z.string().uuid(),
+  kind: PaymentStepKindSchema,
+  currentRoute: FinancePaymentStepRouteSchema,
+  origin: PaymentStepOriginSchema,
+  plannedRoute: FinancePaymentStepRouteSchema,
+  postingDocumentRefs: z.array(PostingDocumentRefSchema),
+  purpose: PaymentStepPurposeSchema,
+  quoteId: z.string().uuid().nullable(),
+  rate: z
+    .object({
+      lockedSide: PaymentStepRateLockedSideSchema,
+      value: z.string(),
+    })
+    .nullable(),
+  returns: z.array(FinancePaymentStepReturnSchema),
   scheduledAt: z.iso.datetime().nullable(),
+  sourceRef: z.string(),
   state: PaymentStepStateSchema,
   submittedAt: z.iso.datetime().nullable(),
   toAmountMinor: z.string().nullable(),

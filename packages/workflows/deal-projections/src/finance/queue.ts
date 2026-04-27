@@ -95,10 +95,13 @@ export async function listFinanceDealQueues(
           }),
         ]);
         const queueContext = classifyFinanceQueue(workflow);
-        const paymentStepByLegIdx = new Map<number, PaymentStep>();
+        const paymentStepByPlanLegId = new Map<string, PaymentStep>();
         for (const step of paymentStepsResult.data) {
-          if (step.dealLegIdx !== null) {
-            paymentStepByLegIdx.set(step.dealLegIdx, step);
+          if (
+            step.origin.type === "deal_execution_leg" &&
+            step.origin.planLegId !== null
+          ) {
+            paymentStepByPlanLegId.set(step.origin.planLegId, step);
           }
         }
         const reconciliationLinks =
@@ -117,7 +120,7 @@ export async function listFinanceDealQueues(
         );
         const { closeReadiness, reconciliationSummary } =
           deriveFinanceDealReadiness({
-            paymentStepByLegIdx,
+            paymentStepByPlanLegId,
             reconciliationLinksByStepId,
             workflow,
           });
@@ -126,7 +129,7 @@ export async function listFinanceDealQueues(
           closeReadiness,
           internalEntityOrganizationId:
             getInternalEntityParticipant(workflow)?.organizationId ?? null,
-          paymentStepByLegIdx,
+          paymentStepByPlanLegId,
           reconciliationSummary,
           workflow,
         });
@@ -156,7 +159,10 @@ export async function listFinanceDealQueues(
             formalDocumentCount:
               workflow.relatedResources.formalDocuments.length,
           },
-          executionSummary: summarizeExecutionPlan(workflow),
+          executionSummary: summarizeExecutionPlan({
+            paymentStepByPlanLegId,
+            workflow,
+          }),
           internalEntityName,
           nextAction: workflow.nextAction,
           operationalState: workflow.operationalState,

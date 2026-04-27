@@ -297,7 +297,15 @@ describe("createLegOperation payment-steps idempotency", () => {
   it("returns early when a step for the leg already exists", async () => {
     const harness = createHarness({
       paymentStepsListResult: {
-        data: [{ dealLegIdx: 1, id: "step-1" }],
+        data: [
+          {
+            id: "step-1",
+            origin: {
+              planLegId: "leg-1",
+              type: "deal_execution_leg",
+            },
+          },
+        ],
         total: 1,
       },
       workflow: createWorkflowProjection(),
@@ -323,7 +331,15 @@ describe("createLegOperation payment-steps idempotency", () => {
   it("proceeds when a step for a different leg exists", async () => {
     const harness = createHarness({
       paymentStepsListResult: {
-        data: [{ dealLegIdx: 2, id: "step-2" }],
+        data: [
+          {
+            id: "step-2",
+            origin: {
+              planLegId: "leg-2",
+              type: "deal_execution_leg",
+            },
+          },
+        ],
         total: 1,
       },
       workflow: createWorkflowProjection(),

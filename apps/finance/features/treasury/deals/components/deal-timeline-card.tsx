@@ -74,13 +74,6 @@ function findExecutionLeg(
     }
   }
 
-  const operationId = getPayloadString(event, "operationId");
-  if (operationId) {
-    return executionPlan.find((leg) =>
-      leg.operationRefs.some((operationRef) => operationRef.operationId === operationId),
-    );
-  }
-
   return null;
 }
 

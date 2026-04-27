@@ -6,9 +6,6 @@ import type {
 export type StepState = FinanceDealPaymentStep["state"];
 export type StepKind = FinanceDealPaymentStep["kind"];
 export type StepPurpose = FinanceDealPaymentStep["purpose"];
-export type StepDealLegRole = NonNullable<
-  FinanceDealPaymentStep["dealLegRole"]
->;
 export type StepConfirmOutcome = "settled" | "failed" | "returned";
 
 export const STEP_STATE_LABELS: Record<StepState, string> = {
@@ -38,14 +35,6 @@ export const STEP_PURPOSE_LABELS: Record<StepPurpose, string> = {
   standalone_payment: "Отдельная операция",
 };
 
-export const STEP_DEAL_LEG_ROLE_LABELS: Record<StepDealLegRole, string> = {
-  collect: "Сбор средств",
-  convert: "Конверсия",
-  payout: "Выплата",
-  transit_hold: "Транзитный счёт",
-  settle_exporter: "Расчёт с экспортёром",
-};
-
 export const STEP_CONFIRM_OUTCOME_LABELS: Record<StepConfirmOutcome, string> = {
   settled: "Подтвердить исполнение",
   failed: "Отметить как ошибку",
@@ -54,8 +43,7 @@ export const STEP_CONFIRM_OUTCOME_LABELS: Record<StepConfirmOutcome, string> = {
 
 export function requiresSettlementEvidence(step: FinanceDealPaymentStep): boolean {
   return (
-    step.purpose === "deal_leg" &&
-    step.dealLegRole === "payout" &&
+    step.origin.type === "deal_execution_leg" &&
     step.kind === "payout"
   );
 }

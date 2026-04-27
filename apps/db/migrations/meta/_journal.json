@@ -71,6 +71,20 @@
       "when": 1777283682066,
       "tag": "0009_material_shadow_king",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1777287406159,
+      "tag": "0010_brief_jack_murdock",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1777290405633,
+      "tag": "0011_tiny_arachne",
+      "breakpoints": true
     }
   ]
 }

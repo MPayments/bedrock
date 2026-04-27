@@ -16,19 +16,19 @@ type TimelineFilter = "all" | "pending";
 
 function isPendingLeg(leg: Leg) {
   return (
-    leg.state === "pending" ||
-    leg.state === "ready" ||
-    leg.state === "in_progress" ||
-    leg.state === "blocked"
+    leg.runtimeState === "not_materialized" ||
+    leg.runtimeState === "ready" ||
+    leg.runtimeState === "processing" ||
+    leg.runtimeState === "blocked"
   );
 }
 
-function getLegDotClasses(state: Leg["state"]) {
+function getLegDotClasses(state: Leg["runtimeState"]) {
   switch (state) {
-    case "done":
+    case "completed":
       return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300";
-    case "pending":
-    case "in_progress":
+    case "not_materialized":
+    case "processing":
       return "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300";
     case "ready":
       return "bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300";
@@ -42,14 +42,14 @@ function getLegDotClasses(state: Leg["state"]) {
 }
 
 function getLegStateBadgeVariant(
-  state: Leg["state"],
+  state: Leg["runtimeState"],
 ): "default" | "secondary" | "destructive" | "outline" {
   switch (state) {
-    case "done":
+    case "completed":
       return "default";
     case "blocked":
       return "destructive";
-    case "in_progress":
+    case "processing":
     case "ready":
       return "secondary";
     default:
@@ -139,7 +139,7 @@ export function ExecutionTimelinePane({
                 <div
                   className={cn(
                     "flex h-7 w-7 shrink-0 items-center justify-center rounded-full",
-                    getLegDotClasses(leg.state),
+                    getLegDotClasses(leg.runtimeState),
                   )}
                   title={`Шаг ${leg.idx}`}
                 >
@@ -152,15 +152,15 @@ export function ExecutionTimelinePane({
                     </div>
                     <Badge
                       data-testid={`finance-deal-leg-state-${leg.idx}`}
-                      variant={getLegStateBadgeVariant(leg.state)}
+                      variant={getLegStateBadgeVariant(leg.runtimeState)}
                     >
-                      {getDealLegStateLabel(leg.state)}
+                      {getDealLegStateLabel(leg.runtimeState)}
                     </Badge>
                   </div>
                   <div className="text-muted-foreground text-xs">
-                    {leg.operationRefs.length === 0
-                      ? "Без операций"
-                      : `${leg.operationRefs.length} операц${leg.operationRefs.length === 1 ? "ия" : "ий"}`}
+                    {leg.runtimeState === "not_materialized"
+                      ? "Не материализован"
+                      : "Связан с платёжным шагом"}
                   </div>
                 </div>
               </button>

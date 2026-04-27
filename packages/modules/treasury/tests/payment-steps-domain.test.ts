@@ -33,8 +33,6 @@ function createStep(
   return PaymentStep.create(
     {
       dealId: DEAL_ID,
-      dealLegIdx: 0,
-      dealLegRole: "payout",
       fromAmountMinor: 10000n,
       fromCurrencyId: USD_ID,
       fromParty: {
@@ -43,7 +41,10 @@ function createStep(
       },
       id: STEP_ID,
       kind: "payout",
+      planLegId: "plan-leg-1",
       purpose: "deal_leg",
+      sequence: 1,
+      sourceRef: `deal:${DEAL_ID}:plan-leg:plan-leg-1:payout:1`,
       toAmountMinor: 9200n,
       toCurrencyId: EUR_ID,
       toParty: {
@@ -72,11 +73,49 @@ describe("PaymentStep domain", () => {
     expect(snapshot).toMatchObject({
       attempts: [],
       dealId: DEAL_ID,
-      dealLegIdx: 0,
-      dealLegRole: "payout",
       kind: "payout",
+      origin: expect.objectContaining({
+        planLegId: "plan-leg-1",
+        sequence: 1,
+        type: "deal_execution_leg",
+      }),
       purpose: "deal_leg",
+      sourceRef: `deal:${DEAL_ID}:plan-leg:plan-leg-1:payout:1`,
       state: "draft",
+    });
+  });
+
+  it("rejects deal-origin steps without a plan leg id", () => {
+    expect(() =>
+      createStep({
+        origin: {
+          dealId: DEAL_ID,
+          planLegId: null,
+          routeSnapshotLegId: null,
+          sequence: 1,
+          treasuryOrderId: null,
+          type: "deal_execution_leg",
+        },
+      }),
+    ).toThrow(/deal context/u);
+  });
+
+  it("requires quote reference for FX conversion steps", () => {
+    expect(() =>
+      createStep({
+        kind: "fx_conversion",
+        quoteId: null,
+      }),
+    ).toThrow(/quote reference/u);
+
+    expect(
+      createStep({
+        kind: "fx_conversion",
+        quoteId: "00000000-0000-4000-8000-000000000701",
+      }).toSnapshot(),
+    ).toMatchObject({
+      kind: "fx_conversion",
+      quoteId: "00000000-0000-4000-8000-000000000701",
     });
   });
 
@@ -135,18 +174,10 @@ describe("PaymentStep domain", () => {
     expect(retried.toSnapshot().state).toBe("processing");
   });
 
-  it("requires settlement evidence before completing a beneficiary payout step", () => {
+  it("allows completion without domain-level deal evidence policy", () => {
     const processing = submitFirstAttempt();
 
-    expect(() =>
-      processing.confirm({
-        outcome: "settled",
-        outcomeAt: OUTCOME_AT,
-      }),
-    ).toThrow(/settlement evidence/u);
-
     const completed = processing.confirm({
-      artifacts: [evidenceArtifact()],
       outcome: "settled",
       outcomeAt: OUTCOME_AT,
     });
@@ -165,9 +196,16 @@ describe("PaymentStep domain", () => {
     const processing = submitFirstAttempt(
       createStep({
         dealId: null,
-        dealLegIdx: null,
-        dealLegRole: null,
+        origin: {
+          dealId: null,
+          planLegId: null,
+          routeSnapshotLegId: null,
+          sequence: null,
+          treasuryOrderId: null,
+          type: "manual",
+        },
         purpose: "standalone_payment",
+        sourceRef: "manual:standalone:1",
       }),
     );
 
@@ -200,25 +238,25 @@ describe("PaymentStep domain", () => {
     });
 
     expect(() =>
-      completed.confirm({
-        outcome: "returned",
-        outcomeAt: new Date("2026-04-24T10:09:00.000Z"),
+      completed.recordReturn({
+        id: "6d16baf2-0698-49ac-9324-7ad50964e841",
+        returnedAt: new Date("2026-04-24T10:09:00.000Z"),
       }),
-    ).toThrow(/completed attempt before return/u);
+    ).toThrow(/cannot precede completion/u);
 
-    const returned = completed.confirm({
-      failureReason: "bank reversal",
-      outcome: "returned",
-      outcomeAt: RETURNED_AT,
+    const returned = completed.recordReturn({
+      id: "6d16baf2-0698-49ac-9324-7ad50964e842",
+      reason: "bank reversal",
+      returnedAt: RETURNED_AT,
     });
 
     expect(returned.toSnapshot()).toMatchObject({
       failureReason: "bank reversal",
       state: "returned",
     });
-    expect(returned.toSnapshot().attempts[0]).toMatchObject({
-      outcome: "returned",
-      outcomeAt: RETURNED_AT,
+    expect(returned.toSnapshot().returns[0]).toMatchObject({
+      reason: "bank reversal",
+      returnedAt: RETURNED_AT,
     });
   });
 

@@ -85,6 +85,18 @@ const STEP_KIND_OPTIONS: ReadonlyArray<{ value: StepKind; label: string }> = [
   { value: "intercompany_funding", label: "Межкомпанейское фондирование" },
 ];
 
+function resolveOrderType(kind: StepKind) {
+  if (kind === "fx_conversion") return "fx_exchange";
+  if (
+    kind === "internal_transfer" ||
+    kind === "intracompany_transfer" ||
+    kind === "intercompany_funding"
+  ) {
+    return "rebalance";
+  }
+  return "single_payment";
+}
+
 const PARTY_KIND_OPTIONS: ReadonlyArray<{ value: PartyKind; label: string }> = [
   { value: "organization", label: "Организация" },
   { value: "counterparty", label: "Контрагент" },
@@ -122,6 +134,7 @@ export function CreateStepDialog({
   const [kind, setKind] = useState<StepKind>("internal_transfer");
   const [from, setFrom] = useState<SideState>(INITIAL_SIDE);
   const [to, setTo] = useState<SideState>(INITIAL_SIDE);
+  const [quoteId, setQuoteId] = useState("");
   const [currencyOptions, setCurrencyOptions] = useState<CurrencyOption[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -140,6 +153,7 @@ export function CreateStepDialog({
     setKind("internal_transfer");
     setFrom(INITIAL_SIDE);
     setTo(INITIAL_SIDE);
+    setQuoteId("");
   }
 
   function handleOpenChange(next: boolean) {
@@ -156,6 +170,10 @@ export function CreateStepDialog({
       toast.error("Выберите валюты отправителя и получателя");
       return;
     }
+    if (kind === "fx_conversion" && !quoteId.trim()) {
+      toast.error("Укажите котировку для конверсии");
+      return;
+    }
     const fromCurrencyCode =
       currencyOptions.find((opt) => opt.id === from.currencyId)?.code ?? null;
     const toCurrencyCode =
@@ -168,10 +186,10 @@ export function CreateStepDialog({
     }
 
     setIsSubmitting(true);
-    const result = await executeMutation({
+    const createResult = await executeMutation({
       fallbackMessage: "Не удалось создать операцию",
       request: () =>
-        fetch("/v1/treasury/steps", {
+        fetch("/v1/treasury/orders", {
           method: "POST",
           credentials: "include",
           headers: {
@@ -179,23 +197,53 @@ export function CreateStepDialog({
             "Idempotency-Key": createIdempotencyKey(),
           },
           body: JSON.stringify({
-            fromAmountMinor: fromAmount,
-            fromCurrencyId: from.currencyId,
-            fromParty: {
-              id: from.partyId,
-              requisiteId: from.requisiteId || null,
-            },
-            initialState: "pending",
-            kind,
-            toAmountMinor: toAmount,
-            toCurrencyId: to.currencyId,
-            toParty: {
-              id: to.partyId,
-              requisiteId: to.requisiteId || null,
-            },
+            description: null,
+            steps: [
+              {
+                fromAmountMinor: fromAmount,
+                fromCurrencyId: from.currencyId,
+                fromParty: {
+                  id: from.partyId,
+                  requisiteId: from.requisiteId || null,
+                },
+                kind,
+                quoteId: kind === "fx_conversion" ? quoteId.trim() : null,
+                toAmountMinor: toAmount,
+                toCurrencyId: to.currencyId,
+                toParty: {
+                  id: to.partyId,
+                  requisiteId: to.requisiteId || null,
+                },
+              },
+            ],
+            type: resolveOrderType(kind),
           }),
         }),
     });
+
+    if (!createResult.ok) {
+      setIsSubmitting(false);
+      toast.error(createResult.message);
+      return;
+    }
+
+    const createdOrder = createResult.data as { id?: string } | null;
+    const result = createdOrder?.id
+      ? await executeMutation({
+          fallbackMessage: "Не удалось активировать операцию",
+          request: () =>
+            fetch(
+              `/v1/treasury/orders/${encodeURIComponent(createdOrder.id!)}/activate`,
+              {
+                method: "POST",
+                credentials: "include",
+                headers: {
+                  "Idempotency-Key": createIdempotencyKey(),
+                },
+              },
+            ),
+        })
+      : createResult;
     setIsSubmitting(false);
 
     if (!result.ok) {
@@ -203,12 +251,15 @@ export function CreateStepDialog({
       return;
     }
 
-    const created = result.data as { id?: string } | null;
+    const created = result.data as
+      | { id?: string; steps?: Array<{ paymentStepId?: string | null }> }
+      | null;
     toast.success("Операция создана");
     reset();
     onOpenChange(false);
-    if (onSuccess && created?.id) {
-      onSuccess(created.id);
+    const createdStepId = created?.steps?.[0]?.paymentStepId ?? created?.id;
+    if (onSuccess && createdStepId) {
+      onSuccess(createdStepId);
     } else {
       router.refresh();
     }
@@ -251,6 +302,20 @@ export function CreateStepDialog({
               </SelectContent>
             </Select>
           </div>
+
+          {kind === "fx_conversion" ? (
+            <div className="space-y-2">
+              <Label htmlFor="create-step-quote">Котировка</Label>
+              <Input
+                id="create-step-quote"
+                placeholder="Quote ID"
+                value={quoteId}
+                disabled={isSubmitting}
+                onChange={(event) => setQuoteId(event.target.value)}
+                data-testid="finance-create-step-quote-id"
+              />
+            </div>
+          ) : null}
 
           <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-3">
             <SideEditor

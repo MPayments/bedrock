@@ -5,7 +5,10 @@ import { ArrowRight } from "lucide-react";
 import { Badge } from "@bedrock/sdk-ui/components/badge";
 import { Button } from "@bedrock/sdk-ui/components/button";
 
-import { getDealLegKindLabel } from "@/features/treasury/deals/labels";
+import {
+  getDealLegKindLabel,
+  getDealLegStateLabel,
+} from "@/features/treasury/deals/labels";
 import type {
   FinanceDealRouteAttachment,
   FinanceDealRouteAttachmentLeg,
@@ -197,7 +200,7 @@ export function ExecutionContextGrid({
                         {getDealLegKindLabel(leg.kind)}
                       </span>
                       <Badge variant="outline" className="text-xs font-normal">
-                        {leg.operationRefs.length}
+                        {getDealLegStateLabel(leg.runtimeState)}
                       </Badge>
                     </li>
                   );

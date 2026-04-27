@@ -36,8 +36,6 @@ function createService(now: Date) {
 function createDealLegStepInput(id = STEP_ID) {
   return {
     dealId: DEAL_ID,
-    dealLegIdx: 0,
-    dealLegRole: "payout" as const,
     fromAmountMinor: 10000n,
     fromCurrencyId: currencyIdForCode("USD"),
     fromParty: {
@@ -47,7 +45,16 @@ function createDealLegStepInput(id = STEP_ID) {
     id,
     initialState: "pending" as const,
     kind: "payout" as const,
+    origin: {
+      dealId: DEAL_ID,
+      planLegId: `plan-leg-${id}`,
+      routeSnapshotLegId: null,
+      sequence: 1,
+      treasuryOrderId: null,
+      type: "deal_execution_leg" as const,
+    },
     purpose: "deal_leg" as const,
+    sourceRef: `deal:${DEAL_ID}:plan-leg:plan-leg-${id}:payout:1`,
     toAmountMinor: 9200n,
     toCurrencyId: currencyIdForCode("EUR"),
     toParty: {
@@ -88,10 +95,12 @@ describe("PaymentSteps repository integration", () => {
 
     expect(found).toMatchObject({
       dealId: DEAL_ID,
-      dealLegIdx: 0,
-      dealLegRole: "payout",
       failureReason: "provider rejected",
       id: STEP_ID,
+      origin: expect.objectContaining({
+        planLegId: `plan-leg-${STEP_ID}`,
+        type: "deal_execution_leg",
+      }),
       state: "failed",
     });
     expect(found.attempts).toMatchObject([
@@ -184,7 +193,7 @@ describe("PaymentSteps repository integration", () => {
       kind: "exchange",
       stepId: POSTING_STEP_ID,
     });
-    expect(firstAttach.postings).toEqual([
+    expect(firstAttach.postingDocumentRefs).toEqual([
       { documentId: POSTING_DOCUMENT_ID, kind: "exchange" },
     ]);
     expect(firstAttach.updatedAt).toEqual(firstAttachAt);
@@ -199,7 +208,7 @@ describe("PaymentSteps repository integration", () => {
       kind: "exchange",
       stepId: POSTING_STEP_ID,
     });
-    expect(secondAttach.postings).toEqual([
+    expect(secondAttach.postingDocumentRefs).toEqual([
       { documentId: POSTING_DOCUMENT_ID, kind: "exchange" },
     ]);
     expect(secondAttach.updatedAt).toEqual(firstAttachAt);
@@ -207,7 +216,7 @@ describe("PaymentSteps repository integration", () => {
     const persisted = await createService(secondAttachAt).queries.findById({
       stepId: POSTING_STEP_ID,
     });
-    expect(persisted.postings).toEqual([
+    expect(persisted.postingDocumentRefs).toEqual([
       { documentId: POSTING_DOCUMENT_ID, kind: "exchange" },
     ]);
   });

@@ -3,35 +3,42 @@ import { AggregateRoot, invariant } from "@bedrock/shared/core/domain";
 import { PaymentStepAttempt } from "./payment-step-attempt";
 import type {
   ArtifactRef,
+  PaymentStepAmendmentRecord,
   PaymentStepAttemptRecord,
-  PaymentStepDealLegRole,
   PaymentStepKind,
+  PaymentStepOrigin,
   PaymentStepPartyRef,
   PaymentStepPurpose,
   PaymentStepRate,
   PaymentStepRecord,
+  PaymentStepReturnRecord,
+  PaymentStepRouteSnapshot,
   PaymentStepState,
   PostingDocumentRef,
 } from "./types";
-import { PAYMENT_STEP_SETTLEMENT_EVIDENCE_PURPOSE_VALUES } from "./types";
 
 export type PaymentStepSnapshot = PaymentStepRecord;
 
 export interface CreatePaymentStepProps {
   dealId?: string | null;
-  dealLegIdx?: number | null;
-  dealLegRole?: PaymentStepDealLegRole | null;
   fromAmountMinor?: bigint | null;
   fromCurrencyId: string;
   fromParty: PaymentStepPartyRef;
   id: string;
   kind: PaymentStepKind;
+  origin?: PaymentStepOrigin;
+  planLegId?: string | null;
   purpose: PaymentStepPurpose;
+  quoteId?: string | null;
   rate?: PaymentStepRate | null;
+  routeSnapshotLegId?: string | null;
+  sequence?: number | null;
+  sourceRef: string;
   toAmountMinor?: bigint | null;
   toCurrencyId: string;
   toParty: PaymentStepPartyRef;
   treasuryBatchId?: string | null;
+  treasuryOrderId?: string | null;
 }
 
 export type PaymentStepRouteAmendment = Partial<{
@@ -59,6 +66,15 @@ export interface ConfirmPaymentStepInput {
   failureReason?: string | null;
   outcome: PaymentStepConfirmOutcome;
   outcomeAt: Date;
+}
+
+export interface RecordPaymentStepReturnInput {
+  amountMinor?: bigint | null;
+  currencyId?: string | null;
+  id: string;
+  providerRef?: string | null;
+  reason?: string | null;
+  returnedAt: Date;
 }
 
 const AMENDABLE_STATES: PaymentStepState[] = ["draft", "scheduled", "pending"];
@@ -134,20 +150,108 @@ function cloneArtifact(artifact: ArtifactRef): ArtifactRef {
   return { ...artifact };
 }
 
-function hasSettlementEvidence(artifacts: ArtifactRef[]): boolean {
-  return artifacts.some((artifact) =>
-    PAYMENT_STEP_SETTLEMENT_EVIDENCE_PURPOSE_VALUES.includes(
-      artifact.purpose as (typeof PAYMENT_STEP_SETTLEMENT_EVIDENCE_PURPOSE_VALUES)[number],
-    ),
-  );
+function cloneRoute(route: PaymentStepRouteSnapshot): PaymentStepRouteSnapshot {
+  return {
+    fromAmountMinor: normalizeAmount(route.fromAmountMinor, "fromAmountMinor"),
+    fromCurrencyId: normalizeRequiredText(route.fromCurrencyId, "fromCurrencyId"),
+    fromParty: normalizeParty(route.fromParty, "fromParty"),
+    rate: normalizeRate(route.rate),
+    toAmountMinor: normalizeAmount(route.toAmountMinor, "toAmountMinor"),
+    toCurrencyId: normalizeRequiredText(route.toCurrencyId, "toCurrencyId"),
+    toParty: normalizeParty(route.toParty, "toParty"),
+  };
 }
 
-function requiresSettlementEvidence(snapshot: PaymentStepSnapshot): boolean {
-  return (
-    snapshot.purpose === "deal_leg" &&
-    snapshot.dealLegRole === "payout" &&
-    snapshot.kind === "payout"
-  );
+function cloneOrigin(origin: PaymentStepOrigin): PaymentStepOrigin {
+  return {
+    dealId: normalizeOptionalText(origin.dealId),
+    planLegId: normalizeOptionalText(origin.planLegId),
+    routeSnapshotLegId: normalizeOptionalText(origin.routeSnapshotLegId),
+    sequence: origin.sequence ?? null,
+    treasuryOrderId: normalizeOptionalText(origin.treasuryOrderId),
+    type: origin.type,
+  };
+}
+
+function cloneAmendment(
+  amendment: PaymentStepAmendmentRecord,
+): PaymentStepAmendmentRecord {
+  return {
+    after: cloneRoute(amendment.after),
+    before: cloneRoute(amendment.before),
+    createdAt: cloneDate(amendment.createdAt),
+    id: normalizeRequiredText(amendment.id, "amendment.id"),
+  };
+}
+
+function cloneReturnRecord(
+  record: PaymentStepReturnRecord,
+): PaymentStepReturnRecord {
+  return {
+    amountMinor: normalizeAmount(record.amountMinor, "return.amountMinor"),
+    createdAt: cloneDate(record.createdAt),
+    currencyId: normalizeOptionalText(record.currencyId),
+    id: normalizeRequiredText(record.id, "return.id"),
+    paymentStepId: normalizeRequiredText(record.paymentStepId, "return.paymentStepId"),
+    providerRef: normalizeOptionalText(record.providerRef),
+    reason: normalizeOptionalText(record.reason),
+    returnedAt: cloneDate(record.returnedAt),
+    updatedAt: cloneDate(record.updatedAt),
+  };
+}
+
+function buildRouteSnapshot(input: {
+  fromAmountMinor?: bigint | null;
+  fromCurrencyId: string;
+  fromParty: PaymentStepPartyRef;
+  rate?: PaymentStepRate | null;
+  toAmountMinor?: bigint | null;
+  toCurrencyId: string;
+  toParty: PaymentStepPartyRef;
+}): PaymentStepRouteSnapshot {
+  return cloneRoute({
+    fromAmountMinor: input.fromAmountMinor ?? null,
+    fromCurrencyId: input.fromCurrencyId,
+    fromParty: input.fromParty,
+    rate: input.rate ?? null,
+    toAmountMinor: input.toAmountMinor ?? null,
+    toCurrencyId: input.toCurrencyId,
+    toParty: input.toParty,
+  });
+}
+
+function createOrigin(input: CreatePaymentStepProps): PaymentStepOrigin {
+  if (input.origin) {
+    return cloneOrigin(input.origin);
+  }
+  if (input.purpose === "deal_leg") {
+    return cloneOrigin({
+      dealId: input.dealId ?? null,
+      planLegId: input.planLegId ?? null,
+      routeSnapshotLegId: input.routeSnapshotLegId ?? null,
+      sequence: input.sequence ?? null,
+      treasuryOrderId: null,
+      type: "deal_execution_leg",
+    });
+  }
+  if (input.treasuryOrderId) {
+    return cloneOrigin({
+      dealId: null,
+      planLegId: input.planLegId ?? null,
+      routeSnapshotLegId: null,
+      sequence: input.sequence ?? null,
+      treasuryOrderId: input.treasuryOrderId,
+      type: "treasury_order_step",
+    });
+  }
+  return cloneOrigin({
+    dealId: null,
+    planLegId: null,
+    routeSnapshotLegId: null,
+    sequence: input.sequence ?? null,
+    treasuryOrderId: null,
+    type: "manual",
+  });
 }
 
 function cloneAttemptRecord(
@@ -159,13 +263,18 @@ function cloneAttemptRecord(
 function cloneSnapshot(snapshot: PaymentStepSnapshot): PaymentStepSnapshot {
   return {
     ...snapshot,
+    amendments: snapshot.amendments.map(cloneAmendment),
     artifacts: snapshot.artifacts.map(cloneArtifact),
     attempts: snapshot.attempts.map(cloneAttemptRecord),
     completedAt: cloneNullableDate(snapshot.completedAt),
     createdAt: cloneDate(snapshot.createdAt),
+    currentRoute: cloneRoute(snapshot.currentRoute),
     fromParty: normalizeParty(snapshot.fromParty, "fromParty"),
-    postings: snapshot.postings.map(clonePosting),
+    origin: cloneOrigin(snapshot.origin),
+    plannedRoute: cloneRoute(snapshot.plannedRoute),
+    postingDocumentRefs: snapshot.postingDocumentRefs.map(clonePosting),
     rate: normalizeRate(snapshot.rate),
+    returns: snapshot.returns.map(cloneReturnRecord),
     scheduledAt: cloneNullableDate(snapshot.scheduledAt),
     submittedAt: cloneNullableDate(snapshot.submittedAt),
     toParty: normalizeParty(snapshot.toParty, "toParty"),
@@ -225,6 +334,7 @@ function normalizeSnapshot(snapshot: PaymentStepSnapshot): PaymentStepSnapshot {
 
   const normalized: PaymentStepSnapshot = {
     ...snapshot,
+    amendments: snapshot.amendments.map(cloneAmendment),
     artifacts: snapshot.artifacts.map(cloneArtifact),
     attempts: normalizeAttempts(id, snapshot.attempts),
     completedAt: cloneNullableDate(snapshot.completedAt),
@@ -241,9 +351,15 @@ function normalizeSnapshot(snapshot: PaymentStepSnapshot): PaymentStepSnapshot {
     ),
     fromParty: normalizeParty(snapshot.fromParty, "fromParty"),
     id,
-    postings: snapshot.postings.map(clonePosting),
+    currentRoute: cloneRoute(snapshot.currentRoute),
+    origin: cloneOrigin(snapshot.origin),
+    plannedRoute: cloneRoute(snapshot.plannedRoute),
+    postingDocumentRefs: snapshot.postingDocumentRefs.map(clonePosting),
+    quoteId: normalizeOptionalText(snapshot.quoteId),
     rate: normalizeRate(snapshot.rate),
+    returns: snapshot.returns.map(cloneReturnRecord),
     scheduledAt: cloneNullableDate(snapshot.scheduledAt),
+    sourceRef: normalizeRequiredText(snapshot.sourceRef, "sourceRef"),
     submittedAt: cloneNullableDate(snapshot.submittedAt),
     toAmountMinor: normalizeAmount(snapshot.toAmountMinor, "toAmountMinor"),
     toCurrencyId: normalizeRequiredText(snapshot.toCurrencyId, "toCurrencyId"),
@@ -252,21 +368,46 @@ function normalizeSnapshot(snapshot: PaymentStepSnapshot): PaymentStepSnapshot {
     updatedAt: cloneDate(snapshot.updatedAt),
   };
 
-  if (normalized.dealLegIdx !== null) {
+  if (normalized.origin.sequence !== null) {
     invariant(
-      Number.isInteger(normalized.dealLegIdx) && normalized.dealLegIdx >= 0,
-      "Payment step deal leg index must be non-negative",
+      Number.isInteger(normalized.origin.sequence) && normalized.origin.sequence >= 0,
+      "Payment step origin sequence must be non-negative",
       {
-        code: "treasury.payment_step.deal_leg_idx_invalid",
-        meta: { dealLegIdx: normalized.dealLegIdx, stepId: normalized.id },
+        code: "treasury.payment_step.origin_sequence_invalid",
+        meta: { sequence: normalized.origin.sequence, stepId: normalized.id },
+      },
+    );
+  }
+  if (normalized.kind === "fx_conversion") {
+    invariant(
+      normalized.quoteId !== null,
+      "FX conversion payment steps require a quote reference",
+      {
+        code: "treasury.payment_step.fx_quote_required",
+        meta: { stepId: normalized.id },
+      },
+    );
+  }
+  for (const record of normalized.returns) {
+    invariant(
+      record.paymentStepId === normalized.id,
+      "Payment step return belongs to a different step",
+      {
+        code: "treasury.payment_step.return_step_mismatch",
+        meta: {
+          returnId: record.id,
+          returnStepId: record.paymentStepId,
+          stepId: normalized.id,
+        },
       },
     );
   }
   if (normalized.purpose === "deal_leg") {
     invariant(
       normalized.dealId !== null &&
-        normalized.dealLegIdx !== null &&
-        normalized.dealLegRole !== null,
+        normalized.origin.type === "deal_execution_leg" &&
+        normalized.origin.dealId === normalized.dealId &&
+        normalized.origin.planLegId !== null,
       "Deal leg payment steps require deal context",
       {
         code: "treasury.payment_step.deal_context_required",
@@ -291,16 +432,6 @@ function normalizeSnapshot(snapshot: PaymentStepSnapshot): PaymentStepSnapshot {
         meta: { stepId: normalized.id },
       },
     );
-    if (requiresSettlementEvidence(normalized)) {
-      invariant(
-        hasSettlementEvidence(normalized.artifacts),
-        "Completed beneficiary payout steps require settlement evidence",
-        {
-          code: "treasury.payment_step.evidence_required",
-          meta: { stepId: normalized.id },
-        },
-      );
-    }
   }
   if (normalized.state === "returned") {
     invariant(
@@ -312,16 +443,14 @@ function normalizeSnapshot(snapshot: PaymentStepSnapshot): PaymentStepSnapshot {
       },
     );
     invariant(
-      normalized.attempts.some(
-        (attempt) =>
-          attempt.outcome === "returned" &&
-          attempt.outcomeAt !== null &&
+      normalized.returns.some(
+        (record) =>
           normalized.completedAt !== null &&
-          attempt.outcomeAt.getTime() >= normalized.completedAt.getTime(),
+          record.returnedAt.getTime() >= normalized.completedAt.getTime(),
       ),
-      "Returned payment steps require a completed attempt before return",
+      "Returned payment steps require a return record after completion",
       {
-        code: "treasury.payment_step.return_attempt_required",
+        code: "treasury.payment_step.return_record_required",
         meta: { stepId: normalized.id },
       },
     );
@@ -336,30 +465,39 @@ export class PaymentStep extends AggregateRoot<string> {
   }
 
   static create(input: CreatePaymentStepProps, now: Date): PaymentStep {
+    const route = buildRouteSnapshot(input);
+    const sourceRef =
+      input.sourceRef ??
+      `${input.purpose}:${input.dealId ?? input.treasuryOrderId ?? input.id}`;
     return new PaymentStep(
       normalizeSnapshot({
+        amendments: [],
         artifacts: [],
         attempts: [],
         completedAt: null,
         createdAt: now,
         dealId: input.dealId ?? null,
-        dealLegIdx: input.dealLegIdx ?? null,
-        dealLegRole: input.dealLegRole ?? null,
         failureReason: null,
-        fromAmountMinor: input.fromAmountMinor ?? null,
-        fromCurrencyId: input.fromCurrencyId,
-        fromParty: input.fromParty,
+        fromAmountMinor: route.fromAmountMinor,
+        fromCurrencyId: route.fromCurrencyId,
+        fromParty: route.fromParty,
         id: input.id,
         kind: input.kind,
-        postings: [],
+        currentRoute: route,
+        origin: createOrigin(input),
+        plannedRoute: route,
+        postingDocumentRefs: [],
         purpose: input.purpose,
-        rate: input.rate ?? null,
+        quoteId: input.quoteId ?? null,
+        rate: route.rate,
+        returns: [],
         scheduledAt: null,
+        sourceRef,
         state: "draft",
         submittedAt: null,
-        toAmountMinor: input.toAmountMinor ?? null,
-        toCurrencyId: input.toCurrencyId,
-        toParty: input.toParty,
+        toAmountMinor: route.toAmountMinor,
+        toCurrencyId: route.toCurrencyId,
+        toParty: route.toParty,
         treasuryBatchId: input.treasuryBatchId ?? null,
         updatedAt: now,
       }),
@@ -380,26 +518,45 @@ export class PaymentStep extends AggregateRoot<string> {
       },
     );
 
+    const before = cloneRoute(this.snapshot.currentRoute);
+    const after = cloneRoute({
+      fromAmountMinor:
+        input.fromAmountMinor !== undefined
+          ? input.fromAmountMinor
+          : before.fromAmountMinor,
+      fromCurrencyId:
+        input.fromCurrencyId !== undefined
+          ? input.fromCurrencyId
+          : before.fromCurrencyId,
+      fromParty: input.fromParty !== undefined ? input.fromParty : before.fromParty,
+      rate: input.rate !== undefined ? input.rate : before.rate,
+      toAmountMinor:
+        input.toAmountMinor !== undefined ? input.toAmountMinor : before.toAmountMinor,
+      toCurrencyId:
+        input.toCurrencyId !== undefined ? input.toCurrencyId : before.toCurrencyId,
+      toParty: input.toParty !== undefined ? input.toParty : before.toParty,
+    });
+
     return new PaymentStep(
       normalizeSnapshot({
         ...this.snapshot,
-        fromAmountMinor: input.fromAmountMinor !== undefined
-          ? input.fromAmountMinor
-          : this.snapshot.fromAmountMinor,
-        fromCurrencyId: input.fromCurrencyId !== undefined
-          ? input.fromCurrencyId
-          : this.snapshot.fromCurrencyId,
-        fromParty: input.fromParty !== undefined
-          ? input.fromParty
-          : this.snapshot.fromParty,
-        rate: input.rate !== undefined ? input.rate : this.snapshot.rate,
-        toAmountMinor: input.toAmountMinor !== undefined
-          ? input.toAmountMinor
-          : this.snapshot.toAmountMinor,
-        toCurrencyId: input.toCurrencyId !== undefined
-          ? input.toCurrencyId
-          : this.snapshot.toCurrencyId,
-        toParty: input.toParty !== undefined ? input.toParty : this.snapshot.toParty,
+        amendments: [
+          ...this.snapshot.amendments.map(cloneAmendment),
+          {
+            after,
+            before,
+            createdAt: now,
+            id: `amendment:${this.id}:${this.snapshot.amendments.length + 1}`,
+          },
+        ],
+        currentRoute: after,
+        fromAmountMinor: after.fromAmountMinor,
+        fromCurrencyId: after.fromCurrencyId,
+        fromParty: after.fromParty,
+        rate: after.rate,
+        toAmountMinor: after.toAmountMinor,
+        toCurrencyId: after.toCurrencyId,
+        toParty: after.toParty,
         updatedAt: now,
       }),
     );
@@ -530,17 +687,6 @@ export class PaymentStep extends AggregateRoot<string> {
         meta: { stepId: this.id },
       },
     );
-    if (requiresSettlementEvidence(this.snapshot)) {
-      invariant(
-        hasSettlementEvidence(artifacts),
-        "Completed beneficiary payout steps require settlement evidence",
-        {
-          code: "treasury.payment_step.evidence_required",
-          meta: { stepId: this.id },
-        },
-      );
-    }
-
     return new PaymentStep(
       normalizeSnapshot({
         ...this.snapshot,
@@ -602,7 +748,7 @@ export class PaymentStep extends AggregateRoot<string> {
   attachPosting(input: PostingDocumentRef, now: Date): PaymentStep {
     const documentId = normalizeRequiredText(input.documentId, "documentId");
     const kind = normalizeRequiredText(input.kind, "kind");
-    const alreadyLinked = this.snapshot.postings.some(
+    const alreadyLinked = this.snapshot.postingDocumentRefs.some(
       (existing) => existing.documentId === documentId && existing.kind === kind,
     );
     if (alreadyLinked) {
@@ -612,8 +758,62 @@ export class PaymentStep extends AggregateRoot<string> {
     return new PaymentStep(
       normalizeSnapshot({
         ...this.snapshot,
-        postings: [...this.snapshot.postings, { documentId, kind }],
+        postingDocumentRefs: [
+          ...this.snapshot.postingDocumentRefs,
+          { documentId, kind },
+        ],
         updatedAt: now,
+      }),
+    );
+  }
+
+  recordReturn(input: RecordPaymentStepReturnInput): PaymentStep {
+    assertValidDate(input.returnedAt, "returnedAt");
+    invariant(
+      this.snapshot.state === "completed" || this.snapshot.state === "returned",
+      "Payment step returns require prior completion",
+      {
+        code: "treasury.payment_step.return_requires_completion",
+        meta: { state: this.snapshot.state, stepId: this.id },
+      },
+    );
+    invariant(
+      this.snapshot.completedAt !== null &&
+        input.returnedAt.getTime() >= this.snapshot.completedAt.getTime(),
+      "Payment step return cannot precede completion",
+      {
+        code: "treasury.payment_step.return_before_completion",
+        meta: { stepId: this.id },
+      },
+    );
+
+    const record = cloneReturnRecord({
+      amountMinor: input.amountMinor ?? null,
+      createdAt: input.returnedAt,
+      currencyId: input.currencyId ?? this.snapshot.toCurrencyId,
+      id: input.id,
+      paymentStepId: this.id,
+      providerRef: input.providerRef ?? null,
+      reason: input.reason ?? null,
+      returnedAt: input.returnedAt,
+      updatedAt: input.returnedAt,
+    });
+    invariant(
+      !this.snapshot.returns.some((candidate) => candidate.id === record.id),
+      "Payment step return already exists",
+      {
+        code: "treasury.payment_step.return_duplicate",
+        meta: { returnId: record.id, stepId: this.id },
+      },
+    );
+
+    return new PaymentStep(
+      normalizeSnapshot({
+        ...this.snapshot,
+        failureReason: record.reason,
+        returns: [...this.snapshot.returns, record],
+        state: "returned",
+        updatedAt: record.returnedAt,
       }),
     );
   }
@@ -646,20 +846,11 @@ export class PaymentStep extends AggregateRoot<string> {
       },
     );
 
-    const returnedAttempt = attempt.recordOutcome({
-      outcome: "returned",
-      outcomeAt: input.outcomeAt,
+    return this.recordReturn({
+      id: attempt.id,
+      reason: input.failureReason ?? null,
+      returnedAt: input.outcomeAt,
     });
-
-    return new PaymentStep(
-      normalizeSnapshot({
-        ...this.snapshot,
-        attempts: this.replaceAttempt(returnedAttempt),
-        failureReason: normalizeOptionalText(input.failureReason),
-        state: "returned",
-        updatedAt: input.outcomeAt,
-      }),
-    );
   }
 
   private replaceAttempt(attempt: PaymentStepAttempt): PaymentStepAttemptRecord[] {

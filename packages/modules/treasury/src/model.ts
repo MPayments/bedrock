@@ -2,7 +2,6 @@ export type {
   ArtifactRef,
   PaymentStepAttemptOutcome,
   PaymentStepAttemptRecord,
-  PaymentStepDealLegRole,
   PaymentStepKind,
   PaymentStepPartyRef,
   PaymentStepPurpose,

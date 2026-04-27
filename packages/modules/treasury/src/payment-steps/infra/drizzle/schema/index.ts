@@ -16,10 +16,13 @@ import { currencies } from "@bedrock/currencies/schema";
 
 import type {
   PaymentStepAttemptOutcome,
-  PaymentStepDealLegRole,
   PaymentStepKind,
+  PaymentStepAmendmentRecord,
+  PaymentStepOrigin,
   PaymentStepPurpose,
   PaymentStepRateLockedSide,
+  PaymentStepReturnRecord,
+  PaymentStepRouteSnapshot,
   PaymentStepState,
   PostingDocumentRef,
 } from "../../../domain/types";
@@ -31,10 +34,12 @@ export const paymentSteps = pgTable(
     purpose: text("purpose").$type<PaymentStepPurpose>().notNull(),
     kind: text("kind").$type<PaymentStepKind>().notNull(),
     state: text("state").$type<PaymentStepState>().notNull().default("draft"),
+    sourceRef: text("source_ref").notNull(),
+    origin: jsonb("origin").$type<PaymentStepOrigin>().notNull(),
     dealId: uuid("deal_id"),
-    dealLegIdx: integer("deal_leg_idx"),
-    dealLegRole: text("deal_leg_role").$type<PaymentStepDealLegRole | null>(),
     treasuryBatchId: uuid("treasury_batch_id"),
+    treasuryOrderId: uuid("treasury_order_id"),
+    quoteId: uuid("quote_id"),
     fromPartyId: uuid("from_party_id").notNull(),
     fromRequisiteId: uuid("from_requisite_id"),
     toPartyId: uuid("to_party_id").notNull(),
@@ -50,7 +55,13 @@ export const paymentSteps = pgTable(
     rateValue: text("rate_value"),
     rateLockedSide:
       text("rate_locked_side").$type<PaymentStepRateLockedSide | null>(),
-    postings: jsonb("postings")
+    plannedRoute: jsonb("planned_route").$type<PaymentStepRouteSnapshot>().notNull(),
+    currentRoute: jsonb("current_route").$type<PaymentStepRouteSnapshot>().notNull(),
+    amendments: jsonb("amendments")
+      .$type<PaymentStepAmendmentRecord[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    postingDocumentRefs: jsonb("postings")
       .$type<PostingDocumentRef[]>()
       .notNull()
       .default(sql`'[]'::jsonb`),
@@ -67,16 +78,40 @@ export const paymentSteps = pgTable(
       .$onUpdateFn(() => new Date()),
   },
   (table) => [
-    uniqueIndex("payment_steps_deal_leg_uq").on(
-      table.dealId,
-      table.dealLegIdx,
-    ),
+    uniqueIndex("payment_steps_source_ref_uq").on(table.sourceRef),
     index("payment_steps_purpose_idx").on(table.purpose),
     index("payment_steps_kind_idx").on(table.kind),
     index("payment_steps_state_idx").on(table.state),
     index("payment_steps_deal_idx").on(table.dealId),
     index("payment_steps_batch_idx").on(table.treasuryBatchId),
+    index("payment_steps_order_idx").on(table.treasuryOrderId),
     index("payment_steps_scheduled_idx").on(table.scheduledAt),
+  ],
+);
+
+export const paymentStepReturns = pgTable(
+  "payment_step_returns",
+  {
+    id: uuid("id").primaryKey(),
+    paymentStepId: uuid("payment_step_id")
+      .notNull()
+      .references(() => paymentSteps.id, { onDelete: "cascade" }),
+    amountMinor: bigint("amount_minor", { mode: "bigint" }),
+    currencyId: uuid("currency_id").references(() => currencies.id),
+    providerRef: text("provider_ref"),
+    reason: text("reason"),
+    returnedAt: timestamp("returned_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`)
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    index("payment_step_returns_step_idx").on(table.paymentStepId),
+    index("payment_step_returns_returned_at_idx").on(table.returnedAt),
   ],
 );
 

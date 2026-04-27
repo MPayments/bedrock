@@ -289,20 +289,36 @@ export async function materializeCompiledOperation(input: {
   const id = randomUUID();
   await input.treasuryModule.paymentSteps.commands.create({
     dealId: input.workflow.summary.id,
-    dealLegIdx: input.compiled.legIdx,
-    dealLegRole: input.compiled.legKind,
     fromAmountMinor: amount.amountMinor,
     fromCurrencyId,
     fromParty: partyRefs.fromParty,
     id,
     initialState: "draft",
     kind: input.compiled.operationKind,
+    origin: {
+      dealId: input.workflow.summary.id,
+      planLegId: input.compiled.legId,
+      routeSnapshotLegId:
+        input.workflow.executionPlan.find((leg) => leg.id === input.compiled.legId)
+          ?.routeSnapshotLegId ?? null,
+      sequence: input.compiled.legIdx,
+      treasuryOrderId: null,
+      type: "deal_execution_leg",
+    },
+    planLegId: input.compiled.legId,
     purpose: "deal_leg",
+    quoteId: input.compiled.quoteId,
     rate,
+    routeSnapshotLegId: input.workflow.executionPlan.find(
+      (leg) => leg.id === input.compiled.legId,
+    )?.routeSnapshotLegId ?? null,
+    sequence: input.compiled.legIdx,
+    sourceRef: input.compiled.sourceRef,
     toAmountMinor: counterAmount.amountMinor ?? amount.amountMinor,
     toCurrencyId,
     toParty: partyRefs.toParty,
     treasuryBatchId: null,
+    treasuryOrderId: null,
   });
 
   return { id };

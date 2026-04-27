@@ -267,7 +267,6 @@ function createAcceptanceDocument() {
 
 function createCloseDealHarness(input?: {
   paymentSteps?: {
-    dealLegIdx: number;
     id: string;
     kind:
       | "payin"
@@ -286,6 +285,8 @@ function createCloseDealHarness(input?: {
       | "returned"
       | "cancelled"
       | "skipped";
+    planLegId: string;
+    sequence: number;
   }[];
   reconciliationLinks?: {
     exceptions: {
@@ -309,8 +310,8 @@ function createCloseDealHarness(input?: {
     createWorkflowProjection({
       formalDocuments: [createAcceptanceDocument()],
       operationRefs: [
-        [{ kind: "payin", operationId: "op-1", sourceRef: "deal:deal-1:leg:1:payin:1" }],
-        [{ kind: "payout", operationId: "op-2", sourceRef: "deal:deal-1:leg:2:payout:1" }],
+        [{ kind: "payin", operationId: "op-1", sourceRef: "deal:deal-1:plan-leg:leg-1:payin:1" }],
+        [{ kind: "payout", operationId: "op-2", sourceRef: "deal:deal-1:plan-leg:leg-2:payout:1" }],
       ],
       status: "closing_documents",
       type: "payment",
@@ -356,6 +357,7 @@ function createCloseDealHarness(input?: {
           transitionStatus,
         },
         queries: {
+          findPricingContextByDealId: vi.fn(async () => null),
           findWorkflowById: vi.fn(async () => workflow),
         },
       },
@@ -377,23 +379,51 @@ function createCloseDealHarness(input?: {
         queries: {
           list: vi.fn(async () => {
             const items = (input?.paymentSteps ?? []).map((step) => ({
+              amendments: [],
               artifacts: [],
               attempts: [],
               completedAt: null,
               createdAt: new Date("2026-04-03T10:00:00.000Z"),
+              currentRoute: {
+                fromAmountMinor: null,
+                fromCurrencyId: "currency-usd",
+                fromParty: { id: "party-1", requisiteId: null },
+                rate: null,
+                toAmountMinor: null,
+                toCurrencyId: "currency-usd",
+                toParty: { id: "party-2", requisiteId: null },
+              },
               dealId: "deal-1",
-              dealLegIdx: step.dealLegIdx,
-              dealLegRole: null,
               failureReason: null,
               fromAmountMinor: null,
               fromCurrencyId: "currency-usd",
               fromParty: { id: "party-1", requisiteId: null },
               id: step.id,
               kind: step.kind,
-              postings: [],
+              origin: {
+                dealId: "deal-1",
+                planLegId: step.planLegId,
+                routeSnapshotLegId: null,
+                sequence: step.sequence,
+                treasuryOrderId: null,
+                type: "deal_execution_leg",
+              },
+              plannedRoute: {
+                fromAmountMinor: null,
+                fromCurrencyId: "currency-usd",
+                fromParty: { id: "party-1", requisiteId: null },
+                rate: null,
+                toAmountMinor: null,
+                toCurrencyId: "currency-usd",
+                toParty: { id: "party-2", requisiteId: null },
+              },
+              postingDocumentRefs: [],
               purpose: "deal_leg" as const,
+              quoteId: null,
               rate: null,
+              returns: [],
               scheduledAt: null,
+              sourceRef: `deal:deal-1:plan-leg:${step.planLegId}:${step.kind}:1`,
               state: step.state,
               submittedAt: null,
               toAmountMinor: null,
@@ -441,8 +471,8 @@ describe("deal execution workflow", () => {
         workflow,
       }).map((item) => [item.legKind, item.operationKind, item.sourceRef]),
     ).toEqual([
-      ["collect", "payin", "deal:deal-1:leg:1:payin:1"],
-      ["payout", "payout", "deal:deal-1:leg:2:payout:1"],
+      ["collect", "payin", "deal:deal-1:plan-leg:leg-1:payin:1"],
+      ["payout", "payout", "deal:deal-1:plan-leg:leg-2:payout:1"],
     ]);
   });
 
@@ -461,9 +491,9 @@ describe("deal execution workflow", () => {
         workflow,
       }).map((item) => [item.legKind, item.operationKind, item.sourceRef]),
     ).toEqual([
-      ["collect", "payin", "deal:deal-1:leg:1:payin:1"],
-      ["convert", "fx_conversion", "deal:deal-1:leg:2:fx_conversion:1"],
-      ["payout", "payout", "deal:deal-1:leg:3:payout:1"],
+      ["collect", "payin", "deal:deal-1:plan-leg:leg-1:payin:1"],
+      ["convert", "fx_conversion", "deal:deal-1:plan-leg:leg-2:fx_conversion:1"],
+      ["payout", "payout", "deal:deal-1:plan-leg:leg-3:payout:1"],
     ]);
   });
 
@@ -482,14 +512,14 @@ describe("deal execution workflow", () => {
         workflow,
       }).map((item) => [item.legKind, item.operationKind, item.sourceRef]),
     ).toEqual([
-      ["collect", "payin", "deal:deal-1:leg:1:payin:1"],
-      ["convert", "fx_conversion", "deal:deal-1:leg:2:fx_conversion:1"],
+      ["collect", "payin", "deal:deal-1:plan-leg:leg-1:payin:1"],
+      ["convert", "fx_conversion", "deal:deal-1:plan-leg:leg-2:fx_conversion:1"],
       [
         "transit_hold",
         "intracompany_transfer",
-        "deal:deal-1:leg:3:intracompany_transfer:1",
+        "deal:deal-1:plan-leg:leg-3:intracompany_transfer:1",
       ],
-      ["payout", "payout", "deal:deal-1:leg:4:payout:1"],
+      ["payout", "payout", "deal:deal-1:plan-leg:leg-4:payout:1"],
     ]);
   });
 
@@ -756,13 +786,13 @@ describe("deal execution workflow", () => {
         workflow,
       }).map((item) => [item.legKind, item.operationKind, item.sourceRef]),
     ).toEqual([
-      ["payout", "payout", "deal:deal-1:leg:1:payout:1"],
-      ["collect", "payin", "deal:deal-1:leg:2:payin:1"],
-      ["convert", "fx_conversion", "deal:deal-1:leg:3:fx_conversion:1"],
+      ["payout", "payout", "deal:deal-1:plan-leg:leg-1:payout:1"],
+      ["collect", "payin", "deal:deal-1:plan-leg:leg-2:payin:1"],
+      ["convert", "fx_conversion", "deal:deal-1:plan-leg:leg-3:fx_conversion:1"],
       [
         "settle_exporter",
         "intercompany_funding",
-        "deal:deal-1:leg:4:intercompany_funding:1",
+        "deal:deal-1:plan-leg:leg-4:intercompany_funding:1",
       ],
     ]);
   });
@@ -778,9 +808,9 @@ describe("deal execution workflow", () => {
       type: "currency_exchange",
       withConvert: true,
       operationRefs: [
-        [{ kind: "payin", operationId: "op-1", sourceRef: "deal:deal-1:leg:1:payin:1" }],
-        [{ kind: "fx_conversion", operationId: "op-2", sourceRef: "deal:deal-1:leg:2:fx_conversion:1" }],
-        [{ kind: "payout", operationId: "op-3", sourceRef: "deal:deal-1:leg:3:payout:1" }],
+        [{ kind: "payin", operationId: "op-1", sourceRef: "deal:deal-1:plan-leg:leg-1:payin:1" }],
+        [{ kind: "fx_conversion", operationId: "op-2", sourceRef: "deal:deal-1:plan-leg:leg-2:fx_conversion:1" }],
+        [{ kind: "payout", operationId: "op-3", sourceRef: "deal:deal-1:plan-leg:leg-3:payout:1" }],
       ],
       status: "awaiting_funds",
     });
@@ -835,6 +865,7 @@ describe("deal execution workflow", () => {
       createDealsModule: () => ({
         deals: {
           queries: {
+            findPricingContextByDealId: vi.fn(async () => null),
             findWorkflowById,
           },
         },
@@ -883,8 +914,8 @@ describe("deal execution workflow", () => {
   it("rejects closeDeal while reconciliation is still pending", async () => {
     const harness = createCloseDealHarness({
       paymentSteps: [
-        { dealLegIdx: 1, id: "op-1", kind: "payin", state: "cancelled" },
-        { dealLegIdx: 2, id: "op-2", kind: "payout", state: "completed" },
+        { planLegId: "leg-1", sequence: 1, id: "op-1", kind: "payin", state: "cancelled" },
+        { planLegId: "leg-2", sequence: 2, id: "op-2", kind: "payout", state: "completed" },
       ],
       reconciliationLinks: [],
     });
@@ -904,8 +935,8 @@ describe("deal execution workflow", () => {
   it("rejects closeDeal when reconciliation has open exceptions", async () => {
     const harness = createCloseDealHarness({
       paymentSteps: [
-        { dealLegIdx: 1, id: "op-1", kind: "payin", state: "cancelled" },
-        { dealLegIdx: 2, id: "op-2", kind: "payout", state: "completed" },
+        { planLegId: "leg-1", sequence: 1, id: "op-1", kind: "payin", state: "cancelled" },
+        { planLegId: "leg-2", sequence: 2, id: "op-2", kind: "payout", state: "completed" },
       ],
       reconciliationLinks: [
         {
@@ -943,8 +974,8 @@ describe("deal execution workflow", () => {
   it("closes the deal once reconciliation-aware readiness is satisfied", async () => {
     const harness = createCloseDealHarness({
       paymentSteps: [
-        { dealLegIdx: 1, id: "op-1", kind: "payin", state: "cancelled" },
-        { dealLegIdx: 2, id: "op-2", kind: "payout", state: "completed" },
+        { planLegId: "leg-1", sequence: 1, id: "op-1", kind: "payin", state: "cancelled" },
+        { planLegId: "leg-2", sequence: 2, id: "op-2", kind: "payout", state: "completed" },
       ],
       reconciliationLinks: [
         {

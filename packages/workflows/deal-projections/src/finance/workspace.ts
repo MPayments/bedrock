@@ -33,15 +33,12 @@ import {
 
 function deriveLegStateFromStep(
   step: PaymentStep | undefined,
-  manualOverride: "blocked" | "skipped" | null,
-): "blocked" | "done" | "pending" | "ready" | "skipped" {
-  if (manualOverride === "blocked") return "blocked";
-  if (manualOverride === "skipped") return "skipped";
-  if (!step) return "pending";
+): "blocked" | "completed" | "not_materialized" | "processing" | "ready" | "skipped" {
+  if (!step) return "not_materialized";
 
   switch (step.state) {
     case "completed":
-      return "done";
+      return "completed";
     case "cancelled":
     case "skipped":
       return "skipped";
@@ -51,8 +48,9 @@ function deriveLegStateFromStep(
     case "draft":
     case "scheduled":
     case "pending":
-    case "processing":
       return "ready";
+    case "processing":
+      return "processing";
   }
 }
 
@@ -71,7 +69,21 @@ type FinanceWorkspaceDeps = Pick<
 function serializeFinanceDealPaymentStep(
   step: PaymentStep,
 ): FinanceDealPaymentStep {
+  const serializeRoute = (route: PaymentStep["currentRoute"]) => ({
+    ...route,
+    fromAmountMinor:
+      route.fromAmountMinor === null ? null : route.fromAmountMinor.toString(),
+    toAmountMinor:
+      route.toAmountMinor === null ? null : route.toAmountMinor.toString(),
+  });
+
   return {
+    amendments: step.amendments.map((amendment) => ({
+      after: serializeRoute(amendment.after),
+      before: serializeRoute(amendment.before),
+      createdAt: amendment.createdAt.toISOString(),
+      id: amendment.id,
+    })),
     artifacts: step.artifacts,
     attempts: step.attempts.map((attempt) => ({
       attemptNo: attempt.attemptNo,
@@ -88,10 +100,9 @@ function serializeFinanceDealPaymentStep(
       updatedAt: attempt.updatedAt.toISOString(),
     })),
     completedAt: step.completedAt ? step.completedAt.toISOString() : null,
+    currentRoute: serializeRoute(step.currentRoute),
     createdAt: step.createdAt.toISOString(),
     dealId: step.dealId,
-    dealLegIdx: step.dealLegIdx,
-    dealLegRole: step.dealLegRole,
     failureReason: step.failureReason,
     fromAmountMinor:
       step.fromAmountMinor === null ? null : step.fromAmountMinor.toString(),
@@ -99,10 +110,22 @@ function serializeFinanceDealPaymentStep(
     fromParty: step.fromParty,
     id: step.id,
     kind: step.kind,
-    postings: step.postings,
+    origin: step.origin,
+    plannedRoute: serializeRoute(step.plannedRoute),
+    postingDocumentRefs: step.postingDocumentRefs,
     purpose: step.purpose,
+    quoteId: step.quoteId,
     rate: step.rate,
+    returns: step.returns.map((record) => ({
+      ...record,
+      amountMinor:
+        record.amountMinor === null ? null : record.amountMinor.toString(),
+      createdAt: record.createdAt.toISOString(),
+      returnedAt: record.returnedAt.toISOString(),
+      updatedAt: record.updatedAt.toISOString(),
+    })),
     scheduledAt: step.scheduledAt ? step.scheduledAt.toISOString() : null,
+    sourceRef: step.sourceRef,
     state: step.state,
     submittedAt: step.submittedAt ? step.submittedAt.toISOString() : null,
     toAmountMinor:
@@ -188,10 +211,13 @@ export async function getFinanceDealWorkspaceProjection(
       (document) => document.docType === "exchange",
     ) ?? null;
   const queueContext = classifyFinanceQueue(workflow);
-  const paymentStepByLegIdx = new Map<number, PaymentStep>();
+  const paymentStepByPlanLegId = new Map<string, PaymentStep>();
   for (const step of paymentStepsResult.data) {
-    if (step.dealLegIdx !== null) {
-      paymentStepByLegIdx.set(step.dealLegIdx, step);
+    if (
+      step.origin.type === "deal_execution_leg" &&
+      step.origin.planLegId !== null
+    ) {
+      paymentStepByPlanLegId.set(step.origin.planLegId, step);
     }
   }
   const reconciliationLinks =
@@ -215,7 +241,7 @@ export async function getFinanceDealWorkspaceProjection(
     terminalStepCount,
     totalStepCount,
   } = deriveFinanceDealReadiness({
-    paymentStepByLegIdx,
+    paymentStepByPlanLegId,
     reconciliationLinksByStepId,
     workflow,
   });
@@ -254,8 +280,8 @@ export async function getFinanceDealWorkspaceProjection(
         terminalStepCount === totalStepCount &&
         (reconciliationSummary.state === "pending" ||
           reconciliationSummary.state === "blocked"),
-      canResolveExecutionBlocker: workflow.executionPlan.some(
-        (leg) => leg.state === "blocked",
+      canResolveExecutionBlocker: paymentStepsResult.data.some(
+        (step) => step.state === "failed" || step.state === "returned",
       ),
       canUploadAttachment: actions.canUploadAttachment,
     },
@@ -263,19 +289,20 @@ export async function getFinanceDealWorkspaceProjection(
     cashflowSummary,
     closeReadiness,
     executionPlan: workflow.executionPlan.map((leg) => {
-      const manualOverride =
-        leg.state === "blocked" || leg.state === "skipped" ? leg.state : null;
-      const step = paymentStepByLegIdx.get(leg.idx);
-      const computedState = deriveLegStateFromStep(step, manualOverride);
+      const step = leg.id ? paymentStepByPlanLegId.get(leg.id) : undefined;
+      const runtimeState = deriveLegStateFromStep(step);
       return {
-        ...leg,
-        state: computedState,
+        fromCurrencyId: leg.fromCurrencyId,
+        id: leg.id,
+        idx: leg.idx,
+        kind: leg.kind,
+        routeSnapshotLegId: leg.routeSnapshotLegId,
+        runtimeState,
+        toCurrencyId: leg.toCurrencyId,
         actions: {
           canCreateLegOperation:
             hasAnyMaterializedSteps &&
             !step &&
-            computedState !== "blocked" &&
-            computedState !== "skipped" &&
             !isDealInTerminalStatus(workflow),
           exchangeDocument:
             leg.kind === "convert" &&

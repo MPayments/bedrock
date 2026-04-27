@@ -105,7 +105,9 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
     () =>
       selectedLeg
         ? (deal.executionSteps.find(
-            (step) => step.dealLegIdx === selectedLeg.idx,
+            (step) =>
+              step.origin.type === "deal_execution_leg" &&
+              step.origin.planLegId === selectedLeg.id,
           ) ?? null)
         : null,
     [deal.executionSteps, selectedLeg],
@@ -176,7 +178,7 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
     const expectedDocTypes = expectedPostingDocTypes(step.kind);
     if (expectedDocTypes.length === 0) return;
     const alreadyLinked = new Set(
-      step.postings.map((posting) => posting.kind),
+      step.postingDocumentRefs.map((posting) => posting.kind),
     );
     const candidates = deal.relatedResources.formalDocuments.filter(
       (doc) =>
@@ -240,8 +242,8 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
                   title={`Шаг ${selectedLeg.idx} · ${getDealLegKindLabel(
                     selectedLeg.kind,
                   )}`}
-                  uploadAssetPath={`/v1/deals/${encodeURIComponent(
-                    deal.summary.id,
+                  uploadAssetPath={`/v1/treasury/steps/${encodeURIComponent(
+                    selectedStep.id,
                   )}/attachments`}
                   fromPartyDisplayName={fromPartyDisplayName}
                   fromPartyKind={fromPartyKind}

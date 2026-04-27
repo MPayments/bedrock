@@ -285,11 +285,15 @@ describe("materializeCompiledOperation", () => {
     expect(paymentStepsCommands.create).toHaveBeenCalledWith(
       expect.objectContaining({
         dealId: "deal-1",
-        dealLegIdx: 1,
-        dealLegRole: "collect",
         fromCurrencyId: "cur-usd",
         fromParty: { id: "customer-1", requisiteId: null },
         kind: "payin",
+        origin: expect.objectContaining({
+          dealId: "deal-1",
+          planLegId: "leg-1",
+          sequence: 1,
+          type: "deal_execution_leg",
+        }),
         purpose: "deal_leg",
         toCurrencyId: "cur-usd",
         toParty: { id: "org-1", requisiteId: null },

@@ -76,7 +76,7 @@ DROP TABLE "treasury_instructions" CASCADE;--> statement-breakpoint
 DROP TABLE "treasury_operations" CASCADE;--> statement-breakpoint
 ALTER TABLE "file_links" DROP CONSTRAINT "file_links_exactly_one_owner_chk";--> statement-breakpoint
 ALTER TABLE "file_links" DROP CONSTRAINT "file_links_generated_variant_shape_chk";--> statement-breakpoint
-ALTER TABLE "reconciliation_matches" DROP CONSTRAINT "reconciliation_matches_matched_treasury_operation_id_treasury_operations_id_fk";
+ALTER TABLE "reconciliation_matches" DROP CONSTRAINT IF EXISTS "reconciliation_matches_matched_treasury_operation_id_treasury_operations_id_fk";
 --> statement-breakpoint
 ALTER TABLE "deal_legs" ADD COLUMN "manual_override_state" "deal_leg_manual_override";--> statement-breakpoint
 ALTER TABLE "deal_legs" ADD COLUMN "override_reason_code" text;--> statement-breakpoint

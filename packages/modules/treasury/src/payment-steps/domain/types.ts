@@ -13,6 +13,12 @@ export const PAYMENT_STEP_PURPOSE_VALUES = [
   "standalone_payment",
 ] as const;
 
+export const PAYMENT_STEP_ORIGIN_TYPE_VALUES = [
+  "deal_execution_leg",
+  "treasury_order_step",
+  "manual",
+] as const;
+
 export const PAYMENT_STEP_STATE_VALUES = [
   "draft",
   "scheduled",
@@ -23,14 +29,6 @@ export const PAYMENT_STEP_STATE_VALUES = [
   "returned",
   "cancelled",
   "skipped",
-] as const;
-
-export const PAYMENT_STEP_DEAL_LEG_ROLE_VALUES = [
-  "collect",
-  "convert",
-  "payout",
-  "transit_hold",
-  "settle_exporter",
 ] as const;
 
 export const PAYMENT_STEP_RATE_LOCKED_SIDE_VALUES = ["in", "out"] as const;
@@ -50,10 +48,10 @@ export const PAYMENT_STEP_SETTLEMENT_EVIDENCE_PURPOSE_VALUES = [
 ] as const;
 
 export type PaymentStepKind = (typeof PAYMENT_STEP_KIND_VALUES)[number];
+export type PaymentStepOriginType =
+  (typeof PAYMENT_STEP_ORIGIN_TYPE_VALUES)[number];
 export type PaymentStepPurpose = (typeof PAYMENT_STEP_PURPOSE_VALUES)[number];
 export type PaymentStepState = (typeof PAYMENT_STEP_STATE_VALUES)[number];
-export type PaymentStepDealLegRole =
-  (typeof PAYMENT_STEP_DEAL_LEG_ROLE_VALUES)[number];
 export type PaymentStepRateLockedSide =
   (typeof PAYMENT_STEP_RATE_LOCKED_SIDE_VALUES)[number];
 export type PaymentStepAttemptOutcome =
@@ -76,9 +74,49 @@ export interface PostingDocumentRef {
   kind: string;
 }
 
+export type PostingDocumentRefRecord = PostingDocumentRef;
+
 export interface ArtifactRef {
   fileAssetId: string;
   purpose: string;
+}
+
+export interface PaymentStepOrigin {
+  dealId: string | null;
+  planLegId: string | null;
+  routeSnapshotLegId: string | null;
+  sequence: number | null;
+  treasuryOrderId: string | null;
+  type: PaymentStepOriginType;
+}
+
+export interface PaymentStepRouteSnapshot {
+  fromAmountMinor: bigint | null;
+  fromCurrencyId: string;
+  fromParty: PaymentStepPartyRef;
+  rate: PaymentStepRate | null;
+  toAmountMinor: bigint | null;
+  toCurrencyId: string;
+  toParty: PaymentStepPartyRef;
+}
+
+export interface PaymentStepAmendmentRecord {
+  after: PaymentStepRouteSnapshot;
+  before: PaymentStepRouteSnapshot;
+  createdAt: Date;
+  id: string;
+}
+
+export interface PaymentStepReturnRecord {
+  amountMinor: bigint | null;
+  createdAt: Date;
+  currencyId: string | null;
+  id: string;
+  paymentStepId: string;
+  providerRef: string | null;
+  reason: string | null;
+  returnedAt: Date;
+  updatedAt: Date;
 }
 
 export interface PaymentStepAttemptRecord {
@@ -95,23 +133,28 @@ export interface PaymentStepAttemptRecord {
 }
 
 export interface PaymentStepRecord {
+  amendments: PaymentStepAmendmentRecord[];
   artifacts: ArtifactRef[];
   attempts: PaymentStepAttemptRecord[];
   completedAt: Date | null;
   createdAt: Date;
   dealId: string | null;
-  dealLegIdx: number | null;
-  dealLegRole: PaymentStepDealLegRole | null;
   failureReason: string | null;
   fromAmountMinor: bigint | null;
   fromCurrencyId: string;
   fromParty: PaymentStepPartyRef;
   id: string;
   kind: PaymentStepKind;
-  postings: PostingDocumentRef[];
+  currentRoute: PaymentStepRouteSnapshot;
+  origin: PaymentStepOrigin;
+  plannedRoute: PaymentStepRouteSnapshot;
+  postingDocumentRefs: PostingDocumentRef[];
   purpose: PaymentStepPurpose;
+  quoteId: string | null;
   rate: PaymentStepRate | null;
+  returns: PaymentStepReturnRecord[];
   scheduledAt: Date | null;
+  sourceRef: string;
   state: PaymentStepState;
   submittedAt: Date | null;
   toAmountMinor: bigint | null;
