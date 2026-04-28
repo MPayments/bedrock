@@ -2,9 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   getPaymentRouteAdditionalFeeTotals,
-  getPaymentRouteChargedFeeTotals,
   getPaymentRouteCleanAmountOutMinor,
-  getPaymentRouteClientTotalInMinor,
   getPaymentRouteCostPriceInMinor,
   getPaymentRouteInternalFeeTotals,
   getPaymentRouteLegFeeTotals,
@@ -18,7 +16,7 @@ const CALCULATION: PaymentRouteCalculation = {
   additionalFees: [
     {
       amountMinor: "100",
-      chargeToCustomer: true,
+      application: "separate_charge",
       currencyId: USD,
       id: "additional-1",
       inputImpactCurrencyId: USD,
@@ -31,7 +29,7 @@ const CALCULATION: PaymentRouteCalculation = {
     },
     {
       amountMinor: "25",
-      chargeToCustomer: false,
+      application: "separate_charge",
       currencyId: USD,
       id: "additional-2",
       inputImpactCurrencyId: USD,
@@ -45,18 +43,16 @@ const CALCULATION: PaymentRouteCalculation = {
   ],
   amountInMinor: "10000",
   amountOutMinor: "5000",
-  chargedFeeTotals: [
-    {
-      amountMinor: "300",
-      currencyId: USD,
-    },
-  ],
+  benchmarkPrincipalInMinor: "10000",
   cleanAmountOutMinor: "5200",
-  clientTotalInMinor: "10100",
   computedAt: "2026-04-16T12:00:00.000Z",
   costPriceInMinor: "10325",
   currencyInId: USD,
   currencyOutId: EUR,
+  deductedExecutionCostMinor: "200",
+  embeddedExecutionCostMinor: "0",
+  executionCostLines: [],
+  executionPrincipalInMinor: "10000",
   feeTotals: [
     {
       amountMinor: "325",
@@ -76,7 +72,7 @@ const CALCULATION: PaymentRouteCalculation = {
       fees: [
         {
           amountMinor: "200",
-          chargeToCustomer: true,
+          application: "deducted_from_flow",
           currencyId: USD,
           id: "leg-fee-1",
           inputImpactCurrencyId: USD,
@@ -102,6 +98,7 @@ const CALCULATION: PaymentRouteCalculation = {
   ],
   lockedSide: "currency_in",
   netAmountOutMinor: "5000",
+  separateExecutionCostMinor: "125",
 };
 
 describe("payment route cost summary", () => {
@@ -121,13 +118,7 @@ describe("payment route cost summary", () => {
     ]);
   });
 
-  it("returns charged and internal totals from the calculation summary", () => {
-    expect(getPaymentRouteChargedFeeTotals(CALCULATION)).toEqual([
-      {
-        amountMinor: "300",
-        currencyId: USD,
-      },
-    ]);
+  it("returns execution cost totals from the calculation summary", () => {
     expect(getPaymentRouteInternalFeeTotals(CALCULATION)).toEqual([
       {
         amountMinor: "25",
@@ -136,8 +127,7 @@ describe("payment route cost summary", () => {
     ]);
   });
 
-  it("reads client and cost totals directly from the calculation summary", () => {
-    expect(getPaymentRouteClientTotalInMinor(CALCULATION)).toBe("10100");
+  it("reads route cost totals directly from the calculation summary", () => {
     expect(getPaymentRouteCostPriceInMinor(CALCULATION)).toBe("10325");
     expect(getPaymentRouteCleanAmountOutMinor(CALCULATION)).toBe("5200");
   });

@@ -4,6 +4,8 @@ import { createPaginatedListSchema } from "@bedrock/shared/core/pagination";
 
 import {
   PaymentRouteDraftSchema,
+  PaymentRouteFeeApplicationSchema,
+  PaymentRouteFeeKindSchema,
   PaymentRouteLockedSideSchema,
   PaymentRouteParticipantRefSchema,
   PaymentRouteSnapshotPolicySchema,
@@ -13,7 +15,7 @@ import {
 
 const PaymentRouteCalculationFeeSharedSchema = z.object({
   amountMinor: z.string(),
-  chargeToCustomer: z.boolean(),
+  application: PaymentRouteFeeApplicationSchema,
   currencyId: z.uuid(),
   id: z.string().trim().min(1),
   inputImpactCurrencyId: z.uuid(),
@@ -22,6 +24,28 @@ const PaymentRouteCalculationFeeSharedSchema = z.object({
   outputImpactCurrencyId: z.uuid(),
   outputImpactMinor: z.string(),
   routeInputImpactMinor: z.string(),
+});
+
+const PaymentRouteExecutionCostTreatmentSchema = z.enum([
+  "execution_spread",
+  "flow_deduction",
+  "separate_expense",
+]);
+
+const PaymentRouteExecutionCostLineSchema = z.object({
+  amountMinor: z.string(),
+  application: PaymentRouteFeeApplicationSchema,
+  currencyId: z.uuid(),
+  id: z.string().trim().min(1),
+  inputImpactCurrencyId: z.uuid(),
+  inputImpactMinor: z.string(),
+  kind: PaymentRouteFeeKindSchema,
+  label: z.string().trim().min(1).optional(),
+  location: z.enum(["additional", "leg"]),
+  outputImpactCurrencyId: z.uuid(),
+  outputImpactMinor: z.string(),
+  routeInputImpactMinor: z.string(),
+  treatment: PaymentRouteExecutionCostTreatmentSchema,
 });
 
 const PaymentRouteCalculationGrossPercentFeeSchema =
@@ -80,19 +104,23 @@ export const PaymentRouteCalculationSchema = z.object({
   additionalFees: z.array(PaymentRouteCalculationFeeSchema),
   amountInMinor: z.string(),
   amountOutMinor: z.string(),
-  chargedFeeTotals: z.array(PaymentRouteAmountTotalSchema),
+  benchmarkPrincipalInMinor: z.string(),
   cleanAmountOutMinor: z.string(),
-  clientTotalInMinor: z.string(),
   computedAt: z.iso.datetime(),
   costPriceInMinor: z.string(),
   currencyInId: z.uuid(),
   currencyOutId: z.uuid(),
+  deductedExecutionCostMinor: z.string(),
+  embeddedExecutionCostMinor: z.string(),
+  executionCostLines: z.array(PaymentRouteExecutionCostLineSchema),
+  executionPrincipalInMinor: z.string(),
   feeTotals: z.array(PaymentRouteAmountTotalSchema),
   grossAmountOutMinor: z.string(),
   internalFeeTotals: z.array(PaymentRouteAmountTotalSchema),
   legs: z.array(PaymentRouteCalculationLegSchema),
   lockedSide: PaymentRouteLockedSideSchema,
   netAmountOutMinor: z.string(),
+  separateExecutionCostMinor: z.string(),
 });
 
 export const PaymentRouteTemplateSchema = z

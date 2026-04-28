@@ -9,6 +9,7 @@ import { syncPaymentRouteDraftRequisites } from "@/features/payment-routes/lib/r
 import {
   addAdditionalFee,
   applyCalculation,
+  changeFeeKind,
   createPaymentRouteSeed,
   insertIntermediateParticipant,
   isDefaultPaymentRouteViewport,
@@ -385,18 +386,16 @@ describe("payment route editor state", () => {
       additionalFees: [],
       amountInMinor: "1200000",
       amountOutMinor: "1188000",
-      chargedFeeTotals: [
-        {
-          amountMinor: "12000",
-          currencyId: USD.id,
-        },
-      ],
+      benchmarkPrincipalInMinor: "1200000",
       cleanAmountOutMinor: "1200000",
-      clientTotalInMinor: "1200000",
       computedAt: "2026-04-16T08:00:00.000Z",
       costPriceInMinor: "1200000",
       currencyInId: USD.id,
       currencyOutId: USD.id,
+      deductedExecutionCostMinor: "12000",
+      embeddedExecutionCostMinor: "0",
+      executionCostLines: [],
+      executionPrincipalInMinor: "1200000",
       feeTotals: [
         {
           amountMinor: "12000",
@@ -411,7 +410,7 @@ describe("payment route editor state", () => {
           fees: [
             {
               amountMinor: "12000",
-              chargeToCustomer: true,
+              application: "deducted_from_flow",
               currencyId: USD.id,
               id: "fee-1",
               inputImpactCurrencyId: USD.id,
@@ -437,6 +436,7 @@ describe("payment route editor state", () => {
       ],
       lockedSide: "currency_in",
       netAmountOutMinor: "1188000",
+      separateExecutionCostMinor: "0",
     });
 
     expect(next.mode).toBe("manual");
@@ -445,11 +445,30 @@ describe("payment route editor state", () => {
     expect(next.calculation?.netAmountOutMinor).toBe("1188000");
   });
 
-  it("creates additional fees unchecked for client pricing by default", () => {
+  it("creates additional fees as separate execution costs by default", () => {
     const seed = createPaymentRouteSeed(OPTIONS)!;
     const next = addAdditionalFee(seed);
 
     expect(next.draft.additionalFees).toHaveLength(1);
-    expect(next.draft.additionalFees[0]?.chargeToCustomer).toBe(false);
+    expect(next.draft.additionalFees[0]?.application).toBe("separate_charge");
+  });
+
+  it("normalizes embedded FX application when changing fee kind", () => {
+    const next = changeFeeKind({
+      fallbackCurrencyId: USD.id,
+      fee: {
+        application: "embedded_in_rate",
+        id: "fee-1",
+        kind: "fx_spread",
+        label: "Спред",
+        percentage: "0.25",
+      },
+      nextKind: "fixed",
+    });
+
+    expect(next).toMatchObject({
+      application: "deducted_from_flow",
+      kind: "fixed",
+    });
   });
 });

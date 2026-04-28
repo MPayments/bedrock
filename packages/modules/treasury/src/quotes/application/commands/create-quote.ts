@@ -63,7 +63,16 @@ export class CreateQuoteCommand {
 
       const fromCurrencyId = currencyIdByCode.get(pricingSnapshot.fromCurrency)!;
       const toCurrencyId = currencyIdByCode.get(pricingSnapshot.toCurrency)!;
+      const crmPricingSnapshot =
+        pricingSnapshot.pricingTrace.metadata &&
+        typeof pricingSnapshot.pricingTrace.metadata === "object" &&
+        !Array.isArray(pricingSnapshot.pricingTrace.metadata)
+          ? (
+              pricingSnapshot.pricingTrace.metadata as Record<string, unknown>
+            ).crmPricingSnapshot
+          : null;
       const pricingFingerprint = computePricingFingerprint({
+        clientPricing: crmPricingSnapshot,
         commercialTerms: pricingSnapshot.commercialTerms
           ? {
               agreementFeeBps: pricingSnapshot.commercialTerms.agreementFeeBps,

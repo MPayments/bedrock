@@ -437,16 +437,51 @@ export function treasuryQuoteExecutionsRoutes(ctx: AppContext) {
       try {
         const { executionId } = c.req.valid("param");
         const body = c.req.valid("json");
-        const result = await runIdempotentQuoteExecutionMutation(ctx, c, {
-          action: "confirm",
-          request: { ...body, executionId },
-          run: (quoteExecutions) =>
-            quoteExecutions.commands.confirm({
-              executionId,
-              failureReason: body.failureReason,
-              outcome: body.outcome,
+        const result = await withRequiredIdempotency(c, (idempotencyKey) =>
+          ctx.persistence.runInTransaction((tx) =>
+            ctx.idempotency.withIdempotencyTx<
+              QuoteExecutionResponse,
+              QuoteExecutionResponse
+            >({
+              actorId: c.get("user")!.id,
+              handler: async () => {
+                const treasuryModule = ctx.createTreasuryModule(tx);
+                const execution =
+                  await treasuryModule.quoteExecutions.commands.confirm({
+                    executionId,
+                    failureReason: body.failureReason,
+                    outcome: body.outcome,
+                  });
+                if (body.outcome === "settled" && execution.treasuryOrderId) {
+                  const order =
+                    await treasuryModule.treasuryOrders.queries.findById({
+                      orderId: execution.treasuryOrderId,
+                    });
+                  if (order?.type === "liquidity_purchase") {
+                    await treasuryModule.treasuryOrders.commands.createInventoryPositionFromQuoteExecution(
+                      { executionId },
+                    );
+                  }
+                }
+                return serializeQuoteExecution(execution);
+              },
+              idempotencyKey,
+              loadReplayResult: async ({ storedResult }) => {
+                if (!storedResult) {
+                  throw new ActionReceiptConflictError(
+                    "treasury.quote_executions.confirm",
+                    idempotencyKey,
+                  );
+                }
+                return storedResult;
+              },
+              request: { ...body, executionId },
+              scope: "treasury.quote_executions.confirm",
+              serializeResult: (execution) => execution,
+              tx,
             }),
-        });
+          ),
+        );
         if (result instanceof Response) return result;
         return c.json(result, 200);
       } catch (error) {

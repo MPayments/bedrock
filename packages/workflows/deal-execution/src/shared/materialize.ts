@@ -332,6 +332,28 @@ function extractAcceptedQuoteCustomerDebitMinor(
   return BigInt(customerDebitMinor);
 }
 
+function isAcceptedQuoteTreasuryInventorySource(
+  acceptedQuote: QuoteDetailsRecord | null,
+): boolean {
+  const metadata = acceptedQuote?.quote.pricingTrace?.metadata;
+  const snapshot =
+    metadata && typeof metadata === "object" && !Array.isArray(metadata)
+      ? (metadata as Record<string, unknown>).crmPricingSnapshot
+      : null;
+  const executionSide =
+    snapshot && typeof snapshot === "object" && !Array.isArray(snapshot)
+      ? (snapshot as Record<string, unknown>).executionSide
+      : null;
+  const source =
+    executionSide &&
+    typeof executionSide === "object" &&
+    !Array.isArray(executionSide)
+      ? (executionSide as Record<string, unknown>).source
+      : null;
+
+  return source === "treasury_inventory";
+}
+
 function resolveStepRate(input: {
   acceptedQuote: QuoteDetailsRecord | null;
   compiled: CompiledDealExecutionOperation;
@@ -438,6 +460,9 @@ export async function materializeCompiledOperation(input: {
       ?.routeSnapshotLegId ?? null;
 
   if (input.compiled.operationKind === "quote_execution") {
+    if (isAcceptedQuoteTreasuryInventorySource(input.acceptedQuote)) {
+      return null;
+    }
     if (!input.compiled.quoteId) {
       throw new ValidationError(
         `Deal ${input.workflow.summary.id} convert leg ${input.compiled.legId} requires a quote`,

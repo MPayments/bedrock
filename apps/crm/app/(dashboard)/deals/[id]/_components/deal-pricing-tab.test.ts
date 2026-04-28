@@ -84,6 +84,7 @@ function createQuote(): ApiDealPricingQuote {
     pricingMode: "explicit_route",
     pricingTrace: {},
     profitability: {
+      commercialDiscountMinor: "0",
       commercialRevenueMinor: "46701860",
       costPriceMinor: "7810886152",
       currency: "RUB",
@@ -180,6 +181,8 @@ describe("DealPricingTab", () => {
         onReload: vi.fn(async () => {}),
         pricingContext: {
           commercialDraft: {
+            clientPricing: null,
+            executionSource: { type: "route_execution" },
             fixedFeeAmount: null,
             fixedFeeCurrency: null,
             quoteMarkupBps: 50,
@@ -191,7 +194,6 @@ describe("DealPricingTab", () => {
             snapshot: {
               additionalFees: [
                 {
-                  chargeToCustomer: true,
                   id: "fee-1",
                   kind: "gross_percent",
                   label: "Комиссия",
@@ -213,7 +215,6 @@ describe("DealPricingTab", () => {
                 {
                   fees: [
                     {
-                      chargeToCustomer: false,
                       id: "fee-2",
                       kind: "gross_percent",
                       label: "Комиссия",
@@ -259,7 +260,8 @@ describe("DealPricingTab", () => {
     expect(normalizedMarkup).toContain("Котировка");
     expect(normalizedMarkup).toContain("Входные данные");
     expect(normalizedMarkup).toContain("Маршрут");
-    expect(normalizedMarkup).toContain("Наценка к курсу");
+    expect(normalizedMarkup).toContain("Цена клиенту");
+    expect(normalizedMarkup).toContain("Курс клиенту");
     expect(normalizedMarkup).toContain("Зафиксировать новый курс");
     expect(normalizedMarkup).toContain("Копировать расчёт");
     expect(normalizedMarkup).toContain("Скачать PDF");

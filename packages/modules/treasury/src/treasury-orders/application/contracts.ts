@@ -6,12 +6,20 @@ import {
 } from "../../payment-steps/contracts/dto";
 import { PAYMENT_STEP_KIND_VALUES } from "../../payment-steps/domain/types";
 import {
+  TREASURY_INVENTORY_ALLOCATION_STATE_VALUES,
+  TREASURY_INVENTORY_POSITION_STATE_VALUES,
   TREASURY_ORDER_STATE_VALUES,
   TREASURY_ORDER_TYPE_VALUES,
 } from "../domain/types";
 
 export const TreasuryOrderTypeSchema = z.enum(TREASURY_ORDER_TYPE_VALUES);
 export const TreasuryOrderStateSchema = z.enum(TREASURY_ORDER_STATE_VALUES);
+export const TreasuryInventoryPositionStateSchema = z.enum(
+  TREASURY_INVENTORY_POSITION_STATE_VALUES,
+);
+export const TreasuryInventoryAllocationStateSchema = z.enum(
+  TREASURY_INVENTORY_ALLOCATION_STATE_VALUES,
+);
 const TREASURY_ORDER_STEP_KIND_VALUES = [
   ...PAYMENT_STEP_KIND_VALUES,
   "quote_execution",
@@ -46,11 +54,69 @@ export const GetTreasuryOrderByIdInputSchema = z.object({
   orderId: z.uuid(),
 });
 
+export const GetInventoryPositionByIdInputSchema = z.object({
+  positionId: z.uuid(),
+});
+
+export const GetReservedAllocationByDealAndQuoteInputSchema = z.object({
+  dealId: z.uuid(),
+  quoteId: z.uuid(),
+});
+
 export const ListTreasuryOrdersQuerySchema = z.object({
   limit: z.number().int().positive().max(100).default(50),
   offset: z.number().int().nonnegative().default(0),
   state: TreasuryOrderStateSchema.optional(),
   type: TreasuryOrderTypeSchema.optional(),
+});
+
+export const TreasuryInventoryPositionSchema = z.object({
+  acquiredAmountMinor: z.bigint().positive(),
+  availableAmountMinor: z.bigint().nonnegative(),
+  costAmountMinor: z.bigint().positive(),
+  costCurrencyId: z.uuid(),
+  createdAt: z.date(),
+  currencyId: z.uuid(),
+  id: z.uuid(),
+  ownerPartyId: z.uuid(),
+  ownerRequisiteId: z.uuid().nullable(),
+  sourceOrderId: z.uuid(),
+  sourceQuoteExecutionId: z.uuid(),
+  state: TreasuryInventoryPositionStateSchema,
+  updatedAt: z.date(),
+});
+
+export const TreasuryInventoryAllocationSchema = z.object({
+  amountMinor: z.bigint().positive(),
+  costAmountMinor: z.bigint().nonnegative(),
+  createdAt: z.date(),
+  dealId: z.uuid(),
+  id: z.uuid(),
+  positionId: z.uuid(),
+  quoteId: z.uuid().nullable(),
+  state: TreasuryInventoryAllocationStateSchema,
+  updatedAt: z.date(),
+});
+
+export const CreateInventoryPositionFromQuoteExecutionInputSchema = z.object({
+  executionId: z.uuid(),
+  id: z.uuid().optional(),
+});
+
+export const ReserveInventoryAllocationInputSchema = z.object({
+  amountMinor: z.bigint().positive(),
+  dealId: z.uuid(),
+  id: z.uuid().optional(),
+  positionId: z.uuid(),
+  quoteId: z.uuid().nullable().optional().default(null),
+});
+
+export const ListInventoryPositionsQuerySchema = z.object({
+  currencyId: z.uuid().optional(),
+  limit: z.number().int().positive().max(100).default(50),
+  offset: z.number().int().nonnegative().default(0),
+  ownerPartyId: z.uuid().optional(),
+  state: TreasuryInventoryPositionStateSchema.optional(),
 });
 
 export const TreasuryOrderStepSchema = TreasuryOrderStepPlanInputSchema.extend({
@@ -81,10 +147,37 @@ export type CreateTreasuryOrderInput = z.infer<
 export type GetTreasuryOrderByIdInput = z.infer<
   typeof GetTreasuryOrderByIdInputSchema
 >;
+export type GetInventoryPositionByIdInput = z.infer<
+  typeof GetInventoryPositionByIdInputSchema
+>;
+export type GetReservedAllocationByDealAndQuoteInput = z.infer<
+  typeof GetReservedAllocationByDealAndQuoteInputSchema
+>;
 export type ListTreasuryOrdersQuery = z.infer<
   typeof ListTreasuryOrdersQuerySchema
 >;
+export type CreateInventoryPositionFromQuoteExecutionInput = z.infer<
+  typeof CreateInventoryPositionFromQuoteExecutionInputSchema
+>;
+export type ReserveInventoryAllocationInput = z.infer<
+  typeof ReserveInventoryAllocationInputSchema
+>;
+export type ListInventoryPositionsQuery = z.infer<
+  typeof ListInventoryPositionsQuerySchema
+>;
 export type TreasuryOrder = z.infer<typeof TreasuryOrderSchema>;
+export type TreasuryInventoryAllocation = z.infer<
+  typeof TreasuryInventoryAllocationSchema
+>;
+export type TreasuryInventoryAllocationState = z.infer<
+  typeof TreasuryInventoryAllocationStateSchema
+>;
+export type TreasuryInventoryPosition = z.infer<
+  typeof TreasuryInventoryPositionSchema
+>;
+export type TreasuryInventoryPositionState = z.infer<
+  typeof TreasuryInventoryPositionStateSchema
+>;
 export type TreasuryOrderState = z.infer<typeof TreasuryOrderStateSchema>;
 export type TreasuryOrderStepKind = z.infer<typeof TreasuryOrderStepKindSchema>;
 export type TreasuryOrderType = z.infer<typeof TreasuryOrderTypeSchema>;

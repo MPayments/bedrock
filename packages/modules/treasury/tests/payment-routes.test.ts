@@ -23,6 +23,7 @@ import type {
 const USD = currencyIdForCode("USD");
 const AED = currencyIdForCode("AED");
 const USDT = currencyIdForCode("USDT");
+const EUR = currencyIdForCode("EUR");
 
 function createDraft(input: Partial<PaymentRouteDraft> = {}): PaymentRouteDraft {
   return {
@@ -221,7 +222,6 @@ describe("payment routes", () => {
       additionalFees: [
         {
           amountMinor: "50",
-          chargeToCustomer: true,
           currencyId: USD,
           id: "fee-extra",
           kind: "fixed",
@@ -233,7 +233,6 @@ describe("payment routes", () => {
           fees: [
             {
               amountMinor: "100",
-              chargeToCustomer: true,
               currencyId: USD,
               id: "fee-leg",
               kind: "fixed",
@@ -258,7 +257,6 @@ describe("payment routes", () => {
     const draft = createDraft({
       additionalFees: [
         {
-          chargeToCustomer: true,
           id: "fee-extra",
           kind: "gross_percent",
           label: "Bank",
@@ -269,7 +267,6 @@ describe("payment routes", () => {
         {
           fees: [
             {
-              chargeToCustomer: true,
               id: "fee-leg",
               kind: "gross_percent",
               label: "Hop",
@@ -289,13 +286,53 @@ describe("payment routes", () => {
     expectCalculationTotal(calculation, USD, "1500");
   });
 
+  it("treats FX spread as embedded route margin instead of extra cost", async () => {
+    const { service } = createService();
+    const draft = createDraft({
+      amountInMinor: "1",
+      amountOutMinor: "19800",
+      currencyOutId: EUR,
+      lockedSide: "currency_out",
+      legs: [
+        {
+          fees: [
+            {
+              id: "fee-fx-spread",
+              kind: "fx_spread",
+              label: "Route spread",
+              percentage: "1",
+            },
+          ],
+          fromCurrencyId: USD,
+          id: "leg-1",
+          toCurrencyId: EUR,
+        },
+      ],
+    });
+
+    const calculation = await service.queries.previewTemplate({ draft });
+
+    expect(calculation.amountInMinor).toBe("10000");
+    expect(calculation.cleanAmountOutMinor).toBe("20000");
+    expect(calculation.amountOutMinor).toBe("19800");
+    expect(calculation.costPriceInMinor).toBe("10000");
+    expect(calculation.benchmarkPrincipalInMinor).toBe("9900");
+    expect(calculation.embeddedExecutionCostMinor).toBe("100");
+    expect(calculation.internalFeeTotals).toEqual([]);
+    expect(calculation.feeTotals).toEqual([
+      {
+        amountMinor: "200",
+        currencyId: EUR,
+      },
+    ]);
+  });
+
   it("treats additional fees as separate costs without reducing payout", async () => {
     const { service } = createService();
     const draft = createDraft({
       additionalFees: [
         {
           amountMinor: "20000",
-          chargeToCustomer: true,
           currencyId: USD,
           id: "fee-extra",
           kind: "fixed",
@@ -320,7 +357,7 @@ describe("payment routes", () => {
     expectCalculationTotal(calculation, USD, "20000");
   });
 
-  it("keeps internal leg fees out of the customer payout while increasing cost price", async () => {
+  it("adds separate leg fees to cost price without reducing payout", async () => {
     const { service } = createService();
     const draft = createDraft({
       legs: [
@@ -328,7 +365,7 @@ describe("payment routes", () => {
           fees: [
             {
               amountMinor: "100",
-              chargeToCustomer: false,
+              application: "separate_charge",
               currencyId: USD,
               id: "fee-leg-internal",
               kind: "fixed",
@@ -345,8 +382,8 @@ describe("payment routes", () => {
     const calculation = await service.queries.previewTemplate({ draft });
 
     expect(calculation.amountOutMinor).toBe("10000");
-    expect(calculation.clientTotalInMinor).toBe("10000");
     expect(calculation.costPriceInMinor).toBe("10100");
+    expect(calculation.separateExecutionCostMinor).toBe("100");
     expect(calculation.internalFeeTotals).toEqual([
       {
         amountMinor: "100",
@@ -355,13 +392,12 @@ describe("payment routes", () => {
     ]);
   });
 
-  it("keeps internal additional fees out of the client total while increasing cost price", async () => {
+  it("adds additional fees as separate execution costs", async () => {
     const { service } = createService();
     const draft = createDraft({
       additionalFees: [
         {
           amountMinor: "125",
-          chargeToCustomer: false,
           currencyId: USD,
           id: "fee-extra-internal",
           kind: "fixed",
@@ -373,8 +409,8 @@ describe("payment routes", () => {
     const calculation = await service.queries.previewTemplate({ draft });
 
     expect(calculation.amountOutMinor).toBe("10000");
-    expect(calculation.clientTotalInMinor).toBe("10000");
     expect(calculation.costPriceInMinor).toBe("10125");
+    expect(calculation.separateExecutionCostMinor).toBe("125");
     expect(calculation.internalFeeTotals).toEqual([
       {
         amountMinor: "125",
@@ -383,13 +419,12 @@ describe("payment routes", () => {
     ]);
   });
 
-  it("separates clean, client, and cost totals for mixed charged and internal fees", async () => {
+  it("separates embedded flow deductions and separate execution costs", async () => {
     const { service } = createService();
     const draft = createDraft({
       additionalFees: [
         {
           amountMinor: "25",
-          chargeToCustomer: true,
           currencyId: USD,
           id: "fee-extra-charged",
           kind: "fixed",
@@ -397,7 +432,6 @@ describe("payment routes", () => {
         },
         {
           amountMinor: "10",
-          chargeToCustomer: false,
           currencyId: USD,
           id: "fee-extra-internal",
           kind: "fixed",
@@ -409,7 +443,6 @@ describe("payment routes", () => {
           fees: [
             {
               amountMinor: "100",
-              chargeToCustomer: true,
               currencyId: USD,
               id: "fee-leg-charged",
               kind: "fixed",
@@ -417,7 +450,7 @@ describe("payment routes", () => {
             },
             {
               amountMinor: "50",
-              chargeToCustomer: false,
+              application: "separate_charge",
               currencyId: USD,
               id: "fee-leg-internal",
               kind: "fixed",
@@ -435,17 +468,10 @@ describe("payment routes", () => {
 
     expect(calculation.cleanAmountOutMinor).toBe("10000");
     expect(calculation.amountOutMinor).toBe("9900");
-    expect(calculation.clientTotalInMinor).toBe("10025");
-    expect(calculation.costPriceInMinor).toBe("10185");
-    expect(calculation.chargedFeeTotals).toEqual([
-      {
-        amountMinor: "125",
-        currencyId: USD,
-      },
-    ]);
+    expect(calculation.costPriceInMinor).toBe("10085");
     expect(calculation.internalFeeTotals).toEqual([
       {
-        amountMinor: "60",
+        amountMinor: "185",
         currencyId: USD,
       },
     ]);
@@ -461,7 +487,7 @@ describe("payment routes", () => {
     expect(() =>
       PaymentRouteCalculationFeeSchema.parse({
         amountMinor: "1000",
-        chargeToCustomer: true,
+        application: "deducted_from_flow",
         currencyId: USD,
         id: "fee-leg",
         inputImpactCurrencyId: USD,
@@ -505,7 +531,6 @@ describe("payment routes", () => {
         {
           fees: [
             {
-              chargeToCustomer: true,
               id: "fee-leg",
               kind: "gross_percent",
               label: "FX spread",
@@ -564,7 +589,6 @@ describe("payment routes", () => {
         {
           fees: [
             {
-              chargeToCustomer: true,
               id: "fee-leg",
               kind: "gross_percent",
               label: "Hop",
@@ -595,7 +619,6 @@ describe("payment routes", () => {
           fees: [
             {
               amountMinor: "100",
-              chargeToCustomer: true,
               currencyId: USD,
               id: "fee-leg",
               kind: "fixed",
@@ -615,7 +638,7 @@ describe("payment routes", () => {
     expect(calculation.amountOutMinor).toBe("9000");
   });
 
-  it("ignores internal leg fees when solving currencyOut targets", async () => {
+  it("keeps separate leg fees out of target-side gross-up", async () => {
     const { service } = createService();
     const draft = createDraft({
       amountInMinor: "1",
@@ -626,7 +649,7 @@ describe("payment routes", () => {
           fees: [
             {
               amountMinor: "100",
-              chargeToCustomer: false,
+              application: "separate_charge",
               currencyId: USD,
               id: "fee-leg-internal",
               kind: "fixed",
@@ -780,7 +803,9 @@ describe("payment routes", () => {
       entityKind: "organization",
       role: "destination",
     });
-    expect(template.draft.legs[0]?.fees[0]?.chargeToCustomer).toBe(false);
+    expect(template.draft.legs[0]?.fees[0]?.application).toBe(
+      "deducted_from_flow",
+    );
     expect(template.lastCalculation).toBeNull();
     expect(list.data[0]?.sourceEndpoint).toMatchObject({
       binding: "bound",
@@ -823,7 +848,7 @@ describe("payment routes", () => {
     expect(draft.participants[1]?.requisiteId).toBeNull();
   });
 
-  it("defaults missing chargeToCustomer flags to false for legacy fee drafts", () => {
+  it("defaults missing fee application values for legacy fee drafts", () => {
     const draft = PaymentRouteDraftSchema.parse({
       ...createDraft(),
       additionalFees: [
@@ -851,8 +876,8 @@ describe("payment routes", () => {
       ],
     });
 
-    expect(draft.additionalFees[0]?.chargeToCustomer).toBe(false);
-    expect(draft.legs[0]?.fees[0]?.chargeToCustomer).toBe(false);
+    expect(draft.additionalFees[0]?.application).toBe("separate_charge");
+    expect(draft.legs[0]?.fees[0]?.application).toBe("deducted_from_flow");
   });
 
   it("derives stable route semantics labels from participants and currencies", () => {

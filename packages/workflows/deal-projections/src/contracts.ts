@@ -904,7 +904,11 @@ export type FinanceDealQuoteAmountSide = z.infer<
 export const FinanceDealRouteAttachmentLegSchema = z.object({
   fees: z.array(
     z.object({
-      chargeToCustomer: z.boolean(),
+      application: z.enum([
+        "deducted_from_flow",
+        "embedded_in_rate",
+        "separate_charge",
+      ]),
       kind: z.string(),
       label: z.string(),
       percentage: z.string().nullable(),

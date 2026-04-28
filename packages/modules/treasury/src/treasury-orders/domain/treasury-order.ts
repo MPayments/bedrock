@@ -221,6 +221,21 @@ export class TreasuryOrder extends AggregateRoot<string> {
     );
   }
 
+  complete(now: Date): TreasuryOrder {
+    invariant(this.snapshot.state === "active", "Treasury order is not active", {
+      code: "treasury.order.complete_not_allowed",
+      meta: { orderId: this.id, state: this.snapshot.state },
+    });
+
+    return new TreasuryOrder(
+      normalizeSnapshot({
+        ...this.snapshot,
+        state: "completed",
+        updatedAt: now,
+      }),
+    );
+  }
+
   toSnapshot(): TreasuryOrderRecord {
     return normalizeSnapshot(this.snapshot);
   }

@@ -4,6 +4,7 @@ import { canDealWriteTreasuryOrFormalDocuments } from "@bedrock/deals";
 import { DealPricingContextRevisionConflictError } from "@bedrock/deals";
 import type { DealsModule } from "@bedrock/deals";
 import type {
+  DealPricingCommercialDraft,
   DealFundingAdjustment,
   DealFundingPosition,
   DealPricingBenchmarks,
@@ -19,7 +20,12 @@ import {
   NotFoundError,
   ValidationError,
 } from "@bedrock/shared/core/errors";
-import { formatFractionDecimal, minorToAmountString, mulDivRoundHalfUp } from "@bedrock/shared/money";
+import {
+  formatFractionDecimal,
+  minorToAmountString,
+  mulDivRoundHalfUp,
+  toMinorAmountString,
+} from "@bedrock/shared/money";
 import type { TreasuryModule } from "@bedrock/treasury";
 import {
   computePricingFingerprint,
@@ -60,6 +66,7 @@ interface PricingArtifacts {
   benchmarks: DealPricingBenchmarks;
   formulaTrace: DealPricingFormulaTrace;
   profitability: DealPricingProfitability | null;
+  crmPricingSnapshot: CrmPricingSnapshot;
 }
 
 interface DealPricingAmountSnapshot {
@@ -81,6 +88,44 @@ type PaymentStepsQueries = TreasuryModule["paymentSteps"]["queries"];
 type PaymentStepsListInput = Parameters<PaymentStepsQueries["list"]>[0];
 
 const PAYMENT_STEP_PAGE_LIMIT = 100;
+
+type ExecutionSource =
+  | { type: "route_execution" }
+  | { inventoryPositionId: string; type: "treasury_inventory" };
+
+interface ExecutionSideSnapshot {
+  executionCostLines: PaymentRouteCalculation["executionCostLines"];
+  executionRate: { rateDen: string; rateNum: string } | null;
+  inventoryAllocationId?: string | null;
+  inventoryPositionId?: string | null;
+  routeCostMinor: string;
+  routeFundingMinor: string;
+  source: ExecutionSource["type"];
+}
+
+interface ClientSideSnapshot {
+  beneficiaryAmountMinor: string;
+  clientPrincipalMinor: string;
+  clientRate: { rateDen: string; rateNum: string };
+  commercialFeeMinor: string;
+  customerTotalMinor: string;
+  discountMinor: string;
+  passThroughMinor: string;
+  pricingMode: "client_rate" | "client_total";
+}
+
+interface PnlSnapshot {
+  costMinor: string;
+  grossProfitMinor: string;
+  profitPercentOnCost: string;
+  revenueMinor: string;
+}
+
+interface CrmPricingSnapshot {
+  clientSide: ClientSideSnapshot;
+  executionSide: ExecutionSideSnapshot;
+  pnl: PnlSnapshot;
+}
 
 export interface DealPricingPreviewRecord {
   benchmarks: DealPricingBenchmarks;
@@ -104,7 +149,9 @@ export interface DealPricingWorkflow {
     amountMinor: string;
     amountSide: "source" | "target";
     asOf: Date;
+    clientPricing?: DealPricingCommercialDraft["clientPricing"];
     dealId: string;
+    executionSource?: DealPricingCommercialDraft["executionSource"];
     expectedRevision: number;
     idempotencyKey: string;
   }): Promise<{
@@ -123,7 +170,9 @@ export interface DealPricingWorkflow {
     amountMinor: string;
     amountSide: "source" | "target";
     asOf: Date;
+    clientPricing?: DealPricingCommercialDraft["clientPricing"];
     dealId: string;
+    executionSource?: DealPricingCommercialDraft["executionSource"];
     expectedRevision: number;
   }): Promise<DealPricingPreviewRecord>;
   swapRouteTemplate(input: {
@@ -145,7 +194,7 @@ export interface DealPricingWorkflowDeps {
   deals: Pick<DealsModule, "deals">;
   treasury: Pick<
     TreasuryModule,
-    "paymentRoutes" | "paymentSteps" | "quotes" | "rates"
+    "paymentRoutes" | "paymentSteps" | "quotes" | "rates" | "treasuryOrders"
   >;
 }
 
@@ -423,42 +472,257 @@ function buildRouteManualFinancialLines(input: {
   fromCurrency: string;
   routePreview: PaymentRouteCalculation;
 }) {
-  const routeFeeLines = [
-    ...input.routePreview.additionalFees.map((fee) => ({
-      fee,
-      location: "additional" as const,
-    })),
-    ...input.routePreview.legs.flatMap((leg) =>
-      leg.fees.map((fee) => ({
-        fee,
-        location: "leg" as const,
-      })),
-    ),
-  ];
-
-  return routeFeeLines
-    .filter(({ fee }) => BigInt(fee.routeInputImpactMinor) > 0n)
-    .map(({ fee, location }) => {
-      const bucket = fee.chargeToCustomer
-        ? ("pass_through" as const)
-        : ("provider_fee_expense" as const);
-
+  return input.routePreview.executionCostLines
+    .filter(
+      (line) =>
+        line.treatment === "separate_expense" &&
+        BigInt(line.routeInputImpactMinor) > 0n,
+    )
+    .map((line) => {
       return {
-        amountMinor: BigInt(fee.routeInputImpactMinor),
-        bucket,
+        amountMinor: BigInt(line.routeInputImpactMinor),
+        bucket: "execution_expense" as const,
         currency: input.fromCurrency,
-        id: `${location}:${fee.id}`,
-        memo: fee.label ?? fee.id,
+        id: `${line.location}:${line.id}`,
+        memo: line.label ?? line.id,
         metadata: {
-          embeddedInRoute:
-            fee.chargeToCustomer && location === "leg" ? "true" : "false",
-          paymentRouteFeeId: fee.id,
-          paymentRouteFeeKind: fee.kind,
-          paymentRouteFeeLocation: location,
+          paymentRouteCostApplication: line.application,
+          paymentRouteCostTreatment: line.treatment,
+          paymentRouteFeeId: line.id,
+          paymentRouteFeeKind: line.kind,
+          paymentRouteFeeLocation: line.location,
         },
         source: "manual" as const,
       };
     });
+}
+
+function resolveExecutionSource(
+  context: DealPricingContextRecord,
+  override?: ExecutionSource,
+): ExecutionSource {
+  return override ?? context.commercialDraft.executionSource ?? { type: "route_execution" };
+}
+
+function calculateInventoryCostMinor(input: {
+  amountMinor: bigint;
+  costAmountMinor: bigint;
+  acquiredAmountMinor: bigint;
+}) {
+  if (input.acquiredAmountMinor <= 0n) return 0n;
+  return mulDivRoundHalfUp(
+    input.amountMinor,
+    input.costAmountMinor,
+    input.acquiredAmountMinor,
+  );
+}
+
+async function resolveExecutionSide(input: {
+  amountMinor: bigint;
+  deps: DealPricingWorkflowDeps;
+  executionSource: ExecutionSource;
+  quotePreview: QuotePreviewRecord;
+  routePreview: PaymentRouteCalculation | null;
+}): Promise<ExecutionSideSnapshot> {
+  if (input.executionSource.type === "treasury_inventory") {
+    const position =
+      await input.deps.treasury.treasuryOrders.queries.findInventoryPositionById(
+        { positionId: input.executionSource.inventoryPositionId },
+      );
+    if (!position) {
+      throw new ValidationError(
+        `Treasury inventory position ${input.executionSource.inventoryPositionId} is not available`,
+      );
+    }
+    const targetCurrency = await input.deps.currencies.findByCode(
+      input.quotePreview.toCurrency,
+    );
+    if (position.currencyId !== targetCurrency.id) {
+      throw new ValidationError(
+        `Treasury inventory position ${position.id} does not match quote target currency`,
+      );
+    }
+    if (position.availableAmountMinor < input.amountMinor) {
+      throw new ValidationError(
+        `Treasury inventory position ${position.id} has insufficient liquidity`,
+      );
+    }
+    const allocatedCostMinor = calculateInventoryCostMinor({
+      acquiredAmountMinor: position.acquiredAmountMinor,
+      amountMinor: input.amountMinor,
+      costAmountMinor: position.costAmountMinor,
+    });
+    return {
+      executionCostLines: [],
+      executionRate: {
+        rateDen: allocatedCostMinor.toString(),
+        rateNum: input.amountMinor.toString(),
+      },
+      inventoryPositionId: position.id,
+      routeCostMinor: allocatedCostMinor.toString(),
+      routeFundingMinor: allocatedCostMinor.toString(),
+      source: "treasury_inventory",
+    };
+  }
+
+  const routeCostMinor = input.routePreview
+    ? input.routePreview.costPriceInMinor
+    : input.quotePreview.fromAmountMinor.toString();
+  const routeFundingMinor = input.routePreview
+    ? input.routePreview.amountInMinor
+    : input.quotePreview.fromAmountMinor.toString();
+
+  return {
+    executionCostLines: input.routePreview?.executionCostLines ?? [],
+    executionRate: {
+      rateDen: routeCostMinor,
+      rateNum: input.quotePreview.toAmountMinor.toString(),
+    },
+    routeCostMinor,
+    routeFundingMinor,
+    source: "route_execution",
+  };
+}
+
+function resolveCommercialFeeMinor(input: {
+  commercialDraft: DealPricingCommercialDraft;
+  sourceCurrency: string;
+}) {
+  const clientPricing = input.commercialDraft.clientPricing;
+  if (clientPricing?.commercialFeeMinor) {
+    return BigInt(clientPricing.commercialFeeMinor);
+  }
+  if (
+    input.commercialDraft.fixedFeeAmount &&
+    (!input.commercialDraft.fixedFeeCurrency ||
+      input.commercialDraft.fixedFeeCurrency === input.sourceCurrency)
+  ) {
+    return BigInt(
+      toMinorAmountString(
+        input.commercialDraft.fixedFeeAmount,
+        input.sourceCurrency,
+      ),
+    );
+  }
+  return 0n;
+}
+
+function resolveClientSide(input: {
+  commercialDraft: DealPricingCommercialDraft;
+  executionSide: ExecutionSideSnapshot;
+  quotePreview: QuotePreviewRecord;
+}): ClientSideSnapshot {
+  const draft = input.commercialDraft.clientPricing;
+  const beneficiaryAmountMinor = input.quotePreview.toAmountMinor;
+  const fallbackRate = input.executionSide.executionRate ?? {
+    rateDen: input.executionSide.routeCostMinor,
+    rateNum: beneficiaryAmountMinor.toString(),
+  };
+  const mode = draft?.mode ?? "client_rate";
+  const explicitRate = draft?.clientRate ?? null;
+  const clientRate = explicitRate ?? fallbackRate;
+  const clientPrincipalMinor =
+    mode === "client_total" && draft?.clientTotalMinor
+      ? BigInt(draft.clientTotalMinor)
+      : mulDivRoundHalfUp(
+          beneficiaryAmountMinor,
+          BigInt(clientRate.rateDen),
+          BigInt(clientRate.rateNum),
+        );
+  const commercialFeeMinor = resolveCommercialFeeMinor({
+    commercialDraft: input.commercialDraft,
+    sourceCurrency: input.quotePreview.fromCurrency,
+  });
+  const separateExecutionCostMinor =
+    draft?.passThroughPolicy === "separate_execution_costs"
+      ? input.executionSide.executionCostLines
+          .filter((line) => line.treatment === "separate_expense")
+          .reduce(
+            (sum, line) => sum + BigInt(line.routeInputImpactMinor),
+            0n,
+          )
+      : 0n;
+  const discountMinor = draft?.discountMinor ? BigInt(draft.discountMinor) : 0n;
+  const customerTotalMinor =
+    clientPrincipalMinor +
+    commercialFeeMinor +
+    separateExecutionCostMinor -
+    discountMinor;
+
+  return {
+    beneficiaryAmountMinor: beneficiaryAmountMinor.toString(),
+    clientPrincipalMinor: clientPrincipalMinor.toString(),
+    clientRate,
+    commercialFeeMinor: commercialFeeMinor.toString(),
+    customerTotalMinor: customerTotalMinor.toString(),
+    discountMinor: discountMinor.toString(),
+    passThroughMinor: separateExecutionCostMinor.toString(),
+    pricingMode: mode,
+  };
+}
+
+function resolvePnl(input: {
+  clientSide: ClientSideSnapshot;
+  executionSide: ExecutionSideSnapshot;
+}): PnlSnapshot {
+  const costMinor = BigInt(input.executionSide.routeCostMinor);
+  const revenueMinor = BigInt(input.clientSide.customerTotalMinor);
+  const grossProfitMinor = revenueMinor - costMinor;
+  return {
+    costMinor: costMinor.toString(),
+    grossProfitMinor: grossProfitMinor.toString(),
+    profitPercentOnCost:
+      costMinor === 0n
+        ? "0"
+        : formatFractionDecimal(grossProfitMinor * 100n, costMinor, {
+            scale: 2,
+          }),
+    revenueMinor: revenueMinor.toString(),
+  };
+}
+
+function buildCrmManualFinancialLines(input: {
+  clientSide: ClientSideSnapshot;
+  sourceCurrency: string;
+}) {
+  const lines: NonNullable<PreviewQuoteInput["manualFinancialLines"]> = [];
+  const commercialFeeMinor = BigInt(input.clientSide.commercialFeeMinor);
+  if (commercialFeeMinor > 0n) {
+    lines.push({
+      amountMinor: commercialFeeMinor,
+      bucket: "commercial_revenue",
+      currency: input.sourceCurrency,
+      id: "crm:commercial_fee",
+      memo: "Commercial fee",
+      metadata: { crmPricingComponent: "commercial_fee" },
+      source: "manual",
+    });
+  }
+  const discountMinor = BigInt(input.clientSide.discountMinor);
+  if (discountMinor > 0n) {
+    lines.push({
+      amountMinor: discountMinor,
+      bucket: "commercial_discount",
+      currency: input.sourceCurrency,
+      id: "crm:commercial_discount",
+      memo: "Commercial discount",
+      metadata: { crmPricingComponent: "commercial_discount" },
+      source: "manual",
+    });
+  }
+  const passThroughMinor = BigInt(input.clientSide.passThroughMinor);
+  if (passThroughMinor > 0n) {
+    lines.push({
+      amountMinor: passThroughMinor,
+      bucket: "pass_through_reimbursement",
+      currency: input.sourceCurrency,
+      id: "crm:pass_through_reimbursement",
+      memo: "Execution cost reimbursement",
+      metadata: { crmPricingComponent: "pass_through_reimbursement" },
+      source: "manual",
+    });
+  }
+  return lines;
 }
 
 function mergeRequiredMinor(
@@ -486,7 +750,7 @@ async function buildFundingPositions(input: {
     mergeRequiredMinor(
       requiredByCurrency,
       input.routePreview.currencyInId,
-      BigInt(input.routePreview.amountInMinor),
+      BigInt(input.routePreview.costPriceInMinor),
     );
 
     for (const leg of input.routePreview.legs) {
@@ -567,6 +831,7 @@ async function resolveCommercialTerms(input: {
     agreement,
     fallbackFixedFeeCurrency: input.fixedFeeCurrencyFallback,
   });
+  const hasClientPricing = input.pricingContext.commercialDraft.clientPricing !== null;
 
   const resolvedFixedFeeAmount =
     input.pricingContext.commercialDraft.fixedFeeAmount ??
@@ -579,12 +844,14 @@ async function resolveCommercialTerms(input: {
 
   return {
     agreementVersionId: defaults.agreementVersionId,
-    agreementFeeBps: defaults.agreementFeeBps.toString(),
-    fixedFeeAmount: hasCompleteFixedFee ? resolvedFixedFeeAmount : null,
-    fixedFeeCurrency: hasCompleteFixedFee ? resolvedFixedFeeCurrency : null,
-    quoteMarkupBps: (
-      input.pricingContext.commercialDraft.quoteMarkupBps ?? 0
-    ).toString(),
+    agreementFeeBps: hasClientPricing ? "0" : defaults.agreementFeeBps.toString(),
+    fixedFeeAmount:
+      hasClientPricing || !hasCompleteFixedFee ? null : resolvedFixedFeeAmount,
+    fixedFeeCurrency:
+      hasClientPricing || !hasCompleteFixedFee ? null : resolvedFixedFeeCurrency,
+    quoteMarkupBps: hasClientPricing
+      ? "0"
+      : (input.pricingContext.commercialDraft.quoteMarkupBps ?? 0).toString(),
   };
 }
 
@@ -849,6 +1116,7 @@ async function summarizeFinancialLinesInSourceCurrency(input: {
   sourceCurrency: string;
 }) {
   const totals = {
+    commercialDiscountMinor: 0n,
     commercialRevenueMinor: 0n,
     passThroughMinor: 0n,
   };
@@ -864,15 +1132,23 @@ async function summarizeFinancialLinesInSourceCurrency(input: {
       cache,
     });
 
-    if (line.bucket === "pass_through") {
+    if (
+      line.bucket === "pass_through" ||
+      line.bucket === "pass_through_reimbursement"
+    ) {
       totals.passThroughMinor += amountMinor;
     }
 
     if (
       line.bucket === "fee_revenue" ||
-      line.bucket === "spread_revenue"
+      line.bucket === "spread_revenue" ||
+      line.bucket === "commercial_revenue"
     ) {
       totals.commercialRevenueMinor += amountMinor;
+    }
+
+    if (line.bucket === "commercial_discount") {
+      totals.commercialDiscountMinor += amountMinor;
     }
   }
 
@@ -962,6 +1238,7 @@ async function buildBenchmarks(input: {
 
 async function buildProfitability(input: {
   asOf: Date;
+  crmPricingSnapshot?: CrmPricingSnapshot;
   financialSummary: {
     commercialRevenueMinor: bigint;
     passThroughMinor: bigint;
@@ -969,6 +1246,22 @@ async function buildProfitability(input: {
   quotePreview: QuotePreviewRecord;
   routePreview: PaymentRouteCalculation | null;
 }): Promise<DealPricingProfitability | null> {
+  if (input.crmPricingSnapshot) {
+    const clientSide = input.crmPricingSnapshot.clientSide;
+    const pnl = input.crmPricingSnapshot.pnl;
+    return {
+      commercialDiscountMinor: clientSide.discountMinor,
+      commercialRevenueMinor: clientSide.commercialFeeMinor,
+      costPriceMinor: pnl.costMinor,
+      currency: input.quotePreview.fromCurrency,
+      customerPrincipalMinor: clientSide.clientPrincipalMinor,
+      customerTotalMinor: clientSide.customerTotalMinor,
+      passThroughMinor: clientSide.passThroughMinor,
+      profitMinor: pnl.grossProfitMinor,
+      profitPercentOnCost: pnl.profitPercentOnCost,
+    };
+  }
+
   const sourceCurrency = input.quotePreview.fromCurrency;
   const financialSummary = input.financialSummary;
   const customerPrincipalMinor = input.quotePreview.fromAmountMinor;
@@ -979,10 +1272,7 @@ async function buildProfitability(input: {
     customerPrincipalMinor +
     financialSummary.commercialRevenueMinor +
     financialSummary.passThroughMinor;
-  const profitMinor =
-    customerPrincipalMinor -
-    costPriceMinor +
-    financialSummary.commercialRevenueMinor;
+  const profitMinor = customerTotalMinor - costPriceMinor;
   const profitPercentOnCost =
     costPriceMinor === 0n
       ? "0"
@@ -991,6 +1281,7 @@ async function buildProfitability(input: {
         });
 
   return {
+    commercialDiscountMinor: "0",
     commercialRevenueMinor: financialSummary.commercialRevenueMinor.toString(),
     costPriceMinor: costPriceMinor.toString(),
     currency: sourceCurrency,
@@ -1012,10 +1303,6 @@ function formatAmountLabel(amountMinor: bigint | string, currency: string) {
 
 function formatRateValue(rateNum: bigint | string, rateDen: bigint | string) {
   return formatFractionDecimal(rateNum, rateDen, { scale: 6 });
-}
-
-function formatBpsPercent(bps: bigint | string) {
-  return `${formatFractionDecimal(bps, 100n, { scale: 2 })}%`;
 }
 
 function buildAmountSnapshot(input: {
@@ -1107,7 +1394,7 @@ function buildClientPricingLines(input: {
             )} = ${customerDebit}`
           : `${toAmount} × ${reverseRate} = ${customerDebit}`,
       kind: "equation",
-      label: "Ожидаемое списание клиента",
+      label: "Cписание c клиента",
       metadata: {
         pricingBase: input.benchmarks.pricingBase,
       },
@@ -1132,11 +1419,6 @@ function buildClientPricingLines(input: {
     input.benchmarks.pricingBase === "route_benchmark"
       ? "База расчета: базовый курс маршрута"
       : "База расчета: рыночный курс";
-  const markupBps = BigInt(
-    input.pricingContext.commercialDraft.quoteMarkupBps ?? 0,
-  );
-  const agreementFeeBps =
-    input.quotePreview.commercialTerms?.agreementFeeBps ?? 0n;
   lines.push({
     currency: null,
     expression: `${pricingBaseRate.quoteCurrency}/${pricingBaseRate.baseCurrency} ${formatRateValue(
@@ -1151,39 +1433,40 @@ function buildClientPricingLines(input: {
     result: pricingBaseRate.sourceLabel ?? "Курс принят в расчет",
   });
 
-  if (markupBps > 0n || agreementFeeBps > 0n) {
-    const parts = [];
-    if (markupBps > 0n) {
-      parts.push(`наценка ${formatBpsPercent(markupBps)}`);
-    }
-    if (agreementFeeBps > 0n) {
-      parts.push(`агентская комиссия ${formatBpsPercent(agreementFeeBps)}`);
-    }
-    lines.push({
-      currency: null,
-      expression: parts.join(" + "),
-      kind: "note",
-      label: "Надбавки",
-      metadata: {},
-      result: "Учитываются в цене клиента",
-    });
-  }
-
-  if (input.profitability && extraChargesMinor > 0n) {
+  if (input.profitability) {
     lines.push({
       currency: input.profitability.currency,
-      expression: formatAmountLabel(
-        extraChargesMinor,
+      expression: `${formatAmountLabel(
+        input.profitability.customerTotalMinor,
         input.profitability.currency,
-      ),
+      )} − ${formatAmountLabel(
+        input.profitability.costPriceMinor,
+        input.profitability.currency,
+      )}`,
       kind: "note",
-      label: "Комиссии и маржа",
+      label: "P&L",
       metadata: {},
       result: formatAmountLabel(
-        input.profitability.customerTotalMinor,
+        input.profitability.profitMinor,
         input.profitability.currency,
       ),
     });
+    if (extraChargesMinor !== 0n) {
+      lines.push({
+        currency: input.profitability.currency,
+        expression: formatAmountLabel(
+          extraChargesMinor,
+          input.profitability.currency,
+        ),
+        kind: "note",
+        label: "Комиссии / компенсации",
+        metadata: {},
+        result: formatAmountLabel(
+          input.profitability.customerTotalMinor,
+          input.profitability.currency,
+        ),
+      });
+    }
   }
 
   return lines;
@@ -1401,6 +1684,7 @@ async function buildPricingArtifacts(input: {
   amountSide: "source" | "target";
   asOf: Date;
   context: DealPricingContextRecord;
+  crmPricingSnapshot: CrmPricingSnapshot;
   deps: DealPricingWorkflowDeps;
   fundingPositions: DealFundingPosition[];
   quotePreview: QuotePreviewRecord;
@@ -1414,13 +1698,16 @@ async function buildPricingArtifacts(input: {
   });
   const benchmarks = await buildBenchmarks({
     asOf: input.asOf,
-    commercialRevenueMinor: financialSummary.commercialRevenueMinor,
+    commercialRevenueMinor:
+      BigInt(input.crmPricingSnapshot.clientSide.customerTotalMinor) -
+      input.quotePreview.fromAmountMinor,
     deps: input.deps,
     quotePreview: input.quotePreview,
     routePreview: input.routePreview,
   });
   const profitability = await buildProfitability({
     asOf: input.asOf,
+    crmPricingSnapshot: input.crmPricingSnapshot,
     financialSummary,
     quotePreview: input.quotePreview,
     routePreview: input.routePreview,
@@ -1452,6 +1739,7 @@ async function buildPricingArtifacts(input: {
 
   return {
     benchmarks,
+    crmPricingSnapshot: input.crmPricingSnapshot,
     formulaTrace,
     profitability,
   };
@@ -1460,6 +1748,7 @@ async function buildPricingArtifacts(input: {
 function withCrmPricingSnapshot(input: {
   amountSide: "source" | "target";
   benchmarks: DealPricingBenchmarks;
+  crmPricingSnapshot: CrmPricingSnapshot;
   formulaTrace: DealPricingFormulaTrace;
   profitability: DealPricingProfitability | null;
   quoteInput: PreviewQuoteInput;
@@ -1475,6 +1764,7 @@ function withCrmPricingSnapshot(input: {
       : {};
 
   metadata.crmPricingSnapshot = {
+    ...input.crmPricingSnapshot,
     amounts: buildAmountSnapshot({
       amountSide: input.amountSide,
       profitability: input.profitability,
@@ -1498,15 +1788,43 @@ async function previewWithArtifacts(input: {
   amountMinor: string;
   amountSide: "source" | "target";
   asOf: Date;
+  clientPricing?: DealPricingCommercialDraft["clientPricing"];
+  executionSource?: DealPricingCommercialDraft["executionSource"];
   prepared: PreparedDealPricingInput;
   deps: DealPricingWorkflowDeps;
-}): Promise<DealPricingPreviewRecord & { quoteInput: PreviewQuoteInput }> {
+}): Promise<
+  DealPricingPreviewRecord & {
+    crmPricingSnapshot: CrmPricingSnapshot;
+    quoteInput: PreviewQuoteInput;
+  }
+> {
+  const pricingContext = input.clientPricing
+    ? {
+        ...input.prepared.context,
+        commercialDraft: {
+          ...input.prepared.context.commercialDraft,
+          clientPricing: input.clientPricing,
+          executionSource: resolveExecutionSource(
+            input.prepared.context,
+            input.executionSource,
+          ),
+        },
+      }
+    : input.executionSource
+      ? {
+          ...input.prepared.context,
+          commercialDraft: {
+            ...input.prepared.context.commercialDraft,
+            executionSource: input.executionSource,
+          },
+        }
+      : input.prepared.context;
   const payload = input.prepared.context.routeAttachment
     ? await buildExplicitRouteQuotePayload({
         amountMinor: input.amountMinor,
         amountSide: input.amountSide,
         asOf: input.asOf,
-        context: input.prepared.context,
+        context: pricingContext,
         deal: input.prepared.deal,
         deps: input.deps,
         workflow: input.prepared.workflow,
@@ -1515,17 +1833,48 @@ async function previewWithArtifacts(input: {
         amountMinor: input.amountMinor,
         amountSide: input.amountSide,
         asOf: input.asOf,
-        context: input.prepared.context,
+        context: pricingContext,
         deal: input.prepared.deal,
         deps: input.deps,
         workflow: input.prepared.workflow,
       });
 
-  const quotePreview = await input.deps.treasury.quotes.queries.previewQuote(
+  const baseQuotePreview = await input.deps.treasury.quotes.queries.previewQuote(
     payload.quoteInput,
   );
+  const executionSide = await resolveExecutionSide({
+    amountMinor: baseQuotePreview.toAmountMinor,
+    deps: input.deps,
+    executionSource: resolveExecutionSource(
+      pricingContext,
+      input.executionSource,
+    ),
+    quotePreview: baseQuotePreview,
+    routePreview: payload.routePreview,
+  });
+  const clientSide = resolveClientSide({
+    commercialDraft: pricingContext.commercialDraft,
+    executionSide,
+    quotePreview: baseQuotePreview,
+  });
+  const pnl = resolvePnl({ clientSide, executionSide });
+  const crmPricingSnapshot = { clientSide, executionSide, pnl };
+  const crmManualLines = buildCrmManualFinancialLines({
+    clientSide,
+    sourceCurrency: baseQuotePreview.fromCurrency,
+  });
+  const quoteInputWithCrmLines = {
+    ...payload.quoteInput,
+    manualFinancialLines: [
+      ...(payload.quoteInput.manualFinancialLines ?? []),
+      ...crmManualLines,
+    ],
+  } satisfies PreviewQuoteInput;
+  const quotePreview = await input.deps.treasury.quotes.queries.previewQuote(
+    quoteInputWithCrmLines,
+  );
   const fundingPositions = await buildFundingPositions({
-    context: input.prepared.context,
+    context: pricingContext,
     deps: input.deps,
     quotePreview,
     routePreview: payload.routePreview,
@@ -1533,7 +1882,8 @@ async function previewWithArtifacts(input: {
   const artifacts = await buildPricingArtifacts({
     amountSide: input.amountSide,
     asOf: input.asOf,
-    context: input.prepared.context,
+    context: pricingContext,
+    crmPricingSnapshot,
     deps: input.deps,
     fundingPositions,
     quotePreview,
@@ -1544,6 +1894,7 @@ async function previewWithArtifacts(input: {
     input.deps.currencies.findByCode(quotePreview.toCurrency),
   ]);
   const pricingFingerprint = computePricingFingerprint({
+    clientPricing: crmPricingSnapshot,
     commercialTerms: quotePreview.commercialTerms
       ? {
           agreementFeeBps: quotePreview.commercialTerms.agreementFeeBps,
@@ -1557,7 +1908,7 @@ async function previewWithArtifacts(input: {
     fromCurrencyId: fromCurrency.id,
     pricingMode: quotePreview.pricingMode,
     routeTemplateId:
-      input.prepared.context.routeAttachment?.templateId ?? null,
+      pricingContext.routeAttachment?.templateId ?? null,
     toAmountMinor: quotePreview.toAmountMinor,
     toCurrencyId: toCurrency.id,
   });
@@ -1571,7 +1922,17 @@ async function previewWithArtifacts(input: {
     pricingFingerprint,
     pricingMode: payload.routePreview ? "explicit_route" : "auto_cross",
     profitability: artifacts.profitability,
-    quoteInput: payload.quoteInput,
+    crmPricingSnapshot: artifacts.crmPricingSnapshot,
+    quoteInput: withCrmPricingSnapshot({
+      amountSide: input.amountSide,
+      benchmarks: artifacts.benchmarks,
+      crmPricingSnapshot: artifacts.crmPricingSnapshot,
+      formulaTrace: artifacts.formulaTrace,
+      profitability: artifacts.profitability,
+      quoteInput: quoteInputWithCrmLines,
+      quotePreview,
+      requestedAmountMinor: input.amountMinor,
+    }),
     quotePreview,
     routePreview: payload.routePreview,
   };
@@ -1713,7 +2074,9 @@ export function createDealPricingWorkflow(
         amountMinor: input.amountMinor,
         amountSide: input.amountSide,
         asOf: input.asOf,
+        clientPricing: input.clientPricing,
         deps,
+        executionSource: input.executionSource,
         prepared,
       });
 
@@ -1745,7 +2108,9 @@ export function createDealPricingWorkflow(
         amountMinor: input.amountMinor,
         amountSide: input.amountSide,
         asOf: input.asOf,
+        clientPricing: input.clientPricing,
         deps,
+        executionSource: input.executionSource,
         prepared,
       });
 
@@ -1772,15 +2137,7 @@ export function createDealPricingWorkflow(
       }
 
       const createQuoteInput = {
-        ...withCrmPricingSnapshot({
-          amountSide: input.amountSide,
-          benchmarks: previewResult.benchmarks,
-          formulaTrace: previewResult.formulaTrace,
-          profitability: previewResult.profitability,
-          quoteInput: previewResult.quoteInput,
-          quotePreview: previewResult.quotePreview,
-          requestedAmountMinor: input.amountMinor,
-        }),
+        ...previewResult.quoteInput,
         dealId: input.dealId,
         idempotencyKey: input.idempotencyKey,
         routeTemplateId:
@@ -1789,6 +2146,22 @@ export function createDealPricingWorkflow(
       const quote = await deps.treasury.quotes.commands.createQuote(
         createQuoteInput,
       );
+
+      if (
+        previewResult.crmPricingSnapshot.executionSide.source ===
+          "treasury_inventory" &&
+        previewResult.crmPricingSnapshot.executionSide.inventoryPositionId
+      ) {
+        await deps.treasury.treasuryOrders.commands.reserveInventoryAllocation({
+          amountMinor: BigInt(
+            previewResult.crmPricingSnapshot.clientSide.beneficiaryAmountMinor,
+          ),
+          dealId: input.dealId,
+          positionId:
+            previewResult.crmPricingSnapshot.executionSide.inventoryPositionId,
+          quoteId: quote.id,
+        });
+      }
 
       return {
         benchmarks: previewResult.benchmarks,

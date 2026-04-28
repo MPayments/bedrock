@@ -183,6 +183,10 @@ function getCurrencyPrecision(currencyCode: string | null | undefined) {
 
 function cloneCommercialDraft(context: ApiDealPricingContext) {
   return {
+    clientPricing: context.commercialDraft.clientPricing ?? null,
+    executionSource: context.commercialDraft.executionSource ?? {
+      type: "route_execution" as const,
+    },
     fixedFeeAmount: context.commercialDraft.fixedFeeAmount ?? null,
     fixedFeeCurrency: context.commercialDraft.fixedFeeCurrency ?? null,
     quoteMarkupBps: context.commercialDraft.quoteMarkupBps ?? null,
@@ -193,6 +197,42 @@ function cloneFundingAdjustments(context: ApiDealPricingContext) {
   return context.fundingAdjustments.map((adjustment) => ({
     ...adjustment,
   }));
+}
+
+function decimalRateToFraction(value: string) {
+  const normalized = value.trim().replace(",", ".");
+  if (!/^(0|[1-9]\d*)(?:\.\d+)?$/u.test(normalized)) {
+    return null;
+  }
+  const [whole = "0", fraction = ""] = normalized.split(".");
+  const scale = 100_000_000n;
+  const trimmedFraction = fraction.slice(0, 8).padEnd(8, "0");
+  const rateDen = BigInt(whole) * scale + BigInt(trimmedFraction || "0");
+  if (rateDen <= 0n) return null;
+  return {
+    rateDen: rateDen.toString(),
+    rateNum: scale.toString(),
+  };
+}
+
+function fractionRateToDecimal(
+  rate: { rateDen: string; rateNum: string } | null,
+) {
+  if (!rate) return "";
+  return rationalToDecimalString(rate.rateDen, rate.rateNum, 6);
+}
+
+function defaultClientPricing() {
+  return {
+    clientRate: null,
+    clientTotalMinor: null,
+    commercialFeeCurrency: null,
+    commercialFeeMinor: null,
+    discountCurrency: null,
+    discountMinor: null,
+    mode: "client_rate" as const,
+    passThroughPolicy: "none" as const,
+  };
 }
 
 function formatMinorAmount(amountMinor: string, currency: string) {
@@ -257,71 +297,6 @@ function extractStoredPricingSnapshot(
     formulaTrace,
     profitability,
   };
-}
-
-function bpsToPercentString(bps: number | null): string {
-  if (bps === null) {
-    return "";
-  }
-  const whole = Math.trunc(bps / 100);
-  const fraction = Math.abs(bps % 100);
-  if (fraction === 0) {
-    return whole.toString();
-  }
-  return `${whole},${fraction.toString().padStart(2, "0")}`.replace(
-    /,?0+$/,
-    "",
-  );
-}
-
-function MarkupPercentInput({
-  bps,
-  onCommit,
-}: {
-  bps: number | null;
-  onCommit: (nextBps: number | null) => void;
-}) {
-  const [draft, setDraft] = useState(bpsToPercentString(bps));
-
-  useEffect(() => {
-    setDraft(bpsToPercentString(bps));
-  }, [bps]);
-
-  function commit(raw: string) {
-    const normalized = raw.trim().replace(",", ".");
-    if (normalized === "") {
-      onCommit(null);
-      setDraft("");
-      return;
-    }
-    if (!/^\d+(?:\.\d+)?$/.test(normalized)) {
-      setDraft(bpsToPercentString(bps));
-      return;
-    }
-    const parsed = Number.parseFloat(normalized);
-    if (!Number.isFinite(parsed) || parsed < 0) {
-      setDraft(bpsToPercentString(bps));
-      return;
-    }
-    const nextBps = Math.round(parsed * 100);
-    onCommit(nextBps);
-  }
-
-  return (
-    <Input
-      inputMode="decimal"
-      placeholder="0.25"
-      value={draft}
-      onChange={(event) => setDraft(event.target.value)}
-      onBlur={(event) => commit(event.target.value)}
-      onKeyDown={(event) => {
-        if (event.key === "Enter") {
-          event.preventDefault();
-          commit(event.currentTarget.value);
-        }
-      }}
-    />
-  );
 }
 
 function PricingMetricTile({
@@ -470,7 +445,9 @@ const REVOCATION_REASON_LABELS: Record<string, string> = {
   operator_route_swap: "маршрут изменён казначейством",
 };
 
-function formatRevocationReason(reason: string | null | undefined): string | null {
+function formatRevocationReason(
+  reason: string | null | undefined,
+): string | null {
   if (!reason) return null;
   return REVOCATION_REASON_LABELS[reason] ?? reason;
 }
@@ -520,29 +497,15 @@ function FeeBreakdownCard({
 
   const rows: BreakdownRow[] = [];
 
-  route.legs.forEach((leg, legIndex) => {
-    leg.fees.forEach((fee) => {
-      const currency = currencyCodeById.get(fee.currencyId) ?? fee.currencyId;
-      rows.push({
-        amount: formatMinorAmount(fee.amountMinor, currency),
-        basis: formatFeeBasis(fee),
-        component: fee.label ?? "Комиссия",
-        key: `leg-${leg.id}-${fee.id}`,
-        provider: `Шаг ${legIndex + 1}`,
-        tone: fee.chargeToCustomer ? "default" : "muted",
-      });
-    });
-  });
-
-  route.additionalFees.forEach((fee) => {
+  route.executionCostLines.forEach((fee) => {
     const currency = currencyCodeById.get(fee.currencyId) ?? fee.currencyId;
     rows.push({
       amount: formatMinorAmount(fee.amountMinor, currency),
       basis: formatFeeBasis(fee),
-      component: fee.label ?? "Доплата",
-      key: `additional-${fee.id}`,
-      provider: "Bedrock",
-      tone: fee.chargeToCustomer ? "default" : "muted",
+      component: fee.label ?? "Расход исполнения",
+      key: `${fee.location}-${fee.id}`,
+      provider: fee.location === "leg" ? "Шаг маршрута" : "Отдельно",
+      tone: "muted",
     });
   });
 
@@ -564,8 +527,10 @@ function FeeBreakdownCard({
     });
   }
 
-  const totalFeeMinor =
-    BigInt(route.costPriceInMinor) - BigInt(route.amountInMinor);
+  const totalFeeMinor = route.executionCostLines.reduce(
+    (total, fee) => total + BigInt(fee.routeInputImpactMinor),
+    0n,
+  );
   const hasRows = rows.length > 0;
   const feeCurrency =
     currencyCodeById.get(route.currencyInId) ?? route.currencyInId;
@@ -839,6 +804,8 @@ export function DealPricingTab({
   const formulaTrace = previewOrAcceptedSnapshot?.formulaTrace ?? null;
   const canCopyCalculation = Boolean(formulaTrace?.sections?.length);
   const canDownloadPdf = Boolean(acceptedQuote && currentCalculationId);
+  const clientPricingDraft =
+    commercialDraft.clientPricing ?? defaultClientPricing();
 
   const handleCopyCalculation = useCallback(() => {
     const text = serializeFormulaTrace(formulaTrace);
@@ -1035,7 +1002,7 @@ export function DealPricingTab({
                   <PricingMetricTile
                     label={
                       quoteAmountSide === "target"
-                        ? "Ожидаемое списание клиента"
+                        ? "Cписание c клиента"
                         : "Сумма сделки"
                     }
                     sublabel={
@@ -1054,7 +1021,6 @@ export function DealPricingTab({
                         ? "Бенефициар получит"
                         : "Сумма получения"
                     }
-                    sublabel="бенефициар получит"
                     value={
                       preview?.quotePreview
                         ? formatMinorAmount(
@@ -1065,8 +1031,7 @@ export function DealPricingTab({
                     }
                   />
                   <PricingMetricTile
-                    label="FX principal / cost base"
-                    sublabel="себестоимость маршрута"
+                    label="Себестоимость маршрута"
                     value={formatMinorAmount(
                       profit.costPriceMinor,
                       profit.currency,
@@ -1097,7 +1062,7 @@ export function DealPricingTab({
                     }
                     sublabel={
                       routeBench
-                        ? (routeBench.sourceLabel ?? "composed base по легам")
+                        ? (routeBench.sourceLabel ?? "база по шагам маршрута")
                         : "маршрут не выбран"
                     }
                     value={
@@ -1241,19 +1206,87 @@ export function DealPricingTab({
               />
             </div>
             <div className="space-y-2">
-              <Label>Наценка к курсу, %</Label>
-              <MarkupPercentInput
-                bps={commercialDraft.quoteMarkupBps}
-                onCommit={(nextBps) =>
+              <Label>Цена клиенту</Label>
+              <Select
+                onValueChange={(value) =>
                   setCommercialDraft((current) => ({
                     ...current,
-                    quoteMarkupBps: nextBps,
+                    clientPricing: {
+                      ...(current.clientPricing ?? defaultClientPricing()),
+                      mode:
+                        value === "client_total"
+                          ? "client_total"
+                          : "client_rate",
+                    },
+                    quoteMarkupBps: null,
                   }))
                 }
-              />
+                value={clientPricingDraft.mode}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="client_rate">Курс</SelectItem>
+                  <SelectItem value="client_total">Сумма</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
+            {clientPricingDraft.mode === "client_rate" ? (
+              <div className="space-y-2">
+                <Label>Курс клиенту</Label>
+                <Input
+                  inputMode="decimal"
+                  onChange={(event) => {
+                    const clientRate = decimalRateToFraction(event.target.value);
+                    setCommercialDraft((current) => ({
+                      ...current,
+                      clientPricing: {
+                        ...(current.clientPricing ?? defaultClientPricing()),
+                        clientRate,
+                        mode: "client_rate",
+                      },
+                      quoteMarkupBps: null,
+                    }));
+                  }}
+                  placeholder="0.000000"
+                  value={fractionRateToDecimal(clientPricingDraft.clientRate)}
+                />
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label>Сумма списания клиента</Label>
+                <Input
+                  inputMode="decimal"
+                  onChange={(event) => {
+                    const minor = decimalToMinorString(
+                      event.target.value,
+                      amountCurrencyPrecision,
+                    );
+                    setCommercialDraft((current) => ({
+                      ...current,
+                      clientPricing: {
+                        ...(current.clientPricing ?? defaultClientPricing()),
+                        clientTotalMinor: minor,
+                        mode: "client_total",
+                      },
+                      quoteMarkupBps: null,
+                    }));
+                  }}
+                  placeholder="0.00"
+                  value={
+                    clientPricingDraft.clientTotalMinor
+                      ? minorToDecimalString(
+                          clientPricingDraft.clientTotalMinor,
+                          amountCurrencyPrecision,
+                        )
+                      : ""
+                  }
+                />
+              </div>
+            )}
             <div className="space-y-2">
-              <Label>Фиксированная комиссия</Label>
+              <Label>Коммерческая комиссия</Label>
               <InputGroup>
                 <Input
                   data-slot="input-group-control"
@@ -1314,10 +1347,9 @@ export function DealPricingTab({
         const expiresIso =
           acceptedQuote?.expiresAt ?? preview?.quotePreview?.expiresAt ?? null;
         const countdown = formatExpiresCountdown(expiresIso, nowTick);
-        const revocationLabel =
-          acceptedQuote?.revokedAt
-            ? formatRevocationReason(acceptedQuote.revocationReason)
-            : null;
+        const revocationLabel = acceptedQuote?.revokedAt
+          ? formatRevocationReason(acceptedQuote.revocationReason)
+          : null;
         const countdownSublabel =
           pricingState === "drifted"
             ? "лок действителен, но пришли новые условия"

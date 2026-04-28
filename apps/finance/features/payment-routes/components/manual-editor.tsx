@@ -339,6 +339,7 @@ export function PaymentRouteManualEditor({
             addLabel="Добавить расход"
             allowFxSpread={false}
             fallbackCurrencyId={state.draft.currencyInId}
+            feeScope="additional"
             fees={state.draft.additionalFees}
             options={options}
             title="Доплаты сверх маршрута"

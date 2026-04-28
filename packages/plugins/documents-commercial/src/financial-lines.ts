@@ -12,6 +12,10 @@ export const FINANCIAL_LINE_BUCKETS = [
   "provider_fee_expense",
   "pass_through",
   "adjustment",
+  "commercial_revenue",
+  "commercial_discount",
+  "pass_through_reimbursement",
+  "execution_expense",
 ] as const;
 
 export const FINANCIAL_LINE_BUCKET_OPTIONS = [
@@ -20,6 +24,10 @@ export const FINANCIAL_LINE_BUCKET_OPTIONS = [
   { value: "provider_fee_expense", label: "Расход провайдера" },
   { value: "pass_through", label: "Транзитная комиссия" },
   { value: "adjustment", label: "Корректировка" },
+  { value: "commercial_revenue", label: "Коммерческий доход" },
+  { value: "commercial_discount", label: "Коммерческая скидка" },
+  { value: "pass_through_reimbursement", label: "Компенсация расходов" },
+  { value: "execution_expense", label: "Расход исполнения" },
 ] as const;
 
 export type FinancialLineBucket = (typeof FINANCIAL_LINE_BUCKETS)[number];
@@ -63,7 +71,8 @@ function resolveSettlementMode(
     return input.settlementMode;
   }
 
-  return input.bucket === "pass_through"
+  return input.bucket === "pass_through" ||
+    input.bucket === "pass_through_reimbursement"
     ? "separate_payment_order"
     : "in_ledger";
 }

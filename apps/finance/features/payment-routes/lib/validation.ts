@@ -1,8 +1,4 @@
-import type {
-  PaymentRouteCalculation,
-  PaymentRouteCalculationFee,
-  PaymentRouteDraft,
-} from "@bedrock/treasury/contracts";
+import type { PaymentRouteDraft } from "@bedrock/treasury/contracts";
 
 import type { PaymentRouteRequisiteWarning } from "./requisites";
 
@@ -10,7 +6,7 @@ export type PaymentRouteValidationStatus = "ok" | "warning" | "error";
 
 export type PaymentRouteValidationCheck = {
   detail?: string;
-  id: "currency_chain" | "requisites" | "margin_policy";
+  id: "currency_chain" | "requisites";
   status: PaymentRouteValidationStatus;
   title: string;
 };
@@ -18,69 +14,8 @@ export type PaymentRouteValidationCheck = {
 export const DEFAULT_MIN_MARGIN_BPS = 25;
 export const DEFAULT_MAX_MARGIN_BPS = 1000;
 
-function formatBpsAsPercent(bps: number) {
-  const whole = Math.trunc(bps / 100);
-  const fraction = Math.abs(bps % 100);
-  if (fraction === 0) {
-    return whole.toString();
-  }
-  const fractionStr = fraction.toString().padStart(2, "0").replace(/0+$/, "");
-  return `${whole},${fractionStr}`;
-}
-
-function sumRouteInputImpact(fees: PaymentRouteCalculationFee[]) {
-  return fees.reduce(
-    (acc, fee) => acc + BigInt(fee.routeInputImpactMinor),
-    0n,
-  );
-}
-
-function getPaymentRouteMarginMinor(
-  calculation: PaymentRouteCalculation | null,
-): { grossInMinor: bigint; marginInMinor: bigint } | null {
-  if (!calculation) {
-    return null;
-  }
-
-  const legFees = calculation.legs.flatMap((leg) => leg.fees);
-  const chargedLegFees = legFees.filter((fee) => fee.chargeToCustomer);
-  const chargedAdditionalFees = calculation.additionalFees.filter(
-    (fee) => fee.chargeToCustomer,
-  );
-  const internalAdditionalFees = calculation.additionalFees.filter(
-    (fee) => !fee.chargeToCustomer,
-  );
-
-  const chargedImpact = sumRouteInputImpact([
-    ...chargedLegFees,
-    ...chargedAdditionalFees,
-  ]);
-  const internalAdditionalImpact = sumRouteInputImpact(internalAdditionalFees);
-
-  return {
-    grossInMinor: BigInt(calculation.amountInMinor),
-    marginInMinor: chargedImpact - internalAdditionalImpact,
-  };
-}
-
-export function getPaymentRouteMarginBps(
-  calculation: PaymentRouteCalculation | null,
-): number | null {
-  const summary = getPaymentRouteMarginMinor(calculation);
-
-  if (!summary || summary.grossInMinor <= 0n) {
-    return null;
-  }
-
-  const scaled =
-    (summary.marginInMinor * 10000n + summary.grossInMinor / 2n) /
-    summary.grossInMinor;
-
-  return Number(scaled);
-}
-
 export function getPaymentRouteValidationChecks(input: {
-  calculation: PaymentRouteCalculation | null;
+  calculation: unknown;
   draft: PaymentRouteDraft;
   maxMarginBps: number | null;
   minMarginBps: number | null;
@@ -119,35 +54,5 @@ export function getPaymentRouteValidationChecks(input: {
     title: "У связанных участников выбраны реквизиты",
   };
 
-  const minBound = input.minMarginBps ?? DEFAULT_MIN_MARGIN_BPS;
-  const maxBound = input.maxMarginBps ?? DEFAULT_MAX_MARGIN_BPS;
-  const currentBps = getPaymentRouteMarginBps(input.calculation);
-
-  let marginStatus: PaymentRouteValidationStatus = "ok";
-  let marginDetail: string;
-
-  if (currentBps === null) {
-    marginDetail = "Маржа будет проверена после расчёта";
-  } else {
-    const formatBps = (bps: number) => `${formatBpsAsPercent(bps)}%`;
-    const currentLabel = formatBps(currentBps);
-    const minLabel = formatBps(minBound);
-    const maxLabel = formatBps(maxBound);
-
-    if (currentBps < minBound || currentBps > maxBound) {
-      marginStatus = "warning";
-      marginDetail = `${minLabel} ≤ ${currentLabel} ≤ ${maxLabel}`;
-    } else {
-      marginDetail = `${currentLabel} (в пределах ${minLabel}–${maxLabel})`;
-    }
-  }
-
-  const marginCheck: PaymentRouteValidationCheck = {
-    detail: marginDetail,
-    id: "margin_policy",
-    status: marginStatus,
-    title: "Маржа в пределах политики",
-  };
-
-  return [currencyChainCheck, requisitesCheck, marginCheck];
+  return [currencyChainCheck, requisitesCheck];
 }

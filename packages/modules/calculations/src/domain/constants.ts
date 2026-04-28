@@ -20,6 +20,10 @@ export const CALCULATION_LINE_KIND_VALUES = [
   "provider_fee_expense",
   "pass_through",
   "adjustment",
+  "commercial_revenue",
+  "commercial_discount",
+  "pass_through_reimbursement",
+  "execution_expense",
 ] as const;
 
 export const CALCULATIONS_CREATE_IDEMPOTENCY_SCOPE = "calculations.create";

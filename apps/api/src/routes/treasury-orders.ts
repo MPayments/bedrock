@@ -8,6 +8,8 @@ import {
   PaymentStepPartyRefSchema,
   PaymentStepRateLockedSideSchema,
   PaymentStepRateSchema,
+  TreasuryInventoryPositionSchema,
+  TreasuryInventoryPositionStateSchema,
   TreasuryOrderStateSchema,
   TreasuryOrderStepKindSchema,
   TreasuryOrderTypeSchema,
@@ -62,6 +64,14 @@ const ListTreasuryOrdersQuerySchema = z.object({
   type: TreasuryOrderTypeSchema.optional(),
 });
 
+const ListInventoryPositionsQuerySchema = z.object({
+  currencyId: z.uuid().optional(),
+  limit: z.coerce.number().int().positive().max(100).optional().default(50),
+  offset: z.coerce.number().int().nonnegative().optional().default(0),
+  ownerPartyId: z.uuid().optional(),
+  state: TreasuryInventoryPositionStateSchema.optional(),
+});
+
 const TreasuryOrderStepResponseSchema = z.object({
   createdAt: z.iso.datetime(),
   fromAmountMinor: z.string().nullable(),
@@ -105,7 +115,26 @@ const TreasuryOrdersListResponseSchema = z.object({
   total: z.number().int().nonnegative(),
 });
 
+const TreasuryInventoryPositionResponseSchema =
+  TreasuryInventoryPositionSchema.extend({
+    acquiredAmountMinor: z.string(),
+    availableAmountMinor: z.string(),
+    costAmountMinor: z.string(),
+    createdAt: z.iso.datetime(),
+    updatedAt: z.iso.datetime(),
+  });
+
+const TreasuryInventoryPositionsListResponseSchema = z.object({
+  data: z.array(TreasuryInventoryPositionResponseSchema),
+  limit: z.number().int().positive(),
+  offset: z.number().int().nonnegative(),
+  total: z.number().int().nonnegative(),
+});
+
 type TreasuryOrderResponse = z.infer<typeof TreasuryOrderResponseSchema>;
+type TreasuryInventoryPositionResponse = z.infer<
+  typeof TreasuryInventoryPositionResponseSchema
+>;
 
 function serializeDate(value: Date | string): string {
   return value instanceof Date ? value.toISOString() : value;
@@ -160,6 +189,31 @@ function serializeTreasuryOrder(order: {
       updatedAt: serializeDate(step.updatedAt),
     })),
     updatedAt: serializeDate(order.updatedAt),
+  };
+}
+
+function serializeInventoryPosition(position: {
+  acquiredAmountMinor: bigint | string;
+  availableAmountMinor: bigint | string;
+  costAmountMinor: bigint | string;
+  costCurrencyId: string;
+  createdAt: Date | string;
+  currencyId: string;
+  id: string;
+  ownerPartyId: string;
+  ownerRequisiteId: string | null;
+  sourceOrderId: string;
+  sourceQuoteExecutionId: string;
+  state: z.infer<typeof TreasuryInventoryPositionStateSchema>;
+  updatedAt: Date | string;
+}): TreasuryInventoryPositionResponse {
+  return {
+    ...position,
+    acquiredAmountMinor: position.acquiredAmountMinor.toString(),
+    availableAmountMinor: position.availableAmountMinor.toString(),
+    costAmountMinor: position.costAmountMinor.toString(),
+    createdAt: serializeDate(position.createdAt),
+    updatedAt: serializeDate(position.updatedAt),
   };
 }
 
@@ -246,6 +300,25 @@ export function treasuryOrdersRoutes(ctx: AppContext) {
     tags: ["Treasury"],
   });
 
+  const listInventoryPositionsRoute = createRoute({
+    middleware: [requirePermission({ deals: ["list"] })],
+    method: "get",
+    path: "/inventory/positions",
+    request: { query: ListInventoryPositionsQuerySchema },
+    responses: {
+      200: {
+        description: "Treasury inventory positions",
+        content: {
+          "application/json": {
+            schema: TreasuryInventoryPositionsListResponseSchema,
+          },
+        },
+      },
+    },
+    summary: "List treasury inventory positions",
+    tags: ["Treasury"],
+  });
+
   const getOrderRoute = createRoute({
     middleware: [requirePermission({ deals: ["list"] })],
     method: "get",
@@ -317,6 +390,23 @@ export function treasuryOrdersRoutes(ctx: AppContext) {
         const result = await ctx.treasuryModule.treasuryOrders.queries.list(query);
         return c.json({
           data: result.data.map(serializeTreasuryOrder),
+          limit: result.limit,
+          offset: result.offset,
+          total: result.total,
+        });
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(listInventoryPositionsRoute, async (c) => {
+      try {
+        const query = c.req.valid("query");
+        const result =
+          await ctx.treasuryModule.treasuryOrders.queries.listInventoryPositions(
+            query,
+          );
+        return c.json({
+          data: result.data.map(serializeInventoryPosition),
           limit: result.limit,
           offset: result.offset,
           total: result.total,

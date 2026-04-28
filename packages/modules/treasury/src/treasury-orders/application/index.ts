@@ -3,13 +3,25 @@ import {
   type TreasuryOrdersServiceDeps,
 } from "./context";
 import {
+  CreateInventoryPositionFromQuoteExecutionInputSchema,
   CreateTreasuryOrderInputSchema,
+  GetInventoryPositionByIdInputSchema,
+  GetReservedAllocationByDealAndQuoteInputSchema,
   GetTreasuryOrderByIdInputSchema,
+  ListInventoryPositionsQuerySchema,
   ListTreasuryOrdersQuerySchema,
+  ReserveInventoryAllocationInputSchema,
+  TreasuryInventoryAllocationSchema,
+  TreasuryInventoryPositionSchema,
   TreasuryOrderSchema,
+  type CreateInventoryPositionFromQuoteExecutionInput,
   type CreateTreasuryOrderInput,
+  type GetInventoryPositionByIdInput,
+  type GetReservedAllocationByDealAndQuoteInput,
   type GetTreasuryOrderByIdInput,
+  type ListInventoryPositionsQuery,
   type ListTreasuryOrdersQuery,
+  type ReserveInventoryAllocationInput,
 } from "./contracts";
 import {
   TreasuryOrderConflictError,
@@ -169,9 +181,175 @@ export function createTreasuryOrdersService(deps: TreasuryOrdersServiceDeps) {
     };
   }
 
+  async function createInventoryPositionFromQuoteExecution(
+    raw: CreateInventoryPositionFromQuoteExecutionInput,
+  ) {
+    const input = CreateInventoryPositionFromQuoteExecutionInputSchema.parse(raw);
+    const existing =
+      await context.repository.findInventoryPositionByQuoteExecutionId(
+        input.executionId,
+      );
+    if (existing) {
+      return TreasuryInventoryPositionSchema.parse(existing);
+    }
+
+    const execution = await context.quoteExecutions.queries.findById({
+      executionId: input.executionId,
+    });
+    if (!execution) {
+      throw new ValidationError(
+        `Quote execution ${input.executionId} is not available`,
+      );
+    }
+    if (execution.state !== "completed") {
+      throw new ValidationError(
+        `Quote execution ${input.executionId} is not completed`,
+      );
+    }
+    if (!execution.treasuryOrderId) {
+      throw new ValidationError(
+        `Quote execution ${input.executionId} is not linked to a treasury order`,
+      );
+    }
+
+    const order = await context.repository.findById(execution.treasuryOrderId);
+    if (!order) {
+      throw new TreasuryOrderNotFoundError(execution.treasuryOrderId);
+    }
+    if (order.type !== "liquidity_purchase") {
+      throw new ValidationError(
+        `Treasury order ${order.id} is not a liquidity purchase`,
+      );
+    }
+    const creditParty = execution.executionParties?.creditParty;
+    if (!creditParty?.id) {
+      throw new ValidationError(
+        `Quote execution ${input.executionId} is missing credit party`,
+      );
+    }
+
+    const now = context.runtime.now();
+    const position = {
+      acquiredAmountMinor: execution.toAmountMinor,
+      availableAmountMinor: execution.toAmountMinor,
+      costAmountMinor: execution.fromAmountMinor,
+      costCurrencyId: execution.fromCurrencyId,
+      createdAt: now,
+      currencyId: execution.toCurrencyId,
+      id: input.id ?? context.runtime.generateUuid(),
+      ownerPartyId: creditParty.id,
+      ownerRequisiteId: creditParty.requisiteId,
+      sourceOrderId: order.id,
+      sourceQuoteExecutionId: execution.id,
+      state: "open" as const,
+      updatedAt: now,
+    };
+    const inserted = await context.repository.insertInventoryPosition(position);
+    if (!inserted) {
+      const raced =
+        await context.repository.findInventoryPositionByQuoteExecutionId(
+          input.executionId,
+        );
+      if (raced) {
+        return TreasuryInventoryPositionSchema.parse(raced);
+      }
+      throw new TreasuryOrderConflictError(position.id);
+    }
+    const completedOrder = TreasuryOrder.fromSnapshot(order).complete(now);
+    await context.repository.update(completedOrder.toSnapshot());
+    return TreasuryInventoryPositionSchema.parse(inserted);
+  }
+
+  async function reserveInventoryAllocation(
+    raw: ReserveInventoryAllocationInput,
+  ) {
+    const input = ReserveInventoryAllocationInputSchema.parse(raw);
+    const position = await context.repository.findInventoryPositionById(
+      input.positionId,
+    );
+    if (!position) {
+      throw new ValidationError(
+        `Treasury inventory position ${input.positionId} is not available`,
+      );
+    }
+    if (
+      position.state !== "open" ||
+      position.availableAmountMinor < input.amountMinor
+    ) {
+      throw new ValidationError(
+        `Treasury inventory position ${input.positionId} has insufficient liquidity`,
+      );
+    }
+
+    const costAmountMinor =
+      position.acquiredAmountMinor === 0n
+        ? 0n
+        : (input.amountMinor * position.costAmountMinor +
+            position.acquiredAmountMinor / 2n) /
+          position.acquiredAmountMinor;
+    const now = context.runtime.now();
+    const reserved = await context.repository.reserveInventoryAllocation({
+      amountMinor: input.amountMinor,
+      costAmountMinor,
+      createdAt: now,
+      dealId: input.dealId,
+      id: input.id ?? context.runtime.generateUuid(),
+      positionId: input.positionId,
+      quoteId: input.quoteId,
+      state: "reserved",
+      updatedAt: now,
+    });
+    if (!reserved) {
+      throw new ValidationError(
+        `Treasury inventory position ${input.positionId} has insufficient liquidity`,
+      );
+    }
+    return TreasuryInventoryAllocationSchema.parse(reserved.allocation);
+  }
+
+  async function listInventoryPositions(raw: ListInventoryPositionsQuery) {
+    const input = ListInventoryPositionsQuerySchema.parse(raw);
+    const result = await context.repository.listInventoryPositions(input);
+    return {
+      data: result.rows.map((row) => TreasuryInventoryPositionSchema.parse(row)),
+      limit: input.limit,
+      offset: input.offset,
+      total: result.total,
+    };
+  }
+
+  async function findInventoryPositionById(raw: GetInventoryPositionByIdInput) {
+    const input = GetInventoryPositionByIdInputSchema.parse(raw);
+    const position = await context.repository.findInventoryPositionById(
+      input.positionId,
+    );
+    return position ? TreasuryInventoryPositionSchema.parse(position) : null;
+  }
+
+  async function findReservedAllocationByDealAndQuote(
+    raw: GetReservedAllocationByDealAndQuoteInput,
+  ) {
+    const input = GetReservedAllocationByDealAndQuoteInputSchema.parse(raw);
+    const allocation =
+      await context.repository.findReservedAllocationByDealAndQuote(input);
+    return allocation ? TreasuryInventoryAllocationSchema.parse(allocation) : null;
+  }
+
   return {
-    commands: { activate, cancel, create },
-    queries: { findById, list },
+    commands: {
+      activate,
+      cancel,
+      create,
+      createInventoryPositionFromQuoteExecution,
+      reserveInventoryAllocation,
+    },
+    queries: {
+      findById,
+      findInventoryPositionById,
+      findReservedAllocationByDealAndQuote,
+      list,
+      listInventoryPositions,
+    },
   };
 }
 

@@ -38,6 +38,16 @@ export const PAYMENT_ROUTE_FEE_KIND_VALUES = [
   "fixed",
   "fx_spread",
 ] as const;
+export const PAYMENT_ROUTE_FEE_APPLICATION_VALUES = [
+  "embedded_in_rate",
+  "deducted_from_flow",
+  "separate_charge",
+] as const;
+export const PAYMENT_ROUTE_EXECUTION_COST_TREATMENT_VALUES = [
+  "execution_spread",
+  "flow_deduction",
+  "separate_expense",
+] as const;
 export const PAYMENT_ROUTE_LOCKED_SIDE_VALUES = [
   "currency_in",
   "currency_out",
@@ -57,6 +67,10 @@ export type PaymentRouteLegTreasuryOperationHint =
   (typeof PAYMENT_ROUTE_LEG_TREASURY_OPERATION_HINT_VALUES)[number];
 export type PaymentRouteFeeKind =
   (typeof PAYMENT_ROUTE_FEE_KIND_VALUES)[number];
+export type PaymentRouteFeeApplication =
+  (typeof PAYMENT_ROUTE_FEE_APPLICATION_VALUES)[number];
+export type PaymentRouteExecutionCostTreatment =
+  (typeof PAYMENT_ROUTE_EXECUTION_COST_TREATMENT_VALUES)[number];
 export type PaymentRouteLockedSide =
   (typeof PAYMENT_ROUTE_LOCKED_SIDE_VALUES)[number];
 
@@ -91,7 +105,7 @@ export type PaymentRouteParticipantRef =
 
 export interface PaymentRouteFee {
   amountMinor?: string;
-  chargeToCustomer: boolean;
+  application: PaymentRouteFeeApplication;
   currencyId?: string | null;
   id: string;
   kind: PaymentRouteFeeKind;
@@ -128,7 +142,7 @@ export interface PaymentRouteDraft {
 
 interface PaymentRouteCalculationFeeBase {
   amountMinor: string;
-  chargeToCustomer: boolean;
+  application: PaymentRouteFeeApplication;
   currencyId: string;
   id: string;
   inputImpactCurrencyId: string;
@@ -137,6 +151,22 @@ interface PaymentRouteCalculationFeeBase {
   outputImpactCurrencyId: string;
   outputImpactMinor: string;
   routeInputImpactMinor: string;
+}
+
+export interface PaymentRouteExecutionCostLine {
+  amountMinor: string;
+  application: PaymentRouteFeeApplication;
+  currencyId: string;
+  id: string;
+  inputImpactCurrencyId: string;
+  inputImpactMinor: string;
+  kind: PaymentRouteFeeKind;
+  label?: string;
+  location: "additional" | "leg";
+  outputImpactCurrencyId: string;
+  outputImpactMinor: string;
+  routeInputImpactMinor: string;
+  treatment: PaymentRouteExecutionCostTreatment;
 }
 
 export type PaymentRouteCalculationFee =
@@ -180,19 +210,23 @@ export interface PaymentRouteCalculation {
   additionalFees: PaymentRouteCalculationFee[];
   amountInMinor: string;
   amountOutMinor: string;
-  chargedFeeTotals: PaymentRouteAmountTotal[];
+  benchmarkPrincipalInMinor: string;
   cleanAmountOutMinor: string;
-  clientTotalInMinor: string;
   computedAt: string;
   costPriceInMinor: string;
   currencyInId: string;
   currencyOutId: string;
+  deductedExecutionCostMinor: string;
+  embeddedExecutionCostMinor: string;
+  executionCostLines: PaymentRouteExecutionCostLine[];
+  executionPrincipalInMinor: string;
   feeTotals: PaymentRouteAmountTotal[];
   grossAmountOutMinor: string;
   internalFeeTotals: PaymentRouteAmountTotal[];
   legs: PaymentRouteCalculationLeg[];
   lockedSide: PaymentRouteLockedSide;
   netAmountOutMinor: string;
+  separateExecutionCostMinor: string;
 }
 
 export interface PaymentRouteTemplateRecord {

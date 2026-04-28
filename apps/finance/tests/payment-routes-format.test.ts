@@ -23,13 +23,11 @@ const CNY = {
 };
 
 describe("payment route format", () => {
-  it("builds forward and reverse clean, client, and cost rates from exact minor amounts", () => {
+  it("builds forward and reverse clean and cost rates from exact minor amounts", () => {
     expect(
       getPaymentRouteRateLines({
         cleanAmountInMinor: "1200000",
         cleanAmountOutMinor: "111000",
-        clientAmountOutMinor: "108495",
-        clientTotalInMinor: "1230000",
         costAmountOutMinor: "108495",
         costPriceInMinor: "1250000",
         currencyIn: RUB,
@@ -38,8 +36,6 @@ describe("payment route format", () => {
     ).toEqual({
       cleanForward: "1 RUB ~= 0.092500 CNY",
       cleanReverse: "1 CNY ~= 10.810811 RUB",
-      clientForward: "1 RUB ~= 0.088207 CNY",
-      clientReverse: "1 CNY ~= 11.336928 RUB",
       costForward: "1 RUB ~= 0.086796 CNY",
       costReverse: "1 CNY ~= 11.521268 RUB",
     });
@@ -50,13 +46,16 @@ describe("payment route format", () => {
       additionalFees: [],
       amountInMinor: "77836434",
       amountOutMinor: "1000000",
-      chargedFeeTotals: [],
+      benchmarkPrincipalInMinor: "77836434",
       cleanAmountOutMinor: "1000000",
-      clientTotalInMinor: "77836434",
       computedAt: "2026-04-19T09:58:00.000Z",
       costPriceInMinor: "78108862",
       currencyInId: RUB.id,
       currencyOutId: "00000000-0000-4000-8000-000000000103",
+      deductedExecutionCostMinor: "0",
+      embeddedExecutionCostMinor: "0",
+      executionCostLines: [],
+      executionPrincipalInMinor: "77836434",
       feeTotals: [],
       grossAmountOutMinor: "1000000",
       internalFeeTotals: [],
@@ -92,6 +91,7 @@ describe("payment route format", () => {
       ],
       lockedSide: "currency_in",
       netAmountOutMinor: "1000000",
+      separateExecutionCostMinor: "272428",
     };
     const USD = {
       code: "USD",

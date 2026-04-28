@@ -214,6 +214,10 @@ export const PreviewDealPricingInputSchema = z.object({
   amountMinor: positiveMinorAmountStringSchema,
   amountSide: DealPricingAmountSideSchema,
   asOf: z.coerce.date(),
+  clientPricing:
+    DealPricingCommercialDraftSchema.shape.clientPricing.optional(),
+  executionSource:
+    DealPricingCommercialDraftSchema.shape.executionSource.optional(),
   expectedRevision: z.number().int().positive(),
 });
 

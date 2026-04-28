@@ -108,18 +108,16 @@ describe("payment route graph view model", () => {
       additionalFees: [],
       amountInMinor: "1200000",
       amountOutMinor: "1188000",
-      chargedFeeTotals: [
-        {
-          amountMinor: "12000",
-          currencyId: OPTIONS.currencies[0]!.id,
-        },
-      ],
+      benchmarkPrincipalInMinor: "1200000",
       cleanAmountOutMinor: "1200000",
-      clientTotalInMinor: "1200000",
       computedAt: "2026-04-16T08:00:00.000Z",
       costPriceInMinor: "1200000",
       currencyInId: OPTIONS.currencies[0]!.id,
       currencyOutId: OPTIONS.currencies[0]!.id,
+      deductedExecutionCostMinor: "12000",
+      embeddedExecutionCostMinor: "0",
+      executionCostLines: [],
+      executionPrincipalInMinor: "1200000",
       feeTotals: [
         {
           amountMinor: "12000",
@@ -134,7 +132,7 @@ describe("payment route graph view model", () => {
           fees: [
             {
               amountMinor: "12000",
-              chargeToCustomer: true,
+              application: "deducted_from_flow",
               currencyId: OPTIONS.currencies[0]!.id,
               id: "fee-1",
               inputImpactCurrencyId: OPTIONS.currencies[0]!.id,
@@ -160,6 +158,7 @@ describe("payment route graph view model", () => {
       ],
       lockedSide: "currency_in",
       netAmountOutMinor: "1188000",
+      separateExecutionCostMinor: "0",
     });
 
     const edges = buildPaymentRouteGraphEdges({

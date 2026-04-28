@@ -6,7 +6,6 @@ import { ExternalLink, Plus, RefreshCw, Trash2 } from "lucide-react";
 
 import { Alert, AlertDescription } from "@bedrock/sdk-ui/components/alert";
 import { Button } from "@bedrock/sdk-ui/components/button";
-import { Checkbox } from "@bedrock/sdk-ui/components/checkbox";
 import { ButtonGroup } from "@bedrock/sdk-ui/components/button-group";
 import { Field, FieldTitle } from "@bedrock/sdk-ui/components/field";
 import { Input } from "@bedrock/sdk-ui/components/input";
@@ -44,6 +43,15 @@ const FEE_KIND_LABELS: Record<PaymentRouteFee["kind"], string> = {
   fx_spread: "Надбавка к курсу",
   gross_percent: "% от суммы шага",
   net_percent: "% от остатка",
+};
+
+const FEE_APPLICATION_LABELS: Record<
+  NonNullable<PaymentRouteFee["application"]>,
+  string
+> = {
+  deducted_from_flow: "Списывается из потока",
+  embedded_in_rate: "Встроено в курс",
+  separate_charge: "Отдельный расход",
 };
 
 const PARTICIPANT_KIND_LABELS: Record<
@@ -96,6 +104,7 @@ type FeeListEditorProps = {
   addLabel?: string;
   allowFxSpread?: boolean;
   fallbackCurrencyId: string;
+  feeScope?: "additional" | "leg";
   fees: PaymentRouteFee[];
   onAdd: () => void;
   onChange: (
@@ -118,6 +127,12 @@ type ParticipantRequisiteFieldProps = {
 
 function getFeeKindLabel(kind: PaymentRouteFee["kind"]) {
   return FEE_KIND_LABELS[kind] ?? kind;
+}
+
+function getFeeApplicationLabel(application: PaymentRouteFee["application"]) {
+  return application
+    ? FEE_APPLICATION_LABELS[application]
+    : FEE_APPLICATION_LABELS.deducted_from_flow;
 }
 
 function getParticipantKindLabel(
@@ -594,6 +609,7 @@ export function FeeListEditor({
   addLabel = "Добавить комиссию",
   allowFxSpread = true,
   fallbackCurrencyId,
+  feeScope = "leg",
   fees,
   onAdd,
   onChange,
@@ -632,7 +648,7 @@ export function FeeListEditor({
               key={fee.id}
               className="rounded-lg border border-border/70 bg-background/70 p-3"
             >
-              <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_140px_160px_auto]">
+              <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_140px_160px_180px_auto]">
                 <Input
                   aria-label="Название комиссии"
                   placeholder="Название комиссии"
@@ -737,7 +753,7 @@ export function FeeListEditor({
                       value={fee.percentage ?? "0.10"}
                       onCommit={(percentage) =>
                         onChange(fee.id, (current) => ({
-                          chargeToCustomer: current.chargeToCustomer,
+                          application: current.application,
                           id: current.id,
                           kind: current.kind,
                           label: current.label,
@@ -750,6 +766,42 @@ export function FeeListEditor({
                     </span>
                   </div>
                 )}
+                {feeScope === "additional" || fee.kind === "fx_spread" ? (
+                  <div className="flex min-h-9 items-center rounded-md border bg-muted/30 px-3 text-sm text-muted-foreground">
+                    {fee.kind === "fx_spread"
+                      ? FEE_APPLICATION_LABELS.embedded_in_rate
+                      : FEE_APPLICATION_LABELS.separate_charge}
+                  </div>
+                ) : (
+                  <Select
+                    value={fee.application ?? "deducted_from_flow"}
+                    onValueChange={(nextValue) => {
+                      if (nextValue) {
+                        onChange(fee.id, (current) => ({
+                          ...current,
+                          application:
+                            nextValue as NonNullable<
+                              PaymentRouteFee["application"]
+                            >,
+                        }));
+                      }
+                    }}
+                  >
+                    <SelectTrigger aria-label="Как применяется расход">
+                      <SelectValue>
+                        {getFeeApplicationLabel(fee.application)}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="deducted_from_flow">
+                        {FEE_APPLICATION_LABELS.deducted_from_flow}
+                      </SelectItem>
+                      <SelectItem value="separate_charge">
+                        {FEE_APPLICATION_LABELS.separate_charge}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
                 <Button
                   type="button"
                   variant="ghost"
@@ -759,19 +811,6 @@ export function FeeListEditor({
                 >
                   <Trash2 className="size-4" />
                 </Button>
-              </div>
-              <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
-                <Checkbox
-                  aria-label="Включать расход в цену клиента"
-                  checked={fee.chargeToCustomer}
-                  onCheckedChange={(checked) =>
-                    onChange(fee.id, (current) => ({
-                      ...current,
-                      chargeToCustomer: Boolean(checked),
-                    }))
-                  }
-                />
-                <span>Включать в цену клиента</span>
               </div>
             </div>
           );

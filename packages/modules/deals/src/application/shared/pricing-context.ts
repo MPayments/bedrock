@@ -18,6 +18,8 @@ import {
 function createDefaultDealPricingContext(): DealPricingContext {
   return DealPricingContextSchema.parse({
     commercialDraft: {
+      clientPricing: null,
+      executionSource: { type: "route_execution" },
       fixedFeeAmount: null,
       fixedFeeCurrency: null,
       quoteMarkupBps: null,
@@ -228,6 +230,12 @@ export function applyDealPricingContextPatch(input: {
       fixedFeeAmount: normalizeOptionalDecimalString(
         input.patch.commercialDraft.fixedFeeAmount,
       ),
+      clientPricing:
+        input.patch.commercialDraft.clientPricing ??
+        next.commercialDraft.clientPricing,
+      executionSource:
+        input.patch.commercialDraft.executionSource ??
+        next.commercialDraft.executionSource,
       quoteMarkupBps: input.patch.commercialDraft.quoteMarkupBps ?? null,
     });
   }

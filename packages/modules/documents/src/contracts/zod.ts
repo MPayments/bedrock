@@ -31,6 +31,10 @@ export const FINANCIAL_LINE_BUCKETS = [
   "provider_fee_expense",
   "pass_through",
   "adjustment",
+  "commercial_revenue",
+  "commercial_discount",
+  "pass_through_reimbursement",
+  "execution_expense",
 ] as const;
 
 const currencySchema = z

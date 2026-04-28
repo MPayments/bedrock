@@ -84,7 +84,14 @@ export class AmendDealLegCommand {
 
       const amendment: DealLegRouteAmendment = {
         executionCounterpartyId: validated.changes.executionCounterpartyId,
-        fees: validated.changes.fees,
+        fees: validated.changes.fees?.map((fee) => ({
+          ...fee,
+          application:
+            fee.application ??
+            (fee.kind === "fx_spread"
+              ? "embedded_in_rate"
+              : "deducted_from_flow"),
+        })),
         legIdx: validated.legIdx,
         requisiteId: validated.changes.requisiteId,
       };

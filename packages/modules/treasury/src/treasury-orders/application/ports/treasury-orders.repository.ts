@@ -1,6 +1,9 @@
 import type { PersistenceSession } from "@bedrock/shared/core/persistence";
 
 import type {
+  TreasuryInventoryAllocationRecord,
+  TreasuryInventoryPositionRecord,
+  TreasuryInventoryPositionState,
   TreasuryOrderRecord,
   TreasuryOrderState,
   TreasuryOrderType,
@@ -11,6 +14,14 @@ export interface TreasuryOrdersListQuery {
   offset: number;
   state?: TreasuryOrderState;
   type?: TreasuryOrderType;
+}
+
+export interface TreasuryInventoryPositionsListQuery {
+  currencyId?: string;
+  limit: number;
+  offset: number;
+  ownerPartyId?: string;
+  state?: TreasuryInventoryPositionState;
 }
 
 export interface TreasuryOrdersRepository {
@@ -30,4 +41,31 @@ export interface TreasuryOrdersRepository {
     input: TreasuryOrderRecord,
     tx?: PersistenceSession,
   ): Promise<TreasuryOrderRecord | undefined>;
+  findInventoryPositionById(
+    id: string,
+    tx?: PersistenceSession,
+  ): Promise<TreasuryInventoryPositionRecord | undefined>;
+  findInventoryPositionByQuoteExecutionId(
+    executionId: string,
+    tx?: PersistenceSession,
+  ): Promise<TreasuryInventoryPositionRecord | undefined>;
+  insertInventoryPosition(
+    input: TreasuryInventoryPositionRecord,
+    tx?: PersistenceSession,
+  ): Promise<TreasuryInventoryPositionRecord | null>;
+  listInventoryPositions(
+    input: TreasuryInventoryPositionsListQuery,
+    tx?: PersistenceSession,
+  ): Promise<{ rows: TreasuryInventoryPositionRecord[]; total: number }>;
+  reserveInventoryAllocation(
+    input: TreasuryInventoryAllocationRecord,
+    tx?: PersistenceSession,
+  ): Promise<{
+    allocation: TreasuryInventoryAllocationRecord;
+    position: TreasuryInventoryPositionRecord;
+  } | null>;
+  findReservedAllocationByDealAndQuote(
+    input: { dealId: string; quoteId: string },
+    tx?: PersistenceSession,
+  ): Promise<TreasuryInventoryAllocationRecord | undefined>;
 }

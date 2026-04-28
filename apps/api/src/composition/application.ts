@@ -193,7 +193,7 @@ export function createApplicationServices(
     return createApiDealsModule({
       currencies: currenciesService,
       db: tx,
-      ledgerBalances: createLedgerModuleForTransaction(tx).balances.queries,
+      inventoryPositions: txTreasury.treasuryOrders.queries,
       paymentRouteTemplates: {
         async findById(id: string) {
           try {
@@ -268,7 +268,7 @@ export function createApplicationServices(
   const dealsModule = createApiDealsModule({
     currencies: currenciesService,
     db,
-    ledgerBalances: ledgerModule.balances.queries,
+    inventoryPositions: treasuryModule.treasuryOrders.queries,
     paymentRouteTemplates: {
       async findById(id: string) {
         try {
