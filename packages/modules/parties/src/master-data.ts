@@ -282,3 +282,23 @@ export function resolveRequisiteProviderDisplayNameI18n(input: {
   const branch = findRequisiteProviderBranch(input.provider, input.branchId);
   return branch?.nameI18n ?? input.provider?.displayNameI18n ?? null;
 }
+
+export function resolveRequisiteProviderCity(input: {
+  provider: RequisiteProvider | null | undefined;
+  branchId?: string | null;
+}) {
+  const branch =
+    findRequisiteProviderBranch(input.provider, input.branchId) ??
+    findPrimaryRequisiteProviderBranch(input.provider);
+  return branch?.city ?? null;
+}
+
+export function resolveRequisiteProviderCityI18n(input: {
+  provider: RequisiteProvider | null | undefined;
+  branchId?: string | null;
+}): LocaleTextMap | null {
+  const branch =
+    findRequisiteProviderBranch(input.provider, input.branchId) ??
+    findPrimaryRequisiteProviderBranch(input.provider);
+  return branch?.cityI18n ?? null;
+}
