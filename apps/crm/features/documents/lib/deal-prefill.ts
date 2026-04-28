@@ -3,9 +3,23 @@ import { minorToAmountString } from "@bedrock/shared/money";
 
 import type { ApiCrmDealWorkbenchProjection } from "@/app/(dashboard)/deals/[id]/_components/types";
 
+function resolveAcceptedQuoteCustomerTotal(
+  workbench: ApiCrmDealWorkbenchProjection,
+): { amountMinor: string; currency: string } | null {
+  const quoteId = workbench.acceptedQuote?.quoteId ?? null;
+  const quote = quoteId
+    ? workbench.pricing.quotes.find((item) => item.id === quoteId)
+    : null;
+  const customerTotalMinor = quote?.profitability?.customerTotalMinor ?? null;
+  const currency = quote?.profitability?.currency ?? quote?.fromCurrency ?? null;
+
+  return customerTotalMinor && currency
+    ? { amountMinor: customerTotalMinor, currency }
+    : null;
+}
+
 function buildInvoicePrefill(
   workbench: ApiCrmDealWorkbenchProjection,
-  options: Pick<DocumentFormOptions, "currencies">,
 ): Record<string, unknown> {
   const counterpartyId =
     workbench.context.applicant?.id ??
@@ -15,15 +29,13 @@ function buildInvoicePrefill(
   const organizationId = workbench.context.internalEntity?.id ?? null;
   const organizationRequisiteId =
     workbench.context.internalEntityRequisite?.id ?? null;
-  const calculation = workbench.pricing.currentCalculation?.currentSnapshot ?? null;
-  const currency = calculation
-    ? (options.currencies.find(
-        (option) => option.id === calculation.calculationCurrencyId,
-      )?.code ?? null)
-    : null;
+  const acceptedQuoteCustomerTotal =
+    resolveAcceptedQuoteCustomerTotal(workbench);
+  const currency = acceptedQuoteCustomerTotal?.currency ?? null;
+  const amountMinor = acceptedQuoteCustomerTotal?.amountMinor ?? null;
   const amount =
-    calculation && currency
-      ? minorToAmountString(calculation.totalAmountMinor, { currency })
+    amountMinor && currency
+      ? minorToAmountString(amountMinor, { currency })
       : null;
 
   return {
@@ -64,9 +76,11 @@ export function buildCrmDealDocumentInitialPayload(
   docType: string,
   options: Pick<DocumentFormOptions, "currencies">,
 ): Record<string, unknown> | undefined {
+  void options;
+
   switch (docType) {
     case "invoice":
-      return buildInvoicePrefill(workbench, options);
+      return buildInvoicePrefill(workbench);
     case "acceptance":
       return buildAcceptancePrefill(workbench);
     case "exchange":
