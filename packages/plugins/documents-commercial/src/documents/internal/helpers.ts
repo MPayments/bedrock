@@ -210,6 +210,16 @@ function templateForLine(
   }
 
   if (postingPhase === "reserve") {
+    if (line.bucket === "commercial_discount") {
+      return {
+        templateKey:
+          line.amountMinor > 0n
+            ? POSTING_TEMPLATE_KEY.PAYMENT_FX_FEE_RESERVE_REVERSAL
+            : POSTING_TEMPLATE_KEY.PAYMENT_FX_FEE_RESERVE,
+        amountMinor: line.amountMinor > 0n ? line.amountMinor : -line.amountMinor,
+      };
+    }
+
     return {
       templateKey:
         line.amountMinor > 0n
@@ -234,6 +244,16 @@ function templateForLine(
   }
 
   if (postingPhase === "finalize") {
+    if (line.bucket === "commercial_discount") {
+      return {
+        templateKey:
+          line.amountMinor > 0n
+            ? POSTING_TEMPLATE_KEY.PAYMENT_FX_ADJUSTMENT_REFUND_RESERVE
+            : POSTING_TEMPLATE_KEY.PAYMENT_FX_FEE_INCOME_FROM_RESERVE,
+        amountMinor: line.amountMinor > 0n ? line.amountMinor : -line.amountMinor,
+      };
+    }
+
     if (line.amountMinor > 0n) {
       return {
         templateKey:
@@ -258,6 +278,16 @@ function templateForLine(
         line.amountMinor > 0n
           ? POSTING_TEMPLATE_KEY.PAYMENT_FX_ADJUSTMENT_CHARGE
           : POSTING_TEMPLATE_KEY.PAYMENT_FX_ADJUSTMENT_REFUND,
+      amountMinor: line.amountMinor > 0n ? line.amountMinor : -line.amountMinor,
+    };
+  }
+
+  if (line.bucket === "commercial_discount") {
+    return {
+      templateKey:
+        line.amountMinor > 0n
+          ? POSTING_TEMPLATE_KEY.PAYMENT_FX_ADJUSTMENT_REFUND
+          : POSTING_TEMPLATE_KEY.PAYMENT_FX_FEE_INCOME,
       amountMinor: line.amountMinor > 0n ? line.amountMinor : -line.amountMinor,
     };
   }

@@ -458,7 +458,6 @@ export function createApplicationServices(
   const documentRegistry = createDocumentRegistry([
     ...createCommercialDocumentModules(
       createCommercialDocumentDeps({
-        calculationReads: calculationsModule.calculations.queries,
         currenciesService,
         dealReads: dealsModule.deals.queries,
         documentsReadModel,

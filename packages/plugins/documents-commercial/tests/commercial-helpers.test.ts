@@ -138,6 +138,13 @@ describe("commercial document helpers", () => {
           amountMinor: 7n,
           source: "manual",
         },
+        {
+          id: "discount-positive",
+          bucket: "commercial_discount",
+          currency: "USD",
+          amountMinor: 12n,
+          source: "manual",
+        },
       ],
     });
 
@@ -168,7 +175,43 @@ describe("commercial document helpers", () => {
         templateKey: POSTING_TEMPLATE_KEY.PAYMENT_FX_ADJUSTMENT_CHARGE,
         amountMinor: 7n,
       },
+      {
+        templateKey: POSTING_TEMPLATE_KEY.PAYMENT_FX_ADJUSTMENT_REFUND,
+        amountMinor: 12n,
+      },
     ]);
+  });
+
+  it("treats commercial discounts as reserve reductions", () => {
+    const requests = buildFinancialLineRequests({
+      document: {
+        id: "doc-1",
+        occurredAt: new Date("2026-03-03T10:00:00.000Z"),
+      } as any,
+      bookId: "book-1",
+      customerId: "customer-1",
+      orderId: "order-1",
+      counterpartyId: "counterparty-1",
+      quoteRef: "quote-ref-1",
+      chainId: "invoice:order-1",
+      postingPhase: "reserve",
+      includeCustomerLines: true,
+      includeProviderLines: false,
+      lines: [
+        {
+          id: "discount-positive",
+          bucket: "commercial_discount",
+          currency: "USD",
+          amountMinor: 12n,
+          source: "manual",
+        },
+      ],
+    });
+
+    expect(requests.map((request) => request.templateKey)).toEqual([
+      POSTING_TEMPLATE_KEY.PAYMENT_FX_FEE_RESERVE_REVERSAL,
+    ]);
+    expect(requests.map((request) => request.amountMinor)).toEqual([12n]);
   });
 
   it("filters customer-facing and provider-facing lines independently", () => {

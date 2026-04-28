@@ -1,4 +1,3 @@
-import type { CalculationDetails } from "@bedrock/calculations/contracts";
 import type { CurrenciesService } from "@bedrock/currencies";
 import type { DealWorkflowProjection } from "@bedrock/deals/contracts";
 import type { DocumentsReadModel } from "@bedrock/documents/read-model";
@@ -23,42 +22,13 @@ import type {
   CommercialDealFxContext,
   CommercialModuleDeps,
 } from "../documents/internal/types";
+import { normalizeFinancialLine } from "../financial-lines";
 import type { QuoteSnapshot } from "../validation";
 import { QuoteSnapshotSchema } from "../validation";
 
 const INVOICE_DOC_TYPE = "invoice";
 const EXCHANGE_DOC_TYPE = "exchange";
 const ACCEPTANCE_DOC_TYPE = "acceptance";
-const DEAL_CALCULATION_FINANCIAL_LINE_KINDS = new Set([
-  "adjustment",
-  "fee_revenue",
-  "pass_through",
-  "provider_fee_expense",
-  "spread_revenue",
-] as const);
-
-function isCommercialCalculationFinancialLineKind(
-  kind: CalculationDetails["lines"][number]["kind"],
-): kind is
-  | "adjustment"
-  | "fee_revenue"
-  | "pass_through"
-  | "provider_fee_expense"
-  | "spread_revenue" {
-  return DEAL_CALCULATION_FINANCIAL_LINE_KINDS.has(
-    kind as typeof DEAL_CALCULATION_FINANCIAL_LINE_KINDS extends Set<infer T>
-      ? T
-      : never,
-  );
-}
-
-function isCommercialCalculationFinancialLine(
-  line: CalculationDetails["lines"][number],
-): line is CalculationDetails["lines"][number] & {
-  kind: CommercialDealFxContext["financialLines"][number]["bucket"];
-} {
-  return isCommercialCalculationFinancialLineKind(line.kind);
-}
 
 interface CommercialTreasuryQuotesPort {
   getQuoteDetails(input: GetQuoteDetailsInput): Promise<QuoteDetailsRecord>;
@@ -133,15 +103,66 @@ async function markQuoteUsedForRef(input: {
   }
 }
 
+function readObject(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function readString(value: unknown): string | null {
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+function extractAcceptedQuoteCommercialPricing(
+  quoteSnapshot: QuoteSnapshot,
+): {
+  currency: string;
+  customerPrincipalMinor: string;
+  customerTotalMinor: string;
+} | null {
+  const metadata = readObject(quoteSnapshot.pricingTrace.metadata);
+  const snapshot = readObject(metadata?.crmPricingSnapshot);
+  const clientSide = readObject(snapshot?.clientSide);
+  const customerPrincipalMinor = readString(clientSide?.clientPrincipalMinor);
+  const customerTotalMinor = readString(clientSide?.customerTotalMinor);
+
+  if (!customerPrincipalMinor || !customerTotalMinor) {
+    return null;
+  }
+
+  return {
+    currency: quoteSnapshot.fromCurrency,
+    customerPrincipalMinor,
+    customerTotalMinor,
+  };
+}
+
+function mapQuoteFinancialLines(
+  quoteSnapshot: QuoteSnapshot | null,
+): CommercialDealFxContext["financialLines"] | null {
+  return (
+    quoteSnapshot?.financialLines.map((line) =>
+      normalizeFinancialLine({
+        amountMinor: BigInt(line.amountMinor),
+        bucket: line.bucket,
+        currency: line.currency,
+        id: line.id,
+        memo: line.memo ?? undefined,
+        metadata: line.metadata,
+        settlementMode: line.settlementMode,
+        source: line.source,
+      }),
+    ) ?? null
+  );
+}
+
 export function createCommercialDocumentDeps(input: {
   currenciesService: CurrenciesService;
   dealReads?: Pick<
-    { findWorkflowById(id: string): Promise<DealWorkflowProjection | null> },
+    {
+      findWorkflowById(id: string): Promise<DealWorkflowProjection | null>;
+    },
     "findWorkflowById"
-  >;
-  calculationReads?: Pick<
-    { findById(id: string): Promise<CalculationDetails | null> },
-    "findById"
   >;
   documentsReadModel?: Pick<DocumentsReadModel, "findBusinessLinkByDocumentId">;
   treasuryQuotes: CommercialTreasuryQuotesPort;
@@ -167,7 +188,6 @@ export function createCommercialDocumentDeps(input: {
   };
 }): CommercialModuleDeps {
   const {
-    calculationReads,
     currenciesService,
     dealReads,
     documentsReadModel,
@@ -194,121 +214,34 @@ export function createCommercialDocumentDeps(input: {
             (leg: DealWorkflowProjection["executionPlan"][number]) =>
               leg.kind === "convert",
           );
+          const acceptedQuoteId = workflow.acceptedQuote?.quoteId ?? null;
           const calculationId = workflow.summary.calculationId ?? null;
-
-          if (!calculationId || !calculationReads) {
-            return {
-              calculationCurrency: null,
-              calculationId,
-              dealId,
-              dealType: workflow.summary.type,
-              financialLines: [] as CommercialDealFxContext["financialLines"],
-              fundingResolution: workflow.fundingResolution,
-              hasConvertLeg,
-              originalAmountMinor: null,
-              quoteSnapshot: null,
-              totalAmountMinor: null,
-            };
-          }
-
-          const calculation = await calculationReads.findById(calculationId);
-
-          if (!calculation) {
-            return {
-              calculationCurrency: null,
-              calculationId,
-              dealId,
-              dealType: workflow.summary.type,
-              financialLines: [] as CommercialDealFxContext["financialLines"],
-              fundingResolution: workflow.fundingResolution,
-              hasConvertLeg,
-              originalAmountMinor: null,
-              quoteSnapshot: null,
-              totalAmountMinor: null,
-            };
-          }
-
-          const currencyIds = [
-            calculation.currentSnapshot.calculationCurrencyId,
-            ...new Set(
-              calculation.lines
-                .filter((line: CalculationDetails["lines"][number]) =>
-                  isCommercialCalculationFinancialLineKind(line.kind),
-                )
-                .map(
-                  (line: CalculationDetails["lines"][number]) =>
-                    line.currencyId,
-                ),
-            ),
-          ];
-          const currenciesById = new Map(
-            await Promise.all(
-              currencyIds.map(async (currencyId) => {
-                return [
-                  currencyId,
-                  await currenciesService.findById(currencyId),
-                ] as const;
-              }),
-            ),
-          );
-          const calculationCurrency = currenciesById.get(
-            calculation.currentSnapshot.calculationCurrencyId,
-          );
-
-          if (!calculationCurrency) {
-            throw new DocumentValidationError(
-              `Calculation currency ${calculation.currentSnapshot.calculationCurrencyId} is missing`,
-            );
-          }
-
-          const financialLines: CommercialDealFxContext["financialLines"] =
-            calculation.lines
-              .filter(isCommercialCalculationFinancialLine)
-              .map((line) => {
-                const currency = currenciesById.get(line.currencyId);
-
-                if (!currency) {
-                  throw new DocumentValidationError(
-                    `Calculation line currency ${line.currencyId} is missing`,
-                  );
-                }
-
-                return {
-                  amountMinor: BigInt(line.amountMinor),
-                  bucket: line.kind,
-                  currency: currency.code,
-                  id: `calculation:${line.id}`,
-                  settlementMode: "in_ledger" as const,
-                  source: "rule" as const,
-                };
+          const acceptedQuoteSnapshot = acceptedQuoteId
+            ? await loadQuoteSnapshotRecord({
+                currenciesService,
+                treasuryQuotes,
+                quoteRef: acceptedQuoteId,
               })
-              .filter((line) => line.amountMinor !== 0n);
-          const storedQuoteSnapshot = calculation.currentSnapshot.quoteSnapshot;
-          const parsedStoredQuoteSnapshot = storedQuoteSnapshot
-            ? QuoteSnapshotSchema.safeParse(storedQuoteSnapshot)
             : null;
-          const quoteSnapshot = parsedStoredQuoteSnapshot?.success
-            ? parsedStoredQuoteSnapshot.data
-            : calculation.currentSnapshot.fxQuoteId
-              ? await loadQuoteSnapshotRecord({
-                  currenciesService,
-                  treasuryQuotes,
-                  quoteRef: calculation.currentSnapshot.fxQuoteId,
-                })
-              : null;
+          const acceptedQuotePricing = acceptedQuoteSnapshot
+            ? extractAcceptedQuoteCommercialPricing(acceptedQuoteSnapshot)
+            : null;
 
           return {
-            calculationCurrency: calculationCurrency.code,
+            calculationCurrency:
+              acceptedQuotePricing?.currency ??
+              acceptedQuoteSnapshot?.fromCurrency ??
+              null,
             calculationId,
             dealId,
             dealType: workflow.summary.type,
-            financialLines,
+            financialLines: mapQuoteFinancialLines(acceptedQuoteSnapshot) ?? [],
             fundingResolution: workflow.fundingResolution,
             hasConvertLeg,
             originalAmountMinor:
-              calculation.currentSnapshot.originalAmountMinor,
-            quoteSnapshot,
-            totalAmountMinor: calculation.currentSnapshot.totalAmountMinor,
+              acceptedQuotePricing?.customerPrincipalMinor ?? null,
+            quoteSnapshot: acceptedQuoteSnapshot,
+            totalAmountMinor: acceptedQuotePricing?.customerTotalMinor ?? null,
           };
         } catch (error) {
           rethrowAsDocumentValidationError(error);

@@ -4,6 +4,7 @@ import type {
   DocumentModuleRuntime,
 } from "@bedrock/plugin-documents-sdk";
 
+import type { FinancialLine } from "../../financial-lines";
 import type { QuoteSnapshot } from "../../validation";
 
 export type CommercialDocumentRuntime = DocumentModuleRuntime;
@@ -82,21 +83,7 @@ export interface CommercialDealFxContext {
   calculationId: string | null;
   dealId: string;
   dealType: string;
-  financialLines: {
-    amountMinor: bigint;
-    bucket:
-      | "adjustment"
-      | "fee_revenue"
-      | "pass_through"
-      | "provider_fee_expense"
-      | "spread_revenue";
-    currency: string;
-    id: string;
-    memo?: string;
-    metadata?: Record<string, string>;
-    settlementMode: "in_ledger";
-    source: "rule";
-  }[];
+  financialLines: FinancialLine[];
   fundingResolution: DealFundingResolution;
   hasConvertLeg: boolean;
   originalAmountMinor: string | null;
