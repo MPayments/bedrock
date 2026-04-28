@@ -1,22 +1,36 @@
-import { and, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, sql, type SQL } from "drizzle-orm";
 
 import type { Queryable, Transaction } from "@bedrock/platform/persistence";
 import type { PersistenceSession } from "@bedrock/shared/core/persistence";
 
-import { treasuryOrders, treasuryOrderSteps } from "./schema";
+import {
+  treasuryInventoryAllocations,
+  treasuryInventoryPositions,
+  treasuryOrders,
+  treasuryOrderSteps,
+} from "./schema";
 import type {
+  TreasuryInventoryAllocationsListQuery,
   TreasuryOrdersListQuery,
   TreasuryOrdersRepository,
+  TreasuryInventoryPositionsListQuery,
 } from "../../application/ports/treasury-orders.repository";
 import type {
+  TreasuryInventoryAllocationRecord,
+  TreasuryInventoryPositionRecord,
   TreasuryOrderRecord,
   TreasuryOrderStepPlanRecord,
 } from "../../domain/types";
 
 type OrderRow = typeof treasuryOrders.$inferSelect;
 type StepRow = typeof treasuryOrderSteps.$inferSelect;
+type InventoryPositionRow = typeof treasuryInventoryPositions.$inferSelect;
+type InventoryAllocationRow = typeof treasuryInventoryAllocations.$inferSelect;
 type OrderInsertRow = typeof treasuryOrders.$inferInsert;
 type StepInsertRow = typeof treasuryOrderSteps.$inferInsert;
+type InventoryPositionInsertRow = typeof treasuryInventoryPositions.$inferInsert;
+type InventoryAllocationInsertRow =
+  typeof treasuryInventoryAllocations.$inferInsert;
 
 type TransactionalQueryable = Queryable & {
   transaction: <TResult>(
@@ -66,6 +80,53 @@ function toOrderRecord(
   };
 }
 
+function toInventoryPositionRecord(
+  row: InventoryPositionRow,
+): TreasuryInventoryPositionRecord {
+  return {
+    acquiredAmountMinor: row.acquiredAmountMinor,
+    availableAmountMinor: row.availableAmountMinor,
+    costAmountMinor: row.costAmountMinor,
+    costCurrencyId: row.costCurrencyId,
+    createdAt: row.createdAt,
+    currencyId: row.currencyId,
+    id: row.id,
+    ledgerSubjectType: row.ledgerSubjectType,
+    ownerBookId: row.ownerBookId,
+    ownerPartyId: row.ownerPartyId,
+    ownerRequisiteId: row.ownerRequisiteId,
+    sourceOrderId: row.sourceOrderId,
+    sourcePostingDocumentId: row.sourcePostingDocumentId,
+    sourcePostingDocumentKind: row.sourcePostingDocumentKind,
+    sourceQuoteExecutionId: row.sourceQuoteExecutionId,
+    state: row.state,
+    updatedAt: row.updatedAt,
+  };
+}
+
+function toInventoryAllocationRecord(
+  row: InventoryAllocationRow,
+): TreasuryInventoryAllocationRecord {
+  return {
+    amountMinor: row.amountMinor,
+    costAmountMinor: row.costAmountMinor,
+    consumedAt: row.consumedAt,
+    createdAt: row.createdAt,
+    currencyId: row.currencyId,
+    dealId: row.dealId,
+    id: row.id,
+    ledgerHoldRef: row.ledgerHoldRef,
+    ownerBookId: row.ownerBookId,
+    ownerRequisiteId: row.ownerRequisiteId,
+    positionId: row.positionId,
+    quoteId: row.quoteId,
+    releasedAt: row.releasedAt,
+    reservedAt: row.reservedAt,
+    state: row.state,
+    updatedAt: row.updatedAt,
+  };
+}
+
 function toOrderInsertRow(record: TreasuryOrderRecord): OrderInsertRow {
   return {
     activatedAt: record.activatedAt,
@@ -102,6 +163,53 @@ function toStepInsertRow(
     toCurrencyId: record.toCurrencyId,
     toPartyId: record.toParty.id,
     toRequisiteId: record.toParty.requisiteId,
+    updatedAt: record.updatedAt,
+  };
+}
+
+function toInventoryPositionInsertRow(
+  record: TreasuryInventoryPositionRecord,
+): InventoryPositionInsertRow {
+  return {
+    acquiredAmountMinor: record.acquiredAmountMinor,
+    availableAmountMinor: record.availableAmountMinor,
+    costAmountMinor: record.costAmountMinor,
+    costCurrencyId: record.costCurrencyId,
+    createdAt: record.createdAt,
+    currencyId: record.currencyId,
+    id: record.id,
+    ledgerSubjectType: record.ledgerSubjectType,
+    ownerBookId: record.ownerBookId,
+    ownerPartyId: record.ownerPartyId,
+    ownerRequisiteId: record.ownerRequisiteId,
+    sourceOrderId: record.sourceOrderId,
+    sourcePostingDocumentId: record.sourcePostingDocumentId,
+    sourcePostingDocumentKind: record.sourcePostingDocumentKind,
+    sourceQuoteExecutionId: record.sourceQuoteExecutionId,
+    state: record.state,
+    updatedAt: record.updatedAt,
+  };
+}
+
+function toInventoryAllocationInsertRow(
+  record: TreasuryInventoryAllocationRecord,
+): InventoryAllocationInsertRow {
+  return {
+    amountMinor: record.amountMinor,
+    costAmountMinor: record.costAmountMinor,
+    consumedAt: record.consumedAt,
+    createdAt: record.createdAt,
+    currencyId: record.currencyId,
+    dealId: record.dealId,
+    id: record.id,
+    ledgerHoldRef: record.ledgerHoldRef,
+    ownerBookId: record.ownerBookId,
+    ownerRequisiteId: record.ownerRequisiteId,
+    positionId: record.positionId,
+    quoteId: record.quoteId,
+    releasedAt: record.releasedAt,
+    reservedAt: record.reservedAt,
+    state: record.state,
     updatedAt: record.updatedAt,
   };
 }
@@ -209,6 +317,276 @@ export class DrizzleTreasuryOrdersRepository
 
       return this.findById(input.id, database);
     });
+  }
+
+  async findInventoryPositionById(
+    id: string,
+    tx?: PersistenceSession,
+  ): Promise<TreasuryInventoryPositionRecord | undefined> {
+    const database = (tx as Transaction | undefined) ?? this.db;
+    const [row] = await database
+      .select()
+      .from(treasuryInventoryPositions)
+      .where(eq(treasuryInventoryPositions.id, id))
+      .limit(1);
+    return row ? toInventoryPositionRecord(row) : undefined;
+  }
+
+  async findInventoryPositionByQuoteExecutionId(
+    executionId: string,
+    tx?: PersistenceSession,
+  ): Promise<TreasuryInventoryPositionRecord | undefined> {
+    const database = (tx as Transaction | undefined) ?? this.db;
+    const [row] = await database
+      .select()
+      .from(treasuryInventoryPositions)
+      .where(eq(treasuryInventoryPositions.sourceQuoteExecutionId, executionId))
+      .limit(1);
+    return row ? toInventoryPositionRecord(row) : undefined;
+  }
+
+  async insertInventoryPosition(
+    input: TreasuryInventoryPositionRecord,
+    tx?: PersistenceSession,
+  ): Promise<TreasuryInventoryPositionRecord | null> {
+    return this.runWrite(tx, async (database) => {
+      const [inserted] = await database
+        .insert(treasuryInventoryPositions)
+        .values(toInventoryPositionInsertRow(input))
+        .onConflictDoNothing()
+        .returning();
+      return inserted ? toInventoryPositionRecord(inserted) : null;
+    });
+  }
+
+  async listInventoryPositions(
+    input: TreasuryInventoryPositionsListQuery,
+    tx?: PersistenceSession,
+  ): Promise<{ rows: TreasuryInventoryPositionRecord[]; total: number }> {
+    const database = (tx as Transaction | undefined) ?? this.db;
+    const conditions: SQL[] = [];
+    if (input.currencyId) {
+      conditions.push(eq(treasuryInventoryPositions.currencyId, input.currencyId));
+    }
+    if (input.ownerPartyId) {
+      conditions.push(eq(treasuryInventoryPositions.ownerPartyId, input.ownerPartyId));
+    }
+    if (input.sourceOrderId) {
+      conditions.push(eq(treasuryInventoryPositions.sourceOrderId, input.sourceOrderId));
+    }
+    if (input.sourceQuoteExecutionId) {
+      conditions.push(
+        eq(treasuryInventoryPositions.sourceQuoteExecutionId, input.sourceQuoteExecutionId),
+      );
+    }
+    if (input.state) {
+      conditions.push(eq(treasuryInventoryPositions.state, input.state));
+    }
+    const where = conditions.length ? and(...conditions) : undefined;
+    const [rows, countRows] = await Promise.all([
+      database
+        .select()
+        .from(treasuryInventoryPositions)
+        .where(where)
+        .orderBy(desc(treasuryInventoryPositions.createdAt))
+        .limit(input.limit)
+        .offset(input.offset),
+      database
+        .select({ total: sql<number>`count(*)::int` })
+        .from(treasuryInventoryPositions)
+        .where(where),
+    ]);
+
+    return {
+      rows: rows.map(toInventoryPositionRecord),
+      total: countRows[0]?.total ?? 0,
+    };
+  }
+
+  async listInventoryAllocations(
+    input: TreasuryInventoryAllocationsListQuery,
+    tx?: PersistenceSession,
+  ): Promise<{ rows: TreasuryInventoryAllocationRecord[]; total: number }> {
+    const database = (tx as Transaction | undefined) ?? this.db;
+    const conditions: SQL[] = [];
+    if (input.positionId) {
+      conditions.push(eq(treasuryInventoryAllocations.positionId, input.positionId));
+    }
+    if (input.dealId) {
+      conditions.push(eq(treasuryInventoryAllocations.dealId, input.dealId));
+    }
+    if (input.quoteId) {
+      conditions.push(eq(treasuryInventoryAllocations.quoteId, input.quoteId));
+    }
+    if (input.state) {
+      conditions.push(eq(treasuryInventoryAllocations.state, input.state));
+    }
+    const where = conditions.length ? and(...conditions) : undefined;
+    const [rows, countRows] = await Promise.all([
+      database
+        .select()
+        .from(treasuryInventoryAllocations)
+        .where(where)
+        .orderBy(desc(treasuryInventoryAllocations.createdAt))
+        .limit(input.limit)
+        .offset(input.offset),
+      database
+        .select({ total: sql<number>`count(*)::int` })
+        .from(treasuryInventoryAllocations)
+        .where(where),
+    ]);
+
+    return {
+      rows: rows.map(toInventoryAllocationRecord),
+      total: countRows[0]?.total ?? 0,
+    };
+  }
+
+  async reserveInventoryAllocation(
+    input: TreasuryInventoryAllocationRecord,
+    tx?: PersistenceSession,
+  ): Promise<{
+    allocation: TreasuryInventoryAllocationRecord;
+    position: TreasuryInventoryPositionRecord;
+  } | null> {
+    return this.runWrite(tx, async (database) => {
+      const [updatedPosition] = await database
+        .update(treasuryInventoryPositions)
+        .set({
+          availableAmountMinor: sql`
+            ${treasuryInventoryPositions.availableAmountMinor} - ${input.amountMinor}
+          `,
+          state: sql`
+            case
+              when ${treasuryInventoryPositions.availableAmountMinor} - ${input.amountMinor} = 0
+              then 'exhausted'
+              else 'open'
+            end
+          `,
+          updatedAt: input.updatedAt,
+        })
+        .where(
+          and(
+            eq(treasuryInventoryPositions.id, input.positionId),
+            eq(treasuryInventoryPositions.state, "open"),
+            gte(
+              treasuryInventoryPositions.availableAmountMinor,
+              input.amountMinor,
+            ),
+          ),
+        )
+        .returning();
+      if (!updatedPosition) {
+        return null;
+      }
+
+      const [insertedAllocation] = await database
+        .insert(treasuryInventoryAllocations)
+        .values(toInventoryAllocationInsertRow(input))
+        .returning();
+      if (!insertedAllocation) {
+        return null;
+      }
+
+      return {
+        allocation: toInventoryAllocationRecord(insertedAllocation),
+        position: toInventoryPositionRecord(updatedPosition),
+      };
+    });
+  }
+
+  async updateInventoryAllocationState(
+    input: {
+      allocationId: string;
+      at: Date;
+      state: "consumed" | "released";
+    },
+    tx?: PersistenceSession,
+  ): Promise<{
+    allocation: TreasuryInventoryAllocationRecord;
+    position: TreasuryInventoryPositionRecord;
+  } | null> {
+    return this.runWrite(tx, async (database) => {
+      const [allocation] = await database
+        .select()
+        .from(treasuryInventoryAllocations)
+        .where(eq(treasuryInventoryAllocations.id, input.allocationId))
+        .limit(1);
+      if (!allocation || allocation.state !== "reserved") {
+        return null;
+      }
+
+      const [position] = await database
+        .select()
+        .from(treasuryInventoryPositions)
+        .where(eq(treasuryInventoryPositions.id, allocation.positionId))
+        .limit(1);
+      if (!position) {
+        return null;
+      }
+
+      let nextPosition = position;
+      const [updatedAllocation] = await database
+        .update(treasuryInventoryAllocations)
+        .set({
+          consumedAt: input.state === "consumed" ? input.at : allocation.consumedAt,
+          releasedAt: input.state === "released" ? input.at : allocation.releasedAt,
+          state: input.state,
+          updatedAt: input.at,
+        })
+        .where(
+          and(
+            eq(treasuryInventoryAllocations.id, input.allocationId),
+            eq(treasuryInventoryAllocations.state, "reserved"),
+          ),
+        )
+        .returning();
+      if (!updatedAllocation) {
+        return null;
+      }
+
+      if (input.state === "released") {
+        const [updatedPosition] = await database
+          .update(treasuryInventoryPositions)
+          .set({
+            availableAmountMinor: sql`
+              ${treasuryInventoryPositions.availableAmountMinor} + ${updatedAllocation.amountMinor}
+            `,
+            state: "open",
+            updatedAt: input.at,
+          })
+          .where(eq(treasuryInventoryPositions.id, position.id))
+          .returning();
+        if (!updatedPosition) {
+          return null;
+        }
+        nextPosition = updatedPosition;
+      }
+
+      return {
+        allocation: toInventoryAllocationRecord(updatedAllocation),
+        position: toInventoryPositionRecord(nextPosition),
+      };
+    });
+  }
+
+  async findReservedAllocationByDealAndQuote(
+    input: { dealId: string; quoteId: string },
+    tx?: PersistenceSession,
+  ): Promise<TreasuryInventoryAllocationRecord | undefined> {
+    const database = (tx as Transaction | undefined) ?? this.db;
+    const [row] = await database
+      .select()
+      .from(treasuryInventoryAllocations)
+      .where(
+        and(
+          eq(treasuryInventoryAllocations.dealId, input.dealId),
+          eq(treasuryInventoryAllocations.quoteId, input.quoteId),
+          eq(treasuryInventoryAllocations.state, "reserved"),
+        ),
+      )
+      .limit(1);
+    return row ? toInventoryAllocationRecord(row) : undefined;
   }
 
   private async loadSteps(database: Queryable, orderIds: string[]) {

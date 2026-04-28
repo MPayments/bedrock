@@ -9,6 +9,7 @@ export const TREASURY_ORDER_TYPE_VALUES = [
   "fx_exchange",
   "rebalance",
   "pre_fund",
+  "liquidity_purchase",
 ] as const;
 
 export const TREASURY_ORDER_STATE_VALUES = [
@@ -22,6 +23,23 @@ export const TREASURY_ORDER_STATE_VALUES = [
 export type TreasuryOrderType = (typeof TREASURY_ORDER_TYPE_VALUES)[number];
 export type TreasuryOrderState = (typeof TREASURY_ORDER_STATE_VALUES)[number];
 export type TreasuryOrderStepKind = PaymentStepKind | "quote_execution";
+
+export const TREASURY_INVENTORY_POSITION_STATE_VALUES = [
+  "open",
+  "exhausted",
+  "cancelled",
+] as const;
+
+export const TREASURY_INVENTORY_ALLOCATION_STATE_VALUES = [
+  "reserved",
+  "consumed",
+  "released",
+] as const;
+
+export type TreasuryInventoryPositionState =
+  (typeof TREASURY_INVENTORY_POSITION_STATE_VALUES)[number];
+export type TreasuryInventoryAllocationState =
+  (typeof TREASURY_INVENTORY_ALLOCATION_STATE_VALUES)[number];
 
 export interface TreasuryOrderStepPlanRecord extends PaymentStepRouteSnapshot {
   createdAt: Date;
@@ -44,6 +62,45 @@ export interface TreasuryOrderRecord {
   state: TreasuryOrderState;
   steps: TreasuryOrderStepPlanRecord[];
   type: TreasuryOrderType;
+  updatedAt: Date;
+}
+
+export interface TreasuryInventoryPositionRecord {
+  acquiredAmountMinor: bigint;
+  availableAmountMinor: bigint;
+  costAmountMinor: bigint;
+  costCurrencyId: string;
+  createdAt: Date;
+  currencyId: string;
+  id: string;
+  ledgerSubjectType: "organization_requisite";
+  ownerBookId: string;
+  ownerPartyId: string;
+  ownerRequisiteId: string;
+  sourceOrderId: string;
+  sourcePostingDocumentId: string;
+  sourcePostingDocumentKind: "fx_execute";
+  sourceQuoteExecutionId: string;
+  state: TreasuryInventoryPositionState;
+  updatedAt: Date;
+}
+
+export interface TreasuryInventoryAllocationRecord {
+  amountMinor: bigint;
+  costAmountMinor: bigint;
+  consumedAt: Date | null;
+  createdAt: Date;
+  currencyId: string;
+  dealId: string;
+  id: string;
+  ledgerHoldRef: string;
+  ownerBookId: string;
+  ownerRequisiteId: string;
+  positionId: string;
+  quoteId: string | null;
+  releasedAt: Date | null;
+  reservedAt: Date;
+  state: TreasuryInventoryAllocationState;
   updatedAt: Date;
 }
 

@@ -12,6 +12,8 @@ import type {
 } from "./types";
 
 type DealPricingCommercialDraftState = {
+  clientPricing: ApiDealPricingContext["commercialDraft"]["clientPricing"];
+  executionSource: ApiDealPricingContext["commercialDraft"]["executionSource"];
   fixedFeeAmount: string | null;
   fixedFeeCurrency: string | null;
   quoteMarkupBps: number | null;
@@ -86,6 +88,10 @@ function normalizeOptionalDecimalInput(value: string | null | undefined) {
 
 function cloneCommercialDraft(context: ApiDealPricingContext) {
   return {
+    clientPricing: context.commercialDraft.clientPricing ?? null,
+    executionSource: context.commercialDraft.executionSource ?? {
+      type: "route_execution",
+    },
     fixedFeeAmount: context.commercialDraft.fixedFeeAmount ?? null,
     fixedFeeCurrency: context.commercialDraft.fixedFeeCurrency ?? null,
     quoteMarkupBps: context.commercialDraft.quoteMarkupBps ?? null,
@@ -209,6 +215,8 @@ export function useDealPricingAutoSync({
           fixedFeeAmount: normalizeOptionalDecimalInput(
             current.commercialDraft.fixedFeeAmount,
           ),
+          clientPricing: current.commercialDraft.clientPricing,
+          executionSource: current.commercialDraft.executionSource,
           fixedFeeCurrency: current.commercialDraft.fixedFeeCurrency,
           quoteMarkupBps: current.commercialDraft.quoteMarkupBps,
         };

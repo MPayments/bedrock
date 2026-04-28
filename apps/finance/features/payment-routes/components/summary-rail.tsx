@@ -30,7 +30,6 @@ import { Separator } from "@bedrock/sdk-ui/components/separator";
 import { cn } from "@bedrock/sdk-ui/lib/utils";
 import type {
   PaymentRouteCalculation,
-  PaymentRouteCalculationFee,
   PaymentRouteDraft,
 } from "@bedrock/treasury/contracts";
 
@@ -71,29 +70,6 @@ function formatAmountWithoutCurrency(
     ` ${currency.code}`,
     "",
   );
-}
-
-function sumRouteInputImpact(fees: PaymentRouteCalculationFee[]) {
-  return fees.reduce(
-    (acc, fee) => acc + BigInt(fee.routeInputImpactMinor),
-    0n,
-  );
-}
-
-function formatMarginPercent(marginMinor: bigint, grossMinor: bigint) {
-  if (grossMinor <= 0n) {
-    return "—";
-  }
-
-  const negative = marginMinor < 0n;
-  const absoluteMargin = negative ? -marginMinor : marginMinor;
-  const scaled = (absoluteMargin * 10000n + grossMinor / 2n) / grossMinor;
-  const whole = scaled / 100n;
-  const fraction = scaled % 100n;
-  const sign = negative ? "−" : "";
-  const fractionStr = fraction.toString().padStart(2, "0");
-
-  return `${sign}${whole.toString()},${fractionStr}%`;
 }
 
 type BufferedAmountInputProps = {
@@ -212,35 +188,17 @@ export function PaymentRouteSummaryRail({
       return null;
     }
 
-    const legFees = calculation.legs.flatMap((leg) => leg.fees);
-    const chargedLegFees = legFees.filter((fee) => fee.chargeToCustomer);
-    const internalLegFees = legFees.filter((fee) => !fee.chargeToCustomer);
-    const chargedAdditionalFees = calculation.additionalFees.filter(
-      (fee) => fee.chargeToCustomer,
-    );
-    const internalAdditionalFees = calculation.additionalFees.filter(
-      (fee) => !fee.chargeToCustomer,
-    );
-
-    const internalLegImpact = sumRouteInputImpact(internalLegFees);
-    const chargedImpact = sumRouteInputImpact([
-      ...chargedLegFees,
-      ...chargedAdditionalFees,
-    ]);
-    const internalAdditionalImpact = sumRouteInputImpact(
-      internalAdditionalFees,
-    );
-
-    const marginInMinor = chargedImpact - internalAdditionalImpact;
-    const grossInMinor = BigInt(calculation.amountInMinor);
-
     return {
-      chargedFeeRows: [...chargedLegFees, ...chargedAdditionalFees],
-      internalAdditionalFees,
-      internalLegImpact,
+      deductedExecutionCostMinor: BigInt(
+        calculation.deductedExecutionCostMinor,
+      ),
+      embeddedExecutionCostMinor: BigInt(
+        calculation.embeddedExecutionCostMinor,
+      ),
       legCount: calculation.legs.length,
-      marginInMinor,
-      marginPercent: formatMarginPercent(marginInMinor, grossInMinor),
+      separateExecutionCostMinor: BigInt(
+        calculation.separateExecutionCostMinor,
+      ),
     };
   }, [calculation]);
 
@@ -342,38 +300,55 @@ export function PaymentRouteSummaryRail({
             <div className="space-y-2">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="text-sm font-semibold">Клиент оплатит</div>
+                  <div className="text-sm font-semibold">
+                    Требуется завести в маршрут
+                  </div>
                   <div className="text-xs text-muted-foreground">
-                    Брутто + учтённые комиссии
+                    Сумма входа с учётом курса и списаний
                   </div>
                 </div>
                 <div className="shrink-0 whitespace-nowrap text-sm font-semibold tabular-nums">
                   {formatCurrencyMinorAmount(
-                    calculation.clientTotalInMinor,
+                    calculation.executionPrincipalInMinor,
                     currencyIn,
                   )}
                 </div>
               </div>
-              {economics.chargedFeeRows.length > 0 ? (
-                <div className="space-y-1 pl-3">
-                  {economics.chargedFeeRows.map((fee) => (
-                    <div
-                      key={fee.id}
-                      className="flex items-start justify-between gap-3 text-sm text-muted-foreground"
-                    >
-                      <span className="min-w-0 truncate">
-                        + {fee.label ?? "Комиссия"}
-                      </span>
-                      <span className="shrink-0 whitespace-nowrap tabular-nums text-foreground">
-                        {formatCurrencyMinorAmount(
-                          fee.amountMinor,
-                          getCurrency(options, fee.currencyId),
-                        )}
-                      </span>
-                    </div>
-                  ))}
+              <div className="space-y-1 pl-3">
+                <div className="flex items-start justify-between gap-3 text-sm text-muted-foreground">
+                  <span className="min-w-0">Рыночная база</span>
+                  <span className="shrink-0 whitespace-nowrap tabular-nums text-foreground">
+                    {formatCurrencyMinorAmount(
+                      calculation.benchmarkPrincipalInMinor,
+                      currencyIn,
+                    )}
+                  </span>
                 </div>
-              ) : null}
+                {economics.embeddedExecutionCostMinor > 0n ? (
+                  <div className="flex items-start justify-between gap-3 text-sm text-muted-foreground">
+                    <span className="min-w-0">Спред провайдера в курсе</span>
+                    <span className="shrink-0 whitespace-nowrap tabular-nums text-foreground">
+                      {formatCurrencyMinorAmount(
+                        economics.embeddedExecutionCostMinor.toString(),
+                        currencyIn,
+                      )}
+                    </span>
+                  </div>
+                ) : null}
+                {economics.deductedExecutionCostMinor > 0n ? (
+                  <div className="flex items-start justify-between gap-3 text-sm text-muted-foreground">
+                    <span className="min-w-0">
+                      Списания из потока ({economics.legCount})
+                    </span>
+                    <span className="shrink-0 whitespace-nowrap tabular-nums text-foreground">
+                      {formatCurrencyMinorAmount(
+                        economics.deductedExecutionCostMinor.toString(),
+                        currencyIn,
+                      )}
+                    </span>
+                  </div>
+                ) : null}
+              </div>
             </div>
 
             <Separator orientation="horizontal" className="h-px" />
@@ -381,48 +356,33 @@ export function PaymentRouteSummaryRail({
             <div className="space-y-2">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="text-sm font-semibold">Себестоимость</div>
+                  <div className="text-sm font-semibold">Себестоимость маршрута</div>
                   <div className="text-xs text-muted-foreground">
-                    Комиссии провайдеров и внутренние расходы
+                    Сумма входа плюс отдельные расходы исполнения
                   </div>
                 </div>
                 <div className="shrink-0 whitespace-nowrap text-sm font-semibold tabular-nums text-destructive">
-                  −{"\u00A0"}
                   {formatCurrencyMinorAmount(
                     calculation.costPriceInMinor,
                     currencyIn,
                   )}
                 </div>
               </div>
-              <div className="space-y-1 pl-3">
-                <div className="flex items-start justify-between gap-3 text-sm text-muted-foreground">
-                  <span className="min-w-0">
-                    − Комиссии провайдеров по шагам ({economics.legCount})
-                  </span>
-                  <span className="shrink-0 whitespace-nowrap tabular-nums text-foreground">
-                    {formatCurrencyMinorAmount(
-                      economics.internalLegImpact.toString(),
-                      currencyIn,
-                    )}
-                  </span>
-                </div>
-                {economics.internalAdditionalFees.map((fee) => (
-                  <div
-                    key={fee.id}
-                    className="flex items-start justify-between gap-3 text-sm text-muted-foreground"
-                  >
-                    <span className="min-w-0 truncate">
-                      − {fee.label ?? "Расход"}
+              {economics.separateExecutionCostMinor > 0n ? (
+                <div className="space-y-1 pl-3">
+                  <div className="flex items-start justify-between gap-3 text-sm text-muted-foreground">
+                    <span className="min-w-0">
+                      Отдельные расходы сверх потока
                     </span>
                     <span className="shrink-0 whitespace-nowrap tabular-nums text-foreground">
                       {formatCurrencyMinorAmount(
-                        fee.amountMinor,
-                        getCurrency(options, fee.currencyId),
+                        economics.separateExecutionCostMinor.toString(),
+                        currencyIn,
                       )}
                     </span>
                   </div>
-                ))}
-              </div>
+                </div>
+              ) : null}
             </div>
 
             <Separator orientation="horizontal" className="h-px" />
@@ -441,58 +401,11 @@ export function PaymentRouteSummaryRail({
                 />
               </div>
             </div>
-
-            <div
-              className={cn(
-                "space-y-1 rounded-2xl border p-4",
-                economics.marginInMinor < 0n
-                  ? "border-destructive/30 bg-destructive/10"
-                  : "border-emerald-200 bg-emerald-50/80",
-              )}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div
-                    className={cn(
-                      "text-sm font-semibold",
-                      economics.marginInMinor < 0n
-                        ? "text-destructive"
-                        : "text-emerald-900",
-                    )}
-                  >
-                    Чистая маржа
-                  </div>
-                  <div
-                    className={cn(
-                      "text-xs tabular-nums",
-                      economics.marginInMinor < 0n
-                        ? "text-destructive/80"
-                        : "text-emerald-700/80",
-                    )}
-                  >
-                    {economics.marginPercent} от брутто
-                  </div>
-                </div>
-                <div
-                  className={cn(
-                    "shrink-0 whitespace-nowrap text-base font-semibold tabular-nums",
-                    economics.marginInMinor < 0n
-                      ? "text-destructive"
-                      : "text-emerald-900",
-                  )}
-                >
-                  {formatCurrencyMinorAmount(
-                    economics.marginInMinor.toString(),
-                    currencyIn,
-                  )}
-                </div>
-              </div>
-            </div>
           </>
         ) : (
           <div className="rounded-xl border border-dashed px-4 py-6 text-sm text-muted-foreground">
-            После первого расчёта здесь появятся итоги: что заплатит клиент,
-            себестоимость маршрута и чистая маржа.
+            После первого расчёта здесь появятся сумма входа, расходы
+            исполнения и сумма к получению.
           </div>
         )}
       </CardContent>

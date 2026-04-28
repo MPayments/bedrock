@@ -1,7 +1,9 @@
 import { and, eq } from "drizzle-orm";
+import { createHash } from "node:crypto";
 
 import type { Database } from "../client";
 import { schema } from "../schema-registry";
+import { isProductionLikeSeedEnv } from "./runtime";
 
 export type HashPasswordFn = (password: string) => Promise<string>;
 
@@ -53,13 +55,60 @@ const USER_SEEDS: UserSeed[] = [
   },
 ];
 
-export async function seedUsers(
+type SeedEnv = Record<string, string | undefined>;
+
+function stableUuid(input: string) {
+  const hex = createHash("sha256").update(input).digest("hex").slice(0, 32);
+  const chars = hex.split("");
+
+  chars[12] = "4";
+  chars[16] = ["8", "9", "a", "b"][Number.parseInt(chars[16] ?? "0", 16) % 4]!;
+
+  return [
+    chars.slice(0, 8).join(""),
+    chars.slice(8, 12).join(""),
+    chars.slice(12, 16).join(""),
+    chars.slice(16, 20).join(""),
+    chars.slice(20, 32).join(""),
+  ].join("-");
+}
+
+function normalizeEmail(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function resolveBootstrapAdminIds(input: { email: string; id?: string | null }) {
+  if (input.id?.trim()) {
+    const id = input.id.trim();
+    return {
+      accountId: stableUuid(`bootstrap-admin-account:${id}`),
+      id,
+    };
+  }
+
+  const email = normalizeEmail(input.email);
+  if (email === "admin@bedrock.com") {
+    return {
+      accountId: ACCOUNT_IDS.ADMIN,
+      id: USER_IDS.ADMIN,
+    };
+  }
+
+  return {
+    accountId: stableUuid(`bootstrap-admin-account:${email}`),
+    id: stableUuid(`bootstrap-admin:${email}`),
+  };
+}
+
+async function seedUserRecords(
   db: Database,
   hashPassword: HashPasswordFn,
+  seeds: UserSeed[],
+  options: { printCreatedCredentials: boolean },
 ): Promise<void> {
   const created: { email: string; password: string }[] = [];
 
-  for (const seed of USER_SEEDS) {
+  for (const seed of seeds) {
     const now = new Date();
     const [existingById] = await db
       .select({ email: schema.user.email, id: schema.user.id })
@@ -211,7 +260,7 @@ export async function seedUsers(
     created.push({ email: seed.email, password: seed.password });
   }
 
-  if (created.length > 0) {
+  if (options.printCreatedCredentials && created.length > 0) {
     console.log("\n┌─────────────────────────────────────────┐");
     console.log("│          Seeded user credentials         │");
     console.log("├──────────────────────┬──────────────────┤");
@@ -220,4 +269,59 @@ export async function seedUsers(
     }
     console.log("└──────────────────────┴──────────────────┘\n");
   }
+}
+
+export async function seedUsers(
+  db: Database,
+  hashPassword: HashPasswordFn,
+): Promise<void> {
+  await seedUserRecords(db, hashPassword, USER_SEEDS, {
+    printCreatedCredentials: true,
+  });
+}
+
+export async function seedBootstrapAdminFromEnv(
+  db: Database,
+  hashPassword: HashPasswordFn,
+  env: SeedEnv = process.env,
+): Promise<void> {
+  const email = env.BEDROCK_BOOTSTRAP_ADMIN_EMAIL?.trim();
+  const password = env.BEDROCK_BOOTSTRAP_ADMIN_PASSWORD;
+
+  if (!email || !password) {
+    if (isProductionLikeSeedEnv(env)) {
+      throw new Error(
+        [
+          "Bootstrap admin seed requires env credentials in production.",
+          "Set BEDROCK_BOOTSTRAP_ADMIN_EMAIL and BEDROCK_BOOTSTRAP_ADMIN_PASSWORD before running db:seed:required.",
+        ].join("\n"),
+      );
+    }
+
+    console.warn(
+      "[seed:required] Bootstrap admin env is not set; skipping admin user outside production.",
+    );
+    return;
+  }
+
+  const ids = resolveBootstrapAdminIds({
+    email,
+    id: env.BEDROCK_BOOTSTRAP_ADMIN_ID,
+  });
+
+  await seedUserRecords(
+    db,
+    hashPassword,
+    [
+      {
+        accountId: ids.accountId,
+        email: normalizeEmail(email),
+        id: ids.id,
+        name: env.BEDROCK_BOOTSTRAP_ADMIN_NAME?.trim() || "Admin",
+        password,
+        role: "admin",
+      },
+    ],
+    { printCreatedCredentials: false },
+  );
 }

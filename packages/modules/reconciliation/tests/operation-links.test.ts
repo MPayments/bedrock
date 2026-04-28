@@ -117,6 +117,7 @@ function createHandler(input?: {
       listByMatchedOperationIds: vi.fn(async () => input?.matchedRows ?? []),
     },
     pendingSources: {
+      listPendingExternalRecordIds: vi.fn(async () => []),
       listPendingSources: vi.fn(async () => []),
     },
     transactions: {
@@ -267,6 +268,8 @@ describe("createListOperationLinksHandler", () => {
       "exception-2",
       "exception-1",
     ]);
-    expect(result?.lastActivityAt).toEqual(new Date("2026-04-03T10:30:00.000Z"));
+    expect(result?.lastActivityAt).toEqual(
+      new Date("2026-04-03T10:30:00.000Z"),
+    );
   });
 });

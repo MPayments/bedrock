@@ -98,7 +98,7 @@ export function assertDealAllowsCommercialWrite(deal: DealDetails) {
   }
 }
 
-export function assertDealAllowsFormalDocumentCreate(deal: DealDetails) {
+function assertDealAllowsFormalDocumentCreate(deal: DealDetails) {
   if (
     !canDealCreateFormalDocuments({
       status: deal.status,

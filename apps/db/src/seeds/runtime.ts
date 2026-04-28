@@ -4,6 +4,9 @@ import type { Database } from "../client";
 import { loadSeedEnv } from "./load-env";
 
 type SeedSchemaProbeDb = Pick<Database, "execute">;
+type SeedEnv = Record<string, string | undefined>;
+
+const LOCAL_SEED_PRODUCTION_OVERRIDE = "BEDROCK_ALLOW_LOCAL_SEEDS_IN_PRODUCTION";
 
 interface SeedSchemaProbeRow {
   currencies: string | null;
@@ -43,13 +46,32 @@ export async function assertSeedSchemaReady(
       `Missing tables: ${missingTables.join(", ")}.`,
       "Apply the schema before running seeders:",
       "  bun run db:migrate",
-      "  bun run db:seed",
+      "  bun run db:seed:required",
       "If you changed the migration baseline or need a clean reset, use:",
       "  bun run db:nuke",
       "  bun run db:migrate",
-      "  bun run db:seed",
+      "  bun run db:seed:all",
     ].join("\n"),
   );
+}
+
+export function isProductionLikeSeedEnv(env: SeedEnv = process.env) {
+  return env.NODE_ENV === "production";
+}
+
+export function assertLocalSeedAllowed(env: SeedEnv = process.env): void {
+  if (
+    isProductionLikeSeedEnv(env) &&
+    env[LOCAL_SEED_PRODUCTION_OVERRIDE] !== "1"
+  ) {
+    throw new Error(
+      [
+        "Local seed fixtures are blocked in production.",
+        "Use `bun run db:seed:required` for production/staging bootstrap.",
+        `Set ${LOCAL_SEED_PRODUCTION_OVERRIDE}=1 only for an explicit emergency override.`,
+      ].join("\n"),
+    );
+  }
 }
 
 export async function loadSeedDatabase(): Promise<Database> {

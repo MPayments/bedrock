@@ -9,7 +9,6 @@ import {
 } from "@bedrock/plugin-documents-sdk/definitions/shared";
 import { normalizeMajorAmountInput } from "@bedrock/shared/money";
 
-import { FINANCIAL_LINE_BUCKET_OPTIONS } from "../financial-lines";
 import {
   AcceptanceInputSchema,
   ExchangeInputSchema,
@@ -71,7 +70,6 @@ export function createAcceptancePayload(values: Record<string, unknown>) {
 }
 
 export {
-  FINANCIAL_LINE_BUCKET_OPTIONS,
   isoToDateTimeLocal,
   nowDateTimeLocal,
   readString,

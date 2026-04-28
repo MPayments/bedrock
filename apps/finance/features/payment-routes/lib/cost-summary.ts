@@ -46,22 +46,10 @@ export function getPaymentRouteAdditionalFeeTotals(
   return aggregatePaymentRouteFeeTotals(calculation.additionalFees);
 }
 
-export function getPaymentRouteChargedFeeTotals(
-  calculation: PaymentRouteCalculation | null,
-): PaymentRouteAmountTotal[] {
-  return calculation?.chargedFeeTotals ?? [];
-}
-
 export function getPaymentRouteInternalFeeTotals(
   calculation: PaymentRouteCalculation | null,
 ): PaymentRouteAmountTotal[] {
   return calculation?.internalFeeTotals ?? [];
-}
-
-export function getPaymentRouteClientTotalInMinor(
-  calculation: PaymentRouteCalculation | null,
-): string | null {
-  return calculation?.clientTotalInMinor ?? null;
 }
 
 export function getPaymentRouteCostPriceInMinor(

@@ -15,6 +15,8 @@ import {
 } from "./quotes/adapters/drizzle/schema";
 import { fxRateSources, fxRates } from "./rates/adapters/drizzle/schema";
 import {
+  treasuryInventoryAllocations,
+  treasuryInventoryPositions,
   treasuryOrders,
   treasuryOrderSteps,
 } from "./treasury-orders/infra/drizzle/schema";
@@ -33,6 +35,8 @@ export {
   paymentStepReturns,
   paymentSteps,
   quoteExecutions,
+  treasuryInventoryAllocations,
+  treasuryInventoryPositions,
   treasuryOrders,
   treasuryOrderSteps,
 };
@@ -51,6 +55,8 @@ export const schema = {
   paymentStepReturns,
   paymentSteps,
   quoteExecutions,
+  treasuryInventoryAllocations,
+  treasuryInventoryPositions,
   treasuryOrders,
   treasuryOrderSteps,
 };

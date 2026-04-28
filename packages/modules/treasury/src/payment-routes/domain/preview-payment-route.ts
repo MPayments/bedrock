@@ -10,6 +10,9 @@ import type {
   PaymentRouteCalculationFee,
   PaymentRouteCalculationLeg,
   PaymentRouteDraft,
+  PaymentRouteExecutionCostLine,
+  PaymentRouteExecutionCostTreatment,
+  PaymentRouteFeeApplication,
   PaymentRouteFee,
 } from "./model";
 import { ValidationError } from "../../errors";
@@ -40,15 +43,19 @@ interface CalculatedFee {
 
 interface ForwardPreviewResult {
   additionalFees: PaymentRouteCalculationFee[];
-  chargedFeeTotals: Map<string, bigint>;
+  benchmarkPrincipalInMinor: bigint;
   cleanAmountOutMinor: bigint;
-  clientTotalInMinor: bigint;
   costPriceInMinor: bigint;
+  deductedExecutionCostMinor: bigint;
+  embeddedExecutionCostMinor: bigint;
+  executionCostLines: PaymentRouteExecutionCostLine[];
+  executionPrincipalInMinor: bigint;
   feeTotals: Map<string, bigint>;
   grossAmountOutMinor: bigint;
   internalFeeTotals: Map<string, bigint>;
   legs: PaymentRouteCalculationLeg[];
   netAmountOutMinor: bigint;
+  separateExecutionCostMinor: bigint;
 }
 
 function mergeTotals(
@@ -61,8 +68,8 @@ function mergeTotals(
 
 function createCalculationFee(input: {
   amountMinor: bigint;
+  application: PaymentRouteFeeApplication;
   calculatedCurrencyId: string;
-  chargeToCustomer?: boolean;
   fee: PaymentRouteDraft["legs"][number]["fees"][number];
   inputImpactCurrencyId: string;
   inputImpactMinor: bigint;
@@ -72,7 +79,7 @@ function createCalculationFee(input: {
 }): PaymentRouteCalculationFee {
   const base = {
     amountMinor: input.amountMinor.toString(),
-    chargeToCustomer: input.chargeToCustomer ?? input.fee.chargeToCustomer,
+    application: input.application,
     currencyId: input.calculatedCurrencyId,
     id: input.fee.id,
     inputImpactCurrencyId: input.inputImpactCurrencyId,
@@ -98,6 +105,73 @@ function createCalculationFee(input: {
     ...base,
     kind: input.fee.kind,
     percentage: input.fee.percentage,
+  };
+}
+
+function resolveFeeApplication(
+  fee: PaymentRouteFee,
+  location: "additional" | "leg",
+): PaymentRouteFeeApplication {
+  if (location === "additional") {
+    if (fee.application && fee.application !== "separate_charge") {
+      throw new ValidationError("Additional route fees must use separate_charge");
+    }
+
+    return "separate_charge";
+  }
+
+  if (fee.kind === "fx_spread") {
+    return "embedded_in_rate";
+  }
+
+  if (fee.application === "embedded_in_rate") {
+    throw new ValidationError(
+      "embedded_in_rate application is only supported for fx_spread",
+    );
+  }
+
+  return fee.application ?? "deducted_from_flow";
+}
+
+function resolveExecutionCostTreatment(
+  application: PaymentRouteFeeApplication,
+): PaymentRouteExecutionCostTreatment {
+  switch (application) {
+    case "embedded_in_rate":
+      return "execution_spread";
+    case "deducted_from_flow":
+      return "flow_deduction";
+    case "separate_charge":
+      return "separate_expense";
+  }
+}
+
+function createExecutionCostLine(input: {
+  amountMinor: bigint;
+  application: PaymentRouteFeeApplication;
+  calculatedCurrencyId: string;
+  fee: PaymentRouteFee;
+  inputImpactCurrencyId: string;
+  inputImpactMinor: bigint;
+  location: "additional" | "leg";
+  outputImpactCurrencyId: string;
+  outputImpactMinor: bigint;
+  routeInputImpactMinor: bigint;
+}): PaymentRouteExecutionCostLine {
+  return {
+    amountMinor: input.amountMinor.toString(),
+    application: input.application,
+    currencyId: input.calculatedCurrencyId,
+    id: input.fee.id,
+    inputImpactCurrencyId: input.inputImpactCurrencyId,
+    inputImpactMinor: input.inputImpactMinor.toString(),
+    kind: input.fee.kind,
+    label: input.fee.label,
+    location: input.location,
+    outputImpactCurrencyId: input.outputImpactCurrencyId,
+    outputImpactMinor: input.outputImpactMinor.toString(),
+    routeInputImpactMinor: input.routeInputImpactMinor.toString(),
+    treatment: resolveExecutionCostTreatment(input.application),
   };
 }
 
@@ -353,13 +427,15 @@ async function runForwardPreview(input: {
 }): Promise<ForwardPreviewResult> {
   const currencyCache = new Map<string, string>();
   const feeTotals = new Map<string, bigint>();
-  const chargedFeeTotals = new Map<string, bigint>();
   const internalFeeTotals = new Map<string, bigint>();
+  const executionCostLines: PaymentRouteExecutionCostLine[] = [];
   const legs: PaymentRouteCalculationLeg[] = [];
   let cleanRollingAmount = input.amountInMinor;
   let rollingAmount = input.amountInMinor;
-  let clientTotalInMinor = input.amountInMinor;
   let costPriceInMinor = input.amountInMinor;
+  let deductedExecutionCostMinor = 0n;
+  let embeddedExecutionCostMinor = 0n;
+  let separateExecutionCostMinor = 0n;
 
   for (let index = 0; index < input.draft.legs.length; index += 1) {
     const leg = input.draft.legs[index]!;
@@ -374,11 +450,13 @@ async function runForwardPreview(input: {
     const cleanOutputMinor = mulDivFloor(cleanRollingAmount, rateNum, rateDen);
     let grossOutputMinor = mulDivFloor(rollingAmount, rateNum, rateDen);
 
-    let chargedOutputImpactMinor = 0n;
+    let deductedOutputImpactMinor = 0n;
     let netBaseMinor = rollingAmount;
     const feeBreakdown: PaymentRouteCalculationFee[] = [];
 
     for (const fee of leg.fees) {
+      const application = resolveFeeApplication(fee, "leg");
+
       if (fee.kind === "fx_spread") {
         const spread = await calculateFxSpread({
           asOf: input.asOf,
@@ -393,18 +471,31 @@ async function runForwardPreview(input: {
         });
 
         grossOutputMinor = spread.newGrossOutputMinor;
-        costPriceInMinor += spread.routeInputImpactMinor;
+        embeddedExecutionCostMinor += spread.routeInputImpactMinor;
         mergeTotals(feeTotals, spread.currencyId, spread.amountMinor);
-        mergeTotals(internalFeeTotals, spread.currencyId, spread.amountMinor);
 
         feeBreakdown.push(
           createCalculationFee({
             amountMinor: spread.amountMinor,
+            application,
             calculatedCurrencyId: spread.currencyId,
-            chargeToCustomer: false,
             fee,
             inputImpactCurrencyId: spread.inputImpactCurrencyId,
             inputImpactMinor: spread.inputImpactMinor,
+            outputImpactCurrencyId: spread.outputImpactCurrencyId,
+            outputImpactMinor: spread.outputImpactMinor,
+            routeInputImpactMinor: spread.routeInputImpactMinor,
+          }),
+        );
+        executionCostLines.push(
+          createExecutionCostLine({
+            amountMinor: spread.amountMinor,
+            application,
+            calculatedCurrencyId: spread.currencyId,
+            fee,
+            inputImpactCurrencyId: spread.inputImpactCurrencyId,
+            inputImpactMinor: spread.inputImpactMinor,
+            location: "leg",
             outputImpactCurrencyId: spread.outputImpactCurrencyId,
             outputImpactMinor: spread.outputImpactMinor,
             routeInputImpactMinor: spread.routeInputImpactMinor,
@@ -428,28 +519,24 @@ async function runForwardPreview(input: {
         routeInputCurrencyId: input.draft.currencyInId,
       });
 
-      netBaseMinor -= calculated.inputImpactMinor;
-      costPriceInMinor += calculated.routeInputImpactMinor;
-      mergeTotals(feeTotals, calculated.currencyId, calculated.amountMinor);
-
-      if (fee.chargeToCustomer) {
-        chargedOutputImpactMinor += calculated.outputImpactMinor;
-        mergeTotals(
-          chargedFeeTotals,
-          calculated.currencyId,
-          calculated.amountMinor,
-        );
-      } else {
-        mergeTotals(
-          internalFeeTotals,
-          calculated.currencyId,
-          calculated.amountMinor,
-        );
+      if (application === "deducted_from_flow") {
+        netBaseMinor -= calculated.inputImpactMinor;
+        deductedOutputImpactMinor += calculated.outputImpactMinor;
+        deductedExecutionCostMinor += calculated.routeInputImpactMinor;
       }
+
+      if (application === "separate_charge") {
+        costPriceInMinor += calculated.routeInputImpactMinor;
+        separateExecutionCostMinor += calculated.routeInputImpactMinor;
+      }
+
+      mergeTotals(feeTotals, calculated.currencyId, calculated.amountMinor);
+      mergeTotals(internalFeeTotals, calculated.currencyId, calculated.amountMinor);
 
       feeBreakdown.push(
         createCalculationFee({
           amountMinor: calculated.amountMinor,
+          application,
           calculatedCurrencyId: calculated.currencyId,
           fee,
           inputImpactCurrencyId: calculated.inputImpactCurrencyId,
@@ -459,15 +546,29 @@ async function runForwardPreview(input: {
           routeInputImpactMinor: calculated.routeInputImpactMinor,
         }),
       );
+      executionCostLines.push(
+        createExecutionCostLine({
+          amountMinor: calculated.amountMinor,
+          application,
+          calculatedCurrencyId: calculated.currencyId,
+          fee,
+          inputImpactCurrencyId: calculated.inputImpactCurrencyId,
+          inputImpactMinor: calculated.inputImpactMinor,
+          location: "leg",
+          outputImpactCurrencyId: calculated.outputImpactCurrencyId,
+          outputImpactMinor: calculated.outputImpactMinor,
+          routeInputImpactMinor: calculated.routeInputImpactMinor,
+        }),
+      );
     }
 
-    if (chargedOutputImpactMinor > grossOutputMinor) {
+    if (deductedOutputImpactMinor > grossOutputMinor) {
       throw new ValidationError(
         `Leg ${index + 1} fees exceed the converted amount`,
       );
     }
 
-    const netOutputMinor = grossOutputMinor - chargedOutputImpactMinor;
+    const netOutputMinor = grossOutputMinor - deductedOutputImpactMinor;
 
     legs.push({
       asOf: input.asOf.toISOString(),
@@ -495,6 +596,7 @@ async function runForwardPreview(input: {
   let additionalNetBaseMinor = input.amountInMinor;
 
   for (const fee of input.draft.additionalFees) {
+    const application = resolveFeeApplication(fee, "additional");
     const calculated = await calculateFee({
       asOf: input.asOf,
       cache: currencyCache,
@@ -513,26 +615,14 @@ async function runForwardPreview(input: {
     additionalNetBaseMinor -= calculated.inputImpactMinor;
 
     costPriceInMinor += calculated.routeInputImpactMinor;
+    separateExecutionCostMinor += calculated.routeInputImpactMinor;
     mergeTotals(feeTotals, calculated.currencyId, calculated.amountMinor);
-
-    if (fee.chargeToCustomer) {
-      clientTotalInMinor += calculated.inputImpactMinor;
-      mergeTotals(
-        chargedFeeTotals,
-        calculated.currencyId,
-        calculated.amountMinor,
-      );
-    } else {
-      mergeTotals(
-        internalFeeTotals,
-        calculated.currencyId,
-        calculated.amountMinor,
-      );
-    }
+    mergeTotals(internalFeeTotals, calculated.currencyId, calculated.amountMinor);
 
     additionalFees.push(
       createCalculationFee({
         amountMinor: calculated.amountMinor,
+        application,
         calculatedCurrencyId: calculated.currencyId,
         fee,
         inputImpactCurrencyId: calculated.inputImpactCurrencyId,
@@ -542,19 +632,44 @@ async function runForwardPreview(input: {
         routeInputImpactMinor: calculated.routeInputImpactMinor,
       }),
     );
+    executionCostLines.push(
+      createExecutionCostLine({
+        amountMinor: calculated.amountMinor,
+        application,
+        calculatedCurrencyId: calculated.currencyId,
+        fee,
+        inputImpactCurrencyId: calculated.inputImpactCurrencyId,
+        inputImpactMinor: calculated.inputImpactMinor,
+        location: "additional",
+        outputImpactCurrencyId: calculated.outputImpactCurrencyId,
+        outputImpactMinor: calculated.outputImpactMinor,
+        routeInputImpactMinor: calculated.routeInputImpactMinor,
+      }),
+    );
   }
+
+  const embeddedAndDeductedCostMinor =
+    embeddedExecutionCostMinor + deductedExecutionCostMinor;
+  const benchmarkPrincipalInMinor =
+    input.amountInMinor > embeddedAndDeductedCostMinor
+      ? input.amountInMinor - embeddedAndDeductedCostMinor
+      : 0n;
 
   return {
     additionalFees,
-    chargedFeeTotals,
+    benchmarkPrincipalInMinor,
     cleanAmountOutMinor,
-    clientTotalInMinor,
     costPriceInMinor,
+    deductedExecutionCostMinor,
+    embeddedExecutionCostMinor,
+    executionCostLines,
+    executionPrincipalInMinor: input.amountInMinor,
     feeTotals,
     grossAmountOutMinor,
     internalFeeTotals,
     legs,
     netAmountOutMinor,
+    separateExecutionCostMinor,
   };
 }
 
@@ -690,19 +805,23 @@ export async function previewPaymentRoute(input: {
       additionalFees: result.additionalFees,
       amountInMinor: amountInMinor.toString(),
       amountOutMinor: result.netAmountOutMinor.toString(),
-      chargedFeeTotals: serializeTotals(result.chargedFeeTotals),
+      benchmarkPrincipalInMinor: result.benchmarkPrincipalInMinor.toString(),
       cleanAmountOutMinor: result.cleanAmountOutMinor.toString(),
-      clientTotalInMinor: result.clientTotalInMinor.toString(),
       computedAt: asOf.toISOString(),
       costPriceInMinor: result.costPriceInMinor.toString(),
       currencyInId: input.draft.currencyInId,
       currencyOutId: input.draft.currencyOutId,
+      deductedExecutionCostMinor: result.deductedExecutionCostMinor.toString(),
+      embeddedExecutionCostMinor: result.embeddedExecutionCostMinor.toString(),
+      executionCostLines: result.executionCostLines,
+      executionPrincipalInMinor: result.executionPrincipalInMinor.toString(),
       feeTotals: serializeTotals(result.feeTotals),
       grossAmountOutMinor: result.grossAmountOutMinor.toString(),
       internalFeeTotals: serializeTotals(result.internalFeeTotals),
       legs: result.legs,
       lockedSide: input.draft.lockedSide,
       netAmountOutMinor: result.netAmountOutMinor.toString(),
+      separateExecutionCostMinor: result.separateExecutionCostMinor.toString(),
     };
   }
 
@@ -719,18 +838,27 @@ export async function previewPaymentRoute(input: {
     additionalFees: resolved.result.additionalFees,
     amountInMinor: resolved.amountInMinor.toString(),
     amountOutMinor: resolved.result.netAmountOutMinor.toString(),
-    chargedFeeTotals: serializeTotals(resolved.result.chargedFeeTotals),
+    benchmarkPrincipalInMinor:
+      resolved.result.benchmarkPrincipalInMinor.toString(),
     cleanAmountOutMinor: resolved.result.cleanAmountOutMinor.toString(),
-    clientTotalInMinor: resolved.result.clientTotalInMinor.toString(),
     computedAt: asOf.toISOString(),
     costPriceInMinor: resolved.result.costPriceInMinor.toString(),
     currencyInId: input.draft.currencyInId,
     currencyOutId: input.draft.currencyOutId,
+    deductedExecutionCostMinor:
+      resolved.result.deductedExecutionCostMinor.toString(),
+    embeddedExecutionCostMinor:
+      resolved.result.embeddedExecutionCostMinor.toString(),
+    executionCostLines: resolved.result.executionCostLines,
+    executionPrincipalInMinor:
+      resolved.result.executionPrincipalInMinor.toString(),
     feeTotals: serializeTotals(resolved.result.feeTotals),
     grossAmountOutMinor: resolved.result.grossAmountOutMinor.toString(),
     internalFeeTotals: serializeTotals(resolved.result.internalFeeTotals),
     legs: resolved.result.legs,
     lockedSide: input.draft.lockedSide,
     netAmountOutMinor: resolved.result.netAmountOutMinor.toString(),
+    separateExecutionCostMinor:
+      resolved.result.separateExecutionCostMinor.toString(),
   };
 }

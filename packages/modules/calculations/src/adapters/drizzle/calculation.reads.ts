@@ -182,36 +182,12 @@ function mapCalculation(row: CalculationRow): Calculation {
   };
 }
 
-function mapLineRow(row: {
-  id: string;
-  idx: number;
-  kind:
-    | "additional_expenses"
-    | "additional_expenses_in_base"
-    | "adjustment"
-    | "fee_amount"
-    | "fee_amount_in_base"
-    | "fee_revenue"
-    | "original_amount"
-    | "pass_through"
-    | "provider_fee_expense"
-    | "spread_revenue"
-    | "total_amount"
-    | "total_in_base"
-    | "total_with_expenses_in_base";
-  currencyId: string;
+function mapLineRow(row: Omit<CalculationLine, "amountMinor"> & {
   amountMinor: bigint;
-  createdAt: Date;
-  updatedAt: Date;
 }): CalculationLine {
   return {
-    id: row.id,
-    idx: Number(row.idx),
-    kind: row.kind,
-    currencyId: row.currencyId,
+    ...row,
     amountMinor: row.amountMinor.toString(),
-    createdAt: row.createdAt,
-    updatedAt: row.updatedAt,
   };
 }
 

@@ -17,7 +17,7 @@ const BRANCH_NAMESPACE = "a3f0b2f4-2345-4c6e-bf5a-1d0b92e7d200";
 
 // Bundled snapshot of the CBR ED807 directory, shipped with the seed app
 // (see apps/db/src/seeds/assets/bic-directory-snapshot.xml). Used as a
-// fallback when cbr.ru is unreachable so `bun run db:seed` still works
+// fallback when cbr.ru is unreachable so `bun run db:seed:required` still works
 // offline / in CI without external network access.
 const BUNDLED_FALLBACK_PATH = resolve(
   import.meta.dirname,

@@ -20,6 +20,7 @@ import {
   SelectItem,
   SelectTrigger,
 } from "@bedrock/sdk-ui/components/select";
+import { Spinner } from "@bedrock/sdk-ui/components/spinner";
 import { Textarea } from "@bedrock/sdk-ui/components/textarea";
 import { toast } from "@bedrock/sdk-ui/components/sonner";
 
@@ -360,7 +361,14 @@ export function StepConfirmDialog({
             disabled={!canSubmit}
             data-testid={`finance-step-confirm-submit-${step.id}`}
           >
-            {isSubmitting ? "Сохраняем..." : "Подтвердить"}
+            {isSubmitting ? (
+              <>
+                <Spinner data-icon="inline-start" />
+                Сохраняем...
+              </>
+            ) : (
+              "Подтвердить исполнение"
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

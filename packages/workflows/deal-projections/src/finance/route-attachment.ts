@@ -159,7 +159,7 @@ export async function buildFinanceRouteAttachment(input: {
       const quoteLeg = quoteLegByIdx.get(index + 1) ?? null;
       return {
         fees: leg.fees.map((fee) => ({
-          chargeToCustomer: fee.chargeToCustomer,
+          application: fee.application,
           kind: fee.kind,
           label: fee.label ?? fee.kind,
           percentage: fee.percentage ?? null,

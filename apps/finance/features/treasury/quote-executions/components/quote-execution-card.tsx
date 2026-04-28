@@ -1,8 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowRight } from "lucide-react";
+import { AlertTriangle, ArrowRight } from "lucide-react";
 
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@bedrock/sdk-ui/components/alert";
 import { Badge } from "@bedrock/sdk-ui/components/badge";
 import { Button } from "@bedrock/sdk-ui/components/button";
 import { Input } from "@bedrock/sdk-ui/components/input";
@@ -342,6 +347,21 @@ export function QuoteExecutionCard({
           </div>
         </div>
       </header>
+      {execution.state === "expired" ? (
+        <div className="border-b p-4">
+          <Alert variant="warning">
+            <AlertTriangle />
+            <AlertTitle>Котировка истекла</AlertTitle>
+            <AlertDescription>
+              <p>
+                Этот FX-курс больше нельзя исполнить. Дилер должен
+                зафиксировать новую котировку в CRM, после чего в finance
+                появится новое задание на конвертацию.
+              </p>
+            </AlertDescription>
+          </Alert>
+        </div>
+      ) : null}
       <dl className="grid gap-3 p-4 text-sm sm:grid-cols-2">
         <div>
           <dt className="text-muted-foreground text-xs">Списываем</dt>

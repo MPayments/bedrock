@@ -15,6 +15,13 @@ const TreasuryOrganizationBalanceRowSchema = z.object({
   currency: z.string(),
   ledgerBalance: z.string(),
   available: z.string(),
+  inventoryAvailable: z.string(),
+  inventoryReconciliationStatus: z.enum([
+    "matched",
+    "inventory_exceeds_balance",
+    "missing_balance",
+  ]),
+  inventoryReserved: z.string(),
   reserved: z.string(),
   pending: z.string(),
 });

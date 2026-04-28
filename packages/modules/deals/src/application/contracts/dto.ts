@@ -283,6 +283,63 @@ export type DealFundingAdjustment = z.infer<
 >;
 
 export const DealPricingCommercialDraftSchema = z.object({
+  clientPricing: z
+    .object({
+      clientRate: z
+        .object({
+          rateDen: signedMinorAmountStringSchema.refine(
+            (value) => BigInt(value) > 0n,
+            "Must be positive",
+          ),
+          rateNum: signedMinorAmountStringSchema.refine(
+            (value) => BigInt(value) > 0n,
+            "Must be positive",
+          ),
+        })
+        .nullable()
+        .default(null),
+      clientTotalMinor: signedMinorAmountStringSchema
+        .refine((value) => BigInt(value) >= 0n, "Must be non-negative")
+        .nullable()
+        .default(null),
+      commercialFeeCurrency: z
+        .string()
+        .trim()
+        .min(1)
+        .max(16)
+        .nullable()
+        .default(null),
+      commercialFeeMinor: signedMinorAmountStringSchema
+        .refine((value) => BigInt(value) >= 0n, "Must be non-negative")
+        .nullable()
+        .default(null),
+      discountCurrency: z
+        .string()
+        .trim()
+        .min(1)
+        .max(16)
+        .nullable()
+        .default(null),
+      discountMinor: signedMinorAmountStringSchema
+        .refine((value) => BigInt(value) >= 0n, "Must be non-negative")
+        .nullable()
+        .default(null),
+      mode: z.enum(["client_rate", "client_total"]).default("client_rate"),
+      passThroughPolicy: z
+        .enum(["none", "separate_execution_costs"])
+        .default("none"),
+    })
+    .nullable()
+    .default(null),
+  executionSource: z
+    .discriminatedUnion("type", [
+      z.object({ type: z.literal("route_execution") }),
+      z.object({
+        inventoryPositionId: z.uuid(),
+        type: z.literal("treasury_inventory"),
+      }),
+    ])
+    .default({ type: "route_execution" }),
   fixedFeeAmount: nullableDecimalStringSchema.optional().default(null),
   fixedFeeCurrency: z.string().trim().min(1).max(16).nullable().default(null),
   quoteMarkupBps: z.number().int().nonnegative().nullable().default(null),
@@ -377,6 +434,7 @@ export type DealPricingBenchmarks = z.infer<
 >;
 
 export const DealPricingProfitabilitySchema = z.object({
+  commercialDiscountMinor: signedMinorAmountStringSchema.or(z.literal("0")).default("0"),
   commercialRevenueMinor: signedMinorAmountStringSchema.or(z.literal("0")),
   costPriceMinor: signedMinorAmountStringSchema.or(z.literal("0")),
   currency: z.string().trim().min(1).max(16),
@@ -405,7 +463,7 @@ export type DealPricingFormulaLine = z.infer<
 >;
 
 export const DealPricingFormulaSectionSchema = z.object({
-  kind: z.enum(["client_pricing", "route_execution", "funding"]),
+  kind: z.enum(["client_pricing", "route_execution", "funding", "pnl"]),
   lines: z.array(DealPricingFormulaLineSchema),
   title: z.string().trim().min(1),
 });

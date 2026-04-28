@@ -19,6 +19,7 @@ import {
 import { createListOperationLinksHandler } from "./application/links/queries";
 import { createIngestExternalRecordHandler } from "./application/records/commands";
 import type { ReconciliationExternalRecordsTxRepository } from "./application/records/ports";
+import { createListPendingExternalRecordIdsHandler } from "./application/records/queries";
 import { createRunReconciliationHandler } from "./application/runs/commands";
 import type {
   ReconciliationMatchesTxRepository,
@@ -216,14 +217,16 @@ export function createReconciliationService(deps: ReconciliationServiceDeps) {
   });
 }
 
-function createReconciliationServiceFromContext(input: Parameters<
-  typeof createReconciliationServiceContext
->[0]) {
+function createReconciliationServiceFromContext(
+  input: Parameters<typeof createReconciliationServiceContext>[0],
+) {
   const context = createReconciliationServiceContext(input);
 
   return {
     records: {
       ingestExternalRecord: createIngestExternalRecordHandler(context),
+      listPendingExternalRecordIds:
+        createListPendingExternalRecordIdsHandler(context),
     },
     runs: {
       runReconciliation: createRunReconciliationHandler(context),

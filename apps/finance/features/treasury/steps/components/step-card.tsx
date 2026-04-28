@@ -1,15 +1,19 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { Button } from "@bedrock/sdk-ui/components/button";
+import { Spinner } from "@bedrock/sdk-ui/components/spinner";
+import { toast } from "@bedrock/sdk-ui/components/sonner";
 
 import type { FinanceDealPaymentStep } from "@/features/treasury/deals/lib/queries";
+import { executeMutation } from "@/lib/resources/http";
 
 import type { PartyKind, PartyKindOrSnapshot } from "../lib/party-options";
 import {
   deriveStepPrimaryAction,
-  STEP_KIND_LABELS,
+  getStepKindLabel,
   STEP_PURPOSE_LABELS,
   type StepConfirmOutcome,
 } from "../lib/step-helpers";
@@ -18,7 +22,13 @@ import { StepConfirmDialog } from "./step-confirm-dialog";
 import { StepOverflowMenu } from "./step-overflow-menu";
 import { StepRouteEditor } from "./step-route-editor";
 import { StepStateBadge } from "./step-state-badge";
-import { StepSubmitDialog } from "./step-submit-dialog";
+
+function createIdempotencyKey() {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `idem-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
 
 function narrowPartyKind(
   kind: PartyKindOrSnapshot | null | undefined,
@@ -74,11 +84,12 @@ export function StepCard({
   toPartyKind = null,
   uploadAssetPath,
 }: StepCardProps) {
-  const [submitOpen, setSubmitOpen] = useState(false);
+  const router = useRouter();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmInitialOutcome, setConfirmInitialOutcome] =
     useState<StepConfirmOutcome>("settled");
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const primaryAction = deriveStepPrimaryAction(step.state);
   const effectiveFromPartyKind =
@@ -92,6 +103,41 @@ export function StepCard({
 
   function handleSuccess() {
     if (onChanged) onChanged(step);
+  }
+
+  async function handleSubmitStep() {
+    setIsSubmitting(true);
+    const result = await executeMutation({
+      fallbackMessage: "Не удалось отметить шаг отправленным",
+      request: () =>
+        fetch(`/v1/treasury/steps/${encodeURIComponent(step.id)}/submit`, {
+          body: JSON.stringify({}),
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+            "Idempotency-Key": createIdempotencyKey(),
+          },
+          method: "POST",
+        }),
+    });
+    setIsSubmitting(false);
+
+    if (!result.ok) {
+      toast.error(result.message);
+      return;
+    }
+
+    toast.success(
+      step.state === "failed"
+        ? "Повторная отправка отмечена"
+        : "Шаг направлен в исполнение",
+    );
+
+    if (onChanged) {
+      onChanged(step);
+    } else {
+      router.refresh();
+    }
   }
 
   function openConfirmDialog(outcome: StepConfirmOutcome) {
@@ -111,7 +157,7 @@ export function StepCard({
               <div className="text-sm font-semibold">{title}</div>
             ) : null}
             <div className="text-muted-foreground text-xs">
-              {STEP_KIND_LABELS[step.kind]} ·{" "}
+              {getStepKindLabel(step)} ·{" "}
               {STEP_PURPOSE_LABELS[step.purpose]}
             </div>
           </div>
@@ -147,11 +193,20 @@ export function StepCard({
       <footer className="flex flex-wrap items-center justify-end gap-2 border-t px-4 py-3">
         {primaryAction === "submit" ? (
           <Button
-            onClick={() => setSubmitOpen(true)}
-            disabled={disabled}
+            onClick={handleSubmitStep}
+            disabled={disabled || isSubmitting}
             data-testid={`finance-step-primary-submit-${step.id}`}
           >
-            {step.state === "failed" ? "Отправить повторно" : "Отправить"}
+            {isSubmitting ? (
+              <>
+                <Spinner data-icon="inline-start" />
+                Направляем...
+              </>
+            ) : step.state === "failed" ? (
+              "Отправить повторно"
+            ) : (
+              "Направить в исполнение"
+            )}
           </Button>
         ) : null}
 
@@ -161,27 +216,20 @@ export function StepCard({
             disabled={disabled}
             data-testid={`finance-step-primary-confirm-${step.id}`}
           >
-            Подтвердить
+            Подтвердить исполнение
           </Button>
         ) : null}
 
         <StepOverflowMenu
           step={step}
           adminViewHref={adminViewHref}
-          disabled={disabled}
+          disabled={disabled || isSubmitting}
           onChanged={handleSuccess}
           onMarkReturned={() => openConfirmDialog("returned")}
           onOpenHistory={() => setHistoryOpen(true)}
-          onRetry={() => setSubmitOpen(true)}
+          onRetry={handleSubmitStep}
         />
       </footer>
-
-      <StepSubmitDialog
-        step={step}
-        open={submitOpen}
-        onOpenChange={setSubmitOpen}
-        onSuccess={handleSuccess}
-      />
 
       <StepConfirmDialog
         step={step}

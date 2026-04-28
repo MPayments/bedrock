@@ -117,8 +117,6 @@ function formatExactCurrencyRatio(input: {
 export function getPaymentRouteRateLines(input: {
   cleanAmountInMinor: string;
   cleanAmountOutMinor: string;
-  clientAmountOutMinor: string;
-  clientTotalInMinor?: string | null;
   costAmountOutMinor: string;
   costPriceInMinor?: string | null;
   currencyIn: PaymentRouteCurrencyOption | null | undefined;
@@ -140,24 +138,6 @@ export function getPaymentRouteRateLines(input: {
         })
       : null;
 
-  const clientForward =
-    input.clientTotalInMinor && input.currencyIn && input.currencyOut
-      ? formatCurrencyRatio({
-          amountInMinor: input.clientTotalInMinor,
-          amountOutMinor: input.clientAmountOutMinor,
-          currencyIn: input.currencyIn,
-          currencyOut: input.currencyOut,
-        })
-      : null;
-  const clientReverse =
-    input.clientTotalInMinor && input.currencyIn && input.currencyOut
-      ? formatCurrencyRatio({
-          amountInMinor: input.clientAmountOutMinor,
-          amountOutMinor: input.clientTotalInMinor,
-          currencyIn: input.currencyOut,
-          currencyOut: input.currencyIn,
-        })
-      : null;
   const costForward =
     input.costPriceInMinor && input.currencyIn && input.currencyOut
       ? formatCurrencyRatio({
@@ -180,8 +160,6 @@ export function getPaymentRouteRateLines(input: {
   return {
     cleanForward,
     cleanReverse,
-    clientForward,
-    clientReverse,
     costForward,
     costReverse,
   };

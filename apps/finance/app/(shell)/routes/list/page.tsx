@@ -26,7 +26,7 @@ export default async function PaymentRoutesListPage({
     <EntityListPageShell
       icon={GitBranch}
       title="Список маршрутов"
-      description="Каталог route templates для treasury-операций, обменов, intercompany и payout-сценариев."
+      description="Шаблоны маршрутов для платежей, обмена валюты и внутренних переводов."
       actions={
         <Button nativeButton={false} render={<Link href="/routes/constructor" />}>
           Конструктор маршрута

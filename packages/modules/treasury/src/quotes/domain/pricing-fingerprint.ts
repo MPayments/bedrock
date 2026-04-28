@@ -16,6 +16,7 @@ export interface PricingFingerprintInput {
     fixedFeeAmountMinor: bigint | string | null;
     fixedFeeCurrency: string | null;
   } | null;
+  clientPricing?: unknown;
 }
 
 export function canonicalizePricingFingerprintInput(
@@ -36,6 +37,7 @@ export function canonicalizePricingFingerprintInput(
 
   return {
     commercialTerms,
+    clientPricing: input.clientPricing ?? null,
     fromAmountMinor: toDecimalString(input.fromAmountMinor),
     fromCurrencyId: input.fromCurrencyId,
     pricingMode: input.pricingMode,

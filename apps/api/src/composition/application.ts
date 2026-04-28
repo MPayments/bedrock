@@ -20,6 +20,7 @@ import {
 } from "@bedrock/documents/read-model";
 import type { FilesModule } from "@bedrock/files";
 import { UserNotFoundError } from "@bedrock/iam";
+import type { LedgerModule } from "@bedrock/ledger";
 import type { PartiesModule } from "@bedrock/parties";
 import { OpenAIDocumentExtractionAdapter } from "@bedrock/platform/ai";
 import { S3ObjectStorageAdapter } from "@bedrock/platform/object-storage";
@@ -117,6 +118,9 @@ export interface ApiApplicationServices {
   partiesModule: PartiesModule;
   currenciesService: CurrenciesService;
   treasuryModule: TreasuryModule;
+  createDealsModule(tx: Transaction): DealsModule;
+  createDocumentsService(tx: Transaction): DocumentsService;
+  createLedgerModule(tx: Transaction): LedgerModule;
   createTreasuryModule(tx: Transaction): TreasuryModule;
   dealAttachmentIngestionWorkflow: DealAttachmentIngestionWorkflow;
   dealExecutionWorkflow: DealExecutionWorkflow;
@@ -193,7 +197,7 @@ export function createApplicationServices(
     return createApiDealsModule({
       currencies: currenciesService,
       db: tx,
-      ledgerBalances: createLedgerModuleForTransaction(tx).balances.queries,
+      inventoryPositions: txTreasury.treasuryOrders.queries,
       paymentRouteTemplates: {
         async findById(id: string) {
           try {
@@ -268,7 +272,7 @@ export function createApplicationServices(
   const dealsModule = createApiDealsModule({
     currencies: currenciesService,
     db,
-    ledgerBalances: ledgerModule.balances.queries,
+    inventoryPositions: treasuryModule.treasuryOrders.queries,
     paymentRouteTemplates: {
       async findById(id: string) {
         try {
@@ -634,6 +638,9 @@ export function createApplicationServices(
     partiesModule,
     currenciesService,
     treasuryModule,
+    createDealsModule: createDealsModuleForTransaction,
+    createDocumentsService: createDocumentsServiceForTransaction,
+    createLedgerModule: createLedgerModuleForTransaction,
     createTreasuryModule: createTreasuryModuleForTransaction,
     dealAttachmentIngestionWorkflow,
     dealExecutionWorkflow,

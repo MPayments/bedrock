@@ -171,6 +171,26 @@ export type ApiDealAcceptedQuote = {
   usedDocumentId: string | null;
 } | null;
 
+export type ApiDealQuoteExecutionSummary = {
+  id: string;
+  origin: {
+    planLegId?: string | null;
+    routeSnapshotLegId?: string | null;
+    sequence?: number | null;
+    type: string;
+  };
+  quoteId: string;
+  state:
+    | "cancelled"
+    | "completed"
+    | "draft"
+    | "expired"
+    | "failed"
+    | "pending"
+    | "processing";
+  updatedAt: string;
+};
+
 export type ApiDealOperationalPosition = {
   amountMinor: string | null;
   currencyId: string | null;
@@ -570,6 +590,7 @@ export type ApiDealPricingBenchmarks = {
 };
 
 export type ApiDealPricingProfitability = {
+  commercialDiscountMinor: string;
   commercialRevenueMinor: string;
   costPriceMinor: string;
   currency: string;
@@ -652,7 +673,11 @@ export type ApiQuotePreview = {
       | "customer_receivable"
       | "fee_revenue"
       | "spread_revenue"
-      | "pass_through";
+      | "pass_through"
+      | "commercial_revenue"
+      | "commercial_discount"
+      | "pass_through_reimbursement"
+      | "execution_expense";
     currency: string;
     memo?: string;
     metadata: Record<string, unknown>;
@@ -697,6 +722,22 @@ export type ApiDealFundingAdjustment = {
 };
 
 export type ApiDealPricingCommercialDraft = {
+  clientPricing: {
+    clientRate: {
+      rateDen: string;
+      rateNum: string;
+    } | null;
+    clientTotalMinor: string | null;
+    commercialFeeCurrency: string | null;
+    commercialFeeMinor: string | null;
+    discountCurrency: string | null;
+    discountMinor: string | null;
+    mode: "client_rate" | "client_total";
+    passThroughPolicy: "none" | "separate_execution_costs";
+  } | null;
+  executionSource:
+    | { type: "route_execution" }
+    | { inventoryPositionId: string; type: "treasury_inventory" };
   fixedFeeAmount: string | null;
   fixedFeeCurrency: string | null;
   quoteMarkupBps: number | null;
@@ -704,7 +745,7 @@ export type ApiDealPricingCommercialDraft = {
 
 export type ApiPaymentRouteFee = {
   amountMinor?: string;
-  chargeToCustomer: boolean;
+  application?: "deducted_from_flow" | "embedded_in_rate" | "separate_charge";
   currencyId?: string | null;
   id: string;
   kind: "fixed" | "fx_spread" | "gross_percent" | "net_percent";
@@ -758,7 +799,7 @@ export type ApiDealPricingContext = {
 export type ApiPaymentRouteCalculation = {
   additionalFees: Array<{
     amountMinor: string;
-    chargeToCustomer: boolean;
+    application: "deducted_from_flow" | "embedded_in_rate" | "separate_charge";
     currencyId: string;
     id: string;
     inputImpactCurrencyId: string;
@@ -772,13 +813,30 @@ export type ApiPaymentRouteCalculation = {
   }>;
   amountInMinor: string;
   amountOutMinor: string;
-  chargedFeeTotals: Array<{ amountMinor: string; currencyId: string }>;
+  benchmarkPrincipalInMinor: string;
   cleanAmountOutMinor: string;
-  clientTotalInMinor: string;
   computedAt: string;
   costPriceInMinor: string;
   currencyInId: string;
   currencyOutId: string;
+  deductedExecutionCostMinor: string;
+  embeddedExecutionCostMinor: string;
+  executionCostLines: Array<{
+    amountMinor: string;
+    application: "deducted_from_flow" | "embedded_in_rate" | "separate_charge";
+    currencyId: string;
+    id: string;
+    inputImpactCurrencyId: string;
+    inputImpactMinor: string;
+    kind: "fixed" | "fx_spread" | "gross_percent" | "net_percent";
+    label?: string;
+    location: "additional" | "leg";
+    outputImpactCurrencyId: string;
+    outputImpactMinor: string;
+    routeInputImpactMinor: string;
+    treatment: "execution_spread" | "flow_deduction" | "separate_expense";
+  }>;
+  executionPrincipalInMinor: string;
   feeTotals: Array<{ amountMinor: string; currencyId: string }>;
   grossAmountOutMinor: string;
   internalFeeTotals: Array<{ amountMinor: string; currencyId: string }>;
@@ -786,7 +844,7 @@ export type ApiPaymentRouteCalculation = {
     asOf: string;
     fees: Array<{
       amountMinor: string;
-      chargeToCustomer: boolean;
+      application: "deducted_from_flow" | "embedded_in_rate" | "separate_charge";
       currencyId: string;
       id: string;
       inputImpactCurrencyId: string;
@@ -811,6 +869,7 @@ export type ApiPaymentRouteCalculation = {
   }>;
   lockedSide: "currency_in" | "currency_out";
   netAmountOutMinor: string;
+  separateExecutionCostMinor: string;
 };
 
 export type ApiDealFundingPosition = {
@@ -1010,6 +1069,7 @@ export type ApiCrmDealWorkbenchProjection = {
   relatedResources: {
     attachments: ApiAttachment[];
     formalDocuments: ApiDealWorkflowProjection["relatedResources"]["formalDocuments"];
+    quoteExecutions: ApiDealQuoteExecutionSummary[];
   };
   sectionCompleteness: ApiDealSectionCompleteness[];
   summary: ApiDealWorkflowProjection["summary"] & {

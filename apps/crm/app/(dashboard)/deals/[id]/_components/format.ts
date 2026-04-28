@@ -29,12 +29,16 @@ export function decimalToMinorString(
     return null;
   }
 
-  const match = normalized.match(/^(\d+)(?:\.(\d+))?$/);
+  const match = normalized.match(/^(\d*)(?:\.(\d*))?$/);
   if (!match) {
     return null;
   }
 
-  const integerPart = match[1] ?? "0";
+  if (!/\d/u.test(normalized)) {
+    return null;
+  }
+
+  const integerPart = match[1] || "0";
   const rawFraction = match[2] ?? "";
   if (rawFraction.length > precision) {
     return null;

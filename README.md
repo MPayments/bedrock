@@ -133,7 +133,7 @@ This repo now uses a baseline-only migration chain. Legacy DB states are unsuppo
 ```bash
 bun run db:nuke
 bun run db:migrate
-bun run db:seed
+bun run db:seed:all
 ```
 
 ## Documentation Source of Truth

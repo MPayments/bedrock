@@ -1,4 +1,7 @@
-import type { ReconciliationExceptionState } from "../../contracts";
+import type {
+  ListPendingReconciliationExternalRecordIdsInput,
+  ReconciliationExceptionState,
+} from "../../contracts";
 import type { ReconciliationExternalRecordRecord } from "../records/ports";
 import type { ReconciliationRunRecord } from "../runs/ports";
 
@@ -40,26 +43,26 @@ export interface ReconciliationExceptionsQueryRepository {
 }
 
 export interface ReconciliationExceptionsTxRepository {
-  findByIdForUpdate: (id: string) => Promise<ReconciliationExceptionRecord | null>;
+  findByIdForUpdate: (
+    id: string,
+  ) => Promise<ReconciliationExceptionRecord | null>;
   createMany: (
-    input: (
-      Omit<
-        ReconciliationExceptionRecord,
-        "id" | "createdAt" | "resolvedAt" | "adjustmentDocumentId"
-      >
-    )[],
+    input: Omit<
+      ReconciliationExceptionRecord,
+      "id" | "createdAt" | "resolvedAt" | "adjustmentDocumentId"
+    >[],
   ) => Promise<void>;
   markResolved: (input: {
     id: string;
     adjustmentDocumentId: string;
     resolvedAt: Date;
   }) => Promise<void>;
-  markIgnored: (input: {
-    id: string;
-    ignoredAt: Date;
-  }) => Promise<void>;
+  markIgnored: (input: { id: string; ignoredAt: Date }) => Promise<void>;
 }
 
 export interface ReconciliationPendingSourcesPort {
   listPendingSources(batchSize: number): Promise<ReconciliationPendingSource[]>;
+  listPendingExternalRecordIds(
+    input: ListPendingReconciliationExternalRecordIdsInput,
+  ): Promise<string[]>;
 }

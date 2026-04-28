@@ -57,6 +57,19 @@ function getLegStateBadgeVariant(
   }
 }
 
+function getTimelineLegKindLabel(leg: Leg) {
+  if (
+    leg.kind === "payout" &&
+    leg.fromCurrencyId !== null &&
+    leg.toCurrencyId !== null &&
+    leg.fromCurrencyId !== leg.toCurrencyId
+  ) {
+    return "Выплата с конвертацией";
+  }
+
+  return getDealLegKindLabel(leg.kind);
+}
+
 export interface ExecutionTimelinePaneProps {
   legs: Leg[];
   selectedLegIdx: number | null;
@@ -148,7 +161,7 @@ export function ExecutionTimelinePane({
                 <div className="min-w-0 flex-1 space-y-1">
                   <div className="flex items-center justify-between gap-2">
                     <div className="truncate text-sm font-medium">
-                      {getDealLegKindLabel(leg.kind)}
+                      {getTimelineLegKindLabel(leg)}
                     </div>
                     <Badge
                       data-testid={`finance-deal-leg-state-${leg.idx}`}

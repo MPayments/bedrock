@@ -33,7 +33,6 @@ import {
   DEAL_APPROVAL_TYPE_VALUES,
   DEAL_LEG_KIND_VALUES,
   DEAL_LEG_MANUAL_OVERRIDE_VALUES,
-  DEAL_LEG_OPERATION_KIND_VALUES,
   DEAL_PARTICIPANT_ROLE_VALUES,
   DEAL_STATUS_VALUES,
   DEAL_TIMELINE_EVENT_TYPE_VALUES,
@@ -47,10 +46,6 @@ export const dealLegKindEnum = pgEnum("deal_leg_kind", DEAL_LEG_KIND_VALUES);
 export const dealLegManualOverrideEnum = pgEnum(
   "deal_leg_manual_override",
   DEAL_LEG_MANUAL_OVERRIDE_VALUES,
-);
-export const dealLegOperationKindEnum = pgEnum(
-  "deal_leg_operation_kind",
-  DEAL_LEG_OPERATION_KIND_VALUES,
 );
 export const dealAttachmentIngestionStatusEnum = pgEnum(
   "deal_attachment_ingestion_status",

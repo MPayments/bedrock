@@ -8,6 +8,7 @@ const IDS = {
   aed: "00000000-0000-4000-8000-000000000102",
   customer: "00000000-0000-4000-8000-000000000001",
   deal: "00000000-0000-4000-8000-000000000010",
+  inventoryPosition: "00000000-0000-4000-8000-000000000030",
   otherCustomer: "00000000-0000-4000-8000-000000000099",
   route: "00000000-0000-4000-8000-000000000020",
   rub: "00000000-0000-4000-8000-000000000101",
@@ -19,7 +20,7 @@ function createRouteSnapshot() {
     additionalFees: [
       {
         amountMinor: "300",
-        chargeToCustomer: false,
+        application: "separate_charge",
         currencyId: IDS.rub,
         id: "additional-internal",
         kind: "fixed",
@@ -27,7 +28,7 @@ function createRouteSnapshot() {
       },
       {
         amountMinor: "150",
-        chargeToCustomer: true,
+        application: "separate_charge",
         currencyId: IDS.rub,
         id: "additional-charged",
         kind: "fixed",
@@ -43,7 +44,6 @@ function createRouteSnapshot() {
         fees: [
           {
             amountMinor: "200",
-            chargeToCustomer: true,
             currencyId: IDS.rub,
             id: "leg-fee-charged",
             kind: "fixed",
@@ -90,7 +90,6 @@ function createRoutePreview() {
     additionalFees: [
       {
         amountMinor: "300",
-        chargeToCustomer: false,
         currencyId: IDS.rub,
         id: "additional-internal",
         inputImpactCurrencyId: IDS.rub,
@@ -103,7 +102,6 @@ function createRoutePreview() {
       },
       {
         amountMinor: "150",
-        chargeToCustomer: true,
         currencyId: IDS.rub,
         id: "additional-charged",
         inputImpactCurrencyId: IDS.rub,
@@ -117,18 +115,62 @@ function createRoutePreview() {
     ],
     amountInMinor: "79005226",
     amountOutMinor: "101819387",
-    chargedFeeTotals: [
-      {
-        amountMinor: "350",
-        currencyId: IDS.rub,
-      },
-    ],
+    benchmarkPrincipalInMinor: "79005026",
     cleanAmountOutMinor: "101819387",
-    clientTotalInMinor: "79005376",
     computedAt: "2026-04-19T09:58:00.000Z",
     costPriceInMinor: "79005676",
     currencyInId: IDS.rub,
     currencyOutId: IDS.usd,
+    deductedExecutionCostMinor: "200",
+    embeddedExecutionCostMinor: "0",
+    executionCostLines: [
+      {
+        amountMinor: "300",
+        application: "separate_charge",
+        currencyId: IDS.rub,
+        id: "additional-internal",
+        inputImpactCurrencyId: IDS.rub,
+        inputImpactMinor: "300",
+        kind: "fixed",
+        label: "Internal ops fee",
+        location: "additional",
+        outputImpactCurrencyId: IDS.usd,
+        outputImpactMinor: "4",
+        routeInputImpactMinor: "300",
+        treatment: "separate_expense",
+      },
+      {
+        amountMinor: "150",
+        application: "separate_charge",
+        currencyId: IDS.rub,
+        id: "additional-charged",
+        inputImpactCurrencyId: IDS.rub,
+        inputImpactMinor: "150",
+        kind: "fixed",
+        label: "Client service fee",
+        location: "additional",
+        outputImpactCurrencyId: IDS.usd,
+        outputImpactMinor: "2",
+        routeInputImpactMinor: "150",
+        treatment: "separate_expense",
+      },
+      {
+        amountMinor: "200",
+        application: "deducted_from_flow",
+        currencyId: IDS.rub,
+        id: "leg-fee-charged",
+        inputImpactCurrencyId: IDS.rub,
+        inputImpactMinor: "200",
+        kind: "fixed",
+        label: "Bank fee",
+        location: "leg",
+        outputImpactCurrencyId: IDS.aed,
+        outputImpactMinor: "947",
+        routeInputImpactMinor: "200",
+        treatment: "flow_deduction",
+      },
+    ],
+    executionPrincipalInMinor: "79005226",
     feeTotals: [
       {
         amountMinor: "650",
@@ -138,7 +180,7 @@ function createRoutePreview() {
     grossAmountOutMinor: "101819387",
     internalFeeTotals: [
       {
-        amountMinor: "300",
+        amountMinor: "650",
         currencyId: IDS.rub,
       },
     ],
@@ -148,7 +190,7 @@ function createRoutePreview() {
         fees: [
           {
             amountMinor: "200",
-            chargeToCustomer: true,
+            application: "deducted_from_flow",
             currencyId: IDS.rub,
             id: "leg-fee-charged",
             inputImpactCurrencyId: IDS.rub,
@@ -188,6 +230,7 @@ function createRoutePreview() {
     ],
     lockedSide: "currency_in",
     netAmountOutMinor: "101819387",
+    separateExecutionCostMinor: "450",
   } as const;
 }
 
@@ -534,6 +577,20 @@ function createDeps(overrides?: {
           previewQuote: vi.fn(async () => quotePreview),
         },
       },
+      treasuryOrders: {
+        commands: {
+          reserveInventoryAllocation: vi.fn(),
+        },
+        queries: {
+          findInventoryPositionById: vi.fn(async () => null),
+          listInventoryPositions: vi.fn(async () => ({
+            data: [],
+            limit: 50,
+            offset: 0,
+            total: 0,
+          })),
+        },
+      },
     },
   };
 
@@ -588,7 +645,7 @@ describe("deal pricing workflow", () => {
     ]);
   });
 
-  it("builds explicit-route quote previews with customer and internal route fee lines", async () => {
+  it("builds explicit-route quote previews with separate execution cost lines", async () => {
     const { deps, routePreview } = createDeps();
     const workflow = createDealPricingWorkflow(deps as any);
 
@@ -612,10 +669,10 @@ describe("deal pricing workflow", () => {
     expect(deps.treasury.quotes.queries.previewQuote).toHaveBeenCalledWith(
       expect.objectContaining({
         commercialTerms: expect.objectContaining({
-          agreementFeeBps: "125",
-          fixedFeeAmount: "15.00",
-          fixedFeeCurrency: "USD",
-          quoteMarkupBps: "25",
+          agreementFeeBps: "0",
+          fixedFeeAmount: null,
+          fixedFeeCurrency: null,
+          quoteMarkupBps: "0",
         }),
         fromCurrency: "RUB",
         legs: [
@@ -632,31 +689,23 @@ describe("deal pricing workflow", () => {
         ],
         manualFinancialLines: expect.arrayContaining([
           expect.objectContaining({
-            amountMinor: 150n,
-            bucket: "pass_through",
-            currency: "RUB",
-            metadata: expect.objectContaining({
-              embeddedInRoute: "false",
-              paymentRouteFeeId: "additional-charged",
-            }),
-          }),
-          expect.objectContaining({
             amountMinor: 300n,
-            bucket: "provider_fee_expense",
+            bucket: "execution_expense",
             currency: "RUB",
             metadata: expect.objectContaining({
-              embeddedInRoute: "false",
+              paymentRouteCostApplication: "separate_charge",
+              paymentRouteCostTreatment: "separate_expense",
               paymentRouteFeeId: "additional-internal",
             }),
           }),
           expect.objectContaining({
-            amountMinor: 200n,
-            bucket: "pass_through",
+            amountMinor: 150n,
+            bucket: "execution_expense",
             currency: "RUB",
             metadata: expect.objectContaining({
-              embeddedInRoute: "true",
-              paymentRouteFeeId: "leg-fee-charged",
-              paymentRouteFeeLocation: "leg",
+              paymentRouteCostApplication: "separate_charge",
+              paymentRouteCostTreatment: "separate_expense",
+              paymentRouteFeeId: "additional-charged",
             }),
           }),
         ]),
@@ -704,8 +753,9 @@ describe("deal pricing workflow", () => {
       },
       pricingMode: "explicit_route",
       profitability: expect.objectContaining({
-        commercialRevenueMinor: "197513",
-        passThroughMinor: "150",
+        commercialRevenueMinor: "0",
+        passThroughMinor: "0",
+        profitMinor: "0",
       }),
       routePreview,
     });
@@ -721,8 +771,8 @@ describe("deal pricing workflow", () => {
         adjustmentTotalMinor: "128943093",
         currencyCode: "RUB",
         currencyId: IDS.rub,
-        netFundingNeedMinor: "-49937867",
-        requiredMinor: "79005226",
+        netFundingNeedMinor: "-49937417",
+        requiredMinor: "79005676",
       },
       {
         adjustmentTotalMinor: "0",
@@ -754,10 +804,10 @@ describe("deal pricing workflow", () => {
     expect(deps.treasury.quotes.queries.previewQuote).toHaveBeenCalledWith(
       expect.objectContaining({
         commercialTerms: expect.objectContaining({
-          agreementFeeBps: "125",
-          fixedFeeAmount: "15.00",
-          fixedFeeCurrency: "USD",
-          quoteMarkupBps: "25",
+          agreementFeeBps: "0",
+          fixedFeeAmount: null,
+          fixedFeeCurrency: null,
+          quoteMarkupBps: "0",
         }),
         fromAmountMinor: 100000n,
         fromCurrency: "RUB",
@@ -806,7 +856,8 @@ describe("deal pricing workflow", () => {
       },
       pricingMode: "auto_cross",
       profitability: expect.objectContaining({
-        commercialRevenueMinor: "197513",
+        commercialRevenueMinor: "0",
+        profitMinor: "0",
       }),
       quotePreview,
       routePreview: null,
@@ -854,6 +905,131 @@ describe("deal pricing workflow", () => {
               }),
               formulaTrace: expect.objectContaining({
                 sections: expect.any(Array),
+              }),
+            }),
+          }),
+        }),
+      }),
+    );
+  });
+
+  it("treats client_total pricing as the final customer debit", async () => {
+    const { deps } = createDeps();
+    const workflow = createDealPricingWorkflow(deps as any);
+
+    await workflow.createQuote({
+      amountMinor: "79005226",
+      amountSide: "source",
+      asOf: new Date("2026-04-19T09:58:00.000Z"),
+      clientPricing: {
+        clientRate: null,
+        clientTotalMinor: "1000",
+        commercialFeeCurrency: null,
+        commercialFeeMinor: "50",
+        discountCurrency: null,
+        discountMinor: "10",
+        mode: "client_total",
+        passThroughPolicy: "separate_execution_costs",
+      },
+      dealId: IDS.deal,
+      expectedRevision: 3,
+      idempotencyKey: "idem-client-total",
+    });
+
+    expect(deps.treasury.quotes.commands.createQuote).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pricingTrace: expect.objectContaining({
+          metadata: expect.objectContaining({
+            crmPricingSnapshot: expect.objectContaining({
+              clientSide: expect.objectContaining({
+                clientPrincipalMinor: "510",
+                clientRate: {
+                  rateDen: "510",
+                  rateNum: "101819387",
+                },
+                commercialFeeMinor: "50",
+                customerTotalMinor: "1000",
+                discountMinor: "10",
+                passThroughMinor: "450",
+                pricingMode: "client_total",
+              }),
+            }),
+          }),
+        }),
+      }),
+    );
+  });
+
+  it("rejects client_total pricing below mandatory adjustments", async () => {
+    const { deps } = createDeps();
+    const workflow = createDealPricingWorkflow(deps as any);
+
+    await expect(
+      workflow.preview({
+        amountMinor: "79005226",
+        amountSide: "source",
+        asOf: new Date("2026-04-19T09:58:00.000Z"),
+        clientPricing: {
+          clientRate: null,
+          clientTotalMinor: "40",
+          commercialFeeCurrency: null,
+          commercialFeeMinor: "50",
+          discountCurrency: null,
+          discountMinor: null,
+          mode: "client_total",
+          passThroughPolicy: "separate_execution_costs",
+        },
+        dealId: IDS.deal,
+        expectedRevision: 3,
+      }),
+    ).rejects.toThrow(/Customer total is lower/u);
+  });
+
+  it("prices inventory execution without reserving inventory during quote creation", async () => {
+    const { deps } = createDeps();
+    deps.treasury.treasuryOrders.queries.findInventoryPositionById = vi.fn(
+      async () => ({
+        acquiredAmountMinor: 1_100_000n,
+        availableAmountMinor: 500_000n,
+        costAmountMinor: 900_000n,
+        costCurrencyId: IDS.rub,
+        createdAt: new Date("2026-04-19T08:00:00.000Z"),
+        currencyId: IDS.usd,
+        id: IDS.inventoryPosition,
+        ownerPartyId: IDS.customer,
+        ownerRequisiteId: null,
+        sourceOrderId: "00000000-0000-4000-8000-000000000040",
+        sourceQuoteExecutionId: "00000000-0000-4000-8000-000000000041",
+        state: "open" as const,
+        updatedAt: new Date("2026-04-19T08:00:00.000Z"),
+      }),
+    );
+    const workflow = createDealPricingWorkflow(deps as any);
+
+    await workflow.createQuote({
+      amountMinor: "101819387",
+      amountSide: "target",
+      asOf: new Date("2026-04-19T09:58:00.000Z"),
+      dealId: IDS.deal,
+      executionSource: {
+        inventoryPositionId: IDS.inventoryPosition,
+        type: "treasury_inventory",
+      },
+      expectedRevision: 3,
+      idempotencyKey: "idem-inventory",
+    });
+
+    expect(
+      deps.treasury.treasuryOrders.commands.reserveInventoryAllocation,
+    ).not.toHaveBeenCalled();
+    expect(deps.treasury.quotes.commands.createQuote).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pricingTrace: expect.objectContaining({
+          metadata: expect.objectContaining({
+            crmPricingSnapshot: expect.objectContaining({
+              executionSide: expect.objectContaining({
+                inventoryPositionId: IDS.inventoryPosition,
+                source: "treasury_inventory",
               }),
             }),
           }),

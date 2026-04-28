@@ -24,7 +24,7 @@
 # Deployment:
 #   1. docker compose pull             # fetch latest images from ghcr
 #   2. docker compose up db-migrate    # apply migrations
-#   3. docker compose up db-seed       # managed production-use seed
+#   3. docker compose up db-seed       # required production-safe seed
 #   4. docker compose up -d tigerbeetle api finance crm portal workers
 #   5. docker compose up -d drizzle-gateway
 #
@@ -124,7 +124,7 @@ services:
   db-seed:
     image: ghcr.io/mpayments/bedrock-db:${IMAGE_TAG:-latest}
     container_name: bedrock-db-seed
-    command: ["node", "--import=tsx", "src/seeds/run-all.ts"]
+    command: ["node", "--import=tsx", "src/seeds/run-required.ts"]
     depends_on:
       db-migrate:
         condition: service_completed_successfully
@@ -143,6 +143,11 @@ services:
       S3_ACCESS_KEY: ${S3_ACCESS_KEY:-rustfsadmin}
       S3_SECRET_KEY: ${S3_SECRET_KEY:-rustfsadmin}
       S3_BUCKET: ${S3_BUCKET:-bedrock-documents}
+      BEDROCK_BOOTSTRAP_ADMIN_EMAIL: ${BEDROCK_BOOTSTRAP_ADMIN_EMAIL:-}
+      BEDROCK_BOOTSTRAP_ADMIN_PASSWORD: ${BEDROCK_BOOTSTRAP_ADMIN_PASSWORD:-}
+      BEDROCK_BOOTSTRAP_ADMIN_NAME: ${BEDROCK_BOOTSTRAP_ADMIN_NAME:-Admin}
+      BEDROCK_BOOTSTRAP_ADMIN_ID: ${BEDROCK_BOOTSTRAP_ADMIN_ID:-}
+      NODE_ENV: production
     networks:
       - dokploy-network
     restart: "no"

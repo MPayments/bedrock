@@ -3,6 +3,7 @@ import type { Context } from "hono";
 
 import { ActionReceiptConflictError } from "@bedrock/platform/idempotency-postgres";
 import type { Transaction } from "@bedrock/platform/persistence";
+import { minorToAmountString } from "@bedrock/shared/money";
 import type { TreasuryModule } from "@bedrock/treasury";
 import {
   PaymentStepPartyRefSchema,
@@ -14,7 +15,10 @@ import { ErrorSchema } from "../common";
 import { handleRouteError } from "../common/errors";
 import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";
-import { withRequiredIdempotency } from "../middleware/idempotency";
+import {
+  getRequestContext,
+  withRequiredIdempotency,
+} from "../middleware/idempotency";
 import { requirePermission } from "../middleware/permission";
 
 type TreasuryQuoteExecutionsContext = Context<{ Variables: AuthVariables }>;
@@ -128,6 +132,74 @@ function serializeQuoteExecution(
     treasuryOrderId: execution.treasuryOrderId,
     updatedAt: serializeDate(execution.updatedAt),
   };
+}
+
+async function createAndPostFxExecuteDocument(input: {
+  actorUserId: string;
+  ctx: AppContext;
+  execution: QuoteExecution;
+  requestContext: ReturnType<typeof getRequestContext>;
+  tx: Transaction;
+}) {
+  const existingRef = input.execution.postingDocumentRefs.find(
+    (ref) => ref.kind === "fx_execute",
+  );
+  if (existingRef) {
+    return existingRef.documentId;
+  }
+
+  const debitRequisiteId =
+    input.execution.executionParties?.debitParty.requisiteId;
+  const creditRequisiteId =
+    input.execution.executionParties?.creditParty.requisiteId;
+  if (!debitRequisiteId || !creditRequisiteId) {
+    throw new Error("FX execution requires debit and credit requisites");
+  }
+
+  const fromCurrency = await input.ctx.currenciesService.findById(
+    input.execution.fromCurrencyId,
+  );
+  const documents = input.ctx.createDocumentsService(input.tx);
+  const ledgerModule = input.ctx.createLedgerModule(input.tx);
+  const documentIdempotencyKey = `treasury_quote_execution:${input.execution.id}:fx_execute`;
+  const document = await documents.createDraft({
+    actorUserId: input.actorUserId,
+    createIdempotencyKey: documentIdempotencyKey,
+    dealId: input.execution.dealId ?? undefined,
+    docType: "fx_execute",
+    payload: {
+      amount: minorToAmountString(input.execution.fromAmountMinor, {
+        currency: fromCurrency.code,
+      }),
+      currency: fromCurrency.code,
+      destinationRequisiteId: creditRequisiteId,
+      executionRef: input.execution.providerRef ?? input.execution.id,
+      financialLines: [],
+      memo: `Quote execution ${input.execution.id}`,
+      occurredAt: input.execution.completedAt ?? new Date(),
+      quoteId: input.execution.quoteId,
+      sourceRequisiteId: debitRequisiteId,
+    },
+    requestContext: input.requestContext,
+  });
+  const postIdempotencyKey = `${documentIdempotencyKey}:post`;
+  const prepared = await documents.actions.prepare({
+    action: "post",
+    actorUserId: input.actorUserId,
+    docType: "fx_execute",
+    documentId: document.document.id,
+    idempotencyKey: postIdempotencyKey,
+    requestContext: input.requestContext,
+  });
+  const ledgerResult = await ledgerModule.operations.commands.commit(
+    prepared.resolved!.intent,
+  );
+  const posted = await documents.actions.finalizeSuccess({
+    operationId: ledgerResult.operationId,
+    prepared,
+  });
+
+  return posted.document.id;
 }
 
 function resolveQuoteExecutionsModule(
@@ -437,16 +509,117 @@ export function treasuryQuoteExecutionsRoutes(ctx: AppContext) {
       try {
         const { executionId } = c.req.valid("param");
         const body = c.req.valid("json");
-        const result = await runIdempotentQuoteExecutionMutation(ctx, c, {
-          action: "confirm",
-          request: { ...body, executionId },
-          run: (quoteExecutions) =>
-            quoteExecutions.commands.confirm({
-              executionId,
-              failureReason: body.failureReason,
-              outcome: body.outcome,
+        const result = await withRequiredIdempotency(c, (idempotencyKey) =>
+          ctx.persistence.runInTransaction((tx) =>
+            ctx.idempotency.withIdempotencyTx<
+              QuoteExecutionResponse,
+              QuoteExecutionResponse
+            >({
+              actorId: c.get("user")!.id,
+              handler: async () => {
+                const treasuryModule = ctx.createTreasuryModule(tx);
+                let execution =
+                  await treasuryModule.quoteExecutions.commands.confirm({
+                    executionId,
+                    failureReason: body.failureReason,
+                    outcome: body.outcome,
+                  });
+                if (body.outcome === "settled" && execution.treasuryOrderId) {
+                  const order =
+                    await treasuryModule.treasuryOrders.queries.findById({
+                      orderId: execution.treasuryOrderId,
+                    });
+                  if (
+                    order?.type === "fx_exchange" ||
+                    order?.type === "liquidity_purchase"
+                  ) {
+                    const documentId = await createAndPostFxExecuteDocument({
+                      actorUserId: c.get("user")!.id,
+                      ctx,
+                      execution,
+                      requestContext: getRequestContext(c),
+                      tx,
+                    });
+                    execution =
+                      await treasuryModule.quoteExecutions.commands.attachPosting(
+                        {
+                          documentId,
+                          executionId,
+                          kind: "fx_execute",
+                        },
+                      );
+                  }
+                  if (order?.type === "liquidity_purchase") {
+                    const creditRequisiteId =
+                      execution.executionParties?.creditParty.requisiteId;
+                    if (!creditRequisiteId) {
+                      throw new Error(
+                        "Liquidity purchase requires credit requisite",
+                      );
+                    }
+                    const [creditBinding] =
+                      await ctx.partiesModule.requisites.queries.resolveBindings(
+                        { requisiteIds: [creditRequisiteId] },
+                      );
+                    if (!creditBinding) {
+                      throw new Error(
+                        "Liquidity purchase credit requisite binding is missing",
+                      );
+                    }
+                    const sourcePostingDocumentId =
+                      execution.postingDocumentRefs.find(
+                        (ref) => ref.kind === "fx_execute",
+                      )?.documentId;
+                    if (!sourcePostingDocumentId) {
+                      throw new Error(
+                        "Liquidity purchase requires posted fx_execute document",
+                      );
+                    }
+                    const toCurrency = await ctx.currenciesService.findById(
+                      execution.toCurrencyId,
+                    );
+                    const balance = await ctx
+                      .createLedgerModule(tx)
+                      .balances.queries.getBalance({
+                        bookId: creditBinding.bookId,
+                        currency: toCurrency.code,
+                        subjectId: creditRequisiteId,
+                        subjectType: "organization_requisite",
+                      });
+                    if (balance.available < execution.toAmountMinor) {
+                      throw new Error(
+                        "Liquidity purchase posted balance is lower than acquired inventory amount",
+                      );
+                    }
+                    await treasuryModule.treasuryOrders.commands.createInventoryPositionFromQuoteExecution(
+                      {
+                        executionId,
+                        ownerBookId: creditBinding.bookId,
+                        sourcePostingDocumentId,
+                        sourcePostingDocumentKind: "fx_execute",
+                      },
+                    );
+                  }
+                }
+                return serializeQuoteExecution(execution);
+              },
+              idempotencyKey,
+              loadReplayResult: async ({ storedResult }) => {
+                if (!storedResult) {
+                  throw new ActionReceiptConflictError(
+                    "treasury.quote_executions.confirm",
+                    idempotencyKey,
+                  );
+                }
+                return storedResult;
+              },
+              request: { ...body, executionId },
+              scope: "treasury.quote_executions.confirm",
+              serializeResult: (execution) => execution,
+              tx,
             }),
-        });
+          ),
+        );
         if (result instanceof Response) return result;
         return c.json(result, 200);
       } catch (error) {

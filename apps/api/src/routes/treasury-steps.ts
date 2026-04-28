@@ -21,7 +21,10 @@ import { ErrorSchema } from "../common";
 import { handleRouteError } from "../common/errors";
 import type { AppContext } from "../context";
 import type { AuthVariables } from "../middleware/auth";
-import { withRequiredIdempotency } from "../middleware/idempotency";
+import {
+  getRequestContext,
+  withRequiredIdempotency,
+} from "../middleware/idempotency";
 import { requirePermission } from "../middleware/permission";
 
 type TreasuryStepsContext = Context<{ Variables: AuthVariables }>;
@@ -273,7 +276,11 @@ async function runIdempotentStepMutation(
   input: {
     action: string;
     request: Record<string, unknown>;
-    run: (paymentSteps: TreasuryModule["paymentSteps"]) => Promise<PaymentStep>;
+    run: (
+      paymentSteps: TreasuryModule["paymentSteps"],
+      tx: Transaction,
+      idempotencyKey: string,
+    ) => Promise<PaymentStep>;
   },
 ): Promise<PaymentStepResponse | Response> {
   const scope = `treasury.payment_steps.${input.action}`;
@@ -286,7 +293,11 @@ async function runIdempotentStepMutation(
         actorId: c.get("user")!.id,
         handler: async () =>
           serializePaymentStep(
-            await input.run(resolvePaymentStepsModule(ctx, tx)),
+            await input.run(
+              resolvePaymentStepsModule(ctx, tx),
+              tx,
+              idempotencyKey,
+            ),
           ),
         idempotencyKey,
         loadReplayResult: async ({ storedResult }) => {
@@ -305,6 +316,117 @@ async function runIdempotentStepMutation(
   );
 
   return result;
+}
+
+async function findReservedAllocationForDeal(input: {
+  ctx: AppContext;
+  dealId: string;
+  tx: Transaction;
+}) {
+  const treasuryOrders = input.ctx.createTreasuryModule(input.tx).treasuryOrders;
+  const allocations = await treasuryOrders.queries.listInventoryAllocations({
+    dealId: input.dealId,
+    limit: 2,
+    offset: 0,
+    state: "reserved",
+  });
+  return allocations.data[0] ?? null;
+}
+
+async function consumeInventoryForCompletedPayout(input: {
+  actorUserId: string;
+  ctx: AppContext;
+  idempotencyKey: string;
+  requestContext: ReturnType<typeof getRequestContext>;
+  step: PaymentStep;
+  tx: Transaction;
+}) {
+  if (
+    input.step.kind !== "payout" ||
+    input.step.state !== "completed" ||
+    input.step.origin.type !== "deal_execution_leg" ||
+    !input.step.dealId
+  ) {
+    return;
+  }
+  const allocation = await findReservedAllocationForDeal({
+    ctx: input.ctx,
+    dealId: input.step.dealId,
+    tx: input.tx,
+  });
+  if (!allocation) {
+    return;
+  }
+  const currency = await input.ctx.currenciesService.findById(
+    allocation.currencyId,
+  );
+  const ledgerModule = input.ctx.createLedgerModule(input.tx);
+  await ledgerModule.balances.commands.consume({
+    actorId: input.actorUserId,
+    holdRef: allocation.ledgerHoldRef,
+    idempotencyKey: `${input.idempotencyKey}:inventory-balance-consume`,
+    reason: `Consume treasury inventory for deal ${input.step.dealId}`,
+    requestContext: input.requestContext,
+    subject: {
+      bookId: allocation.ownerBookId,
+      currency: currency.code,
+      subjectId: allocation.ownerRequisiteId,
+      subjectType: "organization_requisite",
+    },
+  });
+  await input.ctx
+    .createTreasuryModule(input.tx)
+    .treasuryOrders.commands.consumeInventoryAllocation({
+      allocationId: allocation.id,
+    });
+}
+
+async function releaseInventoryForCancelledPayout(input: {
+  actorUserId: string;
+  ctx: AppContext;
+  idempotencyKey: string;
+  requestContext: ReturnType<typeof getRequestContext>;
+  step: PaymentStep;
+  tx: Transaction;
+}) {
+  if (
+    input.step.kind !== "payout" ||
+    input.step.state !== "cancelled" ||
+    input.step.origin.type !== "deal_execution_leg" ||
+    !input.step.dealId
+  ) {
+    return;
+  }
+  const allocation = await findReservedAllocationForDeal({
+    ctx: input.ctx,
+    dealId: input.step.dealId,
+    tx: input.tx,
+  });
+  if (!allocation) {
+    return;
+  }
+  const currency = await input.ctx.currenciesService.findById(
+    allocation.currencyId,
+  );
+  const ledgerModule = input.ctx.createLedgerModule(input.tx);
+  await ledgerModule.balances.commands.release({
+    actorId: input.actorUserId,
+    holdRef: allocation.ledgerHoldRef,
+    idempotencyKey: `${input.idempotencyKey}:inventory-balance-release`,
+    reason: `Release treasury inventory for deal ${input.step.dealId}`,
+    requestContext: input.requestContext,
+    subject: {
+      bookId: allocation.ownerBookId,
+      currency: currency.code,
+      subjectId: allocation.ownerRequisiteId,
+      subjectType: "organization_requisite",
+    },
+  });
+  await input.ctx
+    .createTreasuryModule(input.tx)
+    .treasuryOrders.commands.releaseInventoryAllocation({
+      allocationId: allocation.id,
+    });
 }
 
 export function treasuryStepsRoutes(ctx: AppContext) {
@@ -897,11 +1019,21 @@ export function treasuryStepsRoutes(ctx: AppContext) {
         const result = await runIdempotentStepMutation(ctx, c, {
           action: "confirm",
           request: { body, stepId },
-          run: (paymentSteps) =>
-            paymentSteps.commands.confirm({
+          run: async (paymentSteps, tx, idempotencyKey) => {
+            const step = await paymentSteps.commands.confirm({
               ...body,
               stepId,
-            }),
+            });
+            await consumeInventoryForCompletedPayout({
+              actorUserId: c.get("user")!.id,
+              ctx,
+              idempotencyKey,
+              requestContext: getRequestContext(c),
+              step,
+              tx,
+            });
+            return step;
+          },
         });
 
         return result instanceof Response ? result : c.json(result, 200);
@@ -934,7 +1066,18 @@ export function treasuryStepsRoutes(ctx: AppContext) {
         const result = await runIdempotentStepMutation(ctx, c, {
           action: "cancel",
           request: { stepId },
-          run: (paymentSteps) => paymentSteps.commands.cancel({ stepId }),
+          run: async (paymentSteps, tx, idempotencyKey) => {
+            const step = await paymentSteps.commands.cancel({ stepId });
+            await releaseInventoryForCancelledPayout({
+              actorUserId: c.get("user")!.id,
+              ctx,
+              idempotencyKey,
+              requestContext: getRequestContext(c),
+              step,
+              tx,
+            });
+            return step;
+          },
         });
 
         return result instanceof Response ? result : c.json(result, 200);

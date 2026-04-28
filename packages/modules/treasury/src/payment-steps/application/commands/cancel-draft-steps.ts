@@ -3,7 +3,7 @@ import { z } from "zod";
 import { loadPaymentStep } from "./shared";
 import type { PaymentStepsServiceContext } from "../context";
 
-export const CancelDraftPaymentStepsInputSchema = z.object({
+const CancelDraftPaymentStepsInputSchema = z.object({
   actorUserId: z.string().trim().min(1),
   dealId: z.uuid(),
 });

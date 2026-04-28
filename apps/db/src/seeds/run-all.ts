@@ -1,24 +1,8 @@
-const { seedAccounting } = await import("./accounting");
-const { seedBicDirectory } = await import("./bic-directory");
-const { seedRequisites } = await import("./requisites");
 const { loadSeedDatabase } = await import("./runtime");
+const { createDefaultSeedOrchestrator } = await import("./orchestrator");
 
 const db = await loadSeedDatabase();
+const seeds = createDefaultSeedOrchestrator();
 
-console.log("[seed] Starting managed database seed...\n");
-
-console.log("[seed] 1/3 Accounting (CoA, policies, correspondence rules)");
-await seedAccounting(db);
-
-console.log(
-  "[seed] 2/3 CBR BIC directory (Russian bank reference data)",
-);
-await seedBicDirectory(db);
-
-console.log(
-  "[seed] 3/3 Managed parties, organizations, banks, requisites, currencies",
-);
-await seedRequisites(db);
-
-console.log("\n[seed] Done.");
+await seeds.seedAll(db);
 process.exit(0);

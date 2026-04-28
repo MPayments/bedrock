@@ -15,7 +15,6 @@ import {
   DrizzleDealsUnitOfWork,
 } from "@bedrock/deals/adapters/drizzle";
 import { createDrizzleDocumentsReadModel } from "@bedrock/documents/read-model";
-import type { OrganizationRequisiteLiquidityQueryRow } from "@bedrock/ledger/contracts";
 import { DrizzleCounterpartyReads, DrizzleCustomerReads } from "@bedrock/parties/adapters/drizzle";
 import { createPartiesQueries } from "@bedrock/parties/queries";
 import type { IdempotencyPort } from "@bedrock/platform/idempotency";
@@ -28,56 +27,19 @@ import {
 import type {
   PaymentRouteDraft,
   QuoteDetailsRecord,
+  TreasuryInventoryPosition,
 } from "@bedrock/treasury/contracts";
-
-function getMostLiquidRow(
-  rows: OrganizationRequisiteLiquidityQueryRow[],
-): OrganizationRequisiteLiquidityQueryRow | null {
-  let mostLiquidRow: OrganizationRequisiteLiquidityQueryRow | null = null;
-  let maxAvailableMinor = 0n;
-
-  for (const row of rows) {
-    const availableMinor = BigInt(row.availableMinor);
-
-    if (!mostLiquidRow || availableMinor > maxAvailableMinor) {
-      mostLiquidRow = row;
-      maxAvailableMinor = availableMinor;
-    }
-  }
-
-  return mostLiquidRow;
-}
-
-function getCoveringLiquidityRow(input: {
-  requiredAmountMinor: bigint;
-  rows: OrganizationRequisiteLiquidityQueryRow[];
-}) {
-  let coveringRow: OrganizationRequisiteLiquidityQueryRow | null = null;
-  let maxAvailableMinor = 0n;
-
-  for (const row of input.rows) {
-    const availableMinor = BigInt(row.availableMinor);
-
-    if (availableMinor < input.requiredAmountMinor) {
-      continue;
-    }
-
-    if (!coveringRow || availableMinor > maxAvailableMinor) {
-      coveringRow = row;
-      maxAvailableMinor = availableMinor;
-    }
-  }
-
-  return coveringRow;
-}
 
 function createDealFundingAssessmentPort(input: {
   currencies: Pick<CurrenciesService, "findById">;
-  ledgerBalances: {
-    listOrganizationRequisiteLiquidityRows(input: {
-      organizationIds: string[];
-      currency?: string;
-    }): Promise<OrganizationRequisiteLiquidityQueryRow[]>;
+  inventoryPositions: {
+    listInventoryPositions(input: {
+      currencyId?: string;
+      limit: number;
+      offset: number;
+      ownerPartyId?: string;
+      state?: "open" | "exhausted" | "cancelled";
+    }): Promise<{ data: TreasuryInventoryPosition[] }>;
   };
   quoteReads: {
     getQuoteDetails(input: {
@@ -164,32 +126,43 @@ function createDealFundingAssessmentPort(input: {
       const requiredAmountMinor = quoteDetails.quote.toAmountMinor;
       const targetCurrencyId = quoteDetails.quote.toCurrencyId;
       const targetCurrency = quoteDetails.quote.toCurrency ?? null;
-      const liquidityRows =
-        await input.ledgerBalances.listOrganizationRequisiteLiquidityRows({
-          currency: targetCurrency ?? undefined,
-          organizationIds: [inputParams.internalEntityOrganizationId],
+      const inventory =
+        await input.inventoryPositions.listInventoryPositions({
+          currencyId: targetCurrencyId,
+          limit: 100,
+          offset: 0,
+          ownerPartyId: inputParams.internalEntityOrganizationId,
+          state: "open",
         });
-      const matchingRows = liquidityRows.filter(
-        (row) =>
-          row.organizationId === inputParams.internalEntityOrganizationId &&
-          row.currency === targetCurrency,
-      );
-      const coveringRow = getCoveringLiquidityRow({
-        requiredAmountMinor,
-        rows: matchingRows,
-      });
-      const mostLiquidRow = getMostLiquidRow(matchingRows);
+      const positions = inventory.data;
+      const coveringPosition =
+        positions.find(
+          (position) => position.availableAmountMinor >= requiredAmountMinor,
+        ) ?? null;
+      const mostLiquidPosition =
+        positions
+          .slice()
+          .sort((left, right) =>
+            left.availableAmountMinor === right.availableAmountMinor
+              ? 0
+              : left.availableAmountMinor > right.availableAmountMinor
+                ? -1
+                : 1,
+          )[0] ?? null;
 
       return {
-        availableMinor: mostLiquidRow?.availableMinor ?? null,
+        availableMinor:
+          mostLiquidPosition?.availableAmountMinor.toString() ?? null,
         fundingOrganizationId: inputParams.internalEntityOrganizationId,
-        fundingRequisiteId: coveringRow?.requisiteId ?? null,
-        reasonCode: coveringRow
+        fundingRequisiteId: coveringPosition?.ownerRequisiteId ?? null,
+        reasonCode: coveringPosition
           ? "inventory_available"
           : "inventory_insufficient",
         requiredAmountMinor: requiredAmountMinor.toString(),
         state: "resolved" as const,
-        strategy: coveringRow ? ("existing_inventory" as const) : ("external_fx" as const),
+        strategy: coveringPosition
+          ? ("existing_inventory" as const)
+          : ("external_fx" as const),
         targetCurrency,
         targetCurrencyId,
       };
@@ -202,11 +175,14 @@ export function createApiDealsModule(input: {
   db: Database;
   generateUuid?: DealsModuleDeps["generateUuid"];
   idempotency: IdempotencyPort;
-  ledgerBalances: {
-    listOrganizationRequisiteLiquidityRows(input: {
-      organizationIds: string[];
-      currency?: string;
-    }): Promise<OrganizationRequisiteLiquidityQueryRow[]>;
+  inventoryPositions: {
+    listInventoryPositions(input: {
+      currencyId?: string;
+      limit: number;
+      offset: number;
+      ownerPartyId?: string;
+      state?: "open" | "exhausted" | "cancelled";
+    }): Promise<{ data: TreasuryInventoryPosition[] }>;
   };
   logger: Logger;
   now?: DealsModuleDeps["now"];
@@ -245,7 +221,7 @@ export function createApiDealsModule(input: {
   const documentsReadModel = createDrizzleDocumentsReadModel({ db: input.db });
   const fundingAssessment = createDealFundingAssessmentPort({
     currencies: input.currencies,
-    ledgerBalances: input.ledgerBalances,
+    inventoryPositions: input.inventoryPositions,
     quoteReads: input.quoteReads,
   });
   const agreementReadsWithCurrencies = new DrizzleAgreementReads(

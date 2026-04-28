@@ -35,6 +35,10 @@ export type SwapDealRouteTemplateCommandInput = SwapDealRouteTemplateInput & {
   dealId: string;
 };
 
+function routeSnapshotsEqual(left: unknown, right: unknown): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
 export class SwapDealRouteTemplateCommand {
   constructor(
     private readonly runtime: ModuleRuntime,
@@ -89,16 +93,20 @@ export class SwapDealRouteTemplateCommand {
       const currentTemplateId =
         existing.routeAttachment?.templateId ?? null;
 
-      if (currentTemplateId === validated.newRouteTemplateId) {
-        return workflow;
-      }
-
       const template = await findRouteTemplate(validated.newRouteTemplateId);
       if (!template) {
         throw new NotFoundError(
           "PaymentRouteTemplate",
           validated.newRouteTemplateId,
         );
+      }
+
+      if (
+        currentTemplateId === validated.newRouteTemplateId &&
+        existing.routeAttachment &&
+        routeSnapshotsEqual(existing.routeAttachment.snapshot, template.snapshot)
+      ) {
+        return workflow;
       }
 
       const now = this.runtime.now();

@@ -1,5 +1,5 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
-import { sql } from "drizzle-orm";
+import { randomUUID } from "node:crypto";
 
 import {
   CalculationDetailsSchema,
@@ -132,6 +132,116 @@ function serializeDealPricingQuoteResult(
   };
 }
 
+function readRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function extractInventoryReservation(input: {
+  pricingTrace: Record<string, unknown> | null | undefined;
+}): {
+  amountMinor: bigint;
+  positionId: string;
+} | null {
+  const pricingTrace = readRecord(input.pricingTrace);
+  const metadata = readRecord(pricingTrace?.metadata);
+  const snapshot = readRecord(metadata?.crmPricingSnapshot);
+  const executionSide = readRecord(snapshot?.executionSide);
+  const clientSide = readRecord(snapshot?.clientSide);
+
+  if (
+    executionSide?.source !== "treasury_inventory" ||
+    typeof executionSide.inventoryPositionId !== "string" ||
+    typeof clientSide?.beneficiaryAmountMinor !== "string"
+  ) {
+    return null;
+  }
+
+  return {
+    amountMinor: BigInt(clientSide.beneficiaryAmountMinor),
+    positionId: executionSide.inventoryPositionId,
+  };
+}
+
+async function reserveInventoryForAcceptedQuote(input: {
+  actorUserId: string;
+  ctx: AppContext;
+  dealId: string;
+  idempotencyKey: string;
+  ledgerModule: ReturnType<AppContext["createLedgerModule"]>;
+  quoteId: string;
+  requestContext: ReturnType<typeof getRequestContext>;
+  treasuryModule: AppContext["treasuryModule"];
+}) {
+  const quote = await input.treasuryModule.quotes.queries.findById(
+    input.quoteId,
+  );
+  const reservation = extractInventoryReservation({
+    pricingTrace: quote?.pricingTrace ?? null,
+  });
+
+  if (!reservation) {
+    return null;
+  }
+
+  const existing =
+    await input.treasuryModule.treasuryOrders.queries.findReservedAllocationByDealAndQuote(
+      {
+        dealId: input.dealId,
+        quoteId: input.quoteId,
+      },
+    );
+  if (existing) {
+    return existing;
+  }
+
+  const position =
+    await input.treasuryModule.treasuryOrders.queries.findInventoryPositionById(
+      { positionId: reservation.positionId },
+    );
+  if (!position) {
+    throw new ValidationError(
+      `Treasury inventory position ${reservation.positionId} is not available`,
+    );
+  }
+  const positionCurrency = await input.ctx.currenciesService.findById(
+    position.currencyId,
+  );
+  const currency = await input.ledgerModule.balances.queries.getBalance({
+    bookId: position.ownerBookId,
+    currency: positionCurrency.code,
+    subjectId: position.ownerRequisiteId,
+    subjectType: position.ledgerSubjectType,
+  });
+  const allocationId = randomUUID();
+  const ledgerHoldRef = `treasury_inventory_allocation:${allocationId}`;
+  await input.ledgerModule.balances.commands.reserve({
+    actorId: input.actorUserId,
+    amountMinor: reservation.amountMinor,
+    holdRef: ledgerHoldRef,
+    idempotencyKey: `${input.idempotencyKey}:inventory-balance-hold`,
+    reason: `Reserve treasury inventory for deal ${input.dealId}`,
+    requestContext: input.requestContext,
+    subject: {
+      bookId: currency.bookId,
+      currency: currency.currency,
+      subjectId: currency.subjectId,
+      subjectType: currency.subjectType,
+    },
+  });
+
+  return input.treasuryModule.treasuryOrders.commands.reserveInventoryAllocation(
+    {
+      amountMinor: reservation.amountMinor,
+      dealId: input.dealId,
+      id: allocationId,
+      positionId: reservation.positionId,
+      quoteId: input.quoteId,
+    },
+  );
+}
+
 export function dealsRoutes(ctx: AppContext) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();
   const RECONCILIATION_DEFAULT_RULESET_CHECKSUM = "core-default-v1";
@@ -228,10 +338,14 @@ export function dealsRoutes(ctx: AppContext) {
   async function getFinanceWorkspaceOrThrow(dealId: string) {
     await requireDeal(ctx, dealId);
     const workspace =
-      await ctx.dealProjectionsWorkflow.getFinanceDealWorkspaceProjection(dealId);
+      await ctx.dealProjectionsWorkflow.getFinanceDealWorkspaceProjection(
+        dealId,
+      );
 
     if (!workspace) {
-      throw new ValidationError(`Finance workspace is not available for deal ${dealId}`);
+      throw new ValidationError(
+        `Finance workspace is not available for deal ${dealId}`,
+      );
     }
 
     return workspace;
@@ -256,23 +370,6 @@ export function dealsRoutes(ctx: AppContext) {
       exception,
       workspace,
     };
-  }
-
-  async function listPendingDealReconciliationExternalRecordIds(dealId: string) {
-    const result = await ctx.persistence.db.execute(sql`
-      select er.id::text as id
-      from "reconciliation_external_records" er
-      where er.source = ${TREASURY_INSTRUCTION_OUTCOMES_RECONCILIATION_SOURCE}
-        and (er.normalized_payload ->> 'dealId') = ${dealId}
-        and not exists (
-          select 1
-          from "reconciliation_matches" rm
-          where rm.external_record_id = er.id
-        )
-      order by er.received_at asc, er.id asc
-    `);
-
-    return ((result.rows ?? []) as { id: string }[]).map((row) => row.id);
   }
 
   const listRoute = createRoute({
@@ -591,7 +688,8 @@ export function dealsRoutes(ctx: AppContext) {
     method: "post",
     path: "/{id}/reconciliation/exceptions/{exceptionId}/adjustment-document",
     tags: ["Deals"],
-    summary: "Resolve a deal-scoped reconciliation exception with an adjustment document",
+    summary:
+      "Resolve a deal-scoped reconciliation exception with an adjustment document",
     request: {
       params: DealReconciliationExceptionParamsSchema,
       body: {
@@ -1480,7 +1578,8 @@ export function dealsRoutes(ctx: AppContext) {
     method: "post",
     path: "/{id}/pricing/preview",
     tags: ["Deals"],
-    summary: "Preview deal pricing using an attached route or auto cross fallback",
+    summary:
+      "Preview deal pricing using an attached route or auto cross fallback",
     request: {
       params: IdParamSchema,
       body: {
@@ -1970,7 +2069,15 @@ export function dealsRoutes(ctx: AppContext) {
           c,
           async (idempotencyKey) => {
             const externalRecordIds =
-              await listPendingDealReconciliationExternalRecordIds(id);
+              await ctx.reconciliationService.records.listPendingExternalRecordIds(
+                {
+                  normalizedPayloadTextFilter: {
+                    key: "dealId",
+                    value: id,
+                  },
+                  source: TREASURY_INSTRUCTION_OUTCOMES_RECONCILIATION_SOURCE,
+                },
+              );
 
             if (externalRecordIds.length > 0) {
               await ctx.reconciliationService.runs.runReconciliation({
@@ -2130,10 +2237,25 @@ export function dealsRoutes(ctx: AppContext) {
       try {
         const { id, quoteId } = c.req.valid("param");
         const actorUserId = c.get("user")!.id;
-        const result = await ctx.dealsModule.deals.commands.acceptQuote({
-          actorUserId,
-          dealId: id,
-          quoteId,
+        const result = await ctx.persistence.runInTransaction(async (tx) => {
+          const dealsModule = ctx.createDealsModule(tx);
+          const treasuryModule = ctx.createTreasuryModule(tx);
+          const accepted = await dealsModule.deals.commands.acceptQuote({
+            actorUserId,
+            dealId: id,
+            quoteId,
+          });
+          await reserveInventoryForAcceptedQuote({
+            actorUserId,
+            ctx,
+            dealId: id,
+            idempotencyKey: `accept:${id}:${quoteId}`,
+            ledgerModule: ctx.createLedgerModule(tx),
+            quoteId: accepted.acceptedQuote?.quoteId ?? quoteId,
+            requestContext: getRequestContext(c),
+            treasuryModule,
+          });
+          return accepted;
         });
 
         await triggerAutoMaterializeAfterAccept(ctx, {
@@ -2588,48 +2710,65 @@ export function dealsRoutes(ctx: AppContext) {
         const body = c.req.valid("json");
         const actorUserId = c.get("user")!.id;
 
-        const result = await withRequiredIdempotency(c, async (idempotencyKey) => {
-          const quoteResult = await ctx.dealPricingWorkflow.createQuote({
-            ...body,
-            dealId: id,
-            idempotencyKey,
-          });
+        const result = await withRequiredIdempotency(
+          c,
+          async (idempotencyKey) => {
+            const quoteResult = await ctx.dealPricingWorkflow.createQuote({
+              ...body,
+              dealId: id,
+              idempotencyKey,
+            });
 
-          await ctx.dealsModule.deals.commands.appendTimelineEvent({
-            actorUserId,
-            dealId: id,
-            payload: {
-              expiresAt: quoteResult.quote.expiresAt,
-              pricingMode: quoteResult.pricingMode,
-              quoteId: quoteResult.quote.id,
-            },
-            sourceRef: `quote:${quoteResult.quote.id}:created`,
-            type: "quote_created",
-            visibility: "internal",
-          });
-
-          await ctx.dealsModule.deals.commands.acceptQuote({
-            actorUserId,
-            dealId: id,
-            quoteId: quoteResult.quote.id,
-          });
-
-          const calculation =
-            await ctx.dealQuoteWorkflow.createCalculationFromAcceptedQuote({
+            await ctx.dealsModule.deals.commands.appendTimelineEvent({
               actorUserId,
               dealId: id,
-              idempotencyKey: `${idempotencyKey}:calculation`,
+              payload: {
+                expiresAt: quoteResult.quote.expiresAt,
+                pricingMode: quoteResult.pricingMode,
+                quoteId: quoteResult.quote.id,
+              },
+              sourceRef: `quote:${quoteResult.quote.id}:created`,
+              type: "quote_created",
+              visibility: "internal",
+            });
+
+            await ctx.persistence.runInTransaction(async (tx) => {
+              const dealsModule = ctx.createDealsModule(tx);
+              const treasuryModule = ctx.createTreasuryModule(tx);
+              await dealsModule.deals.commands.acceptQuote({
+                actorUserId,
+                dealId: id,
+                quoteId: quoteResult.quote.id,
+              });
+              await reserveInventoryForAcceptedQuote({
+                actorUserId,
+                ctx,
+                dealId: id,
+                idempotencyKey,
+                ledgerModule: ctx.createLedgerModule(tx),
+                quoteId: quoteResult.quote.id,
+                requestContext: getRequestContext(c),
+                treasuryModule,
+              });
+            });
+
+            const calculation =
+              await ctx.dealQuoteWorkflow.createCalculationFromAcceptedQuote({
+                actorUserId,
+                dealId: id,
+                idempotencyKey: `${idempotencyKey}:calculation`,
+                quoteId: quoteResult.quote.id,
+              });
+
+            await triggerAutoMaterializeAfterAccept(ctx, {
+              actorUserId,
+              dealId: id,
               quoteId: quoteResult.quote.id,
             });
 
-          await triggerAutoMaterializeAfterAccept(ctx, {
-            actorUserId,
-            dealId: id,
-            quoteId: quoteResult.quote.id,
-          });
-
-          return { quoteResult, calculationId: calculation.id };
-        });
+            return { quoteResult, calculationId: calculation.id };
+          },
+        );
 
         if (result instanceof Response) {
           return result;

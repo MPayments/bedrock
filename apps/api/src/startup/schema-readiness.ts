@@ -5,8 +5,14 @@ import type { PersistenceContext } from "@bedrock/platform/persistence";
 interface SchemaProbeRow {
   sessionAudienceColumn: string | null;
   customerMemberships: string | null;
+  paymentSteps: string | null;
   portalAccessGrants: string | null;
+  quoteExecutions: string | null;
   sessions: string | null;
+  treasuryInventoryAllocations: string | null;
+  treasuryInventoryPositions: string | null;
+  treasuryOrderSteps: string | null;
+  treasuryOrders: string | null;
   users: string | null;
 }
 
@@ -16,8 +22,14 @@ export async function assertApiSchemaReady(
   const result = await persistence.db.execute(sql`
     SELECT
       to_regclass('public.customer_memberships') AS "customerMemberships",
+      to_regclass('public.payment_steps') AS "paymentSteps",
       to_regclass('public.portal_access_grants') AS "portalAccessGrants",
+      to_regclass('public.quote_executions') AS "quoteExecutions",
       to_regclass('public.session') AS sessions,
+      to_regclass('public.treasury_inventory_allocations') AS "treasuryInventoryAllocations",
+      to_regclass('public.treasury_inventory_positions') AS "treasuryInventoryPositions",
+      to_regclass('public.treasury_order_steps') AS "treasuryOrderSteps",
+      to_regclass('public.treasury_orders') AS "treasuryOrders",
       to_regclass('public."user"') AS users,
       (
         SELECT column_name
@@ -31,8 +43,16 @@ export async function assertApiSchemaReady(
   const [row] = (result.rows ?? []) as unknown as SchemaProbeRow[];
   const missingTables = [
     row?.customerMemberships ? null : "customer_memberships",
+    row?.paymentSteps ? null : "payment_steps",
     row?.portalAccessGrants ? null : "portal_access_grants",
+    row?.quoteExecutions ? null : "quote_executions",
     row?.sessions ? null : "session",
+    row?.treasuryInventoryAllocations
+      ? null
+      : "treasury_inventory_allocations",
+    row?.treasuryInventoryPositions ? null : "treasury_inventory_positions",
+    row?.treasuryOrderSteps ? null : "treasury_order_steps",
+    row?.treasuryOrders ? null : "treasury_orders",
     row?.users ? null : "user",
   ].filter((value): value is string => value !== null);
   const missingColumns = [
@@ -55,7 +75,7 @@ export async function assertApiSchemaReady(
       "Apply the current database baseline before starting the API:",
       "  bun run db:nuke",
       "  bun run db:migrate",
-      "  bun run db:seed",
+      "  bun run db:seed:all",
     ]
       .filter((value): value is string => value !== null)
       .join("\n"),

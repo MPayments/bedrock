@@ -9,6 +9,7 @@ import {
   createNoopFeesService,
 } from "./helpers";
 import { RateSourceSyncError } from "../src/errors";
+import { SyncRatesFromSourceCommand } from "../src/rates/application/commands/sync-rates-from-source";
 
 function createSourceStatusRow(overrides: Partial<any> = {}) {
   return {
@@ -21,6 +22,26 @@ function createSourceStatusRow(overrides: Partial<any> = {}) {
     updatedAt: new Date("2026-01-01T00:00:00Z"),
     ...overrides,
   };
+}
+
+function createSourceSyncCommandForRateRows(rows: any[]) {
+  return new SyncRatesFromSourceCommand(
+    {} as any,
+    { now: () => new Date("2026-04-28T12:00:00.000Z") } as any,
+    {
+      getSourceRow: vi.fn(),
+      getRateHistory: vi.fn(),
+      initializeSourceRow: vi.fn(),
+      insertManualRate: vi.fn(),
+      listManualRateRows: vi.fn(async () => []),
+      listPairs: vi.fn(),
+      listSourceRateRows: vi.fn(async () => rows),
+      listSourceRows: vi.fn(),
+      upsertSourceFailure: vi.fn(),
+      upsertSourceRates: vi.fn(),
+      upsertSourceSuccess: vi.fn(),
+    } as any,
+  );
 }
 
 describe("treasury source sync", () => {
@@ -396,5 +417,63 @@ describe("treasury source sync", () => {
     expect(result.synced).toBe(true);
     expect(result.status.isExpired).toBe(true);
     expect(result.status.expiresAt?.toISOString()).toBe("2026-01-01T00:00:00.000Z");
+  });
+
+  it("uses an already-published next-day CBR rate for current pricing", async () => {
+    const futureCbrRate = {
+      source: "cbr",
+      rateNum: 75n,
+      rateDen: 1n,
+      asOf: new Date("2026-04-29T00:00:00.000Z"),
+    };
+    const command = createSourceSyncCommandForRateRows([futureCbrRate]);
+
+    const rate = await command.getLatestRateBySource(
+      "cur-usd",
+      "cur-rub",
+      new Date("2026-04-28T12:00:00.000Z"),
+      "cbr",
+    );
+
+    expect(rate).toBe(futureCbrRate);
+  });
+
+  it("uses an already-published CBR rate on Sunday when no historical row exists", async () => {
+    const publishedCbrRate = {
+      source: "cbr",
+      rateNum: 75n,
+      rateDen: 1n,
+      asOf: new Date("2026-05-11T00:00:00.000Z"),
+    };
+    const command = createSourceSyncCommandForRateRows([publishedCbrRate]);
+
+    const rate = await command.getLatestRateBySource(
+      "cur-usd",
+      "cur-rub",
+      new Date("2026-05-10T12:00:00.000Z"),
+      "cbr",
+    );
+
+    expect(rate).toBe(publishedCbrRate);
+  });
+
+  it("does not use future intraday market rates as current pricing fallback", async () => {
+    const command = createSourceSyncCommandForRateRows([
+      {
+        source: "xe",
+        rateNum: 75n,
+        rateDen: 1n,
+        asOf: new Date("2026-04-29T00:00:00.000Z"),
+      },
+    ]);
+
+    const rate = await command.getLatestRateBySource(
+      "cur-usd",
+      "cur-rub",
+      new Date("2026-04-28T12:00:00.000Z"),
+      "xe",
+    );
+
+    expect(rate).toBeUndefined();
   });
 });

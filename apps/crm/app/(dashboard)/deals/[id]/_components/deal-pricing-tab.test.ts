@@ -84,6 +84,7 @@ function createQuote(): ApiDealPricingQuote {
     pricingMode: "explicit_route",
     pricingTrace: {},
     profitability: {
+      commercialDiscountMinor: "0",
       commercialRevenueMinor: "46701860",
       costPriceMinor: "7810886152",
       currency: "RUB",
@@ -175,11 +176,14 @@ describe("DealPricingTab", () => {
         ],
         dealId: "deal-1",
         fundingDeadline: "2026-04-22T23:59:00.000Z",
+        hasExpiredRuntimeQuoteExecution: true,
         initialRequestedAmount: "1000000",
         onError: vi.fn(),
         onReload: vi.fn(async () => {}),
         pricingContext: {
           commercialDraft: {
+            clientPricing: null,
+            executionSource: { type: "route_execution" },
             fixedFeeAmount: null,
             fixedFeeCurrency: null,
             quoteMarkupBps: 50,
@@ -191,7 +195,6 @@ describe("DealPricingTab", () => {
             snapshot: {
               additionalFees: [
                 {
-                  chargeToCustomer: true,
                   id: "fee-1",
                   kind: "gross_percent",
                   label: "Комиссия",
@@ -213,7 +216,6 @@ describe("DealPricingTab", () => {
                 {
                   fees: [
                     {
-                      chargeToCustomer: false,
                       id: "fee-2",
                       kind: "gross_percent",
                       label: "Комиссия",
@@ -255,11 +257,19 @@ describe("DealPricingTab", () => {
     );
 
     const normalizedMarkup = normalizeMarkupWhitespace(markup);
+    const quoteSummaryMetricCount =
+      markup.match(/data-testid="quote-summary-metric"/gu)?.length ?? 0;
 
     expect(normalizedMarkup).toContain("Котировка");
+    expect(quoteSummaryMetricCount).toBe(8);
     expect(normalizedMarkup).toContain("Входные данные");
     expect(normalizedMarkup).toContain("Маршрут");
-    expect(normalizedMarkup).toContain("Наценка к курсу");
+    expect(normalizedMarkup).toContain("Цена клиенту");
+    expect(normalizedMarkup).toContain("Курс клиенту");
+    expect(normalizedMarkup).toContain("Котировка истекла");
+    expect(normalizedMarkup).toContain(
+      "FX-исполнение по этой котировке уже истекло в казначействе",
+    );
     expect(normalizedMarkup).toContain("Зафиксировать новый курс");
     expect(normalizedMarkup).toContain("Копировать расчёт");
     expect(normalizedMarkup).toContain("Скачать PDF");

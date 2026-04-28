@@ -1987,6 +1987,12 @@ export default function DealDetailPage() {
                 fundingDeadline={
                   data.workbench.intake.incomingReceipt.expectedAt
                 }
+                hasExpiredRuntimeQuoteExecution={data.workbench.relatedResources.quoteExecutions.some(
+                  (execution) =>
+                    execution.state === "expired" &&
+                    (!data.workbench.acceptedQuote ||
+                      execution.quoteId === data.workbench.acceptedQuote.quoteId),
+                )}
                 initialRequestedAmount={quoteRequest?.amount ?? ""}
                 onError={showError}
                 onReload={loadDeal}

@@ -246,6 +246,18 @@ export type CrmDealDocumentRequirement = z.infer<
   typeof CrmDealDocumentRequirementSchema
 >;
 
+export const CrmDealQuoteExecutionSummarySchema = z.object({
+  id: z.uuid(),
+  origin: PaymentStepOriginSchema,
+  quoteId: z.uuid(),
+  state: QuoteExecutionStateSchema,
+  updatedAt: z.iso.datetime(),
+});
+
+export type CrmDealQuoteExecutionSummary = z.infer<
+  typeof CrmDealQuoteExecutionSummarySchema
+>;
+
 export const CrmDealWorkbenchProjectionSchema = z.object({
   acceptedQuote: DealWorkflowProjectionSchema.shape.acceptedQuote,
   actions: CrmDealWorkbenchActionsSchema,
@@ -273,6 +285,7 @@ export const CrmDealWorkbenchProjectionSchema = z.object({
   relatedResources: z.object({
     attachments: z.array(FileAttachmentSchema),
     formalDocuments: z.array(DealRelatedFormalDocumentSchema),
+    quoteExecutions: z.array(CrmDealQuoteExecutionSummarySchema).default([]),
   }),
   sectionCompleteness: z.array(DealSectionCompletenessSchema),
   summary: DealSummarySchema.extend({
@@ -904,7 +917,11 @@ export type FinanceDealQuoteAmountSide = z.infer<
 export const FinanceDealRouteAttachmentLegSchema = z.object({
   fees: z.array(
     z.object({
-      chargeToCustomer: z.boolean(),
+      application: z.enum([
+        "deducted_from_flow",
+        "embedded_in_rate",
+        "separate_charge",
+      ]),
       kind: z.string(),
       label: z.string(),
       percentage: z.string().nullable(),

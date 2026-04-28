@@ -8,6 +8,10 @@ import {
   PaymentStepPartyRefSchema,
   PaymentStepRateLockedSideSchema,
   PaymentStepRateSchema,
+  TreasuryInventoryAllocationSchema,
+  TreasuryInventoryAllocationStateSchema,
+  TreasuryInventoryPositionSchema,
+  TreasuryInventoryPositionStateSchema,
   TreasuryOrderStateSchema,
   TreasuryOrderStepKindSchema,
   TreasuryOrderTypeSchema,
@@ -22,9 +26,14 @@ import { requirePermission } from "../middleware/permission";
 
 type TreasuryOrdersContext = Context<{ Variables: AuthVariables }>;
 type TreasuryOrdersService = TreasuryModule["treasuryOrders"];
+const INVENTORY_ALLOCATION_SUM_PAGE_LIMIT = 100;
 
 const TreasuryOrderIdParamsSchema = z.object({
   orderId: z.uuid(),
+});
+
+const TreasuryInventoryPositionIdParamsSchema = z.object({
+  positionId: z.uuid(),
 });
 
 const PositiveMinorStringSchema = z
@@ -60,6 +69,25 @@ const ListTreasuryOrdersQuerySchema = z.object({
   offset: z.coerce.number().int().nonnegative().optional().default(0),
   state: TreasuryOrderStateSchema.optional(),
   type: TreasuryOrderTypeSchema.optional(),
+});
+
+const ListInventoryPositionsQuerySchema = z.object({
+  currencyId: z.uuid().optional(),
+  limit: z.coerce.number().int().positive().max(100).optional().default(50),
+  offset: z.coerce.number().int().nonnegative().optional().default(0),
+  ownerPartyId: z.uuid().optional(),
+  sourceOrderId: z.uuid().optional(),
+  sourceQuoteExecutionId: z.uuid().optional(),
+  state: TreasuryInventoryPositionStateSchema.optional(),
+});
+
+const ListInventoryAllocationsQuerySchema = z.object({
+  dealId: z.uuid().optional(),
+  limit: z.coerce.number().int().positive().max(100).optional().default(50),
+  offset: z.coerce.number().int().nonnegative().optional().default(0),
+  positionId: z.uuid().optional(),
+  quoteId: z.uuid().optional(),
+  state: TreasuryInventoryAllocationStateSchema.optional(),
 });
 
 const TreasuryOrderStepResponseSchema = z.object({
@@ -105,7 +133,71 @@ const TreasuryOrdersListResponseSchema = z.object({
   total: z.number().int().nonnegative(),
 });
 
+const TreasuryInventoryPositionResponseSchema =
+  TreasuryInventoryPositionSchema.extend({
+    acquiredAmountMinor: z.string(),
+    availableAmountMinor: z.string(),
+    costAmountMinor: z.string(),
+    createdAt: z.iso.datetime(),
+    ledger: z.object({
+      currency: z.string(),
+      inventoryAcquiredMinor: z.string(),
+      inventoryAvailableMinor: z.string(),
+      inventoryReservedMinor: z.string(),
+      ledgerAvailableMinor: z.string(),
+      ledgerBalanceMinor: z.string(),
+      ledgerReservedMinor: z.string(),
+      reconciliationStatus: z.enum([
+        "matched",
+        "inventory_exceeds_balance",
+        "missing_balance",
+      ]),
+      subject: z.object({
+        bookId: z.uuid(),
+        currency: z.string(),
+        subjectId: z.string(),
+        subjectType: z.string(),
+      }),
+    }),
+    ledgerSubjectType: z.literal("organization_requisite"),
+    ownerBookId: z.uuid(),
+    sourcePostingDocumentId: z.uuid(),
+    sourcePostingDocumentKind: z.literal("fx_execute"),
+    updatedAt: z.iso.datetime(),
+  });
+
+const TreasuryInventoryPositionsListResponseSchema = z.object({
+  data: z.array(TreasuryInventoryPositionResponseSchema),
+  limit: z.number().int().positive(),
+  offset: z.number().int().nonnegative(),
+  total: z.number().int().nonnegative(),
+});
+
+const TreasuryInventoryAllocationResponseSchema =
+  TreasuryInventoryAllocationSchema.extend({
+    amountMinor: z.string(),
+    costAmountMinor: z.string(),
+    consumedAt: z.iso.datetime().nullable(),
+    createdAt: z.iso.datetime(),
+    reservedAt: z.iso.datetime(),
+    releasedAt: z.iso.datetime().nullable(),
+    updatedAt: z.iso.datetime(),
+  });
+
+const TreasuryInventoryAllocationsListResponseSchema = z.object({
+  data: z.array(TreasuryInventoryAllocationResponseSchema),
+  limit: z.number().int().positive(),
+  offset: z.number().int().nonnegative(),
+  total: z.number().int().nonnegative(),
+});
+
 type TreasuryOrderResponse = z.infer<typeof TreasuryOrderResponseSchema>;
+type TreasuryInventoryPositionResponse = z.infer<
+  typeof TreasuryInventoryPositionResponseSchema
+>;
+type TreasuryInventoryAllocationResponse = z.infer<
+  typeof TreasuryInventoryAllocationResponseSchema
+>;
 
 function serializeDate(value: Date | string): string {
   return value instanceof Date ? value.toISOString() : value;
@@ -160,6 +252,141 @@ function serializeTreasuryOrder(order: {
       updatedAt: serializeDate(step.updatedAt),
     })),
     updatedAt: serializeDate(order.updatedAt),
+  };
+}
+
+async function buildInventoryLedgerBlock(
+  ctx: AppContext,
+  position: {
+    acquiredAmountMinor: bigint | string;
+    availableAmountMinor: bigint | string;
+    currencyId: string;
+    id: string;
+    ledgerSubjectType: "organization_requisite";
+    ownerBookId: string;
+    ownerRequisiteId: string;
+  },
+) {
+  const currency = await ctx.currenciesService.findById(position.currencyId);
+  const balance = await ctx.ledgerModule.balances.queries.getBalance({
+    bookId: position.ownerBookId,
+    currency: currency.code,
+    subjectId: position.ownerRequisiteId,
+    subjectType: position.ledgerSubjectType,
+  });
+  const inventoryReserved = await sumReservedInventoryAllocations(
+    ctx,
+    position.id,
+  );
+  const inventoryAvailable = BigInt(position.availableAmountMinor.toString());
+  const inventoryAcquired = BigInt(position.acquiredAmountMinor.toString());
+  const reconciliationStatus =
+    balance.ledgerBalance === 0n && inventoryAcquired > 0n
+      ? ("missing_balance" as const)
+      : inventoryAvailable > balance.available
+        ? ("inventory_exceeds_balance" as const)
+        : ("matched" as const);
+
+  return {
+    currency: currency.code,
+    inventoryAcquiredMinor: inventoryAcquired.toString(),
+    inventoryAvailableMinor: inventoryAvailable.toString(),
+    inventoryReservedMinor: inventoryReserved.toString(),
+    ledgerAvailableMinor: balance.available.toString(),
+    ledgerBalanceMinor: balance.ledgerBalance.toString(),
+    ledgerReservedMinor: balance.reserved.toString(),
+    reconciliationStatus,
+    subject: {
+      bookId: balance.bookId,
+      currency: balance.currency,
+      subjectId: balance.subjectId,
+      subjectType: balance.subjectType,
+    },
+  };
+}
+
+async function sumReservedInventoryAllocations(
+  ctx: AppContext,
+  positionId: string,
+): Promise<bigint> {
+  let offset = 0;
+  let reserved = 0n;
+
+  while (true) {
+    const page =
+      await ctx.treasuryModule.treasuryOrders.queries.listInventoryAllocations({
+        limit: INVENTORY_ALLOCATION_SUM_PAGE_LIMIT,
+        offset,
+        positionId,
+        state: "reserved",
+      });
+    for (const allocation of page.data) {
+      reserved += allocation.amountMinor;
+    }
+    offset += page.data.length;
+    if (page.data.length === 0 || offset >= page.total) {
+      return reserved;
+    }
+  }
+}
+
+async function serializeInventoryPosition(ctx: AppContext, position: {
+  acquiredAmountMinor: bigint | string;
+  availableAmountMinor: bigint | string;
+  costAmountMinor: bigint | string;
+  costCurrencyId: string;
+  createdAt: Date | string;
+  currencyId: string;
+  id: string;
+  ledgerSubjectType: "organization_requisite";
+  ownerBookId: string;
+  ownerPartyId: string;
+  ownerRequisiteId: string;
+  sourceOrderId: string;
+  sourcePostingDocumentId: string;
+  sourcePostingDocumentKind: "fx_execute";
+  sourceQuoteExecutionId: string;
+  state: z.infer<typeof TreasuryInventoryPositionStateSchema>;
+  updatedAt: Date | string;
+}): Promise<TreasuryInventoryPositionResponse> {
+  return {
+    ...position,
+    acquiredAmountMinor: position.acquiredAmountMinor.toString(),
+    availableAmountMinor: position.availableAmountMinor.toString(),
+    costAmountMinor: position.costAmountMinor.toString(),
+    createdAt: serializeDate(position.createdAt),
+    ledger: await buildInventoryLedgerBlock(ctx, position),
+    updatedAt: serializeDate(position.updatedAt),
+  };
+}
+
+function serializeInventoryAllocation(allocation: {
+  amountMinor: bigint | string;
+  costAmountMinor: bigint | string;
+  consumedAt: Date | string | null;
+  createdAt: Date | string;
+  dealId: string;
+  id: string;
+  ledgerHoldRef: string;
+  ownerBookId: string;
+  ownerRequisiteId: string;
+  currencyId: string;
+  positionId: string;
+  quoteId: string | null;
+  releasedAt: Date | string | null;
+  reservedAt: Date | string;
+  state: z.infer<typeof TreasuryInventoryAllocationStateSchema>;
+  updatedAt: Date | string;
+}): TreasuryInventoryAllocationResponse {
+  return {
+    ...allocation,
+    amountMinor: allocation.amountMinor.toString(),
+    costAmountMinor: allocation.costAmountMinor.toString(),
+    consumedAt: serializeNullableDate(allocation.consumedAt),
+    createdAt: serializeDate(allocation.createdAt),
+    releasedAt: serializeNullableDate(allocation.releasedAt),
+    reservedAt: serializeDate(allocation.reservedAt),
+    updatedAt: serializeDate(allocation.updatedAt),
   };
 }
 
@@ -246,6 +473,67 @@ export function treasuryOrdersRoutes(ctx: AppContext) {
     tags: ["Treasury"],
   });
 
+  const listInventoryPositionsRoute = createRoute({
+    middleware: [requirePermission({ deals: ["list"] })],
+    method: "get",
+    path: "/inventory/positions",
+    request: { query: ListInventoryPositionsQuerySchema },
+    responses: {
+      200: {
+        description: "Treasury inventory positions",
+        content: {
+          "application/json": {
+            schema: TreasuryInventoryPositionsListResponseSchema,
+          },
+        },
+      },
+    },
+    summary: "List treasury inventory positions",
+    tags: ["Treasury"],
+  });
+
+  const getInventoryPositionRoute = createRoute({
+    middleware: [requirePermission({ deals: ["list"] })],
+    method: "get",
+    path: "/inventory/positions/{positionId}",
+    request: { params: TreasuryInventoryPositionIdParamsSchema },
+    responses: {
+      200: {
+        description: "Treasury inventory position",
+        content: {
+          "application/json": {
+            schema: TreasuryInventoryPositionResponseSchema,
+          },
+        },
+      },
+      404: {
+        description: "Not found",
+        content: { "application/json": { schema: ErrorSchema } },
+      },
+    },
+    summary: "Get a treasury inventory position",
+    tags: ["Treasury"],
+  });
+
+  const listInventoryAllocationsRoute = createRoute({
+    middleware: [requirePermission({ deals: ["list"] })],
+    method: "get",
+    path: "/inventory/allocations",
+    request: { query: ListInventoryAllocationsQuerySchema },
+    responses: {
+      200: {
+        description: "Treasury inventory allocations",
+        content: {
+          "application/json": {
+            schema: TreasuryInventoryAllocationsListResponseSchema,
+          },
+        },
+      },
+    },
+    summary: "List treasury inventory allocations",
+    tags: ["Treasury"],
+  });
+
   const getOrderRoute = createRoute({
     middleware: [requirePermission({ deals: ["list"] })],
     method: "get",
@@ -317,6 +605,61 @@ export function treasuryOrdersRoutes(ctx: AppContext) {
         const result = await ctx.treasuryModule.treasuryOrders.queries.list(query);
         return c.json({
           data: result.data.map(serializeTreasuryOrder),
+          limit: result.limit,
+          offset: result.offset,
+          total: result.total,
+        });
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(listInventoryPositionsRoute, async (c) => {
+      try {
+        const query = c.req.valid("query");
+        const result =
+          await ctx.treasuryModule.treasuryOrders.queries.listInventoryPositions(
+            query,
+          );
+        return c.json({
+          data: await Promise.all(
+            result.data.map((position) =>
+              serializeInventoryPosition(ctx, position),
+            ),
+          ),
+          limit: result.limit,
+          offset: result.offset,
+          total: result.total,
+        });
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(getInventoryPositionRoute, async (c) => {
+      try {
+        const { positionId } = c.req.valid("param");
+        const position =
+          await ctx.treasuryModule.treasuryOrders.queries.findInventoryPositionById(
+            { positionId },
+          );
+        return position
+          ? c.json(await serializeInventoryPosition(ctx, position), 200)
+          : c.json(
+              { error: `Treasury inventory position ${positionId} not found` },
+              404,
+            );
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(listInventoryAllocationsRoute, async (c) => {
+      try {
+        const query = c.req.valid("query");
+        const result =
+          await ctx.treasuryModule.treasuryOrders.queries.listInventoryAllocations(
+            query,
+          );
+        return c.json({
+          data: result.data.map(serializeInventoryAllocation),
           limit: result.limit,
           offset: result.offset,
           total: result.total,

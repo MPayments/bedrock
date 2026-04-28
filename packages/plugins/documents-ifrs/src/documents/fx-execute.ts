@@ -19,6 +19,7 @@ import { IFRS_DOCUMENT_METADATA } from "../metadata";
 import {
   FxExecuteInputSchema,
   FxExecutePayloadSchema,
+  FxExecuteQuoteSnapshotSchema,
   type FxExecuteInput,
   type FxExecutePayload,
 } from "../validation";
@@ -94,16 +95,23 @@ async function prepareDraftPayload(
     sourceCurrency: bindings.source.currencyCode,
   });
 
-  const quoteSnapshot = await loadFxQuoteSnapshot(deps, {
-    runtime: context.runtime,
-    fromCurrency: bindings.source.currencyCode,
-    toCurrency: bindings.destination.currencyCode,
-    fromAmountMinor: amount.amountMinor,
-    asOf: context.now,
-    idempotencyKey: buildTreasuryFxQuoteIdempotencyKey(
-      context.operationIdempotencyKey,
-    ),
-  });
+  const quoteSnapshot = input.quoteId
+    ? FxExecuteQuoteSnapshotSchema.parse(
+        await deps.treasuryFxQuote.loadQuoteSnapshotById({
+          runtime: context.runtime,
+          quoteId: input.quoteId,
+        }),
+      )
+    : await loadFxQuoteSnapshot(deps, {
+        runtime: context.runtime,
+        fromCurrency: bindings.source.currencyCode,
+        toCurrency: bindings.destination.currencyCode,
+        fromAmountMinor: amount.amountMinor,
+        asOf: context.now,
+        idempotencyKey: buildTreasuryFxQuoteIdempotencyKey(
+          context.operationIdempotencyKey,
+        ),
+      });
 
   ensureFxBindingsMatchQuote({
     source: bindings.source,

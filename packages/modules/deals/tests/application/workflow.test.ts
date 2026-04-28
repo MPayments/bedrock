@@ -374,45 +374,38 @@ describe("buildDealExecutionPlan — route-derived", () => {
     expect(plan.every((leg) => leg.routeSnapshotLegId === null)).toBe(true);
   });
 
-  it("derives 6 legs from a 4-hop route snapshot on a payment deal", () => {
+  it("derives one execution leg per route leg on a payment deal", () => {
     const snapshot = createFourHopRouteSnapshot();
     const plan = buildDealExecutionPlan(createPaymentIntake(), snapshot);
 
     expect(plan.map((leg) => leg.kind)).toEqual([
       "collect",
-      "transit_hold",
       "convert",
       "transit_hold",
-      "convert",
       "payout",
     ]);
-    expect(plan.map((leg) => leg.idx)).toEqual([1, 2, 3, 4, 5, 6]);
-    expect(plan.slice(1, -1).map((leg) => leg.routeSnapshotLegId)).toEqual([
+    expect(plan.map((leg) => leg.idx)).toEqual([1, 2, 3, 4]);
+    expect(plan.map((leg) => leg.routeSnapshotLegId)).toEqual([
       "route-leg-1",
       "route-leg-2",
       "route-leg-3",
       "route-leg-4",
     ]);
-    expect(plan.slice(1, -1).map((leg) => leg.fromCurrencyId)).toEqual([
+    expect(plan.map((leg) => leg.fromCurrencyId)).toEqual([
       "currency-rub",
       "currency-rub",
       "currency-aed",
       "currency-aed",
     ]);
-    expect(plan.slice(1, -1).map((leg) => leg.toCurrencyId)).toEqual([
+    expect(plan.map((leg) => leg.toCurrencyId)).toEqual([
       "currency-rub",
       "currency-aed",
       "currency-aed",
       "currency-usd",
     ]);
-    // collect and payout inherit the deal's source/target currencies
-    expect(plan[0]?.fromCurrencyId).toBe("currency-rub");
-    expect(plan[0]?.toCurrencyId).toBe("currency-rub");
-    expect(plan[plan.length - 1]?.fromCurrencyId).toBe("currency-usd");
-    expect(plan[plan.length - 1]?.toCurrencyId).toBe("currency-usd");
   });
 
-  it("uses route hops with exporter_settlement bookends", () => {
+  it("uses attached route as the full exporter_settlement execution plan", () => {
     const snapshot = createFourHopRouteSnapshot();
     const plan = buildDealExecutionPlan(
       createPaymentIntake({ type: "exporter_settlement" }),
@@ -420,15 +413,12 @@ describe("buildDealExecutionPlan — route-derived", () => {
     );
 
     expect(plan.map((leg) => leg.kind)).toEqual([
-      "payout",
       "collect",
-      "transit_hold",
       "convert",
       "transit_hold",
-      "convert",
-      "settle_exporter",
+      "payout",
     ]);
-    expect(plan.map((leg) => leg.idx)).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    expect(plan.map((leg) => leg.idx)).toEqual([1, 2, 3, 4]);
   });
 });
 
@@ -471,7 +461,7 @@ describe("buildEffectiveDealExecutionPlan — per-convert state rules", () => {
     });
 
     const convertLegs = plan.filter((leg) => leg.kind === "convert");
-    expect(convertLegs.length).toBe(2);
+    expect(convertLegs.length).toBe(1);
     expect(convertLegs.every((leg) => leg.state === "skipped")).toBe(true);
   });
 
@@ -496,7 +486,7 @@ describe("buildEffectiveDealExecutionPlan — per-convert state rules", () => {
     });
 
     const convertLegs = plan.filter((leg) => leg.kind === "convert");
-    expect(convertLegs.length).toBe(2);
+    expect(convertLegs.length).toBe(1);
     expect(convertLegs.every((leg) => leg.state === "done")).toBe(true);
   });
 
@@ -525,7 +515,7 @@ describe("buildEffectiveDealExecutionPlan — per-convert state rules", () => {
     );
     expect(matched?.state).toBe("done");
     expect(matched?.id).toBe("stored-leg-id-1");
-    expect(matched?.idx).toBe(2); // re-indexed by new plan, not the stale stored idx
+    expect(matched?.idx).toBe(1); // re-indexed by new plan, not the stale stored idx
   });
 });
 

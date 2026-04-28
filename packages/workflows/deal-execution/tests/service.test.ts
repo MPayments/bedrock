@@ -544,7 +544,7 @@ describe("deal execution workflow", () => {
           operationId: string;
           sourceRef: string;
         }[],
-        routeSnapshotLegId: null,
+        routeSnapshotLegId: "route-leg-hop-1",
         state: "ready" as const,
         toCurrencyId: "cur-rub",
       },
@@ -552,20 +552,6 @@ describe("deal execution workflow", () => {
         fromCurrencyId: "cur-rub",
         id: "leg-2",
         idx: 2,
-        kind: "transit_hold" as const,
-        operationRefs: [] as {
-          kind: string;
-          operationId: string;
-          sourceRef: string;
-        }[],
-        routeSnapshotLegId: "route-leg-hop-1",
-        state: "pending" as const,
-        toCurrencyId: "cur-rub",
-      },
-      {
-        fromCurrencyId: "cur-rub",
-        id: "leg-3",
-        idx: 3,
         kind: "convert" as const,
         operationRefs: [] as {
           kind: string;
@@ -578,8 +564,8 @@ describe("deal execution workflow", () => {
       },
       {
         fromCurrencyId: "cur-aed",
-        id: "leg-4",
-        idx: 4,
+        id: "leg-3",
+        idx: 3,
         kind: "transit_hold" as const,
         operationRefs: [] as {
           kind: string;
@@ -592,29 +578,15 @@ describe("deal execution workflow", () => {
       },
       {
         fromCurrencyId: "cur-aed",
-        id: "leg-5",
-        idx: 5,
-        kind: "convert" as const,
-        operationRefs: [] as {
-          kind: string;
-          operationId: string;
-          sourceRef: string;
-        }[],
-        routeSnapshotLegId: "route-leg-hop-4",
-        state: "ready" as const,
-        toCurrencyId: "cur-usd",
-      },
-      {
-        fromCurrencyId: "cur-usd",
-        id: "leg-6",
-        idx: 6,
+        id: "leg-4",
+        idx: 4,
         kind: "payout" as const,
         operationRefs: [] as {
           kind: string;
           operationId: string;
           sourceRef: string;
         }[],
-        routeSnapshotLegId: null,
+        routeSnapshotLegId: "route-leg-hop-4",
         state: "pending" as const,
         toCurrencyId: "cur-usd",
       },
@@ -710,22 +682,169 @@ describe("deal execution workflow", () => {
         item.amountRef,
         item.counterAmountRef,
         item.quoteLegIdx,
+        item.quoteId,
       ]),
     ).toEqual([
-      ["collect", "accepted_quote_customer_debit", null, null],
-      ["transit_hold", "quote_leg_to", null, 1],
-      ["convert", "quote_leg_from", "quote_leg_to", 2],
-      ["transit_hold", "quote_leg_to", null, 3],
-      ["convert", "quote_leg_from", "quote_leg_to", 4],
-      ["payout", "incoming_receipt_expected", null, null],
+      ["collect", "quote_leg_from", "quote_leg_to", 1, null],
+      ["convert", "quote_leg_from", "quote_leg_to", 2, "quote-1"],
+      ["transit_hold", "quote_leg_from", "quote_leg_to", 3, null],
+      ["payout", "quote_leg_from", "quote_leg_to", 4, "quote-1"],
     ]);
 
-    // Every route-derived leg carries its own unique quoteLegIdx so the
-    // two convert legs resolve to DIFFERENT amounts instead of sharing the
-    // aggregate quote amounts.
-    const convertLegs = recipe.filter((item) => item.legKind === "convert");
-    expect(convertLegs).toHaveLength(2);
-    expect(convertLegs[0]?.quoteLegIdx).not.toBe(convertLegs[1]?.quoteLegIdx);
+    // Every route-derived leg carries its own quoteLegIdx, including the
+    // cross-currency payout leg. This keeps payout amounts tied to the route
+    // leg instead of falling back to the aggregate quote/intake values.
+    expect(recipe.map((item) => item.quoteLegIdx)).toEqual([1, 2, 3, 4]);
+  });
+
+  it("does not attach quote id to same-currency route-derived payouts", () => {
+    const workflow = {
+      ...createWorkflowProjection({
+        acceptedQuoteId: "quote-1",
+        type: "payment",
+      }),
+      executionPlan: [
+        {
+          fromCurrencyId: "cur-usd",
+          id: "leg-1",
+          idx: 1,
+          kind: "payout" as const,
+          operationRefs: [],
+          routeSnapshotLegId: "route-leg-payout",
+          state: "pending" as const,
+          toCurrencyId: "cur-usd",
+        },
+      ],
+    };
+    const acceptedQuote = {
+      ...createAcceptedQuoteDetails(),
+      legs: [
+        {
+          asOf: new Date("2026-04-03T10:00:00.000Z"),
+          createdAt: new Date("2026-04-03T10:00:00.000Z"),
+          executionCounterpartyId: null,
+          fromAmountMinor: 1000000n,
+          fromCurrencyId: "cur-usd",
+          id: "quote-leg-1",
+          idx: 1,
+          quoteId: "quote-1",
+          rateDen: 1n,
+          rateNum: 1n,
+          sourceKind: "derived" as const,
+          sourceRef: null,
+          toAmountMinor: 1000000n,
+          toCurrencyId: "cur-usd",
+        },
+      ],
+    };
+
+    const recipe = compileDealExecutionRecipe({
+      acceptedQuote,
+      agreementOrganizationId: "org-1",
+      internalEntityOrganizationId: "org-1",
+      workflow,
+    });
+
+    expect(recipe[0]).toEqual(
+      expect.objectContaining({
+        amountRef: "quote_leg_from",
+        counterAmountRef: "quote_leg_to",
+        quoteId: null,
+        quoteLegIdx: 1,
+      }),
+    );
+  });
+
+  it("resolves route-derived organization transfer kind from route participants", () => {
+    const workflow = {
+      ...createWorkflowProjection({
+        acceptedQuoteId: "quote-1",
+        type: "currency_transit",
+      }),
+      executionPlan: [
+        {
+          fromCurrencyId: "cur-usd",
+          id: "leg-1",
+          idx: 1,
+          kind: "transit_hold" as const,
+          operationRefs: [],
+          routeSnapshotLegId: "route-leg-transfer",
+          state: "pending" as const,
+          toCurrencyId: "cur-usd",
+        },
+      ],
+    };
+    const acceptedQuote = {
+      ...createAcceptedQuoteDetails(),
+      legs: [
+        {
+          asOf: new Date("2026-04-03T10:00:00.000Z"),
+          createdAt: new Date("2026-04-03T10:00:00.000Z"),
+          executionCounterpartyId: null,
+          fromAmountMinor: 1000000n,
+          fromCurrencyId: "cur-usd",
+          id: "quote-leg-1",
+          idx: 1,
+          quoteId: "quote-1",
+          rateDen: 1n,
+          rateNum: 1n,
+          sourceKind: "derived" as const,
+          sourceRef: null,
+          toAmountMinor: 1000000n,
+          toCurrencyId: "cur-usd",
+        },
+      ],
+    };
+
+    const recipe = compileDealExecutionRecipe({
+      acceptedQuote,
+      agreementOrganizationId: "org-a",
+      internalEntityOrganizationId: "org-a",
+      routeAttachment: {
+        attachedAt: new Date("2026-04-03T10:00:00.000Z"),
+        snapshot: {
+          additionalFees: [],
+          amountInMinor: "1000000",
+          amountOutMinor: "1000000",
+          currencyInId: "cur-usd",
+          currencyOutId: "cur-usd",
+          legs: [
+            {
+              fees: [],
+              fromCurrencyId: "cur-usd",
+              id: "route-leg-transfer",
+              toCurrencyId: "cur-usd",
+            },
+          ],
+          lockedSide: "currency_in",
+          participants: [
+            {
+              binding: "bound",
+              displayName: "Org A",
+              entityId: "org-a",
+              entityKind: "organization",
+              nodeId: "node-a",
+              requisiteId: null,
+              role: "hop",
+            },
+            {
+              binding: "bound",
+              displayName: "Org B",
+              entityId: "org-b",
+              entityKind: "organization",
+              nodeId: "node-b",
+              requisiteId: null,
+              role: "hop",
+            },
+          ],
+        },
+        templateId: "route-template-1",
+        templateName: "USD transfer",
+      },
+      workflow,
+    });
+
+    expect(recipe[0]?.operationKind).toBe("intercompany_funding");
   });
 
   it("throws when there are more route-derived legs than accepted-quote legs", () => {

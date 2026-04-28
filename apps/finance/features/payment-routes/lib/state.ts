@@ -9,6 +9,7 @@ import {
   type PaymentRouteCalculation,
   type PaymentRouteDraft,
   type PaymentRouteFee,
+  type PaymentRouteFeeApplication,
   type PaymentRouteParticipantKind,
   type PaymentRouteParticipantRef,
   type PaymentRouteTemplate,
@@ -420,24 +421,6 @@ export function setRouteName(
   };
 }
 
-export function setMarginPolicy(input: {
-  maxMarginBps?: number | null;
-  minMarginBps?: number | null;
-  state: PaymentRouteEditorState;
-}): PaymentRouteEditorState {
-  return {
-    ...input.state,
-    maxMarginBps:
-      input.maxMarginBps !== undefined
-        ? input.maxMarginBps
-        : input.state.maxMarginBps,
-    minMarginBps:
-      input.minMarginBps !== undefined
-        ? input.minMarginBps
-        : input.state.minMarginBps,
-  };
-}
-
 export function setLockedSide(
   state: PaymentRouteEditorState,
   lockedSide: PaymentRouteDraft["lockedSide"],
@@ -655,11 +638,11 @@ export function setLegField(
 
 function createDefaultFixedFee(
   currencyId: string,
-  chargeToCustomer = false,
+  application: PaymentRouteFeeApplication = "deducted_from_flow",
 ): PaymentRouteFee {
   return {
     amountMinor: "100",
-    chargeToCustomer,
+    application,
     currencyId,
     id: createId("route-fee"),
     kind: "fixed",
@@ -667,13 +650,10 @@ function createDefaultFixedFee(
   };
 }
 
-function createDefaultAdditionalFee(
-  currencyId: string,
-  chargeToCustomer = false,
-): PaymentRouteFee {
+function createDefaultAdditionalFee(currencyId: string): PaymentRouteFee {
   return {
     amountMinor: "100",
-    chargeToCustomer,
+    application: "separate_charge",
     currencyId,
     id: createId("route-fee"),
     kind: "fixed",
@@ -682,10 +662,10 @@ function createDefaultAdditionalFee(
 }
 
 function createDefaultGrossPercentFee(
-  chargeToCustomer = false,
+  application: PaymentRouteFeeApplication = "deducted_from_flow",
 ): PaymentRouteFee {
   return {
-    chargeToCustomer,
+    application,
     id: createId("route-fee"),
     kind: "gross_percent",
     label: "Комиссия",
@@ -694,10 +674,10 @@ function createDefaultGrossPercentFee(
 }
 
 function createDefaultNetPercentFee(
-  chargeToCustomer = false,
+  application: PaymentRouteFeeApplication = "deducted_from_flow",
 ): PaymentRouteFee {
   return {
-    chargeToCustomer,
+    application,
     id: createId("route-fee"),
     kind: "net_percent",
     label: "Комиссия",
@@ -705,16 +685,27 @@ function createDefaultNetPercentFee(
   };
 }
 
-function createDefaultFxSpreadFee(
-  chargeToCustomer = false,
-): PaymentRouteFee {
+function createDefaultFxSpreadFee(): PaymentRouteFee {
   return {
-    chargeToCustomer,
+    application: "embedded_in_rate",
     id: createId("route-fee"),
     kind: "fx_spread",
     label: "Надбавка к курсу",
     percentage: "0.10",
   };
+}
+
+function getCompatibleFeeApplication(input: {
+  currentApplication: PaymentRouteFee["application"];
+  nextKind: PaymentRouteFee["kind"];
+}): PaymentRouteFeeApplication {
+  if (input.nextKind === "fx_spread") {
+    return "embedded_in_rate";
+  }
+
+  return input.currentApplication === "separate_charge"
+    ? "separate_charge"
+    : "deducted_from_flow";
 }
 
 function reconnectLegCurrencies(draft: PaymentRouteDraft) {
@@ -1032,7 +1023,10 @@ export function changeFeeKind(input: {
       input.fee.kind === "fixed" && input.fee.currencyId
         ? input.fee.currencyId
         : input.fallbackCurrencyId,
-      input.fee.chargeToCustomer,
+      getCompatibleFeeApplication({
+        currentApplication: input.fee.application,
+        nextKind: input.nextKind,
+      }),
     );
   }
 
@@ -1043,7 +1037,12 @@ export function changeFeeKind(input: {
 
   if (input.nextKind === "gross_percent") {
     return {
-      ...createDefaultGrossPercentFee(input.fee.chargeToCustomer),
+      ...createDefaultGrossPercentFee(
+        getCompatibleFeeApplication({
+          currentApplication: input.fee.application,
+          nextKind: input.nextKind,
+        }),
+      ),
       label: input.fee.label ?? "Комиссия",
       percentage,
     };
@@ -1051,14 +1050,19 @@ export function changeFeeKind(input: {
 
   if (input.nextKind === "net_percent") {
     return {
-      ...createDefaultNetPercentFee(input.fee.chargeToCustomer),
+      ...createDefaultNetPercentFee(
+        getCompatibleFeeApplication({
+          currentApplication: input.fee.application,
+          nextKind: input.nextKind,
+        }),
+      ),
       label: input.fee.label ?? "Комиссия",
       percentage,
     };
   }
 
   return {
-    ...createDefaultFxSpreadFee(input.fee.chargeToCustomer),
+    ...createDefaultFxSpreadFee(),
     label: input.fee.label ?? "Надбавка к курсу",
     percentage,
   };

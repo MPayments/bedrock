@@ -5,7 +5,7 @@ import { Plus } from "lucide-react";
 
 import { Button } from "@bedrock/sdk-ui/components/button";
 
-import { CreateStepDialog } from "@/features/treasury/steps/components/create-step-dialog";
+import { CreateTreasuryOrderDialog } from "./create-treasury-order-dialog";
 
 export function TreasuryOperationsActions() {
   const [open, setOpen] = useState(false);
@@ -21,7 +21,7 @@ export function TreasuryOperationsActions() {
         Создать ордер
       </Button>
 
-      <CreateStepDialog open={open} onOpenChange={setOpen} />
+      <CreateTreasuryOrderDialog open={open} onOpenChange={setOpen} />
     </>
   );
 }

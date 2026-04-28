@@ -1,5 +1,3 @@
-import { API_BASE_URL } from "./constants";
-
 export type OrganizationInnLookupResult = {
   address?: string;
   addressDetails?: string;
@@ -28,6 +26,12 @@ export type OrganizationCardParseResult = OrganizationInnLookupResult & {
   phone?: string;
   swift?: string;
 };
+
+export type OrganizationPrefillClientOptions = {
+  apiBaseUrl?: string;
+};
+
+const DEFAULT_API_BASE_URL = "/v1";
 
 function getResponseErrorMessage(payload: unknown, fallback: string) {
   if (!payload || typeof payload !== "object") {
@@ -86,12 +90,15 @@ const CARD_PARSE_FIELDS = [
   "swift",
 ] as const;
 
-// Note: endpoints are physically named `/counterparties/lookup-by-inn` and
-// `/counterparties/parse-card`, but the backend returns company-generic data
-// (DaData + LLM extraction) that works for organizations too. Renaming the
-// route to `/companies/*` is a separate task.
+function resolveApiBaseUrl(options?: OrganizationPrefillClientOptions) {
+  return options?.apiBaseUrl ?? DEFAULT_API_BASE_URL;
+}
+
+// Reuses counterparty endpoints because DaData and LLM responses are
+// company-generic enough for organization prefill.
 export async function lookupOrganizationByInn(
   inn: string,
+  options?: OrganizationPrefillClientOptions,
 ): Promise<OrganizationInnLookupResult> {
   const trimmed = inn.trim();
 
@@ -104,9 +111,9 @@ export async function lookupOrganizationByInn(
   }
 
   const response = await fetch(
-    `${API_BASE_URL}/counterparties/lookup-by-inn?inn=${encodeURIComponent(
-      trimmed,
-    )}`,
+    `${resolveApiBaseUrl(
+      options,
+    )}/counterparties/lookup-by-inn?inn=${encodeURIComponent(trimmed)}`,
     {
       credentials: "include",
     },
@@ -132,6 +139,7 @@ export async function lookupOrganizationByInn(
 
 export async function parseOrganizationCardPdf(
   file: File,
+  options?: OrganizationPrefillClientOptions,
 ): Promise<OrganizationCardParseResult> {
   if (file.type !== "application/pdf") {
     throw new Error("Поддерживается только PDF формат");
@@ -140,11 +148,14 @@ export async function parseOrganizationCardPdf(
   const formData = new FormData();
   formData.append("file", file);
 
-  const response = await fetch(`${API_BASE_URL}/counterparties/parse-card`, {
-    body: formData,
-    credentials: "include",
-    method: "POST",
-  });
+  const response = await fetch(
+    `${resolveApiBaseUrl(options)}/counterparties/parse-card`,
+    {
+      body: formData,
+      credentials: "include",
+      method: "POST",
+    },
+  );
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));

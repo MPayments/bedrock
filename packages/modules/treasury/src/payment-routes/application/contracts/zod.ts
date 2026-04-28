@@ -7,6 +7,7 @@ import {
 import { parseDecimalToFraction } from "@bedrock/shared/money/math";
 
 import {
+  PAYMENT_ROUTE_FEE_APPLICATION_VALUES,
   PAYMENT_ROUTE_FEE_KIND_VALUES,
   PAYMENT_ROUTE_LEG_SEMANTIC_TAG_VALUES,
   PAYMENT_ROUTE_LEG_TREASURY_OPERATION_HINT_VALUES,
@@ -23,6 +24,7 @@ import {
 export type {
   PaymentRouteDraft,
   PaymentRouteFee,
+  PaymentRouteFeeApplication,
   PaymentRouteFeeKind,
   PaymentRouteLeg,
   PaymentRouteLegSemanticTag,
@@ -83,6 +85,9 @@ export const PaymentRouteLegTreasuryOperationHintSchema = z.enum(
   PAYMENT_ROUTE_LEG_TREASURY_OPERATION_HINT_VALUES,
 );
 export const PaymentRouteFeeKindSchema = z.enum(PAYMENT_ROUTE_FEE_KIND_VALUES);
+export const PaymentRouteFeeApplicationSchema = z.enum(
+  PAYMENT_ROUTE_FEE_APPLICATION_VALUES,
+);
 export const PaymentRouteLockedSideSchema = z.enum(
   PAYMENT_ROUTE_LOCKED_SIDE_VALUES,
 );
@@ -156,7 +161,7 @@ export const PaymentRouteParticipantRefSchema = z.union([
 export const PaymentRouteFeeSchema = z
   .object({
     amountMinor: nonNegativeMinorStringSchema.optional(),
-    chargeToCustomer: z.boolean().default(false),
+    application: PaymentRouteFeeApplicationSchema.optional(),
     currencyId: z.uuid().nullable().optional(),
     id: z.string().trim().min(1),
     kind: PaymentRouteFeeKindSchema,
@@ -164,6 +169,26 @@ export const PaymentRouteFeeSchema = z
     percentage: positiveDecimalStringSchema.optional(),
   })
   .superRefine((value, context) => {
+    if (value.kind === "fx_spread" && value.application === undefined) {
+      value.application = "embedded_in_rate";
+    }
+
+    if (value.kind === "fx_spread" && value.application !== "embedded_in_rate") {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "fx_spread fee must use embedded_in_rate application",
+        path: ["application"],
+      });
+    }
+
+    if (value.kind !== "fx_spread" && value.application === "embedded_in_rate") {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "embedded_in_rate application is only supported for fx_spread",
+        path: ["application"],
+      });
+    }
+
     if (value.kind === "fixed") {
       if (!value.amountMinor || BigInt(value.amountMinor) <= 0n) {
         context.addIssue({
@@ -367,6 +392,22 @@ export function normalizePaymentRouteDraft(input: unknown) {
   };
 }
 
+function normalizeRouteFeeApplication(
+  fee: z.infer<typeof PaymentRouteFeeSchema>,
+  location: "additional" | "leg",
+) {
+  return {
+    ...fee,
+    application:
+      fee.application ??
+      (fee.kind === "fx_spread"
+        ? "embedded_in_rate"
+        : location === "additional"
+          ? "separate_charge"
+          : "deducted_from_flow"),
+  };
+}
+
 export const PaymentRouteDraftSchema = z
   .object({
     additionalFees: z.array(PaymentRouteFeeSchema).default([]),
@@ -481,8 +522,26 @@ export const PaymentRouteDraftSchema = z
           path: ["additionalFees", index, "kind"],
         });
       }
+
+      if (fee.application && fee.application !== "separate_charge") {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Additional route fees must use separate_charge application",
+          path: ["additionalFees", index, "application"],
+        });
+      }
     });
-  });
+  })
+  .transform((value) => ({
+    ...value,
+    additionalFees: value.additionalFees.map((fee) =>
+      normalizeRouteFeeApplication(fee, "additional"),
+    ),
+    legs: value.legs.map((leg) => ({
+      ...leg,
+      fees: leg.fees.map((fee) => normalizeRouteFeeApplication(fee, "leg")),
+    })),
+  }));
 
 const PAYMENT_ROUTE_TEMPLATES_SORTABLE_COLUMNS = [
   "name",

@@ -44,7 +44,7 @@ First pass after introducing the refresh protocol. Baseline is `d2b95746` (`feat
 - **Apps list in Workspace Topology**: `apps/api`, `apps/crm`, `apps/finance`, `apps/portal`, `apps/workers`, `apps/db` — all present and correct.
 - **Dependency direction, Internal Package Layers table, Service Pattern, Key Conventions, ESLint Layer Enforcement, API Routes** — no structural change; policy not touched per scope rules.
 - **`packages/shared` subpaths** listed in topology (`/core`, `/money`, `/reference-data`, `/parties`, `/requisites`) match `exports` in `packages/shared/package.json`.
-- **Migration policy** statement (`db:nuke -> db:migrate -> db:seed`, baseline-only hard cutover) — still accurate.
+- **Migration policy** statement (`db:nuke -> db:migrate -> db:seed:all`, baseline-only hard cutover) — still accurate for local reset.
 
 ### Flagged (not changed)
 
