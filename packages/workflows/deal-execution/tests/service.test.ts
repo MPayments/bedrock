@@ -682,18 +682,77 @@ describe("deal execution workflow", () => {
         item.amountRef,
         item.counterAmountRef,
         item.quoteLegIdx,
+        item.quoteId,
       ]),
     ).toEqual([
-      ["collect", "quote_leg_from", "quote_leg_to", 1],
-      ["convert", "quote_leg_from", "quote_leg_to", 2],
-      ["transit_hold", "quote_leg_from", "quote_leg_to", 3],
-      ["payout", "quote_leg_from", "quote_leg_to", 4],
+      ["collect", "quote_leg_from", "quote_leg_to", 1, null],
+      ["convert", "quote_leg_from", "quote_leg_to", 2, "quote-1"],
+      ["transit_hold", "quote_leg_from", "quote_leg_to", 3, null],
+      ["payout", "quote_leg_from", "quote_leg_to", 4, "quote-1"],
     ]);
 
     // Every route-derived leg carries its own quoteLegIdx, including the
     // cross-currency payout leg. This keeps payout amounts tied to the route
     // leg instead of falling back to the aggregate quote/intake values.
     expect(recipe.map((item) => item.quoteLegIdx)).toEqual([1, 2, 3, 4]);
+  });
+
+  it("does not attach quote id to same-currency route-derived payouts", () => {
+    const workflow = {
+      ...createWorkflowProjection({
+        acceptedQuoteId: "quote-1",
+        type: "payment",
+      }),
+      executionPlan: [
+        {
+          fromCurrencyId: "cur-usd",
+          id: "leg-1",
+          idx: 1,
+          kind: "payout" as const,
+          operationRefs: [],
+          routeSnapshotLegId: "route-leg-payout",
+          state: "pending" as const,
+          toCurrencyId: "cur-usd",
+        },
+      ],
+    };
+    const acceptedQuote = {
+      ...createAcceptedQuoteDetails(),
+      legs: [
+        {
+          asOf: new Date("2026-04-03T10:00:00.000Z"),
+          createdAt: new Date("2026-04-03T10:00:00.000Z"),
+          executionCounterpartyId: null,
+          fromAmountMinor: 1000000n,
+          fromCurrencyId: "cur-usd",
+          id: "quote-leg-1",
+          idx: 1,
+          quoteId: "quote-1",
+          rateDen: 1n,
+          rateNum: 1n,
+          sourceKind: "derived" as const,
+          sourceRef: null,
+          toAmountMinor: 1000000n,
+          toCurrencyId: "cur-usd",
+        },
+      ],
+    };
+
+    const recipe = compileDealExecutionRecipe({
+      acceptedQuote,
+      agreementOrganizationId: "org-1",
+      internalEntityOrganizationId: "org-1",
+      workflow,
+    });
+
+    expect(recipe[0]).toEqual(
+      expect.objectContaining({
+        amountRef: "quote_leg_from",
+        counterAmountRef: "quote_leg_to",
+        quoteId: null,
+        quoteLegIdx: 1,
+      }),
+    );
   });
 
   it("resolves route-derived organization transfer kind from route participants", () => {

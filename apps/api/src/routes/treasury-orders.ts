@@ -26,6 +26,7 @@ import { requirePermission } from "../middleware/permission";
 
 type TreasuryOrdersContext = Context<{ Variables: AuthVariables }>;
 type TreasuryOrdersService = TreasuryModule["treasuryOrders"];
+const INVENTORY_ALLOCATION_SUM_PAGE_LIMIT = 100;
 
 const TreasuryOrderIdParamsSchema = z.object({
   orderId: z.uuid(),
@@ -273,16 +274,9 @@ async function buildInventoryLedgerBlock(
     subjectId: position.ownerRequisiteId,
     subjectType: position.ledgerSubjectType,
   });
-  const allocations =
-    await ctx.treasuryModule.treasuryOrders.queries.listInventoryAllocations({
-      limit: 100,
-      offset: 0,
-      positionId: position.id,
-      state: "reserved",
-    });
-  const inventoryReserved = allocations.data.reduce(
-    (sum, allocation) => sum + allocation.amountMinor,
-    0n,
+  const inventoryReserved = await sumReservedInventoryAllocations(
+    ctx,
+    position.id,
   );
   const inventoryAvailable = BigInt(position.availableAmountMinor.toString());
   const inventoryAcquired = BigInt(position.acquiredAmountMinor.toString());
@@ -309,6 +303,31 @@ async function buildInventoryLedgerBlock(
       subjectType: balance.subjectType,
     },
   };
+}
+
+async function sumReservedInventoryAllocations(
+  ctx: AppContext,
+  positionId: string,
+): Promise<bigint> {
+  let offset = 0;
+  let reserved = 0n;
+
+  while (true) {
+    const page =
+      await ctx.treasuryModule.treasuryOrders.queries.listInventoryAllocations({
+        limit: INVENTORY_ALLOCATION_SUM_PAGE_LIMIT,
+        offset,
+        positionId,
+        state: "reserved",
+      });
+    for (const allocation of page.data) {
+      reserved += allocation.amountMinor;
+    }
+    offset += page.data.length;
+    if (page.data.length === 0 || offset >= page.total) {
+      return reserved;
+    }
+  }
 }
 
 async function serializeInventoryPosition(ctx: AppContext, position: {

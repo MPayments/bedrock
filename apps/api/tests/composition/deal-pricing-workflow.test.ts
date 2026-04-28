@@ -913,6 +913,78 @@ describe("deal pricing workflow", () => {
     );
   });
 
+  it("treats client_total pricing as the final customer debit", async () => {
+    const { deps } = createDeps();
+    const workflow = createDealPricingWorkflow(deps as any);
+
+    await workflow.createQuote({
+      amountMinor: "79005226",
+      amountSide: "source",
+      asOf: new Date("2026-04-19T09:58:00.000Z"),
+      clientPricing: {
+        clientRate: null,
+        clientTotalMinor: "1000",
+        commercialFeeCurrency: null,
+        commercialFeeMinor: "50",
+        discountCurrency: null,
+        discountMinor: "10",
+        mode: "client_total",
+        passThroughPolicy: "separate_execution_costs",
+      },
+      dealId: IDS.deal,
+      expectedRevision: 3,
+      idempotencyKey: "idem-client-total",
+    });
+
+    expect(deps.treasury.quotes.commands.createQuote).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pricingTrace: expect.objectContaining({
+          metadata: expect.objectContaining({
+            crmPricingSnapshot: expect.objectContaining({
+              clientSide: expect.objectContaining({
+                clientPrincipalMinor: "510",
+                clientRate: {
+                  rateDen: "510",
+                  rateNum: "101819387",
+                },
+                commercialFeeMinor: "50",
+                customerTotalMinor: "1000",
+                discountMinor: "10",
+                passThroughMinor: "450",
+                pricingMode: "client_total",
+              }),
+            }),
+          }),
+        }),
+      }),
+    );
+  });
+
+  it("rejects client_total pricing below mandatory adjustments", async () => {
+    const { deps } = createDeps();
+    const workflow = createDealPricingWorkflow(deps as any);
+
+    await expect(
+      workflow.preview({
+        amountMinor: "79005226",
+        amountSide: "source",
+        asOf: new Date("2026-04-19T09:58:00.000Z"),
+        clientPricing: {
+          clientRate: null,
+          clientTotalMinor: "40",
+          commercialFeeCurrency: null,
+          commercialFeeMinor: "50",
+          discountCurrency: null,
+          discountMinor: null,
+          mode: "client_total",
+          passThroughPolicy: "separate_execution_costs",
+        },
+        dealId: IDS.deal,
+        expectedRevision: 3,
+      }),
+    ).rejects.toThrow(/Customer total is lower/u);
+  });
+
   it("prices inventory execution without reserving inventory during quote creation", async () => {
     const { deps } = createDeps();
     deps.treasury.treasuryOrders.queries.findInventoryPositionById = vi.fn(

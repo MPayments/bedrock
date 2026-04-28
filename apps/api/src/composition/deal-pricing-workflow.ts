@@ -615,15 +615,6 @@ function resolveClientSide(input: {
   };
   const mode = draft?.mode ?? "client_rate";
   const explicitRate = draft?.clientRate ?? null;
-  const clientRate = explicitRate ?? fallbackRate;
-  const clientPrincipalMinor =
-    mode === "client_total" && draft?.clientTotalMinor
-      ? BigInt(draft.clientTotalMinor)
-      : mulDivRoundHalfUp(
-          beneficiaryAmountMinor,
-          BigInt(clientRate.rateDen),
-          BigInt(clientRate.rateNum),
-        );
   const commercialFeeMinor = resolveCommercialFeeMinor({
     commercialDraft: input.commercialDraft,
     sourceCurrency: input.quotePreview.fromCurrency,
@@ -638,11 +629,39 @@ function resolveClientSide(input: {
           )
       : 0n;
   const discountMinor = draft?.discountMinor ? BigInt(draft.discountMinor) : 0n;
+  const clientTotalMinor =
+    mode === "client_total" && draft?.clientTotalMinor
+      ? BigInt(draft.clientTotalMinor)
+      : null;
+  const clientPrincipalMinor =
+    clientTotalMinor !== null
+      ? clientTotalMinor -
+        commercialFeeMinor -
+        separateExecutionCostMinor +
+        discountMinor
+      : mulDivRoundHalfUp(
+          beneficiaryAmountMinor,
+          BigInt((explicitRate ?? fallbackRate).rateDen),
+          BigInt((explicitRate ?? fallbackRate).rateNum),
+        );
+  if (clientPrincipalMinor < 0n) {
+    throw new ValidationError(
+      "Customer total is lower than mandatory commercial fees and reimbursements",
+    );
+  }
+  const clientRate =
+    clientTotalMinor !== null
+      ? {
+          rateDen: clientPrincipalMinor.toString(),
+          rateNum: beneficiaryAmountMinor.toString(),
+        }
+      : (explicitRate ?? fallbackRate);
   const customerTotalMinor =
+    clientTotalMinor ??
     clientPrincipalMinor +
-    commercialFeeMinor +
-    separateExecutionCostMinor -
-    discountMinor;
+      commercialFeeMinor +
+      separateExecutionCostMinor -
+      discountMinor;
 
   return {
     beneficiaryAmountMinor: beneficiaryAmountMinor.toString(),

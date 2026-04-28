@@ -527,4 +527,132 @@ describe("materializeCompiledOperation", () => {
     expect(call?.fromAmountMinor).toBe(10000n);
     expect(call?.toAmountMinor).toBe(10000n);
   });
+
+  it("materializes cross-currency payouts with quote metadata and rate", async () => {
+    const paymentStepsCommands = createPaymentStepsCommands();
+    const treasuryModule = createTreasuryModule({ paymentStepsCommands });
+
+    await materializeCompiledOperation({
+      acceptedQuote: {
+        feeComponents: [],
+        financialLines: [],
+        legs: [
+          {
+            asOf: new Date("2026-04-03T10:00:00.000Z"),
+            createdAt: new Date("2026-04-03T10:00:00.000Z"),
+            executionCounterpartyId: null,
+            fromAmountMinor: 3672500n,
+            fromCurrencyId: "cur-aed",
+            id: "quote-leg-1",
+            idx: 1,
+            quoteId: "quote-1",
+            rateDen: 10000n,
+            rateNum: 2722n,
+            sourceKind: "derived",
+            sourceRef: null,
+            toAmountMinor: 1000000n,
+            toCurrencyId: "cur-usd",
+          },
+        ],
+        pricingTrace: {},
+        quote: {
+          id: "quote-1",
+          pricingTrace: {},
+          rateDen: 10000n,
+          rateNum: 2722n,
+        },
+      } as any,
+      agreementOrganizationId: "org-1",
+      compiled: compiled({
+        amountRef: "quote_leg_from",
+        counterAmountRef: "quote_leg_to",
+        legId: "leg-1",
+        legKind: "payout",
+        operationKind: "payout",
+        quoteId: "quote-1",
+        quoteLegIdx: 1,
+      }),
+      currencies: createCurrencies() as any,
+      currencyCodeById: new Map(),
+      customerId: "customer-1",
+      dealStore: createDealStore(),
+      internalEntityOrganizationId: "org-1",
+      routeAttachment: {
+        attachedAt: new Date("2026-04-03T10:00:00.000Z"),
+        snapshot: {
+          additionalFees: [],
+          amountInMinor: "3672500",
+          amountOutMinor: "1000000",
+          currencyInId: "cur-aed",
+          currencyOutId: "cur-usd",
+          legs: [
+            {
+              fees: [],
+              fromCurrencyId: "cur-aed",
+              id: "route-leg-payout",
+              toCurrencyId: "cur-usd",
+            },
+          ],
+          lockedSide: "currency_out",
+          participants: [
+            {
+              binding: "bound",
+              displayName: "Multihansa AED",
+              entityId: "org-multihansa",
+              entityKind: "organization",
+              nodeId: "node-source",
+              requisiteId: "req-aed",
+              role: "source",
+            },
+            {
+              binding: "bound",
+              displayName: "Beneficiary USD",
+              entityId: "beneficiary-1",
+              entityKind: "counterparty",
+              nodeId: "node-destination",
+              requisiteId: "req-usd",
+              role: "destination",
+            },
+          ],
+        },
+        templateId: "route-template-1",
+        templateName: "AED to USD payout",
+      } as any,
+      treasuryModule: treasuryModule as any,
+      workflow: {
+        ...createWorkflow(),
+        executionPlan: [
+          {
+            id: "leg-1",
+            idx: 1,
+            kind: "payout",
+            routeSnapshotLegId: "route-leg-payout",
+          },
+        ],
+      },
+    });
+
+    expect(paymentStepsCommands.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fromAmountMinor: 3672500n,
+        fromCurrencyId: "cur-aed",
+        fromParty: expect.objectContaining({
+          id: "org-multihansa",
+          requisiteId: "req-aed",
+        }),
+        kind: "payout",
+        quoteId: "quote-1",
+        rate: {
+          lockedSide: "out",
+          value: "0.2722",
+        },
+        toAmountMinor: 1000000n,
+        toCurrencyId: "cur-usd",
+        toParty: expect.objectContaining({
+          id: "beneficiary-1",
+          requisiteId: "req-usd",
+        }),
+      }),
+    );
+  });
 });

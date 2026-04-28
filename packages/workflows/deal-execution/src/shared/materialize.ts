@@ -391,7 +391,12 @@ function resolveStepRate(input: {
   acceptedQuote: QuoteDetailsRecord | null;
   compiled: CompiledDealExecutionOperation;
 }): PaymentStepRate | null {
-  if (input.compiled.legKind !== "convert" || !input.acceptedQuote) {
+  const isQuoteBackedPaymentStep =
+    input.compiled.legKind === "convert" ||
+    (input.compiled.legKind === "payout" &&
+      input.compiled.quoteId !== null &&
+      input.compiled.quoteLegIdx !== null);
+  if (!isQuoteBackedPaymentStep || !input.acceptedQuote) {
     return null;
   }
   const quoteLeg =
@@ -416,7 +421,10 @@ function resolveStepRate(input: {
   const value = fractionStr
     ? `${integerPart.toString()}.${fractionStr}`
     : integerPart.toString();
-  return { value, lockedSide: "in" };
+  return {
+    value,
+    lockedSide: input.compiled.legKind === "payout" ? "out" : "in",
+  };
 }
 
 function resolveQuoteRateParts(input: {

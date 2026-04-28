@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, sql, type SQL } from "drizzle-orm";
 
 import type { Queryable, Transaction } from "@bedrock/platform/persistence";
 import type { PersistenceSession } from "@bedrock/shared/core/persistence";
@@ -450,29 +450,31 @@ export class DrizzleTreasuryOrdersRepository
     position: TreasuryInventoryPositionRecord;
   } | null> {
     return this.runWrite(tx, async (database) => {
-      const [position] = await database
-        .select()
-        .from(treasuryInventoryPositions)
-        .where(eq(treasuryInventoryPositions.id, input.positionId))
-        .limit(1);
-      if (
-        !position ||
-        position.state !== "open" ||
-        position.availableAmountMinor < input.amountMinor
-      ) {
-        return null;
-      }
-
-      const nextAvailable = position.availableAmountMinor - input.amountMinor;
-      const nextState = nextAvailable === 0n ? "exhausted" : "open";
       const [updatedPosition] = await database
         .update(treasuryInventoryPositions)
         .set({
-          availableAmountMinor: nextAvailable,
-          state: nextState,
+          availableAmountMinor: sql`
+            ${treasuryInventoryPositions.availableAmountMinor} - ${input.amountMinor}
+          `,
+          state: sql`
+            case
+              when ${treasuryInventoryPositions.availableAmountMinor} - ${input.amountMinor} = 0
+              then 'exhausted'
+              else 'open'
+            end
+          `,
           updatedAt: input.updatedAt,
         })
-        .where(eq(treasuryInventoryPositions.id, input.positionId))
+        .where(
+          and(
+            eq(treasuryInventoryPositions.id, input.positionId),
+            eq(treasuryInventoryPositions.state, "open"),
+            gte(
+              treasuryInventoryPositions.availableAmountMinor,
+              input.amountMinor,
+            ),
+          ),
+        )
         .returning();
       if (!updatedPosition) {
         return null;
@@ -524,13 +526,32 @@ export class DrizzleTreasuryOrdersRepository
       }
 
       let nextPosition = position;
+      const [updatedAllocation] = await database
+        .update(treasuryInventoryAllocations)
+        .set({
+          consumedAt: input.state === "consumed" ? input.at : allocation.consumedAt,
+          releasedAt: input.state === "released" ? input.at : allocation.releasedAt,
+          state: input.state,
+          updatedAt: input.at,
+        })
+        .where(
+          and(
+            eq(treasuryInventoryAllocations.id, input.allocationId),
+            eq(treasuryInventoryAllocations.state, "reserved"),
+          ),
+        )
+        .returning();
+      if (!updatedAllocation) {
+        return null;
+      }
+
       if (input.state === "released") {
-        const nextAvailable =
-          position.availableAmountMinor + allocation.amountMinor;
         const [updatedPosition] = await database
           .update(treasuryInventoryPositions)
           .set({
-            availableAmountMinor: nextAvailable,
+            availableAmountMinor: sql`
+              ${treasuryInventoryPositions.availableAmountMinor} + ${updatedAllocation.amountMinor}
+            `,
             state: "open",
             updatedAt: input.at,
           })
@@ -540,20 +561,6 @@ export class DrizzleTreasuryOrdersRepository
           return null;
         }
         nextPosition = updatedPosition;
-      }
-
-      const [updatedAllocation] = await database
-        .update(treasuryInventoryAllocations)
-        .set({
-          consumedAt: input.state === "consumed" ? input.at : allocation.consumedAt,
-          releasedAt: input.state === "released" ? input.at : allocation.releasedAt,
-          state: input.state,
-          updatedAt: input.at,
-        })
-        .where(eq(treasuryInventoryAllocations.id, input.allocationId))
-        .returning();
-      if (!updatedAllocation) {
-        return null;
       }
 
       return {

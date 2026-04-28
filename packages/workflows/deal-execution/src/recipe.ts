@@ -103,6 +103,21 @@ function resolvePayoutAmountRef(
   return "money_request_source";
 }
 
+function isCrossCurrencyQuoteLeg(input: {
+  acceptedQuote: QuoteDetailsRecord | null;
+  quoteLegIdx: number | null;
+}): boolean {
+  if (!input.acceptedQuote || input.quoteLegIdx === null) {
+    return false;
+  }
+  const quoteLeg = input.acceptedQuote.legs.find(
+    (leg) => leg.idx === input.quoteLegIdx,
+  );
+  return Boolean(
+    quoteLeg && quoteLeg.fromCurrencyId !== quoteLeg.toCurrencyId,
+  );
+}
+
 export function compileDealExecutionRecipe(input: {
   acceptedQuote: QuoteDetailsRecord | null;
   agreementOrganizationId: string | null;
@@ -189,6 +204,14 @@ export function compileDealExecutionRecipe(input: {
           if (isRouteDerived) {
             amountRef = "quote_leg_from";
             counterAmountRef = "quote_leg_to";
+            if (
+              isCrossCurrencyQuoteLeg({
+                acceptedQuote: input.acceptedQuote,
+                quoteLegIdx,
+              })
+            ) {
+              quoteId = input.acceptedQuote?.quote.id ?? null;
+            }
           } else {
             amountRef = resolvePayoutAmountRef(input.workflow);
           }

@@ -101,7 +101,14 @@ function createTestApp() {
       create: vi.fn(async () => createOrder()),
     },
     queries: {
+      findInventoryPositionById: vi.fn(async () => null),
       findById: vi.fn(async () => createOrder()),
+      listInventoryAllocations: vi.fn(async () => ({
+        data: [],
+        limit: 50,
+        offset: 0,
+        total: 0,
+      })),
       list: vi.fn(async () => ({
         data: [createOrder()],
         limit: 50,
@@ -138,6 +145,24 @@ function createTestApp() {
       },
       persistence: {
         runInTransaction,
+      },
+      currenciesService: {
+        findById: vi.fn(async () => ({ code: "USD", id: uuid(201) })),
+      },
+      ledgerModule: {
+        balances: {
+          queries: {
+            getBalance: vi.fn(async () => ({
+              available: 10_000n,
+              bookId: uuid(901),
+              currency: "USD",
+              ledgerBalance: 10_000n,
+              reserved: 0n,
+              subjectId: uuid(401),
+              subjectType: "organization_requisite",
+            })),
+          },
+        },
       },
       treasuryModule: {
         treasuryOrders,
@@ -277,5 +302,91 @@ describe("treasury orders routes", () => {
       ],
       total: 1,
     });
+  });
+
+  it("sums reserved inventory across allocation pages", async () => {
+    const { app, treasuryOrders } = createTestApp();
+    treasuryOrders.queries.findInventoryPositionById.mockResolvedValue({
+      acquiredAmountMinor: 10_000n,
+      availableAmountMinor: 5_000n,
+      costAmountMinor: 750_000n,
+      costCurrencyId: uuid(202),
+      createdAt: NOW,
+      currencyId: uuid(201),
+      id: uuid(801),
+      ledgerSubjectType: "organization_requisite",
+      ownerBookId: uuid(901),
+      ownerPartyId: uuid(301),
+      ownerRequisiteId: uuid(401),
+      sourceOrderId: uuid(501),
+      sourcePostingDocumentId: uuid(1001),
+      sourcePostingDocumentKind: "fx_execute",
+      sourceQuoteExecutionId: uuid(701),
+      state: "open",
+      updatedAt: NOW,
+    });
+    treasuryOrders.queries.listInventoryAllocations
+      .mockResolvedValueOnce({
+        data: Array.from({ length: 100 }, (_, index) => ({
+          amountMinor: 10n,
+          consumedAt: null,
+          costAmountMinor: 750n,
+          createdAt: NOW,
+          currencyId: uuid(201),
+          dealId: uuid(1100 + index),
+          id: uuid(1200 + index),
+          ledgerHoldRef: `hold-${index}`,
+          ownerBookId: uuid(901),
+          ownerRequisiteId: uuid(401),
+          positionId: uuid(801),
+          quoteId: uuid(1300 + index),
+          releasedAt: null,
+          reservedAt: NOW,
+          state: "reserved",
+          updatedAt: NOW,
+        })),
+        limit: 100,
+        offset: 0,
+        total: 101,
+      })
+      .mockResolvedValueOnce({
+        data: [
+          {
+            amountMinor: 25n,
+            consumedAt: null,
+            costAmountMinor: 1_875n,
+            createdAt: NOW,
+            currencyId: uuid(201),
+            dealId: uuid(1401),
+            id: uuid(1402),
+            ledgerHoldRef: "hold-last",
+            ownerBookId: uuid(901),
+            ownerRequisiteId: uuid(401),
+            positionId: uuid(801),
+            quoteId: uuid(1403),
+            releasedAt: null,
+            reservedAt: NOW,
+            state: "reserved",
+            updatedAt: NOW,
+          },
+        ],
+        limit: 100,
+        offset: 100,
+        total: 101,
+      });
+
+    const response = await app.request(
+      `http://localhost/treasury/orders/inventory/positions/${uuid(801)}`,
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      ledger: {
+        inventoryReservedMinor: "1025",
+      },
+    });
+    expect(
+      treasuryOrders.queries.listInventoryAllocations,
+    ).toHaveBeenCalledTimes(2);
   });
 });
