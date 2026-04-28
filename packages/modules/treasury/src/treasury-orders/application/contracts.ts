@@ -148,7 +148,7 @@ export const ListInventoryAllocationsQuerySchema = z.object({
   state: TreasuryInventoryAllocationStateSchema.optional(),
 });
 
-export const TreasuryOrderStepSchema = TreasuryOrderStepPlanInputSchema.extend({
+const TreasuryOrderStepSchema = TreasuryOrderStepPlanInputSchema.extend({
   createdAt: z.date(),
   id: z.uuid(),
   paymentStepId: z.uuid().nullable(),

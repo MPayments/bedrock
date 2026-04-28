@@ -421,24 +421,6 @@ export function setRouteName(
   };
 }
 
-export function setMarginPolicy(input: {
-  maxMarginBps?: number | null;
-  minMarginBps?: number | null;
-  state: PaymentRouteEditorState;
-}): PaymentRouteEditorState {
-  return {
-    ...input.state,
-    maxMarginBps:
-      input.maxMarginBps !== undefined
-        ? input.maxMarginBps
-        : input.state.maxMarginBps,
-    minMarginBps:
-      input.minMarginBps !== undefined
-        ? input.minMarginBps
-        : input.state.minMarginBps,
-  };
-}
-
 export function setLockedSide(
   state: PaymentRouteEditorState,
   lockedSide: PaymentRouteDraft["lockedSide"],

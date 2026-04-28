@@ -69,30 +69,6 @@ export async function createDealScopedDocumentDraft(input: {
   return toResult(result);
 }
 
-export async function createDocumentDraft(input: {
-  docType: string;
-  payload: unknown;
-}): Promise<DocumentMutationResult> {
-  const idempotencyKey = generateIdempotencyKey("create-doc");
-  const result = await executeApiMutation<DocumentMutationDto>({
-    fallbackMessage: "Не удалось создать документ",
-    parseData: parseDocument,
-    request: () =>
-      fetch(
-        `${API_BASE_URL}/documents/${encodeURIComponent(input.docType)}`,
-        {
-          body: JSON.stringify({
-            input: input.payload,
-          }),
-          credentials: "include",
-          headers: commonHeaders(idempotencyKey),
-          method: "POST",
-        },
-      ),
-  });
-  return toResult(result);
-}
-
 export async function updateDocumentDraft(input: {
   docType: string;
   documentId: string;

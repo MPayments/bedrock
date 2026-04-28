@@ -121,6 +121,7 @@ describe("computePricingFingerprint", () => {
     const canon = canonicalizePricingFingerprintInput(baseInput());
     expect(Object.keys(canon)).toEqual([
       "commercialTerms",
+      "clientPricing",
       "fromAmountMinor",
       "fromCurrencyId",
       "pricingMode",

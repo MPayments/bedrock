@@ -10,7 +10,7 @@ type QuoteExecutionsQueries =
   DealExecutionTreasuryModule["quoteExecutions"]["queries"];
 type QuoteExecutionsListInput = Parameters<QuoteExecutionsQueries["list"]>[0];
 
-export async function listAllPaymentSteps(
+async function listAllPaymentSteps(
   queries: PaymentStepsQueries,
   input: Omit<PaymentStepsListInput, "limit" | "offset">,
 ): Promise<PaymentStep[]> {
@@ -33,7 +33,7 @@ export async function listAllPaymentSteps(
   return rows;
 }
 
-export async function listAllQuoteExecutions(
+async function listAllQuoteExecutions(
   queries: QuoteExecutionsQueries,
   input: Omit<QuoteExecutionsListInput, "limit" | "offset">,
 ): Promise<QuoteExecution[]> {

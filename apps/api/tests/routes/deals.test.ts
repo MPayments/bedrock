@@ -765,6 +765,26 @@ function createTestApp() {
         listQuotes: vi.fn(),
         previewQuote: vi.fn(),
         getQuoteDetails: vi.fn(),
+        findById: vi.fn(async () => null),
+      },
+    },
+    treasuryOrders: {
+      commands: {
+        reserveInventoryAllocation: vi.fn(),
+      },
+      queries: {
+        findInventoryPositionById: vi.fn(),
+        findReservedAllocationByDealAndQuote: vi.fn(),
+      },
+    },
+  };
+  const ledgerModule = {
+    balances: {
+      commands: {
+        reserve: vi.fn(),
+      },
+      queries: {
+        getBalance: vi.fn(),
       },
     },
   };
@@ -816,6 +836,7 @@ function createTestApp() {
     db: {
       execute: vi.fn(async () => ({ rows: [] })),
     },
+    runInTransaction: vi.fn(async (run) => run({ id: "tx-1" })),
   };
   const logger = {
     debug: vi.fn(),
@@ -854,6 +875,9 @@ function createTestApp() {
       reconciliationService,
       documentsService,
       documentDraftWorkflow,
+      createDealsModule: vi.fn(() => dealsModule),
+      createLedgerModule: vi.fn(() => ledgerModule),
+      createTreasuryModule: vi.fn(() => treasuryModule),
       logger,
       persistence,
     } as any),
@@ -868,6 +892,7 @@ function createTestApp() {
     dealsModule,
     agreementsModule,
     treasuryModule,
+    ledgerModule,
     calculationsModule,
     logger,
     iamService,
@@ -1267,7 +1292,11 @@ describe("deals routes", () => {
       amountMinor: "79005226",
       amountSide: "source",
       asOf: new Date("2026-04-19T09:58:00.000Z"),
+      clientPricing: null,
       dealId: "00000000-0000-4000-8000-000000000010",
+      executionSource: {
+        type: "route_execution",
+      },
       expectedRevision: 3,
     });
     await expect(response.json()).resolves.toMatchObject({
@@ -1319,7 +1348,11 @@ describe("deals routes", () => {
       amountMinor: "79005226",
       amountSide: "source",
       asOf: new Date("2026-04-19T09:58:00.000Z"),
+      clientPricing: null,
       dealId: "00000000-0000-4000-8000-000000000010",
+      executionSource: {
+        type: "route_execution",
+      },
       expectedRevision: 3,
       idempotencyKey: "pricing-quote-1",
     });

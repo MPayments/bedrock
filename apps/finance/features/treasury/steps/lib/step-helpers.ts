@@ -44,12 +44,6 @@ export function getStepKindLabel(
   return STEP_KIND_LABELS[step.kind];
 }
 
-export const STEP_CONFIRM_OUTCOME_LABELS: Record<StepConfirmOutcome, string> = {
-  settled: "Подтвердить исполнение",
-  failed: "Отметить как ошибку",
-  returned: "Подтвердить возврат",
-};
-
 export function requiresSettlementEvidence(step: FinanceDealPaymentStep): boolean {
   return (
     step.origin.type === "deal_execution_leg" &&

@@ -43,11 +43,6 @@ export const PAYMENT_ROUTE_FEE_APPLICATION_VALUES = [
   "deducted_from_flow",
   "separate_charge",
 ] as const;
-export const PAYMENT_ROUTE_EXECUTION_COST_TREATMENT_VALUES = [
-  "execution_spread",
-  "flow_deduction",
-  "separate_expense",
-] as const;
 export const PAYMENT_ROUTE_LOCKED_SIDE_VALUES = [
   "currency_in",
   "currency_out",
@@ -70,7 +65,9 @@ export type PaymentRouteFeeKind =
 export type PaymentRouteFeeApplication =
   (typeof PAYMENT_ROUTE_FEE_APPLICATION_VALUES)[number];
 export type PaymentRouteExecutionCostTreatment =
-  (typeof PAYMENT_ROUTE_EXECUTION_COST_TREATMENT_VALUES)[number];
+  | "execution_spread"
+  | "flow_deduction"
+  | "separate_expense";
 export type PaymentRouteLockedSide =
   (typeof PAYMENT_ROUTE_LOCKED_SIDE_VALUES)[number];
 

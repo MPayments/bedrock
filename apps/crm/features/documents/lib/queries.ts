@@ -4,7 +4,7 @@ import { PrintFormDescriptorSchema } from "@bedrock/sdk-print-forms-ui/lib/schem
 
 import { API_BASE_URL } from "@/lib/constants";
 
-export const CrmDocumentDetailSchema = z.object({
+const CrmDocumentDetailSchema = z.object({
   id: z.string(),
   docType: z.string(),
   docNo: z.string(),
