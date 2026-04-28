@@ -1,8 +1,18 @@
 import { describe, expect, it } from "vitest";
 
+import type { DocumentFormOptions } from "@bedrock/sdk-documents-form-ui/lib/form-options";
+
+import type { ApiCrmDealWorkbenchProjection } from "@/app/(dashboard)/deals/[id]/_components/types";
+
 import { buildCrmDealDocumentInitialPayload } from "./deal-prefill";
 
-function createWorkbench(overrides: Record<string, unknown> = {}) {
+const formOptions = {
+  currencies: [{ code: "RUB", id: "currency-rub", label: "RUB" }],
+} as unknown as Pick<DocumentFormOptions, "currencies">;
+
+function createWorkbench(
+  overrides: Record<string, unknown> = {},
+): ApiCrmDealWorkbenchProjection {
   return {
     acceptedQuote: {
       quoteId: "quote-1",
@@ -37,17 +47,15 @@ function createWorkbench(overrides: Record<string, unknown> = {}) {
       ],
     },
     ...overrides,
-  };
+  } as unknown as ApiCrmDealWorkbenchProjection;
 }
 
 describe("buildCrmDealDocumentInitialPayload", () => {
   it("prefills invoice amount from accepted quote customer total", () => {
     const payload = buildCrmDealDocumentInitialPayload(
-      createWorkbench() as any,
+      createWorkbench(),
       "invoice",
-      {
-        currencies: [{ code: "RUB", id: "currency-rub", label: "RUB" }],
-      } as any,
+      formOptions,
     );
 
     expect(payload).toMatchObject({
@@ -69,11 +77,9 @@ describe("buildCrmDealDocumentInitialPayload", () => {
           },
           quotes: [],
         },
-      }) as any,
+      }),
       "invoice",
-      {
-        currencies: [{ code: "RUB", id: "currency-rub", label: "RUB" }],
-      } as any,
+      formOptions,
     );
 
     expect(payload).not.toHaveProperty("amount");
@@ -92,11 +98,9 @@ describe("buildCrmDealDocumentInitialPayload", () => {
           },
           quotes: [{ fromCurrency: "RUB", id: "quote-1", profitability: null }],
         },
-      }) as any,
+      }),
       "invoice",
-      {
-        currencies: [{ code: "RUB", id: "currency-rub", label: "RUB" }],
-      } as any,
+      formOptions,
     );
 
     expect(payload).not.toHaveProperty("amount");

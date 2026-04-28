@@ -74,8 +74,10 @@ function buildExchangePrefill(
 export function buildCrmDealDocumentInitialPayload(
   workbench: ApiCrmDealWorkbenchProjection,
   docType: string,
-  _options: Pick<DocumentFormOptions, "currencies">,
+  options: Pick<DocumentFormOptions, "currencies">,
 ): Record<string, unknown> | undefined {
+  void options;
+
   switch (docType) {
     case "invoice":
       return buildInvoicePrefill(workbench);
