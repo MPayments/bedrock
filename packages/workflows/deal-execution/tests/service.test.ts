@@ -580,27 +580,13 @@ describe("deal execution workflow", () => {
         fromCurrencyId: "cur-aed",
         id: "leg-4",
         idx: 4,
-        kind: "convert" as const,
-        operationRefs: [] as {
-          kind: string;
-          operationId: string;
-          sourceRef: string;
-        }[],
-        routeSnapshotLegId: "route-leg-hop-4",
-        state: "ready" as const,
-        toCurrencyId: "cur-usd",
-      },
-      {
-        fromCurrencyId: "cur-usd",
-        id: "leg-5",
-        idx: 5,
         kind: "payout" as const,
         operationRefs: [] as {
           kind: string;
           operationId: string;
           sourceRef: string;
         }[],
-        routeSnapshotLegId: "route-leg-hop-5",
+        routeSnapshotLegId: "route-leg-hop-4",
         state: "pending" as const,
         toCurrencyId: "cur-usd",
       },
@@ -680,22 +666,6 @@ describe("deal execution workflow", () => {
           toAmountMinor: 1000000n,
           toCurrencyId: "cur-usd",
         },
-        {
-          asOf: new Date("2026-04-03T10:00:00.000Z"),
-          createdAt: new Date("2026-04-03T10:00:00.000Z"),
-          executionCounterpartyId: null,
-          fromAmountMinor: 1000000n,
-          fromCurrencyId: "cur-usd",
-          id: "quote-leg-5",
-          idx: 5,
-          quoteId: "quote-1",
-          rateDen: 1n,
-          rateNum: 1n,
-          sourceKind: "derived" as const,
-          sourceRef: null,
-          toAmountMinor: 1000000n,
-          toCurrencyId: "cur-usd",
-        },
       ],
     };
 
@@ -717,16 +687,13 @@ describe("deal execution workflow", () => {
       ["collect", "quote_leg_from", "quote_leg_to", 1],
       ["convert", "quote_leg_from", "quote_leg_to", 2],
       ["transit_hold", "quote_leg_from", "quote_leg_to", 3],
-      ["convert", "quote_leg_from", "quote_leg_to", 4],
-      ["payout", "quote_leg_from", "quote_leg_to", 5],
+      ["payout", "quote_leg_from", "quote_leg_to", 4],
     ]);
 
-    // Every route-derived leg carries its own unique quoteLegIdx so the
-    // two convert legs resolve to DIFFERENT amounts instead of sharing the
-    // aggregate quote amounts.
-    const convertLegs = recipe.filter((item) => item.legKind === "convert");
-    expect(convertLegs).toHaveLength(2);
-    expect(convertLegs[0]?.quoteLegIdx).not.toBe(convertLegs[1]?.quoteLegIdx);
+    // Every route-derived leg carries its own quoteLegIdx, including the
+    // cross-currency payout leg. This keeps payout amounts tied to the route
+    // leg instead of falling back to the aggregate quote/intake values.
+    expect(recipe.map((item) => item.quoteLegIdx)).toEqual([1, 2, 3, 4]);
   });
 
   it("resolves route-derived organization transfer kind from route participants", () => {

@@ -14,6 +14,7 @@ import type { TreasuryOperationRow } from "../lib/queries";
 import { formatDate } from "@/lib/format";
 import { listCurrencyOptions } from "@/features/treasury/steps/lib/currency-options";
 import {
+  getStepKindLabel,
   STEP_STATE_LABELS,
   stepBadgeVariant,
 } from "@/features/treasury/steps/lib/step-helpers";
@@ -103,9 +104,15 @@ export const columns: ColumnDef<TreasuryOperationRow>[] = [
     header: ({ column }) => (
       <DataTableColumnHeader column={column} label="Тип" />
     ),
-    cell: ({ row }) => (
-      <Badge variant="outline">{KIND_LABELS[row.original.kind]}</Badge>
-    ),
+    cell: ({ row }) => {
+      const operation = row.original;
+      const label =
+        operation.runtimeType === "payment_step"
+          ? getStepKindLabel(operation)
+          : KIND_LABELS[operation.kind];
+
+      return <Badge variant="outline">{label}</Badge>;
+    },
     enableSorting: false,
   },
   {

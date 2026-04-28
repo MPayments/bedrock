@@ -34,6 +34,16 @@ export const STEP_PURPOSE_LABELS: Record<StepPurpose, string> = {
   standalone_payment: "Отдельная операция",
 };
 
+export function getStepKindLabel(
+  step: Pick<FinanceDealPaymentStep, "fromCurrencyId" | "kind" | "toCurrencyId">,
+): string {
+  if (step.kind === "payout" && step.fromCurrencyId !== step.toCurrencyId) {
+    return "Выплата с конвертацией";
+  }
+
+  return STEP_KIND_LABELS[step.kind];
+}
+
 export const STEP_CONFIRM_OUTCOME_LABELS: Record<StepConfirmOutcome, string> = {
   settled: "Подтвердить исполнение",
   failed: "Отметить как ошибку",

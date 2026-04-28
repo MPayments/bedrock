@@ -17,7 +17,6 @@ const ROUTE_NODE_IDS = {
   AFA_RUB: "route-node-0b2537cc-7ae4-4310-b80a-c2ebd1b41aba",
   BENEFICIARY: "route-node-4f112c07-eef8-4d1a-ba7d-b3e4baf09b03",
   MULTIHANSA_AED: "route-node-60fcf53c-eeb8-468d-8b29-d07310a39c9b",
-  MULTIHANSA_USD: "route-node-f6b23c6e-407f-49e4-8e87-a8c6e2f72456",
   SOURCE: "route-node-d910b07b-f0da-4015-b5a3-fdce3a4c1f8b",
 } as const;
 
@@ -60,12 +59,6 @@ const RUB_AED_USD_DRAFT = PaymentRouteDraftSchema.parse({
       id: "route-leg-ec641768-f951-4735-a914-2711ca060864",
       toCurrencyId: CURRENCY_IDS.USD,
     },
-    {
-      fees: [],
-      fromCurrencyId: CURRENCY_IDS.USD,
-      id: "route-leg-6c11c01a-3779-4d24-aef2-5773258e12f1",
-      toCurrencyId: CURRENCY_IDS.USD,
-    },
   ],
   lockedSide: "currency_in",
   participants: [
@@ -106,15 +99,6 @@ const RUB_AED_USD_DRAFT = PaymentRouteDraftSchema.parse({
       role: "hop",
     },
     {
-      binding: "bound",
-      displayName: "MULTIHANSA BROKERS - FZCO",
-      entityId: ORGANIZATION_IDS.MULTIHANSA_BROKERS,
-      entityKind: "organization",
-      nodeId: ROUTE_NODE_IDS.MULTIHANSA_USD,
-      requisiteId: REQUISITE_IDS.MULTIHANSA_ADCB_USD,
-      role: "hop",
-    },
-    {
       binding: "abstract",
       displayName: "Бенефициар",
       entityId: null,
@@ -132,8 +116,7 @@ const RUB_AED_USD_VISUAL = PaymentRouteVisualMetadataSchema.parse({
     [ROUTE_NODE_IDS.AFA_RUB]: { x: 260, y: 180 },
     [ROUTE_NODE_IDS.AFA_AED]: { x: 520, y: 72 },
     [ROUTE_NODE_IDS.MULTIHANSA_AED]: { x: 780, y: 180 },
-    [ROUTE_NODE_IDS.MULTIHANSA_USD]: { x: 1040, y: 72 },
-    [ROUTE_NODE_IDS.BENEFICIARY]: { x: 1300, y: 180 },
+    [ROUTE_NODE_IDS.BENEFICIARY]: { x: 1040, y: 72 },
   },
   viewport: {
     x: 0,

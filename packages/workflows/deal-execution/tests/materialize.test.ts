@@ -336,11 +336,11 @@ describe("resolveLegPartyRefs", () => {
               fees: [],
               fromCurrencyId: "cur-rub",
               id: "route-leg-2",
-              toCurrencyId: "cur-usd",
+              toCurrencyId: "cur-aed",
             },
             {
               fees: [],
-              fromCurrencyId: "cur-usd",
+              fromCurrencyId: "cur-aed",
               id: "route-leg-3",
               toCurrencyId: "cur-usd",
             },

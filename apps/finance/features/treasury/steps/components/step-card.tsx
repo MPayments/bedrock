@@ -13,7 +13,7 @@ import { executeMutation } from "@/lib/resources/http";
 import type { PartyKind, PartyKindOrSnapshot } from "../lib/party-options";
 import {
   deriveStepPrimaryAction,
-  STEP_KIND_LABELS,
+  getStepKindLabel,
   STEP_PURPOSE_LABELS,
   type StepConfirmOutcome,
 } from "../lib/step-helpers";
@@ -157,7 +157,7 @@ export function StepCard({
               <div className="text-sm font-semibold">{title}</div>
             ) : null}
             <div className="text-muted-foreground text-xs">
-              {STEP_KIND_LABELS[step.kind]} ·{" "}
+              {getStepKindLabel(step)} ·{" "}
               {STEP_PURPOSE_LABELS[step.purpose]}
             </div>
           </div>

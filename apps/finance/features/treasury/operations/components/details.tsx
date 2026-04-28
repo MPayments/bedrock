@@ -12,7 +12,10 @@ import { EntityWorkspaceLayout } from "@/components/entities/workspace-layout";
 import { StepAttemptsDrawer } from "@/features/treasury/steps/components/step-attempts-drawer";
 import { StepCard } from "@/features/treasury/steps/components/step-card";
 import { QuoteExecutionCard } from "@/features/treasury/quote-executions/components/quote-execution-card";
-import { STEP_KIND_LABELS } from "@/features/treasury/steps/lib/step-helpers";
+import {
+  getStepKindLabel,
+  STEP_KIND_LABELS,
+} from "@/features/treasury/steps/lib/step-helpers";
 
 import type { TreasuryOperationDetails } from "../lib/queries";
 
@@ -52,8 +55,14 @@ export function TreasuryOperationDetailsView({
       : null;
   const cardTitle =
     hasDealContext && operation.origin.sequence !== null
-      ? `Шаг ${operation.origin.sequence} · ${OPERATION_KIND_LABELS[operation.kind]}`
-      : OPERATION_KIND_LABELS[operation.kind];
+      ? `Шаг ${operation.origin.sequence} · ${
+          operation.runtimeType === "payment_step"
+            ? getStepKindLabel(operation)
+            : OPERATION_KIND_LABELS[operation.kind]
+        }`
+      : operation.runtimeType === "payment_step"
+        ? getStepKindLabel(operation)
+        : OPERATION_KIND_LABELS[operation.kind];
 
   return (
     <EntityWorkspaceLayout

@@ -18,6 +18,7 @@ import type {
 import { QuoteExecutionCard } from "@/features/treasury/quote-executions/components/quote-execution-card";
 import { StepCard } from "@/features/treasury/steps/components/step-card";
 import type { PartyKindOrSnapshot } from "@/features/treasury/steps/lib/party-options";
+import { getStepKindLabel } from "@/features/treasury/steps/lib/step-helpers";
 import { executeMutation } from "@/lib/resources/http";
 
 import { DealAttachmentsCard } from "./deal-attachments-card";
@@ -274,8 +275,8 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
               ) : selectedStep && selectedLeg ? (
                 <StepCard
                   step={selectedStep}
-                  title={`Шаг ${selectedLeg.idx} · ${getDealLegKindLabel(
-                    selectedLeg.kind,
+                  title={`Шаг ${selectedLeg.idx} · ${getStepKindLabel(
+                    selectedStep,
                   )}`}
                   uploadAssetPath={`/v1/treasury/steps/${encodeURIComponent(
                     selectedStep.id,

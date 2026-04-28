@@ -310,12 +310,6 @@ function createFourHopRouteSnapshot(): PaymentRouteDraft {
         id: "route-leg-4",
         toCurrencyId: "currency-usd",
       },
-      {
-        fees: [],
-        fromCurrencyId: "currency-usd",
-        id: "route-leg-5",
-        toCurrencyId: "currency-usd",
-      },
     ],
     lockedSide: "currency_out",
     participants: [
@@ -357,15 +351,6 @@ function createFourHopRouteSnapshot(): PaymentRouteDraft {
       },
       {
         binding: "abstract",
-        displayName: "Hop 4",
-        entityId: null,
-        entityKind: null,
-        nodeId: "node-hop-4",
-        requisiteId: null,
-        role: "hop",
-      },
-      {
-        binding: "abstract",
         displayName: "Beneficiary",
         entityId: null,
         entityKind: null,
@@ -397,29 +382,25 @@ describe("buildDealExecutionPlan — route-derived", () => {
       "collect",
       "convert",
       "transit_hold",
-      "convert",
       "payout",
     ]);
-    expect(plan.map((leg) => leg.idx)).toEqual([1, 2, 3, 4, 5]);
+    expect(plan.map((leg) => leg.idx)).toEqual([1, 2, 3, 4]);
     expect(plan.map((leg) => leg.routeSnapshotLegId)).toEqual([
       "route-leg-1",
       "route-leg-2",
       "route-leg-3",
       "route-leg-4",
-      "route-leg-5",
     ]);
     expect(plan.map((leg) => leg.fromCurrencyId)).toEqual([
       "currency-rub",
       "currency-rub",
       "currency-aed",
       "currency-aed",
-      "currency-usd",
     ]);
     expect(plan.map((leg) => leg.toCurrencyId)).toEqual([
       "currency-rub",
       "currency-aed",
       "currency-aed",
-      "currency-usd",
       "currency-usd",
     ]);
   });
@@ -435,10 +416,9 @@ describe("buildDealExecutionPlan — route-derived", () => {
       "collect",
       "convert",
       "transit_hold",
-      "convert",
       "payout",
     ]);
-    expect(plan.map((leg) => leg.idx)).toEqual([1, 2, 3, 4, 5]);
+    expect(plan.map((leg) => leg.idx)).toEqual([1, 2, 3, 4]);
   });
 });
 
@@ -481,7 +461,7 @@ describe("buildEffectiveDealExecutionPlan — per-convert state rules", () => {
     });
 
     const convertLegs = plan.filter((leg) => leg.kind === "convert");
-    expect(convertLegs.length).toBe(2);
+    expect(convertLegs.length).toBe(1);
     expect(convertLegs.every((leg) => leg.state === "skipped")).toBe(true);
   });
 
@@ -506,7 +486,7 @@ describe("buildEffectiveDealExecutionPlan — per-convert state rules", () => {
     });
 
     const convertLegs = plan.filter((leg) => leg.kind === "convert");
-    expect(convertLegs.length).toBe(2);
+    expect(convertLegs.length).toBe(1);
     expect(convertLegs.every((leg) => leg.state === "done")).toBe(true);
   });
 
