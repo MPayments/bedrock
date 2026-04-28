@@ -198,9 +198,9 @@ Hono with `@hono/zod-openapi`. Each route module is a function receiving app con
 
 - `README.md` — Setup and topology overview
 - `AGENTS.md` — Detailed coding conventions and patterns
-- `docs/adr/**` — Architecture Decision Records (0001 bounded-context + explicit architecture, 0002 requisites topology, 0003 route-driven deal execution)
+- `docs/adr/**` — Architecture Decision Records (0001 bounded-context + explicit architecture, 0002 requisites topology, 0003 route-driven deal execution, 0004 invoice organization resolution)
 - `docs/deploy.md` — Deployment notes
 - `docs/cutover/`, `docs/bugs/`, `docs/test-cases/` — operational and QA documentation
 - `docs/history/claude-md.md` — append-only changelog of every CLAUDE.md refresh (drift findings, baselines, flagged items)
 
-<!-- last-synced: 43a6f123cde6a2345db3d8751778b504de2fc7c1 -->
+<!-- last-synced: f4020be8cda31680ca24580899f8c0d9023a6dfe -->

@@ -57,3 +57,25 @@ First pass after introducing the refresh protocol. Baseline is `d2b95746` (`feat
 ### Next baseline
 
 After this refresh is committed, the `<!-- last-synced: <sha> -->` marker at the end of CLAUDE.md will be set to the sha of the commit that applies these changes. The next pre-PR researcher or scheduled agent should diff from that sha forward.
+
+---
+
+## 2026-04-29 — ADR 0004 added (baseline: f4020be8, trigger: pre-pr-researcher)
+
+Pre-PR researcher run for `feat/invoice-template-data` (PR adds invoice template localization + ADR 0004 documenting the invoice organization resolution cascade).
+
+### Changed
+
+- **Documentation Source of Truth — ADR list**: extended from "0001 …, 0002 …, 0003 …" to also include "0004 invoice organization resolution". Evidence: `ls docs/adr/` now lists `0004-invoice-organization-resolution.md` (added in this PR).
+
+### Verified unchanged
+
+- **Workspace Topology**: no apps/modules/workflows added or removed.
+- **Vitest project count**: still 26 (no new vitest projects in this PR).
+- **`packages/modules/*` count**: still 20.
+- **Root `package.json` scripts, ports**: untouched.
+- **Key Conventions, ESLint Layer Enforcement, Service Pattern, Internal Package Layers** — out of scope for this PR; not edited.
+
+### Flagged (not changed)
+
+- None new — earlier flagged items (`apps/web` empty dir, root `redesign.md`/`summorize.md`, dev script breadth, `packages/plugins/` & `packages/sdk/` enumeration) still pending human decisions from 2026-04-24 entry.
