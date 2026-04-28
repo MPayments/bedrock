@@ -116,7 +116,18 @@ export const ListInventoryPositionsQuerySchema = z.object({
   limit: z.number().int().positive().max(100).default(50),
   offset: z.number().int().nonnegative().default(0),
   ownerPartyId: z.uuid().optional(),
+  sourceOrderId: z.uuid().optional(),
+  sourceQuoteExecutionId: z.uuid().optional(),
   state: TreasuryInventoryPositionStateSchema.optional(),
+});
+
+export const ListInventoryAllocationsQuerySchema = z.object({
+  dealId: z.uuid().optional(),
+  limit: z.number().int().positive().max(100).default(50),
+  offset: z.number().int().nonnegative().default(0),
+  positionId: z.uuid().optional(),
+  quoteId: z.uuid().optional(),
+  state: TreasuryInventoryAllocationStateSchema.optional(),
 });
 
 export const TreasuryOrderStepSchema = TreasuryOrderStepPlanInputSchema.extend({
@@ -164,6 +175,9 @@ export type ReserveInventoryAllocationInput = z.infer<
 >;
 export type ListInventoryPositionsQuery = z.infer<
   typeof ListInventoryPositionsQuerySchema
+>;
+export type ListInventoryAllocationsQuery = z.infer<
+  typeof ListInventoryAllocationsQuerySchema
 >;
 export type TreasuryOrder = z.infer<typeof TreasuryOrderSchema>;
 export type TreasuryInventoryAllocation = z.infer<

@@ -8,6 +8,8 @@ import {
   PaymentStepPartyRefSchema,
   PaymentStepRateLockedSideSchema,
   PaymentStepRateSchema,
+  TreasuryInventoryAllocationSchema,
+  TreasuryInventoryAllocationStateSchema,
   TreasuryInventoryPositionSchema,
   TreasuryInventoryPositionStateSchema,
   TreasuryOrderStateSchema,
@@ -27,6 +29,10 @@ type TreasuryOrdersService = TreasuryModule["treasuryOrders"];
 
 const TreasuryOrderIdParamsSchema = z.object({
   orderId: z.uuid(),
+});
+
+const TreasuryInventoryPositionIdParamsSchema = z.object({
+  positionId: z.uuid(),
 });
 
 const PositiveMinorStringSchema = z
@@ -69,7 +75,18 @@ const ListInventoryPositionsQuerySchema = z.object({
   limit: z.coerce.number().int().positive().max(100).optional().default(50),
   offset: z.coerce.number().int().nonnegative().optional().default(0),
   ownerPartyId: z.uuid().optional(),
+  sourceOrderId: z.uuid().optional(),
+  sourceQuoteExecutionId: z.uuid().optional(),
   state: TreasuryInventoryPositionStateSchema.optional(),
+});
+
+const ListInventoryAllocationsQuerySchema = z.object({
+  dealId: z.uuid().optional(),
+  limit: z.coerce.number().int().positive().max(100).optional().default(50),
+  offset: z.coerce.number().int().nonnegative().optional().default(0),
+  positionId: z.uuid().optional(),
+  quoteId: z.uuid().optional(),
+  state: TreasuryInventoryAllocationStateSchema.optional(),
 });
 
 const TreasuryOrderStepResponseSchema = z.object({
@@ -131,9 +148,27 @@ const TreasuryInventoryPositionsListResponseSchema = z.object({
   total: z.number().int().nonnegative(),
 });
 
+const TreasuryInventoryAllocationResponseSchema =
+  TreasuryInventoryAllocationSchema.extend({
+    amountMinor: z.string(),
+    costAmountMinor: z.string(),
+    createdAt: z.iso.datetime(),
+    updatedAt: z.iso.datetime(),
+  });
+
+const TreasuryInventoryAllocationsListResponseSchema = z.object({
+  data: z.array(TreasuryInventoryAllocationResponseSchema),
+  limit: z.number().int().positive(),
+  offset: z.number().int().nonnegative(),
+  total: z.number().int().nonnegative(),
+});
+
 type TreasuryOrderResponse = z.infer<typeof TreasuryOrderResponseSchema>;
 type TreasuryInventoryPositionResponse = z.infer<
   typeof TreasuryInventoryPositionResponseSchema
+>;
+type TreasuryInventoryAllocationResponse = z.infer<
+  typeof TreasuryInventoryAllocationResponseSchema
 >;
 
 function serializeDate(value: Date | string): string {
@@ -214,6 +249,26 @@ function serializeInventoryPosition(position: {
     costAmountMinor: position.costAmountMinor.toString(),
     createdAt: serializeDate(position.createdAt),
     updatedAt: serializeDate(position.updatedAt),
+  };
+}
+
+function serializeInventoryAllocation(allocation: {
+  amountMinor: bigint | string;
+  costAmountMinor: bigint | string;
+  createdAt: Date | string;
+  dealId: string;
+  id: string;
+  positionId: string;
+  quoteId: string | null;
+  state: z.infer<typeof TreasuryInventoryAllocationStateSchema>;
+  updatedAt: Date | string;
+}): TreasuryInventoryAllocationResponse {
+  return {
+    ...allocation,
+    amountMinor: allocation.amountMinor.toString(),
+    costAmountMinor: allocation.costAmountMinor.toString(),
+    createdAt: serializeDate(allocation.createdAt),
+    updatedAt: serializeDate(allocation.updatedAt),
   };
 }
 
@@ -319,6 +374,48 @@ export function treasuryOrdersRoutes(ctx: AppContext) {
     tags: ["Treasury"],
   });
 
+  const getInventoryPositionRoute = createRoute({
+    middleware: [requirePermission({ deals: ["list"] })],
+    method: "get",
+    path: "/inventory/positions/{positionId}",
+    request: { params: TreasuryInventoryPositionIdParamsSchema },
+    responses: {
+      200: {
+        description: "Treasury inventory position",
+        content: {
+          "application/json": {
+            schema: TreasuryInventoryPositionResponseSchema,
+          },
+        },
+      },
+      404: {
+        description: "Not found",
+        content: { "application/json": { schema: ErrorSchema } },
+      },
+    },
+    summary: "Get a treasury inventory position",
+    tags: ["Treasury"],
+  });
+
+  const listInventoryAllocationsRoute = createRoute({
+    middleware: [requirePermission({ deals: ["list"] })],
+    method: "get",
+    path: "/inventory/allocations",
+    request: { query: ListInventoryAllocationsQuerySchema },
+    responses: {
+      200: {
+        description: "Treasury inventory allocations",
+        content: {
+          "application/json": {
+            schema: TreasuryInventoryAllocationsListResponseSchema,
+          },
+        },
+      },
+    },
+    summary: "List treasury inventory allocations",
+    tags: ["Treasury"],
+  });
+
   const getOrderRoute = createRoute({
     middleware: [requirePermission({ deals: ["list"] })],
     method: "get",
@@ -407,6 +504,40 @@ export function treasuryOrdersRoutes(ctx: AppContext) {
           );
         return c.json({
           data: result.data.map(serializeInventoryPosition),
+          limit: result.limit,
+          offset: result.offset,
+          total: result.total,
+        });
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(getInventoryPositionRoute, async (c) => {
+      try {
+        const { positionId } = c.req.valid("param");
+        const position =
+          await ctx.treasuryModule.treasuryOrders.queries.findInventoryPositionById(
+            { positionId },
+          );
+        return position
+          ? c.json(serializeInventoryPosition(position), 200)
+          : c.json(
+              { error: `Treasury inventory position ${positionId} not found` },
+              404,
+            );
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(listInventoryAllocationsRoute, async (c) => {
+      try {
+        const query = c.req.valid("query");
+        const result =
+          await ctx.treasuryModule.treasuryOrders.queries.listInventoryAllocations(
+            query,
+          );
+        return c.json({
+          data: result.data.map(serializeInventoryAllocation),
           limit: result.limit,
           offset: result.offset,
           total: result.total,

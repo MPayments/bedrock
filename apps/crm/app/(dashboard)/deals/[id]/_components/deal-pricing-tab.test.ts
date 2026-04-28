@@ -256,8 +256,11 @@ describe("DealPricingTab", () => {
     );
 
     const normalizedMarkup = normalizeMarkupWhitespace(markup);
+    const quoteSummaryMetricCount =
+      markup.match(/data-testid="quote-summary-metric"/gu)?.length ?? 0;
 
     expect(normalizedMarkup).toContain("Котировка");
+    expect(quoteSummaryMetricCount).toBe(8);
     expect(normalizedMarkup).toContain("Входные данные");
     expect(normalizedMarkup).toContain("Маршрут");
     expect(normalizedMarkup).toContain("Цена клиенту");

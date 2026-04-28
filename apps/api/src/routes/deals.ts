@@ -132,6 +132,64 @@ function serializeDealPricingQuoteResult(
   };
 }
 
+function readRecord(value: unknown): Record<string, unknown> | null {
+  return value &&
+    typeof value === "object" &&
+    !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function extractInventoryReservation(input: {
+  pricingTrace: Record<string, unknown> | null | undefined;
+}): {
+  amountMinor: bigint;
+  positionId: string;
+} | null {
+  const pricingTrace = readRecord(input.pricingTrace);
+  const metadata = readRecord(pricingTrace?.metadata);
+  const snapshot = readRecord(metadata?.crmPricingSnapshot);
+  const executionSide = readRecord(snapshot?.executionSide);
+  const clientSide = readRecord(snapshot?.clientSide);
+
+  if (
+    executionSide?.source !== "treasury_inventory" ||
+    typeof executionSide.inventoryPositionId !== "string" ||
+    typeof clientSide?.beneficiaryAmountMinor !== "string"
+  ) {
+    return null;
+  }
+
+  return {
+    amountMinor: BigInt(clientSide.beneficiaryAmountMinor),
+    positionId: executionSide.inventoryPositionId,
+  };
+}
+
+async function reserveInventoryForAcceptedQuote(input: {
+  dealId: string;
+  quoteId: string;
+  treasuryModule: AppContext["treasuryModule"];
+}) {
+  const quote = await input.treasuryModule.quotes.queries.findById(
+    input.quoteId,
+  );
+  const reservation = extractInventoryReservation({
+    pricingTrace: quote?.pricingTrace ?? null,
+  });
+
+  if (!reservation) {
+    return null;
+  }
+
+  return input.treasuryModule.treasuryOrders.commands.reserveInventoryAllocation({
+    amountMinor: reservation.amountMinor,
+    dealId: input.dealId,
+    positionId: reservation.positionId,
+    quoteId: input.quoteId,
+  });
+}
+
 export function dealsRoutes(ctx: AppContext) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();
   const RECONCILIATION_DEFAULT_RULESET_CHECKSUM = "core-default-v1";
@@ -2130,10 +2188,20 @@ export function dealsRoutes(ctx: AppContext) {
       try {
         const { id, quoteId } = c.req.valid("param");
         const actorUserId = c.get("user")!.id;
-        const result = await ctx.dealsModule.deals.commands.acceptQuote({
-          actorUserId,
-          dealId: id,
-          quoteId,
+        const result = await ctx.persistence.runInTransaction(async (tx) => {
+          const dealsModule = ctx.createDealsModule(tx);
+          const treasuryModule = ctx.createTreasuryModule(tx);
+          const accepted = await dealsModule.deals.commands.acceptQuote({
+            actorUserId,
+            dealId: id,
+            quoteId,
+          });
+          await reserveInventoryForAcceptedQuote({
+            dealId: id,
+            quoteId: accepted.acceptedQuote?.quoteId ?? quoteId,
+            treasuryModule,
+          });
+          return accepted;
         });
 
         await triggerAutoMaterializeAfterAccept(ctx, {
@@ -2608,10 +2676,19 @@ export function dealsRoutes(ctx: AppContext) {
             visibility: "internal",
           });
 
-          await ctx.dealsModule.deals.commands.acceptQuote({
-            actorUserId,
-            dealId: id,
-            quoteId: quoteResult.quote.id,
+          await ctx.persistence.runInTransaction(async (tx) => {
+            const dealsModule = ctx.createDealsModule(tx);
+            const treasuryModule = ctx.createTreasuryModule(tx);
+            await dealsModule.deals.commands.acceptQuote({
+              actorUserId,
+              dealId: id,
+              quoteId: quoteResult.quote.id,
+            });
+            await reserveInventoryForAcceptedQuote({
+              dealId: id,
+              quoteId: quoteResult.quote.id,
+              treasuryModule,
+            });
           });
 
           const calculation =

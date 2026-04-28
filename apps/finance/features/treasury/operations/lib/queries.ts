@@ -1,5 +1,5 @@
 import { cache } from "react";
-import type { z } from "zod";
+import { z } from "zod";
 
 import { readEntityById, readPaginatedList } from "@/lib/api/query";
 import type { HttpResponseLike } from "@/lib/api/response";
@@ -21,6 +21,98 @@ const TreasuryStepsListResponseSchema = createPaginatedResponseSchema(
 );
 const TreasuryQuoteExecutionsListResponseSchema =
   createPaginatedResponseSchema(FinanceDealQuoteExecutionSchema);
+const TreasuryOrderStepSchema = z.object({
+  createdAt: z.iso.datetime(),
+  fromAmountMinor: z.string().nullable(),
+  fromCurrencyId: z.uuid(),
+  fromParty: z.object({
+    displayName: z.string().nullable().optional(),
+    entityKind: z.string().nullable().optional(),
+    id: z.uuid(),
+    requisiteId: z.uuid().nullable(),
+    snapshot: z.record(z.string(), z.unknown()).nullable().optional(),
+  }),
+  id: z.uuid(),
+  kind: z.enum([
+    "payin",
+    "fx_conversion",
+    "payout",
+    "intracompany_transfer",
+    "intercompany_funding",
+    "internal_transfer",
+    "quote_execution",
+  ]),
+  paymentStepId: z.uuid().nullable(),
+  quoteExecutionId: z.uuid().nullable(),
+  quoteId: z.uuid().nullable(),
+  rate: z
+    .object({
+      lockedSide: z.enum(["in", "out"]),
+      value: z.string(),
+    })
+    .nullable(),
+  sequence: z.number().int().positive(),
+  sourceRef: z.string(),
+  toAmountMinor: z.string().nullable(),
+  toCurrencyId: z.uuid(),
+  toParty: z.object({
+    displayName: z.string().nullable().optional(),
+    entityKind: z.string().nullable().optional(),
+    id: z.uuid(),
+    requisiteId: z.uuid().nullable(),
+    snapshot: z.record(z.string(), z.unknown()).nullable().optional(),
+  }),
+  updatedAt: z.iso.datetime(),
+});
+const TreasuryOrderSchema = z.object({
+  activatedAt: z.iso.datetime().nullable(),
+  cancelledAt: z.iso.datetime().nullable(),
+  createdAt: z.iso.datetime(),
+  description: z.string().nullable(),
+  id: z.uuid(),
+  state: z.enum(["draft", "active", "completed", "cancelled", "failed"]),
+  steps: z.array(TreasuryOrderStepSchema),
+  type: z.enum([
+    "single_payment",
+    "fx_exchange",
+    "rebalance",
+    "pre_fund",
+    "liquidity_purchase",
+  ]),
+  updatedAt: z.iso.datetime(),
+});
+const TreasuryInventoryPositionSchema = z.object({
+  acquiredAmountMinor: z.string(),
+  availableAmountMinor: z.string(),
+  costAmountMinor: z.string(),
+  costCurrencyId: z.uuid(),
+  createdAt: z.iso.datetime(),
+  currencyId: z.uuid(),
+  id: z.uuid(),
+  ownerPartyId: z.uuid(),
+  ownerRequisiteId: z.uuid().nullable(),
+  sourceOrderId: z.uuid(),
+  sourceQuoteExecutionId: z.uuid(),
+  state: z.enum(["open", "exhausted", "cancelled"]),
+  updatedAt: z.iso.datetime(),
+});
+const TreasuryInventoryAllocationSchema = z.object({
+  amountMinor: z.string(),
+  costAmountMinor: z.string(),
+  createdAt: z.iso.datetime(),
+  dealId: z.uuid(),
+  id: z.uuid(),
+  positionId: z.uuid(),
+  quoteId: z.uuid().nullable(),
+  state: z.enum(["reserved", "consumed", "released"]),
+  updatedAt: z.iso.datetime(),
+});
+const TreasuryOrdersListResponseSchema =
+  createPaginatedResponseSchema(TreasuryOrderSchema);
+const TreasuryInventoryPositionsListResponseSchema =
+  createPaginatedResponseSchema(TreasuryInventoryPositionSchema);
+const TreasuryInventoryAllocationsListResponseSchema =
+  createPaginatedResponseSchema(TreasuryInventoryAllocationSchema);
 const TREASURY_OPERATION_PAGE_LIMIT = 100;
 
 export type TreasuryPaymentStepOperation = FinanceDealPaymentStep & {
@@ -34,13 +126,31 @@ export type TreasuryQuoteExecutionOperation = FinanceDealQuoteExecution & {
 export type TreasuryOperationRow =
   | TreasuryPaymentStepOperation
   | TreasuryQuoteExecutionOperation;
+export type TreasuryOrderRow = z.infer<typeof TreasuryOrderSchema>;
+export type TreasuryInventoryPositionRow = z.infer<
+  typeof TreasuryInventoryPositionSchema
+>;
+export type TreasuryInventoryAllocationRow = z.infer<
+  typeof TreasuryInventoryAllocationSchema
+>;
 export type TreasuryOperationsListResult = {
   data: TreasuryOperationRow[];
   limit: number;
   offset: number;
   total: number;
 };
+export type TreasuryOrdersListResult = PaginatedResponse<TreasuryOrderRow>;
+export type TreasuryInventoryPositionsListResult =
+  PaginatedResponse<TreasuryInventoryPositionRow>;
 export type TreasuryOperationDetails = TreasuryOperationRow;
+export type TreasuryOrderDetails = TreasuryOrderRow & {
+  childOperations: TreasuryOperationRow[];
+  inventoryPositions: TreasuryInventoryPositionRow[];
+};
+export type TreasuryInventoryPositionDetails = TreasuryInventoryPositionRow & {
+  allocations: TreasuryInventoryAllocationRow[];
+  sourceOrder: TreasuryOrderRow | null;
+};
 
 type PaginatedResponse<TItem> = {
   data: TItem[];
@@ -325,6 +435,150 @@ export async function getTreasuryOperations(
   };
 }
 
+function buildOrderListQuery(
+  search: TreasuryOperationsSearchParams,
+): Record<string, string | undefined> {
+  const { limit, offset } = resolvePagination(search);
+  const state =
+    typeof search.state?.[0] === "string" && search.state[0]
+      ? search.state[0]
+      : undefined;
+  return {
+    limit: String(limit),
+    offset: String(offset),
+    state,
+  };
+}
+
+export async function getTreasuryOrders(
+  search: TreasuryOperationsSearchParams = {},
+): Promise<TreasuryOrdersListResult> {
+  const client = await getServerApiClient();
+  const { data } = await readPaginatedList({
+    request: () =>
+      client.v1.treasury.orders.$get(
+        { query: buildOrderListQuery(search) },
+        { init: { cache: "no-store" } },
+      ),
+    schema: TreasuryOrdersListResponseSchema,
+    context: "Не удалось загрузить казначейские ордера",
+  });
+  return data;
+}
+
+function buildInventoryListQuery(
+  search: TreasuryOperationsSearchParams,
+): Record<string, string | undefined> {
+  const { limit, offset } = resolvePagination(search);
+  const state =
+    typeof search.state?.[0] === "string" && search.state[0]
+      ? search.state[0]
+      : undefined;
+  return {
+    currencyId:
+      typeof search.currencyId === "string" && search.currencyId
+        ? search.currencyId
+        : undefined,
+    limit: String(limit),
+    offset: String(offset),
+    state,
+  };
+}
+
+export async function getTreasuryInventoryPositions(
+  search: TreasuryOperationsSearchParams = {},
+): Promise<TreasuryInventoryPositionsListResult> {
+  const client = await getServerApiClient();
+  const { data } = await readPaginatedList({
+    request: () =>
+      client.v1.treasury.orders.inventory.positions.$get(
+        { query: buildInventoryListQuery(search) },
+        { init: { cache: "no-store" } },
+      ),
+    schema: TreasuryInventoryPositionsListResponseSchema,
+    context: "Не удалось загрузить инвентарь казначейства",
+  });
+  return data;
+}
+
+async function getTreasuryOrderByIdUncached(
+  id: string,
+): Promise<TreasuryOrderRow | null> {
+  return readEntityById({
+    id,
+    resourceName: "казначейский ордер",
+    request: async (validId) => {
+      const client = await getServerApiClient();
+      return client.v1.treasury.orders[":orderId"].$get(
+        { param: { orderId: validId } },
+        { init: { cache: "no-store" } },
+      );
+    },
+    schema: TreasuryOrderSchema,
+  });
+}
+
+async function getTreasuryInventoryPositionByIdUncached(
+  id: string,
+): Promise<TreasuryInventoryPositionRow | null> {
+  return readEntityById({
+    id,
+    resourceName: "позицию инвентаря казначейства",
+    request: async (validId) => {
+      const client = await getServerApiClient();
+      return client.v1.treasury.orders.inventory.positions[":positionId"].$get(
+        { param: { positionId: validId } },
+        { init: { cache: "no-store" } },
+      );
+    },
+    schema: TreasuryInventoryPositionSchema,
+  });
+}
+
+async function listInventoryPositionsBySourceOrder(
+  sourceOrderId: string,
+): Promise<TreasuryInventoryPositionRow[]> {
+  const client = await getServerApiClient();
+  const { data } = await readPaginatedList({
+    request: () =>
+      client.v1.treasury.orders.inventory.positions.$get(
+        {
+          query: {
+            limit: "100",
+            offset: "0",
+            sourceOrderId,
+          },
+        },
+        { init: { cache: "no-store" } },
+      ),
+    schema: TreasuryInventoryPositionsListResponseSchema,
+    context: "Не удалось загрузить позиции инвентаря по ордеру",
+  });
+  return data.data;
+}
+
+async function listInventoryAllocationsByPosition(
+  positionId: string,
+): Promise<TreasuryInventoryAllocationRow[]> {
+  const client = await getServerApiClient();
+  const { data } = await readPaginatedList({
+    request: () =>
+      client.v1.treasury.orders.inventory.allocations.$get(
+        {
+          query: {
+            limit: "100",
+            offset: "0",
+            positionId,
+          },
+        },
+        { init: { cache: "no-store" } },
+      ),
+    schema: TreasuryInventoryAllocationsListResponseSchema,
+    context: "Не удалось загрузить аллокации инвентаря",
+  });
+  return data.data;
+}
+
 async function getPaymentStepById(id: string) {
   return readEntityById({
     id,
@@ -380,3 +634,49 @@ const getTreasuryOperationByIdUncached = async (
 };
 
 export const getTreasuryOperationById = cache(getTreasuryOperationByIdUncached);
+
+const getTreasuryOrderDetailsUncached = async (
+  id: string,
+): Promise<TreasuryOrderDetails | null> => {
+  const order = await getTreasuryOrderByIdUncached(id);
+  if (!order) return null;
+
+  const [childOperations, inventoryPositions] = await Promise.all([
+    Promise.all(
+      order.steps
+        .flatMap((step) => [step.paymentStepId, step.quoteExecutionId])
+        .filter((childId): childId is string => Boolean(childId))
+        .map((childId) => getTreasuryOperationByIdUncached(childId)),
+    ),
+    listInventoryPositionsBySourceOrder(order.id),
+  ]);
+
+  return {
+    ...order,
+    childOperations: childOperations.filter(
+      (operation): operation is TreasuryOperationRow => Boolean(operation),
+    ),
+    inventoryPositions,
+  };
+};
+
+const getTreasuryInventoryPositionDetailsUncached = async (
+  id: string,
+): Promise<TreasuryInventoryPositionDetails | null> => {
+  const position = await getTreasuryInventoryPositionByIdUncached(id);
+  if (!position) return null;
+  const [allocations, sourceOrder] = await Promise.all([
+    listInventoryAllocationsByPosition(position.id),
+    getTreasuryOrderByIdUncached(position.sourceOrderId),
+  ]);
+  return {
+    ...position,
+    allocations,
+    sourceOrder,
+  };
+};
+
+export const getTreasuryOrderDetails = cache(getTreasuryOrderDetailsUncached);
+export const getTreasuryInventoryPositionDetails = cache(
+  getTreasuryInventoryPositionDetailsUncached,
+);

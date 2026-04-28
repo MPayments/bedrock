@@ -107,6 +107,19 @@ type StoredPricingSnapshot = {
   profitability: ApiDealPricingProfitability | null;
 };
 
+type ApiTreasuryInventoryPosition = {
+  acquiredAmountMinor: string;
+  availableAmountMinor: string;
+  costAmountMinor: string;
+  costCurrencyId: string;
+  currencyId: string;
+  id: string;
+  ownerPartyId: string;
+  ownerRequisiteId: string | null;
+  sourceOrderId: string;
+  state: "open" | "exhausted" | "cancelled";
+};
+
 function createIdempotencyKey() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
     return crypto.randomUUID();
@@ -242,6 +255,21 @@ function formatMinorAmount(amountMinor: string, currency: string) {
   );
 }
 
+function formatInventoryPositionLabel(
+  position: ApiTreasuryInventoryPosition,
+  currencyCodeById: Map<string, string>,
+) {
+  const currency = currencyCodeById.get(position.currencyId) ?? position.currencyId;
+  const costCurrency =
+    currencyCodeById.get(position.costCurrencyId) ?? position.costCurrencyId;
+  const costRate = rationalToDecimalString(
+    position.costAmountMinor,
+    position.acquiredAmountMinor,
+    6,
+  );
+  return `${formatMinorAmount(position.availableAmountMinor, currency)} доступно · себес 1 ${currency} = ${costRate} ${costCurrency} · ордер #${position.sourceOrderId.slice(0, 8)}`;
+}
+
 function extractStoredPricingSnapshot(
   quote: ApiDealPricingQuote | null,
 ): StoredPricingSnapshot | null {
@@ -302,16 +330,19 @@ function extractStoredPricingSnapshot(
 function PricingMetricTile({
   label,
   sublabel,
+  testId,
   tone = "default",
   value,
 }: {
   label: string;
   sublabel?: string;
+  testId?: string;
   tone?: "default" | "positive" | "negative";
   value: string;
 }) {
   return (
     <div
+      data-testid={testId}
       className={cn(
         "rounded-xl border bg-background px-4 py-3",
         tone === "positive" ? "border-emerald-200 bg-emerald-50/80" : null,
@@ -626,6 +657,9 @@ export function DealPricingTab({
   const [acceptances, setAcceptances] = useState<
     ApiDealQuoteAcceptanceHistoryItem[]
   >([]);
+  const [inventoryPositions, setInventoryPositions] = useState<
+    ApiTreasuryInventoryPosition[]
+  >([]);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [downloadingHistoryCalculationId, setDownloadingHistoryCalculationId] =
     useState<string | null>(null);
@@ -673,6 +707,12 @@ export function DealPricingTab({
     quoteAmountSide === "source"
       ? amountCurrencyPrecision
       : targetCurrencyPrecision;
+  const requestedTargetMinor =
+    quoteAmountSide === "target"
+      ? decimalToMinorString(amountInput, targetCurrencyPrecision)
+      : null;
+  const targetCurrencyId =
+    serverContext.routeAttachment?.snapshot.currencyOutId ?? null;
   const routeAttachmentKey = useMemo(
     () => JSON.stringify(serverContext.routeAttachment?.snapshot ?? null),
     [serverContext.routeAttachment],
@@ -698,6 +738,43 @@ export function DealPricingTab({
     routeAttachmentKey,
     serverContext,
   });
+
+  useEffect(() => {
+    if (!targetCurrencyId) {
+      setInventoryPositions([]);
+      return;
+    }
+    let cancelled = false;
+    const query = new URLSearchParams({
+      currencyId: targetCurrencyId,
+      limit: "100",
+      offset: "0",
+      state: "open",
+    });
+    fetchJson<{
+      data: ApiTreasuryInventoryPosition[];
+    }>(`${API_BASE_URL}/treasury/orders/inventory/positions?${query.toString()}`)
+      .then((payload) => {
+        if (cancelled) return;
+        const beneficiaryMinor =
+          requestedTargetMinor && requestedTargetMinor !== "0"
+            ? BigInt(requestedTargetMinor)
+            : 0n;
+        setInventoryPositions(
+          payload.data.filter(
+            (position) =>
+              beneficiaryMinor === 0n ||
+              BigInt(position.availableAmountMinor) >= beneficiaryMinor,
+          ),
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setInventoryPositions([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [requestedTargetMinor, targetCurrencyId]);
   const acceptedDetailedQuote = acceptedQuote
     ? (quotes.find((quote) => quote.id === acceptedQuote.quoteId) ?? null)
     : null;
@@ -979,16 +1056,13 @@ export function DealPricingTab({
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
-          {preview && previewOrAcceptedSnapshot?.profitability ? (
+          {previewOrAcceptedSnapshot?.profitability ? (
             (() => {
+              const beneficiaryQuote =
+                preview?.quotePreview ?? acceptedDetailedQuote;
               const profit = previewOrAcceptedSnapshot.profitability;
               const profitValue = BigInt(profit.profitMinor);
               const isProfitNegative = profitValue < 0n;
-              const totalFeeMinor =
-                BigInt(profit.customerTotalMinor) -
-                BigInt(profit.customerPrincipalMinor);
-              const totalFeeValue = totalFeeMinor;
-              const isFeeNegative = totalFeeValue < 0n;
               const routeBench =
                 previewOrAcceptedSnapshot.benchmarks?.routeBase ?? null;
               const marketBench =
@@ -996,6 +1070,16 @@ export function DealPricingTab({
               const clientBench =
                 previewOrAcceptedSnapshot.benchmarks?.client ?? null;
               const referenceBench = routeBench ?? marketBench;
+              const selectedInventoryId =
+                commercialDraft.executionSource.type === "treasury_inventory"
+                  ? commercialDraft.executionSource.inventoryPositionId
+                  : null;
+              const selectedInventory =
+                selectedInventoryId === null
+                  ? null
+                  : inventoryPositions.find(
+                      (position) => position.id === selectedInventoryId,
+                    );
 
               return (
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -1010,6 +1094,7 @@ export function DealPricingTab({
                         ? "расчётная сумма"
                         : "клиент платит"
                     }
+                    testId="quote-summary-metric"
                     value={formatMinorAmount(
                       profit.customerTotalMinor,
                       profit.currency,
@@ -1021,21 +1106,38 @@ export function DealPricingTab({
                         ? "Бенефициар получит"
                         : "Сумма получения"
                     }
+                    testId="quote-summary-metric"
                     value={
-                      preview?.quotePreview
+                      beneficiaryQuote
                         ? formatMinorAmount(
-                            preview.quotePreview.toAmountMinor,
-                            preview.quotePreview.toCurrency,
+                            beneficiaryQuote.toAmountMinor,
+                            beneficiaryQuote.toCurrency,
                           )
                         : "—"
                     }
                   />
                   <PricingMetricTile
                     label="Себестоимость маршрута"
+                    testId="quote-summary-metric"
                     value={formatMinorAmount(
                       profit.costPriceMinor,
                       profit.currency,
                     )}
+                  />
+                  <PricingMetricTile
+                    label="Источник исполнения"
+                    sublabel={
+                      selectedInventory
+                        ? `Позиция #${selectedInventory.id.slice(0, 8)}`
+                        : undefined
+                    }
+                    testId="quote-summary-metric"
+                    value={
+                      commercialDraft.executionSource.type ===
+                      "treasury_inventory"
+                        ? "Инвентарь"
+                        : "Маршрут"
+                    }
                   />
                   <PricingMetricTile
                     label={
@@ -1044,6 +1146,7 @@ export function DealPricingTab({
                         : "Рыночный курс"
                     }
                     sublabel={marketBench?.sourceLabel ?? "рыночный benchmark"}
+                    testId="quote-summary-metric"
                     value={
                       marketBench
                         ? rationalToDecimalString(
@@ -1065,6 +1168,7 @@ export function DealPricingTab({
                         ? (routeBench.sourceLabel ?? "база по шагам маршрута")
                         : "маршрут не выбран"
                     }
+                    testId="quote-summary-metric"
                     value={
                       routeBench
                         ? rationalToDecimalString(
@@ -1099,6 +1203,7 @@ export function DealPricingTab({
                       <PricingMetricTile
                         label="Курс клиенту"
                         sublabel={sublabel}
+                        testId="quote-summary-metric"
                         value={
                           clientBench
                             ? rationalToDecimalString(
@@ -1112,19 +1217,9 @@ export function DealPricingTab({
                     );
                   })()}
                   <PricingMetricTile
-                    label="Итого комиссия"
-                    tone={isFeeNegative ? "negative" : "default"}
-                    value={`${isFeeNegative ? "−\u00A0" : ""}${formatMinorAmount(
-                      (isFeeNegative
-                        ? -totalFeeValue
-                        : totalFeeValue
-                      ).toString(),
-                      profit.currency,
-                    )}`}
-                  />
-                  <PricingMetricTile
                     label="Чистая прибыль"
                     sublabel="после операционных издержек"
+                    testId="quote-summary-metric"
                     tone={
                       profitValue === 0n
                         ? "default"
@@ -1139,18 +1234,6 @@ export function DealPricingTab({
                       ).toString(),
                       profit.currency,
                     )}`}
-                  />
-                  <PricingMetricTile
-                    label="Маржа"
-                    sublabel="на себестоимость"
-                    tone={
-                      Number(profit.profitPercentOnCost) === 0
-                        ? "default"
-                        : Number(profit.profitPercentOnCost) < 0
-                          ? "negative"
-                          : "positive"
-                    }
-                    value={`${profit.profitPercentOnCost}%`}
                   />
                 </div>
               );
@@ -1196,6 +1279,49 @@ export function DealPricingTab({
                 currencyCodeById={currencyCodeById}
                 routeAttachment={serverContext.routeAttachment}
               />
+            </div>
+            <div className="space-y-2">
+              <Label>Источник исполнения</Label>
+              <Select
+                value={
+                  commercialDraft.executionSource.type === "treasury_inventory"
+                    ? `inventory:${commercialDraft.executionSource.inventoryPositionId}`
+                    : "route_execution"
+                }
+                onValueChange={(value) => {
+                  if (!value) return;
+                  setCommercialDraft((current) => ({
+                    ...current,
+                    executionSource: value.startsWith("inventory:")
+                      ? {
+                          inventoryPositionId: value.slice("inventory:".length),
+                          type: "treasury_inventory",
+                        }
+                      : { type: "route_execution" },
+                  }));
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="route_execution">
+                    Маршрут исполнения
+                  </SelectItem>
+                  {inventoryPositions.map((position) => (
+                    <SelectItem
+                      key={position.id}
+                      value={`inventory:${position.id}`}
+                    >
+                      {formatInventoryPositionLabel(position, currencyCodeById)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-muted-foreground text-xs">
+                Инвентарь показывается только по валюте выплаты и доступному
+                остатку.
+              </p>
             </div>
             <div className="space-y-2">
               <Label>Курс на дату и время</Label>

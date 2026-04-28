@@ -542,11 +542,6 @@ async function resolveExecutionSide(input: {
         `Treasury inventory position ${position.id} does not match quote target currency`,
       );
     }
-    if (position.availableAmountMinor < input.amountMinor) {
-      throw new ValidationError(
-        `Treasury inventory position ${position.id} has insufficient liquidity`,
-      );
-    }
     const allocatedCostMinor = calculateInventoryCostMinor({
       acquiredAmountMinor: position.acquiredAmountMinor,
       amountMinor: input.amountMinor,
@@ -2146,22 +2141,6 @@ export function createDealPricingWorkflow(
       const quote = await deps.treasury.quotes.commands.createQuote(
         createQuoteInput,
       );
-
-      if (
-        previewResult.crmPricingSnapshot.executionSide.source ===
-          "treasury_inventory" &&
-        previewResult.crmPricingSnapshot.executionSide.inventoryPositionId
-      ) {
-        await deps.treasury.treasuryOrders.commands.reserveInventoryAllocation({
-          amountMinor: BigInt(
-            previewResult.crmPricingSnapshot.clientSide.beneficiaryAmountMinor,
-          ),
-          dealId: input.dealId,
-          positionId:
-            previewResult.crmPricingSnapshot.executionSide.inventoryPositionId,
-          quoteId: quote.id,
-        });
-      }
 
       return {
         benchmarks: previewResult.benchmarks,

@@ -10,6 +10,7 @@ import {
   treasuryOrderSteps,
 } from "./schema";
 import type {
+  TreasuryInventoryAllocationsListQuery,
   TreasuryOrdersListQuery,
   TreasuryOrdersRepository,
   TreasuryInventoryPositionsListQuery,
@@ -348,6 +349,14 @@ export class DrizzleTreasuryOrdersRepository
     if (input.ownerPartyId) {
       conditions.push(eq(treasuryInventoryPositions.ownerPartyId, input.ownerPartyId));
     }
+    if (input.sourceOrderId) {
+      conditions.push(eq(treasuryInventoryPositions.sourceOrderId, input.sourceOrderId));
+    }
+    if (input.sourceQuoteExecutionId) {
+      conditions.push(
+        eq(treasuryInventoryPositions.sourceQuoteExecutionId, input.sourceQuoteExecutionId),
+      );
+    }
     if (input.state) {
       conditions.push(eq(treasuryInventoryPositions.state, input.state));
     }
@@ -368,6 +377,45 @@ export class DrizzleTreasuryOrdersRepository
 
     return {
       rows: rows.map(toInventoryPositionRecord),
+      total: countRows[0]?.total ?? 0,
+    };
+  }
+
+  async listInventoryAllocations(
+    input: TreasuryInventoryAllocationsListQuery,
+    tx?: PersistenceSession,
+  ): Promise<{ rows: TreasuryInventoryAllocationRecord[]; total: number }> {
+    const database = (tx as Transaction | undefined) ?? this.db;
+    const conditions: SQL[] = [];
+    if (input.positionId) {
+      conditions.push(eq(treasuryInventoryAllocations.positionId, input.positionId));
+    }
+    if (input.dealId) {
+      conditions.push(eq(treasuryInventoryAllocations.dealId, input.dealId));
+    }
+    if (input.quoteId) {
+      conditions.push(eq(treasuryInventoryAllocations.quoteId, input.quoteId));
+    }
+    if (input.state) {
+      conditions.push(eq(treasuryInventoryAllocations.state, input.state));
+    }
+    const where = conditions.length ? and(...conditions) : undefined;
+    const [rows, countRows] = await Promise.all([
+      database
+        .select()
+        .from(treasuryInventoryAllocations)
+        .where(where)
+        .orderBy(desc(treasuryInventoryAllocations.createdAt))
+        .limit(input.limit)
+        .offset(input.offset),
+      database
+        .select({ total: sql<number>`count(*)::int` })
+        .from(treasuryInventoryAllocations)
+        .where(where),
+    ]);
+
+    return {
+      rows: rows.map(toInventoryAllocationRecord),
       total: countRows[0]?.total ?? 0,
     };
   }

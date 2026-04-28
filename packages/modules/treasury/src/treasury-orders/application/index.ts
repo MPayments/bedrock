@@ -8,6 +8,7 @@ import {
   GetInventoryPositionByIdInputSchema,
   GetReservedAllocationByDealAndQuoteInputSchema,
   GetTreasuryOrderByIdInputSchema,
+  ListInventoryAllocationsQuerySchema,
   ListInventoryPositionsQuerySchema,
   ListTreasuryOrdersQuerySchema,
   ReserveInventoryAllocationInputSchema,
@@ -19,6 +20,7 @@ import {
   type GetInventoryPositionByIdInput,
   type GetReservedAllocationByDealAndQuoteInput,
   type GetTreasuryOrderByIdInput,
+  type ListInventoryAllocationsQuery,
   type ListInventoryPositionsQuery,
   type ListTreasuryOrdersQuery,
   type ReserveInventoryAllocationInput,
@@ -264,6 +266,17 @@ export function createTreasuryOrdersService(deps: TreasuryOrdersServiceDeps) {
     raw: ReserveInventoryAllocationInput,
   ) {
     const input = ReserveInventoryAllocationInputSchema.parse(raw);
+    if (input.quoteId) {
+      const existing =
+        await context.repository.findReservedAllocationByDealAndQuote({
+          dealId: input.dealId,
+          quoteId: input.quoteId,
+        });
+      if (existing) {
+        return TreasuryInventoryAllocationSchema.parse(existing);
+      }
+    }
+
     const position = await context.repository.findInventoryPositionById(
       input.positionId,
     );
@@ -318,6 +331,17 @@ export function createTreasuryOrdersService(deps: TreasuryOrdersServiceDeps) {
     };
   }
 
+  async function listInventoryAllocations(raw: ListInventoryAllocationsQuery) {
+    const input = ListInventoryAllocationsQuerySchema.parse(raw);
+    const result = await context.repository.listInventoryAllocations(input);
+    return {
+      data: result.rows.map((row) => TreasuryInventoryAllocationSchema.parse(row)),
+      limit: input.limit,
+      offset: input.offset,
+      total: result.total,
+    };
+  }
+
   async function findInventoryPositionById(raw: GetInventoryPositionByIdInput) {
     const input = GetInventoryPositionByIdInputSchema.parse(raw);
     const position = await context.repository.findInventoryPositionById(
@@ -348,6 +372,7 @@ export function createTreasuryOrdersService(deps: TreasuryOrdersServiceDeps) {
       findInventoryPositionById,
       findReservedAllocationByDealAndQuote,
       list,
+      listInventoryAllocations,
       listInventoryPositions,
     },
   };

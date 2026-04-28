@@ -2,6 +2,7 @@ import type { PersistenceSession } from "@bedrock/shared/core/persistence";
 
 import type {
   TreasuryInventoryAllocationRecord,
+  TreasuryInventoryAllocationState,
   TreasuryInventoryPositionRecord,
   TreasuryInventoryPositionState,
   TreasuryOrderRecord,
@@ -21,7 +22,18 @@ export interface TreasuryInventoryPositionsListQuery {
   limit: number;
   offset: number;
   ownerPartyId?: string;
+  sourceOrderId?: string;
+  sourceQuoteExecutionId?: string;
   state?: TreasuryInventoryPositionState;
+}
+
+export interface TreasuryInventoryAllocationsListQuery {
+  dealId?: string;
+  limit: number;
+  offset: number;
+  positionId?: string;
+  quoteId?: string;
+  state?: TreasuryInventoryAllocationState;
 }
 
 export interface TreasuryOrdersRepository {
@@ -57,6 +69,10 @@ export interface TreasuryOrdersRepository {
     input: TreasuryInventoryPositionsListQuery,
     tx?: PersistenceSession,
   ): Promise<{ rows: TreasuryInventoryPositionRecord[]; total: number }>;
+  listInventoryAllocations(
+    input: TreasuryInventoryAllocationsListQuery,
+    tx?: PersistenceSession,
+  ): Promise<{ rows: TreasuryInventoryAllocationRecord[]; total: number }>;
   reserveInventoryAllocation(
     input: TreasuryInventoryAllocationRecord,
     tx?: PersistenceSession,

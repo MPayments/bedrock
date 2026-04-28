@@ -8,6 +8,7 @@ const IDS = {
   aed: "00000000-0000-4000-8000-000000000102",
   customer: "00000000-0000-4000-8000-000000000001",
   deal: "00000000-0000-4000-8000-000000000010",
+  inventoryPosition: "00000000-0000-4000-8000-000000000030",
   otherCustomer: "00000000-0000-4000-8000-000000000099",
   route: "00000000-0000-4000-8000-000000000020",
   rub: "00000000-0000-4000-8000-000000000101",
@@ -576,6 +577,20 @@ function createDeps(overrides?: {
           previewQuote: vi.fn(async () => quotePreview),
         },
       },
+      treasuryOrders: {
+        commands: {
+          reserveInventoryAllocation: vi.fn(),
+        },
+        queries: {
+          findInventoryPositionById: vi.fn(async () => null),
+          listInventoryPositions: vi.fn(async () => ({
+            data: [],
+            limit: 50,
+            offset: 0,
+            total: 0,
+          })),
+        },
+      },
     },
   };
 
@@ -890,6 +905,59 @@ describe("deal pricing workflow", () => {
               }),
               formulaTrace: expect.objectContaining({
                 sections: expect.any(Array),
+              }),
+            }),
+          }),
+        }),
+      }),
+    );
+  });
+
+  it("prices inventory execution without reserving inventory during quote creation", async () => {
+    const { deps } = createDeps();
+    deps.treasury.treasuryOrders.queries.findInventoryPositionById = vi.fn(
+      async () => ({
+        acquiredAmountMinor: 1_100_000n,
+        availableAmountMinor: 500_000n,
+        costAmountMinor: 900_000n,
+        costCurrencyId: IDS.rub,
+        createdAt: new Date("2026-04-19T08:00:00.000Z"),
+        currencyId: IDS.usd,
+        id: IDS.inventoryPosition,
+        ownerPartyId: IDS.customer,
+        ownerRequisiteId: null,
+        sourceOrderId: "00000000-0000-4000-8000-000000000040",
+        sourceQuoteExecutionId: "00000000-0000-4000-8000-000000000041",
+        state: "open" as const,
+        updatedAt: new Date("2026-04-19T08:00:00.000Z"),
+      }),
+    );
+    const workflow = createDealPricingWorkflow(deps as any);
+
+    await workflow.createQuote({
+      amountMinor: "101819387",
+      amountSide: "target",
+      asOf: new Date("2026-04-19T09:58:00.000Z"),
+      dealId: IDS.deal,
+      executionSource: {
+        inventoryPositionId: IDS.inventoryPosition,
+        type: "treasury_inventory",
+      },
+      expectedRevision: 3,
+      idempotencyKey: "idem-inventory",
+    });
+
+    expect(
+      deps.treasury.treasuryOrders.commands.reserveInventoryAllocation,
+    ).not.toHaveBeenCalled();
+    expect(deps.treasury.quotes.commands.createQuote).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pricingTrace: expect.objectContaining({
+          metadata: expect.objectContaining({
+            crmPricingSnapshot: expect.objectContaining({
+              executionSide: expect.objectContaining({
+                inventoryPositionId: IDS.inventoryPosition,
+                source: "treasury_inventory",
               }),
             }),
           }),

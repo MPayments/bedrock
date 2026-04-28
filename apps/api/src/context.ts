@@ -119,6 +119,7 @@ export interface AppContext {
   partiesModule: PartiesModule;
   currenciesService: CurrenciesService;
   treasuryModule: TreasuryModule;
+  createDealsModule(tx: Transaction): DealsModule;
   createTreasuryModule(tx: Transaction): TreasuryModule;
   reconciliationService: ReconciliationService;
   dealAttachmentIngestionWorkflow: DealAttachmentIngestionWorkflow;
@@ -161,6 +162,7 @@ export function createAppContext(env: Env): AppContext {
     partiesModule: applicationServices.partiesModule,
     currenciesService: applicationServices.currenciesService,
     treasuryModule: applicationServices.treasuryModule,
+    createDealsModule: applicationServices.createDealsModule,
     createTreasuryModule: applicationServices.createTreasuryModule,
     reconciliationService: applicationServices.reconciliationService,
     dealAttachmentIngestionWorkflow:
