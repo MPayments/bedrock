@@ -17,12 +17,28 @@ export const ListReconciliationOperationLinksInputSchema = z.object({
   operationIds: z.array(z.string().min(1)).max(500).default([]),
 });
 
+export const ListPendingReconciliationExternalRecordIdsInputSchema = z
+  .object({
+    source: z.string().min(1),
+    normalizedPayloadTextFilter: z
+      .object({
+        key: z.string().min(1),
+        value: z.string().min(1),
+      })
+      .strict()
+      .optional(),
+  })
+  .strict();
+
 export const ExplainReconciliationMatchInputSchema = z.object({
   matchId: z.string().min(1),
 });
 
 export type ListReconciliationExceptionsInput = z.infer<
   typeof ListReconciliationExceptionsInputSchema
+>;
+export type ListPendingReconciliationExternalRecordIdsInput = z.infer<
+  typeof ListPendingReconciliationExternalRecordIdsInputSchema
 >;
 export type ListReconciliationOperationLinksInput = z.infer<
   typeof ListReconciliationOperationLinksInputSchema

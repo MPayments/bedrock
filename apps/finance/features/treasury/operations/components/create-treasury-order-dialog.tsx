@@ -22,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@bedrock/sdk-ui/components/select";
+import { Spinner } from "@bedrock/sdk-ui/components/spinner";
 import { toast } from "@bedrock/sdk-ui/components/sonner";
 import { toMinorAmountString } from "@bedrock/shared/money";
 
@@ -464,7 +465,14 @@ export function CreateTreasuryOrderDialog({
             Отмена
           </Button>
           <Button onClick={handleSubmit} disabled={isSubmitting}>
-            {isSubmitting ? "Создаём..." : "Создать и активировать"}
+            {isSubmitting ? (
+              <>
+                <Spinner data-icon="inline-start" />
+                Создаём...
+              </>
+            ) : (
+              "Создать и активировать"
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

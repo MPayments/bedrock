@@ -171,6 +171,26 @@ export type ApiDealAcceptedQuote = {
   usedDocumentId: string | null;
 } | null;
 
+export type ApiDealQuoteExecutionSummary = {
+  id: string;
+  origin: {
+    planLegId?: string | null;
+    routeSnapshotLegId?: string | null;
+    sequence?: number | null;
+    type: string;
+  };
+  quoteId: string;
+  state:
+    | "cancelled"
+    | "completed"
+    | "draft"
+    | "expired"
+    | "failed"
+    | "pending"
+    | "processing";
+  updatedAt: string;
+};
+
 export type ApiDealOperationalPosition = {
   amountMinor: string | null;
   currencyId: string | null;
@@ -1049,6 +1069,7 @@ export type ApiCrmDealWorkbenchProjection = {
   relatedResources: {
     attachments: ApiAttachment[];
     formalDocuments: ApiDealWorkflowProjection["relatedResources"]["formalDocuments"];
+    quoteExecutions: ApiDealQuoteExecutionSummary[];
   };
   sectionCompleteness: ApiDealSectionCompleteness[];
   summary: ApiDealWorkflowProjection["summary"] & {

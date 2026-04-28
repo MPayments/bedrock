@@ -22,6 +22,13 @@ const TreasuryOrganizationBalanceRowSchema = z.object({
   available: z.string(),
   reserved: z.string(),
   pending: z.string(),
+  inventoryAvailable: z.string(),
+  inventoryReserved: z.string(),
+  inventoryReconciliationStatus: z.enum([
+    "matched",
+    "inventory_exceeds_balance",
+    "missing_balance",
+  ]),
 });
 
 const TreasuryOrganizationBalancesResponseSchema = z.object({
@@ -58,6 +65,11 @@ function createRequisiteMeta(input: {
         subaccountRef: input.subaccountRef ?? "",
       }) || "—",
   };
+}
+
+interface InventoryOverlay {
+  availableMinor: bigint;
+  reservedMinor: bigint;
 }
 
 export function treasuryOrganizationBalancesRoutes(ctx: AppContext) {
@@ -215,6 +227,55 @@ export function treasuryOrganizationBalancesRoutes(ctx: AppContext) {
       await ctx.ledgerModule.balances.queries.listOrganizationRequisiteLiquidityRows({
         organizationIds,
       });
+    const inventoryPositions = (
+      await Promise.all(
+        organizationIds.map((organizationId) =>
+          ctx.treasuryModule.treasuryOrders.queries.listInventoryPositions({
+            limit: 100,
+            offset: 0,
+            ownerPartyId: organizationId,
+            state: "open",
+          }),
+        ),
+      )
+    ).flatMap((result) => result.data);
+    const currencyCodeById = new Map(
+      await Promise.all(
+        Array.from(
+          new Set(inventoryPositions.map((position) => position.currencyId)),
+        ).map(async (currencyId) => [
+          currencyId,
+          (await ctx.currenciesService.findById(currencyId)).code,
+        ] as const),
+      ),
+    );
+    const inventoryOverlayByKey = new Map<string, InventoryOverlay>();
+    for (const position of inventoryPositions) {
+      const currency = currencyCodeById.get(position.currencyId);
+      if (!currency) {
+        continue;
+      }
+      const allocations =
+        await ctx.treasuryModule.treasuryOrders.queries.listInventoryAllocations({
+          limit: 100,
+          offset: 0,
+          positionId: position.id,
+          state: "reserved",
+        });
+      const reservedMinor = allocations.data.reduce(
+        (sum, allocation) => sum + allocation.amountMinor,
+        0n,
+      );
+      const key = `${position.ownerPartyId}:${position.ownerRequisiteId}:${currency}`;
+      const current = inventoryOverlayByKey.get(key) ?? {
+        availableMinor: 0n,
+        reservedMinor: 0n,
+      };
+      inventoryOverlayByKey.set(key, {
+        availableMinor: current.availableMinor + position.availableAmountMinor,
+        reservedMinor: current.reservedMinor + reservedMinor,
+      });
+    }
     const missingRequisiteIds = Array.from(
       new Set(
         rows
@@ -308,6 +369,32 @@ export function treasuryOrganizationBalancesRoutes(ctx: AppContext) {
           pending: minorToAmountString(row.pendingMinor, {
             currency: row.currency,
           }),
+          ...(() => {
+            const overlay = inventoryOverlayByKey.get(
+              `${row.organizationId}:${row.requisiteId}:${row.currency}`,
+            ) ?? {
+              availableMinor: 0n,
+              reservedMinor: 0n,
+            };
+            const availableMinor = BigInt(row.availableMinor);
+            const inventoryReconciliationStatus =
+              overlay.availableMinor > availableMinor
+                ? ("inventory_exceeds_balance" as const)
+                : availableMinor === 0n &&
+                    (overlay.availableMinor > 0n || overlay.reservedMinor > 0n)
+                  ? ("missing_balance" as const)
+                  : ("matched" as const);
+
+            return {
+              inventoryAvailable: minorToAmountString(overlay.availableMinor, {
+                currency: row.currency,
+              }),
+              inventoryReconciliationStatus,
+              inventoryReserved: minorToAmountString(overlay.reservedMinor, {
+                currency: row.currency,
+              }),
+            };
+          })(),
         };
       })
       .sort((left, right) => {

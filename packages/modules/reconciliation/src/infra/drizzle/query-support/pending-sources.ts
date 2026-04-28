@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { and, asc, eq, isNull, sql, type SQL } from "drizzle-orm";
 
 import type { Database } from "@bedrock/platform/persistence";
 
@@ -63,6 +63,39 @@ export function createDrizzlePendingSourcesQuerySupport(input: {
             ? row.pending_record_count
             : Number(row.pending_record_count),
       }));
+    },
+
+    async listPendingExternalRecordIds(input) {
+      const filters: SQL[] = [
+        eq(schema.reconciliationExternalRecords.source, input.source),
+        isNull(schema.reconciliationMatches.id),
+      ];
+
+      if (input.normalizedPayloadTextFilter) {
+        filters.push(sql`
+          ${schema.reconciliationExternalRecords.normalizedPayload} ->>
+            ${input.normalizedPayloadTextFilter.key}
+          = ${input.normalizedPayloadTextFilter.value}
+        `);
+      }
+
+      const rows = await db
+        .select({ id: schema.reconciliationExternalRecords.id })
+        .from(schema.reconciliationExternalRecords)
+        .leftJoin(
+          schema.reconciliationMatches,
+          eq(
+            schema.reconciliationMatches.externalRecordId,
+            schema.reconciliationExternalRecords.id,
+          ),
+        )
+        .where(and(...filters))
+        .orderBy(
+          asc(schema.reconciliationExternalRecords.receivedAt),
+          asc(schema.reconciliationExternalRecords.id),
+        );
+
+      return rows.map((row) => row.id);
     },
   };
 }

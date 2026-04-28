@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Archive } from "lucide-react";
 
+import { Badge } from "@bedrock/sdk-ui/components/badge";
 import { Button } from "@bedrock/sdk-ui/components/button";
 import {
   Card,
@@ -52,6 +53,14 @@ const ALLOCATION_STATE_LABELS: Record<
   consumed: "Использована",
   released: "Освобождена",
   reserved: "Зарезервирована",
+};
+const RECONCILIATION_LABELS: Record<
+  TreasuryInventoryPositionDetails["ledger"]["reconciliationStatus"],
+  string
+> = {
+  inventory_exceeds_balance: "Инвентарь больше ledger-баланса",
+  matched: "Сверено с ledger-балансом",
+  missing_balance: "Ledger-баланс отсутствует",
 };
 
 export function TreasuryInventoryDetailsView({
@@ -117,6 +126,24 @@ export function TreasuryInventoryDetailsView({
                 acquiredCurrency,
               )}
             />
+            <InfoLine
+              label="Доступно по ledger"
+              value={`${minorToAmountString(position.ledger.ledgerAvailableMinor, {
+                currency: position.ledger.currency,
+              })} ${position.ledger.currency}`}
+            />
+            <div className="flex items-start justify-between gap-3">
+              <span className="text-muted-foreground">Сверка</span>
+              <Badge
+                variant={
+                  position.ledger.reconciliationStatus === "matched"
+                    ? "outline"
+                    : "destructive"
+                }
+              >
+                {RECONCILIATION_LABELS[position.ledger.reconciliationStatus]}
+              </Badge>
+            </div>
             <InfoLine
               label="Себестоимость"
               value={formatAmount(position.costAmountMinor, costCurrency)}

@@ -8,6 +8,7 @@ import {
   GetInventoryPositionByIdInputSchema,
   GetReservedAllocationByDealAndQuoteInputSchema,
   GetTreasuryOrderByIdInputSchema,
+  InventoryAllocationActionInputSchema,
   ListInventoryAllocationsQuerySchema,
   ListInventoryPositionsQuerySchema,
   ListTreasuryOrdersQuerySchema,
@@ -20,6 +21,7 @@ import {
   type GetInventoryPositionByIdInput,
   type GetReservedAllocationByDealAndQuoteInput,
   type GetTreasuryOrderByIdInput,
+  type InventoryAllocationActionInput,
   type ListInventoryAllocationsQuery,
   type ListInventoryPositionsQuery,
   type ListTreasuryOrdersQuery,
@@ -224,9 +226,9 @@ export function createTreasuryOrdersService(deps: TreasuryOrdersServiceDeps) {
       );
     }
     const creditParty = execution.executionParties?.creditParty;
-    if (!creditParty?.id) {
+    if (!creditParty?.id || !creditParty.requisiteId) {
       throw new ValidationError(
-        `Quote execution ${input.executionId} is missing credit party`,
+        `Quote execution ${input.executionId} is missing inventory owner requisite`,
       );
     }
 
@@ -239,9 +241,13 @@ export function createTreasuryOrdersService(deps: TreasuryOrdersServiceDeps) {
       createdAt: now,
       currencyId: execution.toCurrencyId,
       id: input.id ?? context.runtime.generateUuid(),
+      ledgerSubjectType: "organization_requisite" as const,
+      ownerBookId: input.ownerBookId,
       ownerPartyId: creditParty.id,
       ownerRequisiteId: creditParty.requisiteId,
       sourceOrderId: order.id,
+      sourcePostingDocumentId: input.sourcePostingDocumentId,
+      sourcePostingDocumentKind: input.sourcePostingDocumentKind,
       sourceQuoteExecutionId: execution.id,
       state: "open" as const,
       updatedAt: now,
@@ -301,14 +307,22 @@ export function createTreasuryOrdersService(deps: TreasuryOrdersServiceDeps) {
             position.acquiredAmountMinor / 2n) /
           position.acquiredAmountMinor;
     const now = context.runtime.now();
+    const allocationId = input.id ?? context.runtime.generateUuid();
     const reserved = await context.repository.reserveInventoryAllocation({
       amountMinor: input.amountMinor,
       costAmountMinor,
+      consumedAt: null,
       createdAt: now,
+      currencyId: position.currencyId,
       dealId: input.dealId,
-      id: input.id ?? context.runtime.generateUuid(),
+      id: allocationId,
+      ledgerHoldRef: `treasury_inventory_allocation:${allocationId}`,
+      ownerBookId: position.ownerBookId,
+      ownerRequisiteId: position.ownerRequisiteId,
       positionId: input.positionId,
       quoteId: input.quoteId,
+      releasedAt: null,
+      reservedAt: now,
       state: "reserved",
       updatedAt: now,
     });
@@ -318,6 +332,40 @@ export function createTreasuryOrdersService(deps: TreasuryOrdersServiceDeps) {
       );
     }
     return TreasuryInventoryAllocationSchema.parse(reserved.allocation);
+  }
+
+  async function consumeInventoryAllocation(
+    raw: InventoryAllocationActionInput,
+  ) {
+    const input = InventoryAllocationActionInputSchema.parse(raw);
+    const updated = await context.repository.updateInventoryAllocationState({
+      allocationId: input.allocationId,
+      at: context.runtime.now(),
+      state: "consumed",
+    });
+    if (!updated) {
+      throw new ValidationError(
+        `Treasury inventory allocation ${input.allocationId} is not reserved`,
+      );
+    }
+    return TreasuryInventoryAllocationSchema.parse(updated.allocation);
+  }
+
+  async function releaseInventoryAllocation(
+    raw: InventoryAllocationActionInput,
+  ) {
+    const input = InventoryAllocationActionInputSchema.parse(raw);
+    const updated = await context.repository.updateInventoryAllocationState({
+      allocationId: input.allocationId,
+      at: context.runtime.now(),
+      state: "released",
+    });
+    if (!updated) {
+      throw new ValidationError(
+        `Treasury inventory allocation ${input.allocationId} is not reserved`,
+      );
+    }
+    return TreasuryInventoryAllocationSchema.parse(updated.allocation);
   }
 
   async function listInventoryPositions(raw: ListInventoryPositionsQuery) {
@@ -365,6 +413,8 @@ export function createTreasuryOrdersService(deps: TreasuryOrdersServiceDeps) {
       cancel,
       create,
       createInventoryPositionFromQuoteExecution,
+      consumeInventoryAllocation,
+      releaseInventoryAllocation,
       reserveInventoryAllocation,
     },
     queries: {

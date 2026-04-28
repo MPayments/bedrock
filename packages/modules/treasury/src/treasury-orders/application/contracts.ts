@@ -78,9 +78,13 @@ export const TreasuryInventoryPositionSchema = z.object({
   createdAt: z.date(),
   currencyId: z.uuid(),
   id: z.uuid(),
+  ledgerSubjectType: z.literal("organization_requisite"),
+  ownerBookId: z.uuid(),
   ownerPartyId: z.uuid(),
-  ownerRequisiteId: z.uuid().nullable(),
+  ownerRequisiteId: z.uuid(),
   sourceOrderId: z.uuid(),
+  sourcePostingDocumentId: z.uuid(),
+  sourcePostingDocumentKind: z.literal("fx_execute"),
   sourceQuoteExecutionId: z.uuid(),
   state: TreasuryInventoryPositionStateSchema,
   updatedAt: z.date(),
@@ -89,11 +93,18 @@ export const TreasuryInventoryPositionSchema = z.object({
 export const TreasuryInventoryAllocationSchema = z.object({
   amountMinor: z.bigint().positive(),
   costAmountMinor: z.bigint().nonnegative(),
+  consumedAt: z.date().nullable(),
   createdAt: z.date(),
+  currencyId: z.uuid(),
   dealId: z.uuid(),
   id: z.uuid(),
+  ledgerHoldRef: z.string().min(1),
+  ownerBookId: z.uuid(),
+  ownerRequisiteId: z.uuid(),
   positionId: z.uuid(),
   quoteId: z.uuid().nullable(),
+  releasedAt: z.date().nullable(),
+  reservedAt: z.date(),
   state: TreasuryInventoryAllocationStateSchema,
   updatedAt: z.date(),
 });
@@ -101,6 +112,9 @@ export const TreasuryInventoryAllocationSchema = z.object({
 export const CreateInventoryPositionFromQuoteExecutionInputSchema = z.object({
   executionId: z.uuid(),
   id: z.uuid().optional(),
+  ownerBookId: z.uuid(),
+  sourcePostingDocumentId: z.uuid(),
+  sourcePostingDocumentKind: z.literal("fx_execute"),
 });
 
 export const ReserveInventoryAllocationInputSchema = z.object({
@@ -109,6 +123,10 @@ export const ReserveInventoryAllocationInputSchema = z.object({
   id: z.uuid().optional(),
   positionId: z.uuid(),
   quoteId: z.uuid().nullable().optional().default(null),
+});
+
+export const InventoryAllocationActionInputSchema = z.object({
+  allocationId: z.uuid(),
 });
 
 export const ListInventoryPositionsQuerySchema = z.object({
@@ -172,6 +190,9 @@ export type CreateInventoryPositionFromQuoteExecutionInput = z.infer<
 >;
 export type ReserveInventoryAllocationInput = z.infer<
   typeof ReserveInventoryAllocationInputSchema
+>;
+export type InventoryAllocationActionInput = z.infer<
+  typeof InventoryAllocationActionInputSchema
 >;
 export type ListInventoryPositionsQuery = z.infer<
   typeof ListInventoryPositionsQuerySchema

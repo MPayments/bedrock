@@ -190,6 +190,7 @@ export async function getCrmDealWorkbenchProjection(
     currentCalculation,
     internalEntityRequisite,
     quotesResult,
+    quoteExecutionsResult,
   ] = await Promise.all([
     customerId
       ? (async () => {
@@ -227,6 +228,11 @@ export async function getCrmDealWorkbenchProjection(
       offset: 0,
       sortBy: "createdAt",
       sortOrder: "desc",
+    }),
+    deps.treasury.quoteExecutions.queries.list({
+      dealId,
+      limit: 100,
+      offset: 0,
     }),
   ]);
 
@@ -286,6 +292,13 @@ export async function getCrmDealWorkbenchProjection(
     relatedResources: {
       attachments,
       formalDocuments: workflow.relatedResources.formalDocuments,
+      quoteExecutions: quoteExecutionsResult.data.map((execution) => ({
+        id: execution.id,
+        origin: execution.origin,
+        quoteId: execution.quoteId,
+        state: execution.state,
+        updatedAt: execution.updatedAt.toISOString(),
+      })),
     },
     sectionCompleteness: workflow.sectionCompleteness,
     summary: {

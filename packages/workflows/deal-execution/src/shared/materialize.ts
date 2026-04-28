@@ -207,6 +207,44 @@ function externalBeneficiarySnapshotPartyRef(
   };
 }
 
+function resolveRouteParticipantPair(input: {
+  compiled: CompiledDealExecutionOperation;
+  routeAttachment: DealPricingRouteAttachment | null;
+  workflow: DealWorkflowProjection;
+}): {
+  destParticipant:
+    | DealPricingRouteAttachment["snapshot"]["participants"][number]
+    | null;
+  sourceParticipant:
+    | DealPricingRouteAttachment["snapshot"]["participants"][number]
+    | null;
+} {
+  const routeSnapshot = input.routeAttachment?.snapshot;
+
+  if (!routeSnapshot) {
+    return {
+      destParticipant: null,
+      sourceParticipant: null,
+    };
+  }
+
+  const workflowLeg = input.workflow.executionPlan.find(
+    (leg) => leg.id === input.compiled.legId,
+  );
+  const routeLegIndex = workflowLeg?.routeSnapshotLegId
+    ? routeSnapshot.legs.findIndex(
+        (leg) => leg.id === workflowLeg.routeSnapshotLegId,
+      )
+    : input.compiled.legIdx - 1;
+  const participantIndex =
+    routeLegIndex >= 0 ? routeLegIndex : input.compiled.legIdx - 1;
+
+  return {
+    destParticipant: routeSnapshot.participants[participantIndex + 1] ?? null,
+    sourceParticipant: routeSnapshot.participants[participantIndex] ?? null,
+  };
+}
+
 export function resolveLegPartyRefs(input: {
   agreementOrganizationId: string | null;
   compiled: CompiledDealExecutionOperation;
@@ -236,11 +274,9 @@ export function resolveLegPartyRefs(input: {
   const beneficiarySnapshotParty = externalBeneficiarySnapshotPartyRef(
     input.workflow,
   );
-
-  const routeParticipants = input.routeAttachment?.snapshot.participants ?? [];
-  const sourceParticipant =
-    routeParticipants[input.compiled.legIdx - 1] ?? null;
-  const destParticipant = routeParticipants[input.compiled.legIdx] ?? null;
+  const { destParticipant, sourceParticipant } = resolveRouteParticipantPair(
+    input,
+  );
 
   let fromParty: PaymentStepPartyRef | null;
   let toParty: PaymentStepPartyRef | null;
@@ -258,7 +294,8 @@ export function resolveLegPartyRefs(input: {
       break;
     case "payout":
       fromParty =
-        routeParticipantPartyRef(sourceParticipant) ?? partyRef(internal);
+        routeParticipantPartyRef(sourceParticipant) ??
+        partyRef(internal);
       toParty =
         routeParticipantPartyRef(destParticipant) ??
         partyRef(beneficiary) ??
@@ -303,22 +340,19 @@ export function resolveLegPartyRefs(input: {
   };
 }
 
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
 function extractAcceptedQuoteCustomerDebitMinor(
   acceptedQuote: QuoteDetailsRecord,
 ): bigint {
-  const metadata = acceptedQuote.quote.pricingTrace?.metadata;
-  const snapshot =
-    metadata && typeof metadata === "object" && !Array.isArray(metadata)
-      ? (metadata as Record<string, unknown>).crmPricingSnapshot
-      : null;
-  const amounts =
-    snapshot && typeof snapshot === "object" && !Array.isArray(snapshot)
-      ? (snapshot as Record<string, unknown>).amounts
-      : null;
-  const customerDebitMinor =
-    amounts && typeof amounts === "object" && !Array.isArray(amounts)
-      ? (amounts as Record<string, unknown>).customerDebitMinor
-      : null;
+  const metadata = asRecord(acceptedQuote.quote.pricingTrace?.metadata);
+  const snapshot = asRecord(metadata?.crmPricingSnapshot);
+  const amounts = asRecord(snapshot?.amounts);
+  const customerDebitMinor = amounts?.customerDebitMinor;
 
   if (
     typeof customerDebitMinor !== "string" ||
@@ -335,23 +369,22 @@ function extractAcceptedQuoteCustomerDebitMinor(
 function isAcceptedQuoteTreasuryInventorySource(
   acceptedQuote: QuoteDetailsRecord | null,
 ): boolean {
-  const metadata = acceptedQuote?.quote.pricingTrace?.metadata;
-  const snapshot =
-    metadata && typeof metadata === "object" && !Array.isArray(metadata)
-      ? (metadata as Record<string, unknown>).crmPricingSnapshot
-      : null;
-  const executionSide =
-    snapshot && typeof snapshot === "object" && !Array.isArray(snapshot)
-      ? (snapshot as Record<string, unknown>).executionSide
-      : null;
-  const source =
-    executionSide &&
-    typeof executionSide === "object" &&
-    !Array.isArray(executionSide)
-      ? (executionSide as Record<string, unknown>).source
-      : null;
+  return extractAcceptedQuoteInventoryPositionId(acceptedQuote) !== null;
+}
 
-  return source === "treasury_inventory";
+function extractAcceptedQuoteInventoryPositionId(
+  acceptedQuote: QuoteDetailsRecord | null,
+): string | null {
+  const metadata = asRecord(acceptedQuote?.quote.pricingTrace?.metadata);
+  const snapshot = asRecord(metadata?.crmPricingSnapshot);
+  const executionSide = asRecord(snapshot?.executionSide);
+  const source = executionSide?.source;
+  const inventoryPositionId = executionSide?.inventoryPositionId;
+
+  return source === "treasury_inventory" &&
+    typeof inventoryPositionId === "string"
+    ? inventoryPositionId
+    : null;
 }
 
 function resolveStepRate(input: {
@@ -435,7 +468,7 @@ export async function materializeCompiledOperation(input: {
     workflow: input.workflow,
   });
 
-  const partyRefs = resolveLegPartyRefs({
+  let partyRefs = resolveLegPartyRefs({
     agreementOrganizationId: input.agreementOrganizationId,
     compiled: input.compiled,
     internalEntityOrganizationId: input.internalEntityOrganizationId,
@@ -447,6 +480,28 @@ export async function materializeCompiledOperation(input: {
 
   if (!partyRefs || !fromCurrencyId || !toCurrencyId) {
     return null;
+  }
+
+  const inventoryPositionId = extractAcceptedQuoteInventoryPositionId(
+    input.acceptedQuote,
+  );
+  if (inventoryPositionId && input.compiled.operationKind === "payout") {
+    const inventoryPosition =
+      await input.treasuryModule.treasuryOrders.queries.findInventoryPositionById(
+        { positionId: inventoryPositionId },
+      );
+    if (!inventoryPosition) {
+      throw new ValidationError(
+        `Treasury inventory position ${inventoryPositionId} is not available`,
+      );
+    }
+    partyRefs = {
+      ...partyRefs,
+      fromParty: {
+        id: inventoryPosition.ownerPartyId,
+        requisiteId: inventoryPosition.ownerRequisiteId,
+      },
+    };
   }
 
   const rate = resolveStepRate({
@@ -577,6 +632,7 @@ export async function resolveRecipeContext(
       acceptedQuote,
       agreementOrganizationId: agreement?.organizationId ?? null,
       internalEntityOrganizationId: getInternalEntityOrganizationId(workflow),
+      routeAttachment: pricingContext?.routeAttachment ?? null,
       workflow,
     }),
   };

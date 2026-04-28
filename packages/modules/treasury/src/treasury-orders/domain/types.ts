@@ -73,9 +73,13 @@ export interface TreasuryInventoryPositionRecord {
   createdAt: Date;
   currencyId: string;
   id: string;
+  ledgerSubjectType: "organization_requisite";
+  ownerBookId: string;
   ownerPartyId: string;
-  ownerRequisiteId: string | null;
+  ownerRequisiteId: string;
   sourceOrderId: string;
+  sourcePostingDocumentId: string;
+  sourcePostingDocumentKind: "fx_execute";
   sourceQuoteExecutionId: string;
   state: TreasuryInventoryPositionState;
   updatedAt: Date;
@@ -84,11 +88,18 @@ export interface TreasuryInventoryPositionRecord {
 export interface TreasuryInventoryAllocationRecord {
   amountMinor: bigint;
   costAmountMinor: bigint;
+  consumedAt: Date | null;
   createdAt: Date;
+  currencyId: string;
   dealId: string;
   id: string;
+  ledgerHoldRef: string;
+  ownerBookId: string;
+  ownerRequisiteId: string;
   positionId: string;
   quoteId: string | null;
+  releasedAt: Date | null;
+  reservedAt: Date;
   state: TreasuryInventoryAllocationState;
   updatedAt: Date;
 }

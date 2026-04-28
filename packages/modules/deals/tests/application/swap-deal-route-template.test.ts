@@ -22,6 +22,18 @@ function createRouteSnapshot() {
         fees: [],
         fromCurrencyId: RUB_ID,
         id: "leg-1",
+        toCurrencyId: RUB_ID,
+      },
+      {
+        fees: [],
+        fromCurrencyId: RUB_ID,
+        id: "leg-2",
+        toCurrencyId: USD_ID,
+      },
+      {
+        fees: [],
+        fromCurrencyId: USD_ID,
+        id: "leg-3",
         toCurrencyId: USD_ID,
       },
     ],
@@ -37,11 +49,29 @@ function createRouteSnapshot() {
         role: "source" as const,
       },
       {
+        binding: "bound" as const,
+        displayName: "Treasury RUB",
+        entityId: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+        entityKind: "organization" as const,
+        nodeId: "node-2",
+        requisiteId: null,
+        role: "hop" as const,
+      },
+      {
+        binding: "bound" as const,
+        displayName: "Treasury USD",
+        entityId: "ffffffff-ffff-4fff-8fff-ffffffffffff",
+        entityKind: "organization" as const,
+        nodeId: "node-3",
+        requisiteId: null,
+        role: "hop" as const,
+      },
+      {
         binding: "abstract" as const,
         displayName: "Destination",
         entityId: null,
         entityKind: null,
-        nodeId: "node-2",
+        nodeId: "node-4",
         requisiteId: null,
         role: "destination" as const,
       },
@@ -163,12 +193,12 @@ function buildCommand(input: {
   workflow: ReturnType<typeof createWorkflow>;
   templateFound?: boolean;
 }) {
-  const findPaymentRouteTemplateById = vi.fn(async () =>
+  const findPaymentRouteTemplateById = vi.fn(async (templateId: string) =>
     input.templateFound === false
       ? null
       : {
-          id: TEMPLATE_NEW_ID,
-          name: "New Route",
+          id: templateId,
+          name: templateId === TEMPLATE_OLD_ID ? "Old Route" : "New Route",
           snapshot: createRouteSnapshot(),
         },
   );
@@ -217,7 +247,7 @@ describe("SwapDealRouteTemplateCommand", () => {
       reasonCode: "market_moved",
     });
 
-    expect(findPaymentRouteTemplateById).not.toHaveBeenCalled();
+    expect(findPaymentRouteTemplateById).toHaveBeenCalledWith(TEMPLATE_OLD_ID);
     expect(dealStore.replaceDealPricingContext).not.toHaveBeenCalled();
     expect(dealStore.revokeCurrentQuoteAcceptances).not.toHaveBeenCalled();
     expect(dealStore.createDealTimelineEvents).not.toHaveBeenCalled();
@@ -283,12 +313,10 @@ describe("SwapDealRouteTemplateCommand", () => {
       kind: string;
       routeSnapshotLegId: string | null;
     }[] = replaceLegsCall.legs;
-    // Expect bookend collect + payout plus one leg per snapshot leg.
+    // Attached route is the full execution plan: one deal leg per snapshot leg.
     expect(legs[0]?.kind).toBe("collect");
     expect(legs[legs.length - 1]?.kind).toBe("payout");
-    // Middle legs carry routeSnapshotLegId from the fresh snapshot (non-null).
-    const middle = legs.slice(1, -1);
-    expect(middle.every((leg) => leg.routeSnapshotLegId !== null)).toBe(true);
+    expect(legs.every((leg) => leg.routeSnapshotLegId !== null)).toBe(true);
     const events = dealStore.createDealTimelineEvents.mock.calls[0][0];
     const types = events.map((event: any) => event.type);
     expect(types).toContain("deal_route_template_swapped");

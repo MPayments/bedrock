@@ -138,6 +138,30 @@ const TreasuryInventoryPositionResponseSchema =
     availableAmountMinor: z.string(),
     costAmountMinor: z.string(),
     createdAt: z.iso.datetime(),
+    ledger: z.object({
+      currency: z.string(),
+      inventoryAcquiredMinor: z.string(),
+      inventoryAvailableMinor: z.string(),
+      inventoryReservedMinor: z.string(),
+      ledgerAvailableMinor: z.string(),
+      ledgerBalanceMinor: z.string(),
+      ledgerReservedMinor: z.string(),
+      reconciliationStatus: z.enum([
+        "matched",
+        "inventory_exceeds_balance",
+        "missing_balance",
+      ]),
+      subject: z.object({
+        bookId: z.uuid(),
+        currency: z.string(),
+        subjectId: z.string(),
+        subjectType: z.string(),
+      }),
+    }),
+    ledgerSubjectType: z.literal("organization_requisite"),
+    ownerBookId: z.uuid(),
+    sourcePostingDocumentId: z.uuid(),
+    sourcePostingDocumentKind: z.literal("fx_execute"),
     updatedAt: z.iso.datetime(),
   });
 
@@ -152,7 +176,10 @@ const TreasuryInventoryAllocationResponseSchema =
   TreasuryInventoryAllocationSchema.extend({
     amountMinor: z.string(),
     costAmountMinor: z.string(),
+    consumedAt: z.iso.datetime().nullable(),
     createdAt: z.iso.datetime(),
+    reservedAt: z.iso.datetime(),
+    releasedAt: z.iso.datetime().nullable(),
     updatedAt: z.iso.datetime(),
   });
 
@@ -227,7 +254,64 @@ function serializeTreasuryOrder(order: {
   };
 }
 
-function serializeInventoryPosition(position: {
+async function buildInventoryLedgerBlock(
+  ctx: AppContext,
+  position: {
+    acquiredAmountMinor: bigint | string;
+    availableAmountMinor: bigint | string;
+    currencyId: string;
+    id: string;
+    ledgerSubjectType: "organization_requisite";
+    ownerBookId: string;
+    ownerRequisiteId: string;
+  },
+) {
+  const currency = await ctx.currenciesService.findById(position.currencyId);
+  const balance = await ctx.ledgerModule.balances.queries.getBalance({
+    bookId: position.ownerBookId,
+    currency: currency.code,
+    subjectId: position.ownerRequisiteId,
+    subjectType: position.ledgerSubjectType,
+  });
+  const allocations =
+    await ctx.treasuryModule.treasuryOrders.queries.listInventoryAllocations({
+      limit: 100,
+      offset: 0,
+      positionId: position.id,
+      state: "reserved",
+    });
+  const inventoryReserved = allocations.data.reduce(
+    (sum, allocation) => sum + allocation.amountMinor,
+    0n,
+  );
+  const inventoryAvailable = BigInt(position.availableAmountMinor.toString());
+  const inventoryAcquired = BigInt(position.acquiredAmountMinor.toString());
+  const reconciliationStatus =
+    balance.ledgerBalance === 0n && inventoryAcquired > 0n
+      ? ("missing_balance" as const)
+      : inventoryAvailable > balance.available
+        ? ("inventory_exceeds_balance" as const)
+        : ("matched" as const);
+
+  return {
+    currency: currency.code,
+    inventoryAcquiredMinor: inventoryAcquired.toString(),
+    inventoryAvailableMinor: inventoryAvailable.toString(),
+    inventoryReservedMinor: inventoryReserved.toString(),
+    ledgerAvailableMinor: balance.available.toString(),
+    ledgerBalanceMinor: balance.ledgerBalance.toString(),
+    ledgerReservedMinor: balance.reserved.toString(),
+    reconciliationStatus,
+    subject: {
+      bookId: balance.bookId,
+      currency: balance.currency,
+      subjectId: balance.subjectId,
+      subjectType: balance.subjectType,
+    },
+  };
+}
+
+async function serializeInventoryPosition(ctx: AppContext, position: {
   acquiredAmountMinor: bigint | string;
   availableAmountMinor: bigint | string;
   costAmountMinor: bigint | string;
@@ -235,19 +319,24 @@ function serializeInventoryPosition(position: {
   createdAt: Date | string;
   currencyId: string;
   id: string;
+  ledgerSubjectType: "organization_requisite";
+  ownerBookId: string;
   ownerPartyId: string;
-  ownerRequisiteId: string | null;
+  ownerRequisiteId: string;
   sourceOrderId: string;
+  sourcePostingDocumentId: string;
+  sourcePostingDocumentKind: "fx_execute";
   sourceQuoteExecutionId: string;
   state: z.infer<typeof TreasuryInventoryPositionStateSchema>;
   updatedAt: Date | string;
-}): TreasuryInventoryPositionResponse {
+}): Promise<TreasuryInventoryPositionResponse> {
   return {
     ...position,
     acquiredAmountMinor: position.acquiredAmountMinor.toString(),
     availableAmountMinor: position.availableAmountMinor.toString(),
     costAmountMinor: position.costAmountMinor.toString(),
     createdAt: serializeDate(position.createdAt),
+    ledger: await buildInventoryLedgerBlock(ctx, position),
     updatedAt: serializeDate(position.updatedAt),
   };
 }
@@ -255,11 +344,18 @@ function serializeInventoryPosition(position: {
 function serializeInventoryAllocation(allocation: {
   amountMinor: bigint | string;
   costAmountMinor: bigint | string;
+  consumedAt: Date | string | null;
   createdAt: Date | string;
   dealId: string;
   id: string;
+  ledgerHoldRef: string;
+  ownerBookId: string;
+  ownerRequisiteId: string;
+  currencyId: string;
   positionId: string;
   quoteId: string | null;
+  releasedAt: Date | string | null;
+  reservedAt: Date | string;
   state: z.infer<typeof TreasuryInventoryAllocationStateSchema>;
   updatedAt: Date | string;
 }): TreasuryInventoryAllocationResponse {
@@ -267,7 +363,10 @@ function serializeInventoryAllocation(allocation: {
     ...allocation,
     amountMinor: allocation.amountMinor.toString(),
     costAmountMinor: allocation.costAmountMinor.toString(),
+    consumedAt: serializeNullableDate(allocation.consumedAt),
     createdAt: serializeDate(allocation.createdAt),
+    releasedAt: serializeNullableDate(allocation.releasedAt),
+    reservedAt: serializeDate(allocation.reservedAt),
     updatedAt: serializeDate(allocation.updatedAt),
   };
 }
@@ -503,7 +602,11 @@ export function treasuryOrdersRoutes(ctx: AppContext) {
             query,
           );
         return c.json({
-          data: result.data.map(serializeInventoryPosition),
+          data: await Promise.all(
+            result.data.map((position) =>
+              serializeInventoryPosition(ctx, position),
+            ),
+          ),
           limit: result.limit,
           offset: result.offset,
           total: result.total,
@@ -520,7 +623,7 @@ export function treasuryOrdersRoutes(ctx: AppContext) {
             { positionId },
           );
         return position
-          ? c.json(serializeInventoryPosition(position), 200)
+          ? c.json(await serializeInventoryPosition(ctx, position), 200)
           : c.json(
               { error: `Treasury inventory position ${positionId} not found` },
               404,

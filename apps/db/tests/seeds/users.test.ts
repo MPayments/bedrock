@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { seedUsers, USER_IDS } from "../../src/seeds/users";
+import {
+  seedBootstrapAdminFromEnv,
+  seedUsers,
+  USER_IDS,
+} from "../../src/seeds/users";
 
 function createSelectChain(results: unknown[][]) {
   return {
@@ -93,5 +97,43 @@ describe("seedUsers", () => {
     ).rejects.toThrow(
       `User id mismatch for admin@bedrock.com: expected ${USER_IDS.ADMIN}, got other-user-id`,
     );
+  });
+
+  it("creates bootstrap admin from env credentials", async () => {
+    const { db, inserts } = createDbStub([[], [], []]);
+    const hashPassword = vi.fn(async () => "hashed:secret");
+
+    await seedBootstrapAdminFromEnv(db as never, hashPassword, {
+      BEDROCK_BOOTSTRAP_ADMIN_EMAIL: "Owner@Example.com ",
+      BEDROCK_BOOTSTRAP_ADMIN_NAME: "Owner",
+      BEDROCK_BOOTSTRAP_ADMIN_PASSWORD: "secret",
+      NODE_ENV: "production",
+    });
+
+    expect(hashPassword).toHaveBeenCalledWith("secret");
+    expect(inserts).toContainEqual({
+      value: expect.objectContaining({
+        email: "owner@example.com",
+        emailVerified: true,
+        name: "Owner",
+        role: "admin",
+      }),
+    });
+    expect(inserts).toContainEqual({
+      value: expect.objectContaining({
+        password: "hashed:secret",
+        providerId: "credential",
+      }),
+    });
+  });
+
+  it("requires bootstrap admin env in production", async () => {
+    const { db } = createDbStub([]);
+
+    await expect(
+      seedBootstrapAdminFromEnv(db as never, vi.fn(async () => "hashed"), {
+        NODE_ENV: "production",
+      }),
+    ).rejects.toThrow(/BEDROCK_BOOTSTRAP_ADMIN_EMAIL/);
   });
 });

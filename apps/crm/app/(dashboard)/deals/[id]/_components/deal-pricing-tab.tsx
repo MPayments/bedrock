@@ -2,15 +2,20 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  AlertTriangle,
   ChevronDown,
   ChevronUp,
   Copy,
   Download,
-  Loader2,
   Wallet,
 } from "lucide-react";
 
 import { downloadPrintForm } from "@bedrock/sdk-print-forms-ui/lib/client";
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@bedrock/sdk-ui/components/alert";
 import { Button } from "@bedrock/sdk-ui/components/button";
 import {
   Card,
@@ -25,8 +30,6 @@ import {
   InputGroupAddon,
 } from "@bedrock/sdk-ui/components/input-group";
 import { Label } from "@bedrock/sdk-ui/components/label";
-import { toast } from "@bedrock/sdk-ui/components/sonner";
-import { cn } from "@bedrock/sdk-ui/lib/utils";
 import {
   Select,
   SelectContent,
@@ -34,6 +37,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@bedrock/sdk-ui/components/select";
+import { toast } from "@bedrock/sdk-ui/components/sonner";
+import { Spinner } from "@bedrock/sdk-ui/components/spinner";
+import { cn } from "@bedrock/sdk-ui/lib/utils";
 
 import { API_BASE_URL } from "@/lib/constants";
 import {
@@ -86,6 +92,7 @@ type DealPricingTabProps = {
   currentCalculationId: string | null;
   dealId: string;
   fundingDeadline: string | null;
+  hasExpiredRuntimeQuoteExecution?: boolean;
   initialRequestedAmount: string;
   onError: (
     title: string,
@@ -114,10 +121,30 @@ type ApiTreasuryInventoryPosition = {
   costCurrencyId: string;
   currencyId: string;
   id: string;
+  ledger: {
+    inventoryAvailableMinor: string;
+    inventoryReservedMinor: string;
+    ledgerAvailableMinor: string;
+    ledgerBalanceMinor: string;
+    ledgerReservedMinor: string;
+    reconciliationStatus:
+      | "matched"
+      | "inventory_exceeds_balance"
+      | "missing_balance";
+  };
   ownerPartyId: string;
-  ownerRequisiteId: string | null;
+  ownerRequisiteId: string;
   sourceOrderId: string;
   state: "open" | "exhausted" | "cancelled";
+};
+
+const INVENTORY_RECONCILIATION_LABELS: Record<
+  ApiTreasuryInventoryPosition["ledger"]["reconciliationStatus"],
+  string
+> = {
+  inventory_exceeds_balance: "инвентарь выше учёта",
+  matched: "сверено с учётом",
+  missing_balance: "нет учётного баланса",
 };
 
 function createIdempotencyKey() {
@@ -214,10 +241,11 @@ function cloneFundingAdjustments(context: ApiDealPricingContext) {
 
 function decimalRateToFraction(value: string) {
   const normalized = value.trim().replace(",", ".");
-  if (!/^(0|[1-9]\d*)(?:\.\d+)?$/u.test(normalized)) {
+  if (!/^\d*(?:\.\d*)?$/u.test(normalized) || !/\d/u.test(normalized)) {
     return null;
   }
-  const [whole = "0", fraction = ""] = normalized.split(".");
+  const [wholeRaw = "", fraction = ""] = normalized.split(".");
+  const whole = wholeRaw || "0";
   const scale = 100_000_000n;
   const trimmedFraction = fraction.slice(0, 8).padEnd(8, "0");
   const rateDen = BigInt(whole) * scale + BigInt(trimmedFraction || "0");
@@ -233,6 +261,10 @@ function fractionRateToDecimal(
 ) {
   if (!rate) return "";
   return rationalToDecimalString(rate.rateDen, rate.rateNum, 6);
+}
+
+function isDecimalDraftInput(value: string) {
+  return /^\d*(?:[,.]\d*)?$/u.test(value.trim());
 }
 
 function defaultClientPricing() {
@@ -259,7 +291,8 @@ function formatInventoryPositionLabel(
   position: ApiTreasuryInventoryPosition,
   currencyCodeById: Map<string, string>,
 ) {
-  const currency = currencyCodeById.get(position.currencyId) ?? position.currencyId;
+  const currency =
+    currencyCodeById.get(position.currencyId) ?? position.currencyId;
   const costCurrency =
     currencyCodeById.get(position.costCurrencyId) ?? position.costCurrencyId;
   const costRate = rationalToDecimalString(
@@ -267,7 +300,12 @@ function formatInventoryPositionLabel(
     position.acquiredAmountMinor,
     6,
   );
-  return `${formatMinorAmount(position.availableAmountMinor, currency)} доступно · себес 1 ${currency} = ${costRate} ${costCurrency} · ордер #${position.sourceOrderId.slice(0, 8)}`;
+  return `${formatMinorAmount(position.availableAmountMinor, currency)} инвентарь · ${formatMinorAmount(
+    position.ledger.ledgerAvailableMinor,
+    currency,
+  )} на балансе · себестоимость 1 ${currency} = ${costRate} ${costCurrency} · ${
+    INVENTORY_RECONCILIATION_LABELS[position.ledger.reconciliationStatus]
+  } · ордер #${position.sourceOrderId.slice(0, 8)}`;
 }
 
 function extractStoredPricingSnapshot(
@@ -631,6 +669,7 @@ export function DealPricingTab({
   currentCalculationId,
   dealId,
   fundingDeadline,
+  hasExpiredRuntimeQuoteExecution = false,
   initialRequestedAmount,
   onError,
   onReload,
@@ -650,6 +689,19 @@ export function DealPricingTab({
   );
   const [amountInput, setAmountInput] = useState(initialRequestedAmount);
   const [asOfInput, setAsOfInput] = useState(formatDateTimeInput(new Date()));
+  const [clientRateInput, setClientRateInput] = useState(() =>
+    fractionRateToDecimal(
+      pricingContext.commercialDraft.clientPricing?.clientRate ?? null,
+    ),
+  );
+  const [clientTotalInput, setClientTotalInput] = useState(() =>
+    pricingContext.commercialDraft.clientPricing?.clientTotalMinor
+      ? minorToDecimalString(
+          pricingContext.commercialDraft.clientPricing.clientTotalMinor,
+          amountCurrencyPrecision,
+        )
+      : "",
+  );
   const [isCreatingQuote, setIsCreatingQuote] = useState(false);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [nowTick, setNowTick] = useState(() => Date.now());
@@ -677,7 +729,20 @@ export function DealPricingTab({
     setServerContext(pricingContext);
     setCommercialDraft(cloneCommercialDraft(pricingContext));
     setFundingAdjustments(cloneFundingAdjustments(pricingContext));
-  }, [pricingContext]);
+    setClientRateInput(
+      fractionRateToDecimal(
+        pricingContext.commercialDraft.clientPricing?.clientRate ?? null,
+      ),
+    );
+    setClientTotalInput(
+      pricingContext.commercialDraft.clientPricing?.clientTotalMinor
+        ? minorToDecimalString(
+            pricingContext.commercialDraft.clientPricing.clientTotalMinor,
+            amountCurrencyPrecision,
+          )
+        : "",
+    );
+  }, [amountCurrencyPrecision, pricingContext]);
 
   useEffect(() => {
     setAmountInput(initialRequestedAmount);
@@ -763,8 +828,11 @@ export function DealPricingTab({
         setInventoryPositions(
           payload.data.filter(
             (position) =>
-              beneficiaryMinor === 0n ||
-              BigInt(position.availableAmountMinor) >= beneficiaryMinor,
+              position.ledger.reconciliationStatus === "matched" &&
+              (beneficiaryMinor === 0n ||
+                (BigInt(position.availableAmountMinor) >= beneficiaryMinor &&
+                  BigInt(position.ledger.ledgerAvailableMinor) >=
+                    beneficiaryMinor)),
           ),
         );
       })
@@ -809,6 +877,10 @@ export function DealPricingTab({
       preview?.pricingFingerprint,
       nowTick,
     ]);
+  const requiresNewQuote =
+    pricingState === "expired" || hasExpiredRuntimeQuoteExecution;
+  const isCurrentQuoteLocked =
+    pricingState === "locked" && !hasExpiredRuntimeQuoteExecution;
 
   const handleCommit = async () => {
     if (quoteCreationDisabledReason) {
@@ -1011,7 +1083,7 @@ export function DealPricingTab({
                   variant="outline"
                 >
                   {isDownloadingPdf ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <Spinner data-icon="inline-start" />
                   ) : (
                     <Download className="mr-2 h-4 w-4" />
                   )}
@@ -1020,29 +1092,37 @@ export function DealPricingTab({
                 <Button
                   data-testid="deal-commit-pricing-button-top"
                   disabled={
-                    pricingState === "locked" ||
+                    isCurrentQuoteLocked ||
                     Boolean(quoteCreationDisabledReason) ||
                     isCreatingQuote
                   }
                   onClick={() => {
-                    if (pricingState === "drifted") {
+                    if (
+                      pricingState === "drifted" &&
+                      !hasExpiredRuntimeQuoteExecution
+                    ) {
                       setReLockDialogOpen(true);
                       return;
                     }
                     void handleCommit();
                   }}
                   size="sm"
-                  variant={pricingState === "locked" ? "outline" : "default"}
+                  variant={isCurrentQuoteLocked ? "outline" : "default"}
                 >
-                  {isCreatingQuote
-                    ? "Фиксируем..."
-                    : pricingState === "locked"
-                      ? "Зафиксировано"
-                      : pricingState === "drifted"
-                        ? "Обновить курс"
-                        : pricingState === "expired"
-                          ? "Зафиксировать новый курс"
-                          : "Принять и зафиксировать"}
+                  {isCreatingQuote ? (
+                    <>
+                      <Spinner data-icon="inline-start" />
+                      Фиксируем...
+                    </>
+                  ) : isCurrentQuoteLocked ? (
+                    "Зафиксировано"
+                  ) : requiresNewQuote ? (
+                    "Зафиксировать новый курс"
+                  ) : pricingState === "drifted" ? (
+                    "Обновить курс"
+                  ) : (
+                    "Принять и зафиксировать"
+                  )}
                 </Button>
               </div>
               {isAutoSyncing ? (
@@ -1056,6 +1136,26 @@ export function DealPricingTab({
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
+          {requiresNewQuote ? (
+            <Alert variant="warning">
+              <AlertTriangle />
+              <AlertTitle>Котировка истекла</AlertTitle>
+              <AlertDescription>
+                <p>
+                  {hasExpiredRuntimeQuoteExecution
+                    ? "FX-исполнение по этой котировке уже истекло в казначействе. Этот курс больше нельзя использовать для сделки."
+                    : "Этот курс больше нельзя передавать в исполнение."}{" "}
+                  Зафиксируйте новый курс, чтобы пересчитать цену сделки и
+                  отправить в казначейство актуальную котировку.
+                </p>
+                {quoteCreationDisabledReason ? (
+                  <p className="font-medium">
+                    Новый курс сейчас недоступен: {quoteCreationDisabledReason}
+                  </p>
+                ) : null}
+              </AlertDescription>
+            </Alert>
+          ) : null}
           {previewOrAcceptedSnapshot?.profitability ? (
             (() => {
               const beneficiaryQuote =
@@ -1320,7 +1420,7 @@ export function DealPricingTab({
               </Select>
               <p className="text-muted-foreground text-xs">
                 Инвентарь показывается только по валюте выплаты и доступному
-                остатку.
+                остатку, подтверждённому учётным балансом.
               </p>
             </div>
             <div className="space-y-2">
@@ -1334,19 +1434,38 @@ export function DealPricingTab({
             <div className="space-y-2">
               <Label>Цена клиенту</Label>
               <Select
-                onValueChange={(value) =>
-                  setCommercialDraft((current) => ({
-                    ...current,
-                    clientPricing: {
-                      ...(current.clientPricing ?? defaultClientPricing()),
-                      mode:
-                        value === "client_total"
-                          ? "client_total"
-                          : "client_rate",
-                    },
-                    quoteMarkupBps: null,
-                  }))
-                }
+                onValueChange={(value) => {
+                  const nextMode =
+                    value === "client_total" ? "client_total" : "client_rate";
+
+                  if (nextMode === "client_total") {
+                    setClientTotalInput(
+                      clientPricingDraft.clientTotalMinor
+                        ? minorToDecimalString(
+                            clientPricingDraft.clientTotalMinor,
+                            amountCurrencyPrecision,
+                          )
+                        : "",
+                    );
+                  } else {
+                    setClientRateInput(
+                      fractionRateToDecimal(clientPricingDraft.clientRate),
+                    );
+                  }
+
+                  setCommercialDraft((current) => {
+                    const currentClientPricing =
+                      current.clientPricing ?? defaultClientPricing();
+                    return {
+                      ...current,
+                      clientPricing: {
+                        ...currentClientPricing,
+                        mode: nextMode,
+                      },
+                      quoteMarkupBps: null,
+                    };
+                  });
+                }}
                 value={clientPricingDraft.mode}
               >
                 <SelectTrigger>
@@ -1364,7 +1483,19 @@ export function DealPricingTab({
                 <Input
                   inputMode="decimal"
                   onChange={(event) => {
-                    const clientRate = decimalRateToFraction(event.target.value);
+                    const value = event.target.value;
+                    if (!isDecimalDraftInput(value)) {
+                      return;
+                    }
+
+                    setClientRateInput(value);
+                    const clientRate = value.trim()
+                      ? decimalRateToFraction(value)
+                      : null;
+                    if (value.trim() && !clientRate) {
+                      return;
+                    }
+
                     setCommercialDraft((current) => ({
                       ...current,
                       clientPricing: {
@@ -1376,7 +1507,7 @@ export function DealPricingTab({
                     }));
                   }}
                   placeholder="0.000000"
-                  value={fractionRateToDecimal(clientPricingDraft.clientRate)}
+                  value={clientRateInput}
                 />
               </div>
             ) : (
@@ -1385,10 +1516,20 @@ export function DealPricingTab({
                 <Input
                   inputMode="decimal"
                   onChange={(event) => {
+                    const value = event.target.value;
+                    if (!isDecimalDraftInput(value)) {
+                      return;
+                    }
+
+                    setClientTotalInput(value);
                     const minor = decimalToMinorString(
-                      event.target.value,
+                      value,
                       amountCurrencyPrecision,
                     );
+                    if (value.trim() && !minor) {
+                      return;
+                    }
+
                     setCommercialDraft((current) => ({
                       ...current,
                       clientPricing: {
@@ -1400,14 +1541,7 @@ export function DealPricingTab({
                     }));
                   }}
                   placeholder="0.00"
-                  value={
-                    clientPricingDraft.clientTotalMinor
-                      ? minorToDecimalString(
-                          clientPricingDraft.clientTotalMinor,
-                          amountCurrencyPrecision,
-                        )
-                      : ""
-                  }
+                  value={clientTotalInput}
                 />
               </div>
             )}
@@ -1623,7 +1757,7 @@ export function DealPricingTab({
                             >
                               {downloadingHistoryCalculationId ===
                               row.calculationId ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                <Spinner className="h-3.5 w-3.5" />
                               ) : (
                                 <Download className="h-3.5 w-3.5" />
                               )}

@@ -109,10 +109,15 @@ export const treasuryInventoryPositions = pgTable(
       .notNull()
       .references(() => quoteExecutions.id),
     ownerPartyId: uuid("owner_party_id").notNull(),
-    ownerRequisiteId: uuid("owner_requisite_id"),
+    ownerRequisiteId: uuid("owner_requisite_id").notNull(),
     currencyId: uuid("currency_id")
       .notNull()
       .references(() => currencies.id),
+    ownerBookId: uuid("owner_book_id").notNull(),
+    ledgerSubjectType: text("ledger_subject_type")
+      .$type<"organization_requisite">()
+      .notNull()
+      .default("organization_requisite"),
     acquiredAmountMinor: bigint("acquired_amount_minor", {
       mode: "bigint",
     }).notNull(),
@@ -123,6 +128,10 @@ export const treasuryInventoryPositions = pgTable(
       .notNull()
       .references(() => currencies.id),
     costAmountMinor: bigint("cost_amount_minor", { mode: "bigint" }).notNull(),
+    sourcePostingDocumentId: uuid("source_posting_document_id").notNull(),
+    sourcePostingDocumentKind: text("source_posting_document_kind")
+      .$type<"fx_execute">()
+      .notNull(),
     state: text("state")
       .$type<TreasuryInventoryPositionState>()
       .notNull()
@@ -142,6 +151,10 @@ export const treasuryInventoryPositions = pgTable(
     index("treasury_inventory_positions_order_idx").on(table.sourceOrderId),
     index("treasury_inventory_positions_currency_idx").on(table.currencyId),
     index("treasury_inventory_positions_owner_idx").on(table.ownerPartyId),
+    index("treasury_inventory_positions_owner_book_idx").on(table.ownerBookId),
+    index("treasury_inventory_positions_source_document_idx").on(
+      table.sourcePostingDocumentId,
+    ),
     index("treasury_inventory_positions_state_idx").on(table.state),
   ],
 );
@@ -157,10 +170,19 @@ export const treasuryInventoryAllocations = pgTable(
     quoteId: uuid("quote_id"),
     amountMinor: bigint("amount_minor", { mode: "bigint" }).notNull(),
     costAmountMinor: bigint("cost_amount_minor", { mode: "bigint" }).notNull(),
+    ledgerHoldRef: text("ledger_hold_ref").notNull(),
+    ownerBookId: uuid("owner_book_id").notNull(),
+    ownerRequisiteId: uuid("owner_requisite_id").notNull(),
+    currencyId: uuid("currency_id")
+      .notNull()
+      .references(() => currencies.id),
     state: text("state")
       .$type<TreasuryInventoryAllocationState>()
       .notNull()
       .default("reserved"),
+    reservedAt: timestamp("reserved_at", { withTimezone: true }).notNull(),
+    consumedAt: timestamp("consumed_at", { withTimezone: true }),
+    releasedAt: timestamp("released_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .default(sql`now()`),
@@ -177,6 +199,7 @@ export const treasuryInventoryAllocations = pgTable(
     ),
     index("treasury_inventory_allocations_position_idx").on(table.positionId),
     index("treasury_inventory_allocations_deal_idx").on(table.dealId),
+    index("treasury_inventory_allocations_hold_ref_idx").on(table.ledgerHoldRef),
     index("treasury_inventory_allocations_quote_idx").on(table.quoteId),
     index("treasury_inventory_allocations_state_idx").on(table.state),
   ],

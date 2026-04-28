@@ -239,11 +239,20 @@ function createLeg(
 function mapRouteLegToDealLeg(
   idx: number,
   routeLeg: PaymentRouteDraft["legs"][number],
+  participants: PaymentRouteDraft["participants"],
+  routeLegIndex: number,
 ): DealWorkflowLeg {
+  const fromParticipant = participants[routeLegIndex] ?? null;
+  const toParticipant = participants[routeLegIndex + 1] ?? null;
   const kind =
-    routeLeg.fromCurrencyId === routeLeg.toCurrencyId
-      ? "transit_hold"
-      : "convert";
+    fromParticipant?.role === "source"
+      ? "collect"
+      : toParticipant?.role === "destination"
+        ? "payout"
+        : routeLeg.fromCurrencyId === routeLeg.toCurrencyId
+          ? "transit_hold"
+          : "convert";
+
   return createLeg(idx, kind, {
     fromCurrencyId: routeLeg.fromCurrencyId,
     routeSnapshotLegId: routeLeg.id,
@@ -287,56 +296,17 @@ function buildCanonicalDealExecutionPlan(
 }
 
 function buildRouteDerivedDealExecutionPlan(
-  intake: DealIntakeDraft,
+  _intake: DealIntakeDraft,
   routeSnapshot: PaymentRouteDraft,
 ): DealWorkflowLeg[] {
-  const sourceCurrencyId = intake.moneyRequest.sourceCurrencyId ?? null;
-  const targetCurrencyId = intake.moneyRequest.targetCurrencyId ?? null;
-
-  // For each deal type, the route's legs form the body; head and tail come from the deal type.
-  // The route's currencyIn/currencyOut should match the deal's source/target but we don't enforce
-  // that here — the route snapshot is the source of truth for execution steps.
-  const hopLegs = (startIdx: number): DealWorkflowLeg[] =>
-    routeSnapshot.legs.map((routeLeg, offset) =>
-      mapRouteLegToDealLeg(startIdx + offset, routeLeg),
-    );
-
-  switch (intake.type) {
-    case "payment":
-    case "currency_exchange":
-    case "currency_transit": {
-      const hops = hopLegs(2);
-      return [
-        createLeg(1, "collect", {
-          fromCurrencyId: sourceCurrencyId,
-          toCurrencyId: sourceCurrencyId,
-        }),
-        ...hops,
-        createLeg(2 + hops.length, "payout", {
-          fromCurrencyId: targetCurrencyId,
-          toCurrencyId: targetCurrencyId,
-        }),
-      ];
-    }
-    case "exporter_settlement": {
-      const hops = hopLegs(3);
-      return [
-        createLeg(1, "payout", {
-          fromCurrencyId: targetCurrencyId,
-          toCurrencyId: targetCurrencyId,
-        }),
-        createLeg(2, "collect", {
-          fromCurrencyId: sourceCurrencyId,
-          toCurrencyId: sourceCurrencyId,
-        }),
-        ...hops,
-        createLeg(3 + hops.length, "settle_exporter", {
-          fromCurrencyId: targetCurrencyId,
-          toCurrencyId: targetCurrencyId,
-        }),
-      ];
-    }
-  }
+  return routeSnapshot.legs.map((routeLeg, offset) =>
+    mapRouteLegToDealLeg(
+      offset + 1,
+      routeLeg,
+      routeSnapshot.participants,
+      offset,
+    ),
+  );
 }
 
 export function buildDealExecutionPlan(

@@ -88,6 +88,8 @@ export {
   paymentStepReturns,
   paymentSteps,
   quoteExecutions,
+  treasuryInventoryAllocations,
+  treasuryInventoryPositions,
   treasuryOrders,
   treasuryOrderSteps,
 } from "@bedrock/treasury/schema";

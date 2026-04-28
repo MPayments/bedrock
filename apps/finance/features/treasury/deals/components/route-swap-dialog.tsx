@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@bedrock/sdk-ui/components/select";
+import { Spinner } from "@bedrock/sdk-ui/components/spinner";
 import { Textarea } from "@bedrock/sdk-ui/components/textarea";
 import { toast } from "@bedrock/sdk-ui/components/sonner";
 
@@ -273,7 +274,14 @@ export function RouteSwapDialog({
             onClick={handleSubmit}
             disabled={isSubmitting || !templateId}
           >
-            {submitLabel}
+            {isSubmitting ? (
+              <>
+                <Spinner data-icon="inline-start" />
+                {hasExistingRoute ? "Сменяем..." : "Привязываем..."}
+              </>
+            ) : (
+              submitLabel
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

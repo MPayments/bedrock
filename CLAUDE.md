@@ -49,12 +49,14 @@ bun run knip                           # Unused dependency detection
 bun run infra:up                       # Start Postgres + TigerBeetle (docker compose)
 bun run db:nuke                        # Drop all tables
 bun run db:migrate                     # Apply migrations
-bun run db:seed                        # Run all seed scripts
+bun run db:seed:required               # Run production-safe required seeds
+bun run db:seed:local                  # Run local/dev fixture seeds
+bun run db:seed:all                    # Run required + local seeds
 bun run db:generate                    # Generate migrations from schema changes
 bun run db:studio                      # Drizzle Studio GUI
 ```
 
-Migration policy is **baseline-only hard cutover**: `db:nuke -> db:migrate -> db:seed`. No legacy state support.
+Migration policy is **baseline-only hard cutover**: local reset uses `db:nuke -> db:migrate -> db:seed:all`; production/staging uses `db:migrate -> db:seed:required`. No legacy state support.
 
 ## Workflow & Verification
 

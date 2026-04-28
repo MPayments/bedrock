@@ -187,6 +187,7 @@ export const FxExecuteInputSchema = baseOccurredAtSchema
   .extend({
     sourceRequisiteId: uuidSchema,
     destinationRequisiteId: uuidSchema,
+    quoteId: uuidSchema.optional(),
     amount: amountValueSchema,
     currency: z.string().trim().optional(),
     executionRef: referenceSchema,

@@ -24,6 +24,14 @@ const INVENTORY_STATE_LABELS: Record<TreasuryInventoryPositionRow["state"], stri
   exhausted: "Исчерпана",
   open: "Доступна",
 };
+const RECONCILIATION_LABELS: Record<
+  TreasuryInventoryPositionRow["ledger"]["reconciliationStatus"],
+  string
+> = {
+  inventory_exceeds_balance: "Инвентарь больше баланса",
+  matched: "С балансом",
+  missing_balance: "Нет ledger-баланса",
+};
 
 function stateBadgeVariant(
   state: TreasuryInventoryPositionRow["state"],
@@ -168,6 +176,33 @@ export const inventoryColumns: ColumnDef<TreasuryInventoryPositionRow>[] = [
       <Badge variant={stateBadgeVariant(row.original.state)}>
         {INVENTORY_STATE_LABELS[row.original.state]}
       </Badge>
+    ),
+    enableSorting: false,
+  },
+  {
+    id: "ledger",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} label="Баланс" />
+    ),
+    cell: ({ row }) => (
+      <div className="space-y-1">
+        <div className="text-xs text-muted-foreground">
+          Баланс:{" "}
+          {minorToAmountString(row.original.ledger.ledgerAvailableMinor, {
+            currency: row.original.ledger.currency,
+          })}{" "}
+          {row.original.ledger.currency}
+        </div>
+        <Badge
+          variant={
+            row.original.ledger.reconciliationStatus === "matched"
+              ? "outline"
+              : "destructive"
+          }
+        >
+          {RECONCILIATION_LABELS[row.original.ledger.reconciliationStatus]}
+        </Badge>
+      </div>
     ),
     enableSorting: false,
   },

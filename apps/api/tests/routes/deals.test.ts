@@ -795,6 +795,9 @@ function createTestApp() {
     },
   };
   const reconciliationService = {
+    records: {
+      listPendingExternalRecordIds: vi.fn(async () => []),
+    },
     exceptions: {
       ignore: vi.fn(),
       resolveWithAdjustment: vi.fn(),
@@ -884,11 +887,7 @@ describe("deals routes", () => {
   });
 
   it("lists and fetches canonical deals", async () => {
-    const {
-      app,
-      dealProjectionsWorkflow,
-      dealsModule,
-    } = createTestApp();
+    const { app, dealProjectionsWorkflow, dealsModule } = createTestApp();
     const detail = createDealDetail();
     dealProjectionsWorkflow.listCrmDeals.mockResolvedValue({
       data: [
@@ -1035,12 +1034,8 @@ describe("deals routes", () => {
   });
 
   it("creates a deal quote with markup and fixed fee overrides", async () => {
-    const {
-      app,
-      agreementsModule,
-      dealsModule,
-      treasuryModule,
-    } = createTestApp();
+    const { app, agreementsModule, dealsModule, treasuryModule } =
+      createTestApp();
 
     dealsModule.deals.queries.findById.mockResolvedValue({
       ...createDealDetail(),
@@ -1142,12 +1137,8 @@ describe("deals routes", () => {
   });
 
   it("previews a deal quote with commercial terms before creation", async () => {
-    const {
-      app,
-      agreementsModule,
-      dealsModule,
-      treasuryModule,
-    } = createTestApp();
+    const { app, agreementsModule, dealsModule, treasuryModule } =
+      createTestApp();
 
     dealsModule.deals.queries.findById.mockResolvedValue({
       ...createDealDetail(),
@@ -1332,18 +1323,20 @@ describe("deals routes", () => {
       expectedRevision: 3,
       idempotencyKey: "pricing-quote-1",
     });
-    expect(dealsModule.deals.commands.appendTimelineEvent).toHaveBeenCalledWith({
-      actorUserId: "user-1",
-      dealId: "00000000-0000-4000-8000-000000000010",
-      payload: {
-        expiresAt: new Date("2026-04-19T10:58:00.000Z"),
-        pricingMode: "explicit_route",
-        quoteId: "00000000-0000-4000-8000-000000000302",
+    expect(dealsModule.deals.commands.appendTimelineEvent).toHaveBeenCalledWith(
+      {
+        actorUserId: "user-1",
+        dealId: "00000000-0000-4000-8000-000000000010",
+        payload: {
+          expiresAt: new Date("2026-04-19T10:58:00.000Z"),
+          pricingMode: "explicit_route",
+          quoteId: "00000000-0000-4000-8000-000000000302",
+        },
+        sourceRef: "quote:00000000-0000-4000-8000-000000000302:created",
+        type: "quote_created",
+        visibility: "internal",
       },
-      sourceRef: "quote:00000000-0000-4000-8000-000000000302:created",
-      type: "quote_created",
-      visibility: "internal",
-    });
+    );
     await expect(response.json()).resolves.toMatchObject({
       pricingMode: "explicit_route",
       quote: {
@@ -1369,7 +1362,9 @@ describe("deals routes", () => {
         templateName: "Default route",
       },
     };
-    dealPricingWorkflow.initializeDefaultRoute.mockResolvedValue(updatedContext);
+    dealPricingWorkflow.initializeDefaultRoute.mockResolvedValue(
+      updatedContext,
+    );
 
     const response = await app.request(
       "http://localhost/deals/00000000-0000-4000-8000-000000000010/pricing/initialize-route",
@@ -1525,7 +1520,9 @@ describe("deals routes", () => {
       ...createDealDetail(),
       status: "preparing_documents",
     });
-    documentDraftWorkflow.createDraft.mockResolvedValue(createDocumentWithOperation());
+    documentDraftWorkflow.createDraft.mockResolvedValue(
+      createDocumentWithOperation(),
+    );
 
     const response = await app.request(
       "http://localhost/deals/00000000-0000-4000-8000-000000000010/formal-documents/invoice",
@@ -1594,12 +1591,8 @@ describe("deals routes", () => {
   });
 
   it("normalizes decimal agreement fee bps before previewing a deal quote", async () => {
-    const {
-      app,
-      agreementsModule,
-      dealsModule,
-      treasuryModule,
-    } = createTestApp();
+    const { app, agreementsModule, dealsModule, treasuryModule } =
+      createTestApp();
 
     dealsModule.deals.queries.findById.mockResolvedValue({
       ...createDealDetail(),
@@ -1731,7 +1724,9 @@ describe("deals routes", () => {
     ]);
 
     const [statsResponse, byStatusResponse, byDayResponse] = await Promise.all([
-      app.request("http://localhost/deals/stats?dateFrom=2026-03-01&dateTo=2026-03-31"),
+      app.request(
+        "http://localhost/deals/stats?dateFrom=2026-03-01&dateTo=2026-03-31",
+      ),
       app.request("http://localhost/deals/by-status"),
       app.request("http://localhost/deals/by-day?dateFrom=2026-03-01"),
     ]);
@@ -1821,8 +1816,7 @@ describe("deals routes", () => {
       actorUserId: "user-1",
       comment: null,
       dealId: "00000000-0000-4000-8000-000000000010",
-      idempotencyKey:
-        "auto-materialize:00000000-0000-4000-8000-000000000210",
+      idempotencyKey: "auto-materialize:00000000-0000-4000-8000-000000000210",
     });
   });
 
@@ -1853,8 +1847,7 @@ describe("deals routes", () => {
           quoteId: "00000000-0000-4000-8000-000000000210",
           reason: "intake not ready",
         }),
-        sourceRef:
-          "materialize:auto:00000000-0000-4000-8000-000000000210",
+        sourceRef: "materialize:auto:00000000-0000-4000-8000-000000000210",
         type: "materialization_failed",
         visibility: "internal",
       }),
@@ -2372,7 +2365,9 @@ describe("deals routes", () => {
       ...createDealDetail(),
       status: "closing_documents" as const,
     });
-    dealExecutionWorkflow.closeDeal.mockResolvedValue(createWorkflowProjection());
+    dealExecutionWorkflow.closeDeal.mockResolvedValue(
+      createWorkflowProjection(),
+    );
 
     const response = await app.request(
       "http://localhost/deals/00000000-0000-4000-8000-000000000010/close",
@@ -2481,13 +2476,8 @@ describe("deals routes", () => {
   });
 
   it("runs deal-scoped reconciliation for pending treasury outcome records", async () => {
-    const {
-      app,
-      dealProjectionsWorkflow,
-      dealsModule,
-      persistence,
-      reconciliationService,
-    } = createTestApp();
+    const { app, dealProjectionsWorkflow, dealsModule, reconciliationService } =
+      createTestApp();
     dealsModule.deals.queries.findById.mockResolvedValue(createDealDetail());
     dealProjectionsWorkflow.getFinanceDealWorkspaceProjection
       .mockResolvedValueOnce(createFinanceWorkspaceProjection())
@@ -2504,9 +2494,9 @@ describe("deals routes", () => {
           state: "clear",
         },
       });
-    persistence.db.execute.mockResolvedValue({
-      rows: [{ id: "external-record-1" }],
-    });
+    reconciliationService.records.listPendingExternalRecordIds.mockResolvedValue(
+      ["external-record-1"],
+    );
 
     const response = await app.request(
       "http://localhost/deals/00000000-0000-4000-8000-000000000010/reconciliation/run",
@@ -2519,6 +2509,15 @@ describe("deals routes", () => {
     );
 
     expect(response.status).toBe(200);
+    expect(
+      reconciliationService.records.listPendingExternalRecordIds,
+    ).toHaveBeenCalledWith({
+      normalizedPayloadTextFilter: {
+        key: "dealId",
+        value: "00000000-0000-4000-8000-000000000010",
+      },
+      source: "treasury_instruction_outcomes",
+    });
     expect(reconciliationService.runs.runReconciliation).toHaveBeenCalledWith({
       actorUserId: "user-1",
       idempotencyKey: "reconciliation-run-1",
@@ -2538,12 +2537,8 @@ describe("deals routes", () => {
   });
 
   it("ignores deal-scoped reconciliation exceptions", async () => {
-    const {
-      app,
-      dealProjectionsWorkflow,
-      dealsModule,
-      reconciliationService,
-    } = createTestApp();
+    const { app, dealProjectionsWorkflow, dealsModule, reconciliationService } =
+      createTestApp();
     dealsModule.deals.queries.findById.mockResolvedValue(createDealDetail());
     dealProjectionsWorkflow.getFinanceDealWorkspaceProjection.mockResolvedValue(
       createFinanceWorkspaceProjection(),

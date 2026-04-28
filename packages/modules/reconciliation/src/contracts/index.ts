@@ -10,9 +10,11 @@ export {
 } from "./commands";
 export {
   ExplainReconciliationMatchInputSchema,
+  ListPendingReconciliationExternalRecordIdsInputSchema,
   ListReconciliationExceptionsInputSchema,
   ListReconciliationOperationLinksInputSchema,
   type ExplainReconciliationMatchInput,
+  type ListPendingReconciliationExternalRecordIdsInput,
   type ListReconciliationExceptionsInput,
   type ListReconciliationOperationLinksInput,
 } from "./queries";

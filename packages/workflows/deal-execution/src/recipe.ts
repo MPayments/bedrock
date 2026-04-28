@@ -1,4 +1,7 @@
-import type { DealWorkflowProjection } from "@bedrock/deals/contracts";
+import type {
+  DealPricingRouteAttachment,
+  DealWorkflowProjection,
+} from "@bedrock/deals/contracts";
 import { ValidationError } from "@bedrock/shared/core/errors";
 import type {
   PaymentStepKind,
@@ -41,6 +44,47 @@ function resolveFundingOperationKind(input: {
   return "intracompany_transfer";
 }
 
+function resolveRouteDerivedFundingOperationKind(input: {
+  agreementOrganizationId: string | null;
+  internalEntityOrganizationId: string | null;
+  leg: DealWorkflowProjection["executionPlan"][number];
+  routeAttachment: DealPricingRouteAttachment | null;
+}): PaymentStepKind {
+  const fallback = resolveFundingOperationKind({
+    agreementOrganizationId: input.agreementOrganizationId,
+    internalEntityOrganizationId: input.internalEntityOrganizationId,
+  });
+  const routeSnapshot = input.routeAttachment?.snapshot;
+
+  if (!routeSnapshot || !input.leg.routeSnapshotLegId) {
+    return fallback;
+  }
+
+  const routeLegIndex = routeSnapshot.legs.findIndex(
+    (leg) => leg.id === input.leg.routeSnapshotLegId,
+  );
+
+  if (routeLegIndex < 0) {
+    return fallback;
+  }
+
+  const fromParticipant = routeSnapshot.participants[routeLegIndex] ?? null;
+  const toParticipant = routeSnapshot.participants[routeLegIndex + 1] ?? null;
+
+  if (
+    fromParticipant?.binding !== "bound" ||
+    toParticipant?.binding !== "bound" ||
+    fromParticipant.entityKind !== "organization" ||
+    toParticipant.entityKind !== "organization"
+  ) {
+    return fallback;
+  }
+
+  return fromParticipant.entityId === toParticipant.entityId
+    ? "intracompany_transfer"
+    : "intercompany_funding";
+}
+
 function resolvePayoutAmountRef(
   workflow: DealWorkflowProjection,
 ): DealExecutionAmountRef {
@@ -63,6 +107,7 @@ export function compileDealExecutionRecipe(input: {
   acceptedQuote: QuoteDetailsRecord | null;
   agreementOrganizationId: string | null;
   internalEntityOrganizationId: string | null;
+  routeAttachment?: DealPricingRouteAttachment | null;
   workflow: DealWorkflowProjection;
 }): CompiledDealExecutionOperation[] {
   const hasConvert = input.workflow.executionPlan.some(
@@ -77,11 +122,7 @@ export function compileDealExecutionRecipe(input: {
 
   const routeDerivedLegIds = new Set(
     input.workflow.executionPlan
-      .filter(
-        (leg) =>
-          Boolean(leg.routeSnapshotLegId) &&
-          (leg.kind === "convert" || leg.kind === "transit_hold"),
-      )
+      .filter((leg) => Boolean(input.acceptedQuote && leg.routeSnapshotLegId))
       .map((leg) => leg.id),
   );
   const quoteLegCount = input.acceptedQuote?.legs.length ?? 0;
@@ -116,16 +157,21 @@ export function compileDealExecutionRecipe(input: {
       switch (leg.kind) {
         case "collect":
           operationKind = "payin";
-          amountRef =
-            input.workflow.summary.type === "payment"
-              ? hasConvert && input.acceptedQuote
-                ? "accepted_quote_customer_debit"
-                : "incoming_receipt_expected"
-              : input.workflow.summary.type === "exporter_settlement"
-              ? "incoming_receipt_expected"
-              : hasConvert && input.acceptedQuote
-                ? "accepted_quote_from"
-                : "money_request_source";
+          if (isRouteDerived) {
+            amountRef = "quote_leg_from";
+            counterAmountRef = "quote_leg_to";
+          } else {
+            amountRef =
+              input.workflow.summary.type === "payment"
+                ? hasConvert && input.acceptedQuote
+                  ? "accepted_quote_customer_debit"
+                  : "incoming_receipt_expected"
+                : input.workflow.summary.type === "exporter_settlement"
+                  ? "incoming_receipt_expected"
+                  : hasConvert && input.acceptedQuote
+                    ? "accepted_quote_from"
+                    : "money_request_source";
+          }
           break;
         case "convert":
           operationKind = "quote_execution";
@@ -140,15 +186,23 @@ export function compileDealExecutionRecipe(input: {
           break;
         case "payout":
           operationKind = "payout";
-          amountRef = resolvePayoutAmountRef(input.workflow);
+          if (isRouteDerived) {
+            amountRef = "quote_leg_from";
+            counterAmountRef = "quote_leg_to";
+          } else {
+            amountRef = resolvePayoutAmountRef(input.workflow);
+          }
           break;
         case "transit_hold":
-          operationKind = resolveFundingOperationKind({
+          operationKind = resolveRouteDerivedFundingOperationKind({
             agreementOrganizationId: input.agreementOrganizationId,
             internalEntityOrganizationId: input.internalEntityOrganizationId,
+            leg,
+            routeAttachment: input.routeAttachment ?? null,
           });
           if (isRouteDerived) {
-            amountRef = "quote_leg_to";
+            amountRef = "quote_leg_from";
+            counterAmountRef = "quote_leg_to";
           } else {
             amountRef = hasConvert
               ? "accepted_quote_to"

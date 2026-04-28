@@ -120,6 +120,8 @@ export interface AppContext {
   currenciesService: CurrenciesService;
   treasuryModule: TreasuryModule;
   createDealsModule(tx: Transaction): DealsModule;
+  createDocumentsService(tx: Transaction): DocumentsService;
+  createLedgerModule(tx: Transaction): LedgerModule;
   createTreasuryModule(tx: Transaction): TreasuryModule;
   reconciliationService: ReconciliationService;
   dealAttachmentIngestionWorkflow: DealAttachmentIngestionWorkflow;
@@ -163,6 +165,8 @@ export function createAppContext(env: Env): AppContext {
     currenciesService: applicationServices.currenciesService,
     treasuryModule: applicationServices.treasuryModule,
     createDealsModule: applicationServices.createDealsModule,
+    createDocumentsService: applicationServices.createDocumentsService,
+    createLedgerModule: applicationServices.createLedgerModule,
     createTreasuryModule: applicationServices.createTreasuryModule,
     reconciliationService: applicationServices.reconciliationService,
     dealAttachmentIngestionWorkflow:

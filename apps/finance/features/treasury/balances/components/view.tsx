@@ -110,6 +110,21 @@ function formatCurrencyCodeAmount(amount: string, currency: string) {
   return `${formatBalanceAmount(amount)} ${currency}`;
 }
 
+const INVENTORY_RECONCILIATION_LABELS = {
+  inventory_exceeds_balance: "Инвентарь выше учёта",
+  matched: "Сверено",
+  missing_balance: "Нет учётного баланса",
+} as const;
+
+const INVENTORY_RECONCILIATION_BADGE_CLASS = {
+  inventory_exceeds_balance:
+    "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300",
+  matched:
+    "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+  missing_balance:
+    "border-rose-500/40 bg-rose-500/10 text-rose-700 dark:text-rose-300",
+} as const;
+
 export function TreasuryOrganizationBalancesView({
   asOf,
   viewModel,
@@ -319,15 +334,18 @@ export function TreasuryOrganizationBalancesView({
         </CardHeader>
 
         <CardContent className="">
-          <Table className="min-w-[980px]">
+          <Table className="min-w-[1280px]">
             <TableHeader>
               <TableRow>
                 <TableHead>Реквизит</TableHead>
                 <TableHead>Идентификатор</TableHead>
                 <TableHead>Валюта</TableHead>
                 <TableHead className="text-right">Позиция</TableHead>
-                <TableHead className="text-right">Доступно</TableHead>
-                <TableHead className="text-right">Резерв</TableHead>
+                <TableHead className="text-right">Доступно по учёту</TableHead>
+                <TableHead className="text-right">Учётный резерв</TableHead>
+                <TableHead className="text-right">Доступно в инвентаре</TableHead>
+                <TableHead className="text-right">Резерв инвентаря</TableHead>
+                <TableHead>Сверка</TableHead>
                 <TableHead className="text-right">В обработке</TableHead>
               </TableRow>
             </TableHeader>
@@ -335,7 +353,7 @@ export function TreasuryOrganizationBalancesView({
               {allOrganizationAccountGroups.map((organization) => (
                 <Fragment key={organization.organizationId}>
                   <TableRow className="hover:bg-transparent">
-                    <TableCell colSpan={7} className="px-0 py-0">
+                    <TableCell colSpan={10} className="px-0 py-0">
                       <div
                         id={organization.anchorId}
                         className={cn(
@@ -428,6 +446,35 @@ export function TreasuryOrganizationBalancesView({
                             row.reserved,
                             row.currency,
                           )}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {formatCurrencyCodeAmount(
+                            row.inventoryAvailable,
+                            row.currency,
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {formatCurrencyCodeAmount(
+                            row.inventoryReserved,
+                            row.currency,
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "rounded-full",
+                              INVENTORY_RECONCILIATION_BADGE_CLASS[
+                                row.inventoryReconciliationStatus
+                              ],
+                            )}
+                          >
+                            {
+                              INVENTORY_RECONCILIATION_LABELS[
+                                row.inventoryReconciliationStatus
+                              ]
+                            }
+                          </Badge>
                         </TableCell>
                         <TableCell className="text-right tabular-nums">
                           {formatCurrencyCodeAmount(

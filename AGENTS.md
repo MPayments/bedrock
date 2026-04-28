@@ -368,7 +368,8 @@ export class OrderNotFoundError extends ServiceError {
 - In new and refactored packages, application/domain code should depend on ports and domain types; concrete Drizzle queries belong in `infra/`.
 - Use transactions (`db.transaction(async (tx) => { ... })`) for multi-step mutations.
 - Migration policy is baseline-only hard cutover.
-  - Mandatory sequence: `db:nuke -> db:migrate -> db:seed`.
+  - Local reset sequence: `db:nuke -> db:migrate -> db:seed:all`.
+  - Production/staging sequence: `db:migrate -> db:seed:required`.
   - Legacy migration history/state is unsupported.
 
 ### Testing

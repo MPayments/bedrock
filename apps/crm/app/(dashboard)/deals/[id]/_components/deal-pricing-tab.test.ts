@@ -176,6 +176,7 @@ describe("DealPricingTab", () => {
         ],
         dealId: "deal-1",
         fundingDeadline: "2026-04-22T23:59:00.000Z",
+        hasExpiredRuntimeQuoteExecution: true,
         initialRequestedAmount: "1000000",
         onError: vi.fn(),
         onReload: vi.fn(async () => {}),
@@ -265,6 +266,10 @@ describe("DealPricingTab", () => {
     expect(normalizedMarkup).toContain("Маршрут");
     expect(normalizedMarkup).toContain("Цена клиенту");
     expect(normalizedMarkup).toContain("Курс клиенту");
+    expect(normalizedMarkup).toContain("Котировка истекла");
+    expect(normalizedMarkup).toContain(
+      "FX-исполнение по этой котировке уже истекло в казначействе",
+    );
     expect(normalizedMarkup).toContain("Зафиксировать новый курс");
     expect(normalizedMarkup).toContain("Копировать расчёт");
     expect(normalizedMarkup).toContain("Скачать PDF");

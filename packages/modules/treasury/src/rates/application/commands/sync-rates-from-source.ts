@@ -32,6 +32,7 @@ const DEFAULT_SOURCE_TTL_SECONDS: Record<RateSource, number> = {
   investing: FIVE_MIN_IN_SECONDS,
   xe: FIVE_MIN_IN_SECONDS,
 };
+const CBR_PUBLISHED_RATE_FORWARD_WINDOW_MS = 7 * DAY_IN_SECONDS * 1000;
 
 export class SyncRatesFromSourceCommand implements RateSourceSyncPort {
   private readonly syncInFlight = new Map<
@@ -129,7 +130,7 @@ export class SyncRatesFromSourceCommand implements RateSourceSyncPort {
       quoteCurrencyId,
     );
 
-    return this.findLatestRate(rows, asOf);
+    return this.findLatestRate(rows, asOf, source);
   }
 
   async getLatestManualRate(
@@ -240,9 +241,25 @@ export class SyncRatesFromSourceCommand implements RateSourceSyncPort {
     return row;
   }
 
-  private findLatestRate(rows: RateRowRecord[], asOf: Date) {
+  private findLatestRate(
+    rows: RateRowRecord[],
+    asOf: Date,
+    source?: RateSource,
+  ) {
     const asOfMs = asOf.getTime();
-    return rows.find((row) => row.asOf.getTime() <= asOfMs);
+    const historicalRate = rows.find((row) => row.asOf.getTime() <= asOfMs);
+    if (historicalRate || source !== "cbr") {
+      return historicalRate;
+    }
+
+    // CBR publishes the official rate for the next business day. For current
+    // pricing, use that already-published rate instead of falling back to XE.
+    return rows
+      .filter((row) => {
+        const delta = row.asOf.getTime() - asOfMs;
+        return delta > 0 && delta <= CBR_PUBLISHED_RATE_FORWARD_WINDOW_MS;
+      })
+      .sort((left, right) => left.asOf.getTime() - right.asOf.getTime())[0];
   }
 
   private async getSourceRateRows(

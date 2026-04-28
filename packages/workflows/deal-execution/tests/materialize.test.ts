@@ -270,6 +270,137 @@ describe("resolveLegPartyRefs", () => {
       /^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u,
     );
   });
+
+  it("resolves route-derived payout from its route leg participants", () => {
+    const workflow = createWorkflow({
+      participants: [
+        {
+          counterpartyId: "beneficiary-1",
+          customerId: null,
+          displayName: "Beneficiary",
+          id: "participant-beneficiary",
+          organizationId: null,
+          role: "external_beneficiary",
+        },
+      ],
+    });
+    workflow.executionPlan = [
+      {
+        id: "leg-1",
+        idx: 1,
+        kind: "collect",
+        routeSnapshotLegId: "route-leg-1",
+        state: "pending",
+      },
+      {
+        id: "leg-2",
+        idx: 2,
+        kind: "convert",
+        routeSnapshotLegId: "route-leg-2",
+        state: "pending",
+      },
+      {
+        id: "leg-3",
+        idx: 3,
+        kind: "payout",
+        routeSnapshotLegId: "route-leg-3",
+        state: "pending",
+      },
+    ];
+
+    const refs = resolveLegPartyRefs({
+      agreementOrganizationId: null,
+      compiled: compiled({
+        legId: "leg-3",
+        legIdx: 99,
+        legKind: "payout",
+        operationKind: "payout",
+      }),
+      internalEntityOrganizationId: "arabian-org",
+      routeAttachment: {
+        attachedAt: new Date(),
+        snapshot: {
+          additionalFees: [],
+          amountInMinor: "100",
+          amountOutMinor: "100",
+          currencyInId: "cur-rub",
+          currencyOutId: "cur-usd",
+          legs: [
+            {
+              fees: [],
+              fromCurrencyId: "cur-rub",
+              id: "route-leg-1",
+              toCurrencyId: "cur-rub",
+            },
+            {
+              fees: [],
+              fromCurrencyId: "cur-rub",
+              id: "route-leg-2",
+              toCurrencyId: "cur-usd",
+            },
+            {
+              fees: [],
+              fromCurrencyId: "cur-usd",
+              id: "route-leg-3",
+              toCurrencyId: "cur-usd",
+            },
+          ],
+          lockedSide: "currency_out",
+          participants: [
+            {
+              binding: "abstract",
+              displayName: "Клиент",
+              entityId: null,
+              entityKind: null,
+              nodeId: "source",
+              requisiteId: null,
+              role: "source",
+            },
+            {
+              binding: "bound",
+              displayName: "ARABIAN FUEL ALLIANCE DMCC",
+              entityId: "arabian-org",
+              entityKind: "organization",
+              nodeId: "arabian",
+              requisiteId: "arabian-req",
+              role: "hop",
+            },
+            {
+              binding: "bound",
+              displayName: "MULTIHANSA BROKERS - FZCO",
+              entityId: "multihansa-org",
+              entityKind: "organization",
+              nodeId: "multihansa",
+              requisiteId: "multihansa-req",
+              role: "hop",
+            },
+            {
+              binding: "abstract",
+              displayName: "Бенефициар",
+              entityId: null,
+              entityKind: null,
+              nodeId: "beneficiary",
+              requisiteId: null,
+              role: "destination",
+            },
+          ],
+        },
+        templateId: "route-template-1",
+        templateName: "rub aed usd",
+      },
+      workflow,
+    });
+
+    expect(refs).toEqual({
+      fromParty: {
+        displayName: "MULTIHANSA BROKERS - FZCO",
+        entityKind: "organization",
+        id: "multihansa-org",
+        requisiteId: "multihansa-req",
+      },
+      toParty: { id: "beneficiary-1", requisiteId: null },
+    });
+  });
 });
 
 describe("materializeCompiledOperation", () => {

@@ -80,6 +80,17 @@ export interface TreasuryOrdersRepository {
     allocation: TreasuryInventoryAllocationRecord;
     position: TreasuryInventoryPositionRecord;
   } | null>;
+  updateInventoryAllocationState(
+    input: {
+      allocationId: string;
+      at: Date;
+      state: "consumed" | "released";
+    },
+    tx?: PersistenceSession,
+  ): Promise<{
+    allocation: TreasuryInventoryAllocationRecord;
+    position: TreasuryInventoryPositionRecord;
+  } | null>;
   findReservedAllocationByDealAndQuote(
     input: { dealId: string; quoteId: string },
     tx?: PersistenceSession,

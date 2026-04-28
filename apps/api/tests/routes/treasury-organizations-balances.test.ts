@@ -141,6 +141,20 @@ function createTestApp() {
           listOptions,
         },
       },
+      treasuryModule: {
+        treasuryOrders: {
+          queries: {
+            listInventoryAllocations: vi.fn().mockResolvedValue({
+              data: [],
+              pagination: { limit: 100, offset: 0, total: 0 },
+            }),
+            listInventoryPositions: vi.fn().mockResolvedValue({
+              data: [],
+              pagination: { limit: 100, offset: 0, total: 0 },
+            }),
+          },
+        },
+      },
     } as any),
   );
 
@@ -187,6 +201,9 @@ describe("treasury organization balances route", () => {
           currency: "USD",
           ledgerBalance: "1250",
           available: "1000",
+          inventoryAvailable: "0",
+          inventoryReconciliationStatus: "matched",
+          inventoryReserved: "0",
           reserved: "200",
           pending: "50",
         },
@@ -242,6 +259,9 @@ describe("treasury organization balances route", () => {
           currency: "USD",
           ledgerBalance: "0",
           available: "0",
+          inventoryAvailable: "0",
+          inventoryReconciliationStatus: "matched",
+          inventoryReserved: "0",
           reserved: "0",
           pending: "0",
         },

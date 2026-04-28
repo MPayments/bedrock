@@ -16,11 +16,19 @@ const BALANCE_METRICS = [
   },
   {
     key: "available",
-    label: "Доступно",
+    label: "Доступно по учёту",
+  },
+  {
+    key: "inventoryAvailable",
+    label: "Доступно в инвентаре",
   },
   {
     key: "reserved",
-    label: "Резерв",
+    label: "Учётный резерв",
+  },
+  {
+    key: "inventoryReserved",
+    label: "Резерв инвентаря",
   },
   {
     key: "pending",
@@ -43,6 +51,8 @@ type BalanceMetricKey = (typeof BALANCE_METRICS)[number]["key"];
 type CurrencyTotals = {
   available: string;
   currency: string;
+  inventoryAvailable: string;
+  inventoryReserved: string;
   ledgerBalance: string;
   pending: string;
   reserved: string;
@@ -234,6 +244,14 @@ function groupBalancesByOrganization(
           currency,
         ),
         currency,
+        inventoryAvailable: sumAmountStrings(
+          currencyRows.map((row) => row.inventoryAvailable),
+          currency,
+        ),
+        inventoryReserved: sumAmountStrings(
+          currencyRows.map((row) => row.inventoryReserved),
+          currency,
+        ),
         ledgerBalance: sumAmountStrings(
           currencyRows.map((row) => row.ledgerBalance),
           currency,

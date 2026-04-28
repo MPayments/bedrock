@@ -20,6 +20,7 @@ import {
 } from "@bedrock/documents/read-model";
 import type { FilesModule } from "@bedrock/files";
 import { UserNotFoundError } from "@bedrock/iam";
+import type { LedgerModule } from "@bedrock/ledger";
 import type { PartiesModule } from "@bedrock/parties";
 import { OpenAIDocumentExtractionAdapter } from "@bedrock/platform/ai";
 import { S3ObjectStorageAdapter } from "@bedrock/platform/object-storage";
@@ -118,6 +119,8 @@ export interface ApiApplicationServices {
   currenciesService: CurrenciesService;
   treasuryModule: TreasuryModule;
   createDealsModule(tx: Transaction): DealsModule;
+  createDocumentsService(tx: Transaction): DocumentsService;
+  createLedgerModule(tx: Transaction): LedgerModule;
   createTreasuryModule(tx: Transaction): TreasuryModule;
   dealAttachmentIngestionWorkflow: DealAttachmentIngestionWorkflow;
   dealExecutionWorkflow: DealExecutionWorkflow;
@@ -636,6 +639,8 @@ export function createApplicationServices(
     currenciesService,
     treasuryModule,
     createDealsModule: createDealsModuleForTransaction,
+    createDocumentsService: createDocumentsServiceForTransaction,
+    createLedgerModule: createLedgerModuleForTransaction,
     createTreasuryModule: createTreasuryModuleForTransaction,
     dealAttachmentIngestionWorkflow,
     dealExecutionWorkflow,
