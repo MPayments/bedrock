@@ -73,8 +73,10 @@ import {
 } from "./format";
 import { RoutePreview } from "./route-preview";
 import type {
+  ApiCurrencyOption,
   ApiDealAcceptedQuote,
   ApiDealPricingBenchmarks,
+  ApiDealPricingCommercialDraft,
   ApiDealPricingContext,
   ApiDealPricingFormulaTrace,
   ApiDealPricingPreview,
@@ -82,7 +84,6 @@ import type {
   ApiDealPricingQuote,
   ApiDealPricingQuoteResult,
   ApiDealQuoteAcceptanceHistoryItem,
-  ApiCurrencyOption,
 } from "./types";
 import { useDealPricingAutoSync } from "./use-deal-pricing-auto-sync";
 
@@ -306,6 +307,32 @@ function formatInventoryPositionLabel(
   )} на балансе · себестоимость 1 ${currency} = ${costRate} ${costCurrency} · ${
     INVENTORY_RECONCILIATION_LABELS[position.ledger.reconciliationStatus]
   } · ордер #${position.sourceOrderId.slice(0, 8)}`;
+}
+
+function resolveExecutionSourceLabel(input: {
+  currencyCodeById: Map<string, string>;
+  executionSource: ApiDealPricingCommercialDraft["executionSource"];
+  inventoryPositions: ApiTreasuryInventoryPosition[];
+}) {
+  const executionSource = input.executionSource;
+
+  if (executionSource.type === "route_execution") {
+    return "Маршрут исполнения";
+  }
+
+  const position = input.inventoryPositions.find(
+    (candidate) => candidate.id === executionSource.inventoryPositionId,
+  );
+
+  return position
+    ? formatInventoryPositionLabel(position, input.currencyCodeById)
+    : "Инвентарь казначейства";
+}
+
+function resolveClientPricingModeLabel(
+  mode: NonNullable<ApiDealPricingCommercialDraft["clientPricing"]>["mode"],
+) {
+  return mode === "client_total" ? "Сумма" : "Курс";
 }
 
 function extractStoredPricingSnapshot(
@@ -818,7 +845,9 @@ export function DealPricingTab({
     });
     fetchJson<{
       data: ApiTreasuryInventoryPosition[];
-    }>(`${API_BASE_URL}/treasury/orders/inventory/positions?${query.toString()}`)
+    }>(
+      `${API_BASE_URL}/treasury/orders/inventory/positions?${query.toString()}`,
+    )
       .then((payload) => {
         if (cancelled) return;
         const beneficiaryMinor =
@@ -1117,9 +1146,9 @@ export function DealPricingTab({
                   ) : isCurrentQuoteLocked ? (
                     "Зафиксировано"
                   ) : requiresNewQuote ? (
-                    "Зафиксировать новый курс"
+                    "Зафиксировать новые условия"
                   ) : pricingState === "drifted" ? (
-                    "Обновить курс"
+                    "Обновить условия"
                   ) : (
                     "Принять и зафиксировать"
                   )}
@@ -1145,7 +1174,7 @@ export function DealPricingTab({
                   {hasExpiredRuntimeQuoteExecution
                     ? "FX-исполнение по этой котировке уже истекло в казначействе. Этот курс больше нельзя использовать для сделки."
                     : "Этот курс больше нельзя передавать в исполнение."}{" "}
-                  Зафиксируйте новый курс, чтобы пересчитать цену сделки и
+                  Зафиксируйте новые условия, чтобы пересчитать цену сделки и
                   отправить в казначейство актуальную котировку.
                 </p>
                 {quoteCreationDisabledReason ? (
@@ -1375,10 +1404,7 @@ export function DealPricingTab({
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label>Маршрут</Label>
-              <RoutePreview
-                currencyCodeById={currencyCodeById}
-                routeAttachment={serverContext.routeAttachment}
-              />
+              <RoutePreview routeAttachment={serverContext.routeAttachment} />
             </div>
             <div className="space-y-2">
               <Label>Источник исполнения</Label>
@@ -1402,7 +1428,13 @@ export function DealPricingTab({
                 }}
               >
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue>
+                    {resolveExecutionSourceLabel({
+                      currencyCodeById,
+                      executionSource: commercialDraft.executionSource,
+                      inventoryPositions,
+                    })}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="route_execution">
@@ -1418,10 +1450,6 @@ export function DealPricingTab({
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-muted-foreground text-xs">
-                Инвентарь показывается только по валюте выплаты и доступному
-                остатку, подтверждённому учётным балансом.
-              </p>
             </div>
             <div className="space-y-2">
               <Label>Курс на дату и время</Label>
@@ -1469,7 +1497,9 @@ export function DealPricingTab({
                 value={clientPricingDraft.mode}
               >
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue>
+                    {resolveClientPricingModeLabel(clientPricingDraft.mode)}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="client_rate">Курс</SelectItem>
@@ -1827,11 +1857,12 @@ export function DealPricingTab({
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>
-                  Обновить зафиксированный курс?
+                  Обновить условия котировки?
                 </AlertDialogTitle>
                 <AlertDialogDescription>
-                  Текущая зафиксированная котировка будет заменена новой. Клиент
-                  получит новые условия.
+                  Текущая зафиксированная котировка будет заменена новой. Это
+                  нужно, если изменились сумма, комиссии, источник исполнения
+                  или другие условия расчёта. Сам курс может остаться прежним.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <div className="grid grid-cols-2 gap-4 py-2 text-sm">
@@ -1865,7 +1896,9 @@ export function DealPricingTab({
                     void handleCommit();
                   }}
                 >
-                  {isCreatingQuote ? "Обновляем..." : "Подтвердить обновление"}
+                  {isCreatingQuote
+                    ? "Обновляем..."
+                    : "Подтвердить новые условия"}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>

@@ -158,7 +158,7 @@ function createExecutionCostLine(input: {
   outputImpactMinor: bigint;
   routeInputImpactMinor: bigint;
 }): PaymentRouteExecutionCostLine {
-  return {
+  const baseLine: PaymentRouteExecutionCostLine = {
     amountMinor: input.amountMinor.toString(),
     application: input.application,
     currencyId: input.calculatedCurrencyId,
@@ -173,6 +173,15 @@ function createExecutionCostLine(input: {
     routeInputImpactMinor: input.routeInputImpactMinor.toString(),
     treatment: resolveExecutionCostTreatment(input.application),
   };
+
+  if (input.fee.kind !== "fixed") {
+    return {
+      ...baseLine,
+      percentage: input.fee.percentage,
+    };
+  }
+
+  return baseLine;
 }
 
 async function resolveCurrencyCode(

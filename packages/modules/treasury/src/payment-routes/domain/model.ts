@@ -162,6 +162,7 @@ export interface PaymentRouteExecutionCostLine {
   location: "additional" | "leg";
   outputImpactCurrencyId: string;
   outputImpactMinor: string;
+  percentage?: string;
   routeInputImpactMinor: string;
   treatment: PaymentRouteExecutionCostTreatment;
 }

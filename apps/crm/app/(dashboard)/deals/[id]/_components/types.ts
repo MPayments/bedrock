@@ -833,6 +833,7 @@ export type ApiPaymentRouteCalculation = {
     location: "additional" | "leg";
     outputImpactCurrencyId: string;
     outputImpactMinor: string;
+    percentage?: string;
     routeInputImpactMinor: string;
     treatment: "execution_spread" | "flow_deduction" | "separate_expense";
   }>;

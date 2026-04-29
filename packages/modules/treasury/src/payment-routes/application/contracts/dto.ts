@@ -44,6 +44,7 @@ const PaymentRouteExecutionCostLineSchema = z.object({
   location: z.enum(["additional", "leg"]),
   outputImpactCurrencyId: z.uuid(),
   outputImpactMinor: z.string(),
+  percentage: z.string().trim().min(1).optional(),
   routeInputImpactMinor: z.string(),
   treatment: PaymentRouteExecutionCostTreatmentSchema,
 });
