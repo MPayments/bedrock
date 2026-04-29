@@ -257,6 +257,16 @@ describe("ifrs fx modules", () => {
     const deps = createDeps();
     const module = createFxExecuteDocumentModule(deps as any);
     const runtime = {} as any;
+    const payload = createFxExecutePayload();
+    payload.financialLines.push({
+      id: "execution-line-1",
+      bucket: "execution_expense",
+      currency: "USD",
+      amount: "0.35",
+      amountMinor: "35",
+      source: "manual",
+      settlementMode: "in_ledger",
+    });
 
     const postingPlan = await module.buildPostingPlan?.(
       { runtime, now: new Date("2026-03-03T10:05:00.000Z") } as any,
@@ -265,7 +275,7 @@ describe("ifrs fx modules", () => {
         docType: "fx_execute",
         docNo: "FXE-1",
         occurredAt: new Date("2026-03-03T10:00:00.000Z"),
-        payload: createFxExecutePayload(),
+        payload,
       } as any,
     );
 
@@ -286,6 +296,13 @@ describe("ifrs fx modules", () => {
       postingPlan?.requests.some(
         (request) =>
           request.templateKey === POSTING_TEMPLATE_KEY.TREASURY_FX_SPREAD_INCOME,
+      ),
+    ).toBe(true);
+    expect(
+      postingPlan?.requests.some(
+        (request) =>
+          request.templateKey ===
+          POSTING_TEMPLATE_KEY.TREASURY_FX_PROVIDER_FEE_EXPENSE,
       ),
     ).toBe(true);
     expect(

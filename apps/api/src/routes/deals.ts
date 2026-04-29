@@ -242,6 +242,51 @@ async function reserveInventoryForAcceptedQuote(input: {
   );
 }
 
+async function releaseSupersededInventoryReservations(input: {
+  actorUserId: string;
+  ctx: AppContext;
+  dealId: string;
+  idempotencyKey: string;
+  ledgerModule: ReturnType<AppContext["createLedgerModule"]>;
+  quoteId: string;
+  requestContext: ReturnType<typeof getRequestContext>;
+  treasuryModule: AppContext["treasuryModule"];
+}) {
+  const allocations =
+    await input.treasuryModule.treasuryOrders.queries.listInventoryAllocations({
+      dealId: input.dealId,
+      limit: 100,
+      offset: 0,
+      state: "reserved",
+    });
+
+  for (const allocation of allocations.data) {
+    if (allocation.quoteId === input.quoteId) {
+      continue;
+    }
+
+    const currency = await input.ctx.currenciesService.findById(
+      allocation.currencyId,
+    );
+    await input.ledgerModule.balances.commands.release({
+      actorId: input.actorUserId,
+      holdRef: allocation.ledgerHoldRef,
+      idempotencyKey: `${input.idempotencyKey}:inventory-balance-release:${allocation.id}`,
+      reason: `Release superseded treasury inventory for deal ${input.dealId}`,
+      requestContext: input.requestContext,
+      subject: {
+        bookId: allocation.ownerBookId,
+        currency: currency.code,
+        subjectId: allocation.ownerRequisiteId,
+        subjectType: "organization_requisite",
+      },
+    });
+    await input.treasuryModule.treasuryOrders.commands.releaseInventoryAllocation({
+      allocationId: allocation.id,
+    });
+  }
+}
+
 export function dealsRoutes(ctx: AppContext) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>();
   const RECONCILIATION_DEFAULT_RULESET_CHECKSUM = "core-default-v1";
@@ -2246,18 +2291,30 @@ export function dealsRoutes(ctx: AppContext) {
         const result = await ctx.persistence.runInTransaction(async (tx) => {
           const dealsModule = ctx.createDealsModule(tx);
           const treasuryModule = ctx.createTreasuryModule(tx);
+          const ledgerModule = ctx.createLedgerModule(tx);
           const accepted = await dealsModule.deals.commands.acceptQuote({
             actorUserId,
             dealId: id,
             quoteId,
+          });
+          const acceptedQuoteId = accepted.acceptedQuote?.quoteId ?? quoteId;
+          await releaseSupersededInventoryReservations({
+            actorUserId,
+            ctx,
+            dealId: id,
+            idempotencyKey: `accept:${id}:${quoteId}`,
+            ledgerModule,
+            quoteId: acceptedQuoteId,
+            requestContext: getRequestContext(c),
+            treasuryModule,
           });
           await reserveInventoryForAcceptedQuote({
             actorUserId,
             ctx,
             dealId: id,
             idempotencyKey: `accept:${id}:${quoteId}`,
-            ledgerModule: ctx.createLedgerModule(tx),
-            quoteId: accepted.acceptedQuote?.quoteId ?? quoteId,
+            ledgerModule,
+            quoteId: acceptedQuoteId,
             requestContext: getRequestContext(c),
             treasuryModule,
           });
@@ -2741,17 +2798,28 @@ export function dealsRoutes(ctx: AppContext) {
             await ctx.persistence.runInTransaction(async (tx) => {
               const dealsModule = ctx.createDealsModule(tx);
               const treasuryModule = ctx.createTreasuryModule(tx);
+              const ledgerModule = ctx.createLedgerModule(tx);
               await dealsModule.deals.commands.acceptQuote({
                 actorUserId,
                 dealId: id,
                 quoteId: quoteResult.quote.id,
+              });
+              await releaseSupersededInventoryReservations({
+                actorUserId,
+                ctx,
+                dealId: id,
+                idempotencyKey,
+                ledgerModule,
+                quoteId: quoteResult.quote.id,
+                requestContext: getRequestContext(c),
+                treasuryModule,
               });
               await reserveInventoryForAcceptedQuote({
                 actorUserId,
                 ctx,
                 dealId: id,
                 idempotencyKey,
-                ledgerModule: ctx.createLedgerModule(tx),
+                ledgerModule,
                 quoteId: quoteResult.quote.id,
                 requestContext: getRequestContext(c),
                 treasuryModule,

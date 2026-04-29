@@ -782,17 +782,25 @@ function createTestApp() {
     },
     treasuryOrders: {
       commands: {
+        releaseInventoryAllocation: vi.fn(),
         reserveInventoryAllocation: vi.fn(),
       },
       queries: {
         findInventoryPositionById: vi.fn(),
         findReservedAllocationByDealAndQuote: vi.fn(),
+        listInventoryAllocations: vi.fn(async () => ({
+          data: [],
+          limit: 100,
+          offset: 0,
+          total: 0,
+        })),
       },
     },
   };
   const ledgerModule = {
     balances: {
       commands: {
+        release: vi.fn(),
         reserve: vi.fn(),
       },
       queries: {
@@ -1882,6 +1890,83 @@ describe("deals routes", () => {
       comment: null,
       dealId: "00000000-0000-4000-8000-000000000010",
       idempotencyKey: "auto-materialize:00000000-0000-4000-8000-000000000210",
+    });
+  });
+
+  it("releases superseded inventory reservations when accepting a new quote", async () => {
+    const {
+      app,
+      currenciesService,
+      dealsModule,
+      ledgerModule,
+      treasuryModule,
+    } = createTestApp();
+    const projection = {
+      acceptedQuote: { quoteId: "00000000-0000-4000-8000-000000000210" },
+      summary: { id: "00000000-0000-4000-8000-000000000010" },
+    };
+    const supersededAllocation = {
+      amountMinor: 1000n,
+      costAmountMinor: 900n,
+      consumedAt: null,
+      createdAt: new Date("2026-04-19T08:00:00.000Z"),
+      currencyId: "00000000-0000-4000-8000-000000000104",
+      dealId: "00000000-0000-4000-8000-000000000010",
+      id: "00000000-0000-4000-8000-000000000601",
+      ledgerHoldRef:
+        "treasury_inventory_allocation:00000000-0000-4000-8000-000000000601",
+      ownerBookId: "00000000-0000-4000-8000-000000000701",
+      ownerRequisiteId: "00000000-0000-4000-8000-000000000801",
+      positionId: "00000000-0000-4000-8000-000000000901",
+      quoteId: "00000000-0000-4000-8000-000000000209",
+      releasedAt: null,
+      reservedAt: new Date("2026-04-19T08:00:00.000Z"),
+      state: "reserved" as const,
+      updatedAt: new Date("2026-04-19T08:00:00.000Z"),
+    };
+    dealsModule.deals.commands.acceptQuote.mockResolvedValue(projection);
+    treasuryModule.treasuryOrders.queries.listInventoryAllocations.mockResolvedValue({
+      data: [supersededAllocation],
+      limit: 100,
+      offset: 0,
+      total: 1,
+    });
+    currenciesService.findById.mockResolvedValue({ code: "USD" });
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/quotes/00000000-0000-4000-8000-000000000210/accept",
+      {
+        method: "POST",
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(ledgerModule.balances.commands.release).toHaveBeenCalledWith({
+      actorId: "user-1",
+      holdRef:
+        "treasury_inventory_allocation:00000000-0000-4000-8000-000000000601",
+      idempotencyKey:
+        "accept:00000000-0000-4000-8000-000000000010:00000000-0000-4000-8000-000000000210:inventory-balance-release:00000000-0000-4000-8000-000000000601",
+      reason:
+        "Release superseded treasury inventory for deal 00000000-0000-4000-8000-000000000010",
+      requestContext: {
+        causationId: null,
+        correlationId: "corr-1",
+        idempotencyKey: null,
+        requestId: "req-1",
+        traceId: null,
+      },
+      subject: {
+        bookId: "00000000-0000-4000-8000-000000000701",
+        currency: "USD",
+        subjectId: "00000000-0000-4000-8000-000000000801",
+        subjectType: "organization_requisite",
+      },
+    });
+    expect(
+      treasuryModule.treasuryOrders.commands.releaseInventoryAllocation,
+    ).toHaveBeenCalledWith({
+      allocationId: "00000000-0000-4000-8000-000000000601",
     });
   });
 

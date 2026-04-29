@@ -256,6 +256,10 @@ function mergeFxExecuteFinancialLines(input: {
   ]);
 }
 
+function isProviderExpenseBucket(bucket: FinancialLine["bucket"]) {
+  return bucket === "provider_fee_expense" || bucket === "execution_expense";
+}
+
 export function normalizeFxExecutePayload(
   input: FxExecuteInput,
   bindings: {
@@ -352,7 +356,7 @@ function treasuryFxLineTemplate(line: FinancialLine): {
   templateKey: PostingTemplateKey;
   amountMinor: bigint;
 } {
-  if (line.bucket === "provider_fee_expense") {
+  if (isProviderExpenseBucket(line.bucket)) {
     return {
       templateKey:
         line.amountMinor > 0n

@@ -192,6 +192,10 @@ export async function markQuoteUsedForInvoice(input: {
 
 type FinancialLinePostingPhase = "direct" | "reserve" | "finalize";
 
+function isProviderExpenseBucket(bucket: FinancialLine["bucket"]) {
+  return bucket === "provider_fee_expense" || bucket === "execution_expense";
+}
+
 function templateForLine(
   line: FinancialLine,
   postingPhase: FinancialLinePostingPhase,
@@ -199,7 +203,7 @@ function templateForLine(
   templateKey: string;
   amountMinor: bigint;
 } | null {
-  if (line.bucket === "provider_fee_expense") {
+  if (isProviderExpenseBucket(line.bucket)) {
     return {
       templateKey:
         line.amountMinor > 0n
@@ -325,13 +329,11 @@ export function buildFinancialLineRequests(input: {
 
   input.lines.forEach((rawLine, index) => {
     const line = normalizeFinancialLine(rawLine);
-    if (line.bucket === "provider_fee_expense" && !input.includeProviderLines) {
+    const providerExpense = isProviderExpenseBucket(line.bucket);
+    if (providerExpense && !input.includeProviderLines) {
       return;
     }
-    if (
-      line.bucket !== "provider_fee_expense" &&
-      !input.includeCustomerLines
-    ) {
+    if (!providerExpense && !input.includeCustomerLines) {
       return;
     }
 
@@ -351,7 +353,7 @@ export function buildFinancialLineRequests(input: {
           customerId: input.customerId,
           orderId: input.orderId,
           feeBucket: line.bucket,
-          ...(line.bucket === "provider_fee_expense"
+          ...(providerExpense
             ? {
                 counterpartyId: input.counterpartyId,
               }

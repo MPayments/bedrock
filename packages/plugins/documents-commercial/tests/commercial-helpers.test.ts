@@ -125,6 +125,13 @@ describe("commercial document helpers", () => {
           source: "manual",
         },
         {
+          id: "execution-positive",
+          bucket: "execution_expense",
+          currency: "USD",
+          amountMinor: 35n,
+          source: "manual",
+        },
+        {
           id: "pass-through-positive",
           bucket: "pass_through",
           currency: "USD",
@@ -166,6 +173,10 @@ describe("commercial document helpers", () => {
         templateKey:
           POSTING_TEMPLATE_KEY.PAYMENT_FX_PROVIDER_FEE_EXPENSE_REVERSAL,
         amountMinor: 10n,
+      },
+      {
+        templateKey: POSTING_TEMPLATE_KEY.PAYMENT_FX_PROVIDER_FEE_EXPENSE,
+        amountMinor: 35n,
       },
       {
         templateKey: POSTING_TEMPLATE_KEY.PAYMENT_FX_FEE_RESERVE,
@@ -230,6 +241,13 @@ describe("commercial document helpers", () => {
         amountMinor: 30n,
         source: "manual" as const,
       },
+      {
+        id: "execution-positive",
+        bucket: "execution_expense" as const,
+        currency: "USD",
+        amountMinor: 35n,
+        source: "manual" as const,
+      },
     ];
 
     const customerOnly = buildFinancialLineRequests({
@@ -269,10 +287,11 @@ describe("commercial document helpers", () => {
     expect(customerOnly[0]?.templateKey).toBe(
       POSTING_TEMPLATE_KEY.PAYMENT_FX_FEE_INCOME,
     );
-    expect(providerOnly).toHaveLength(1);
-    expect(providerOnly[0]?.templateKey).toBe(
+    expect(providerOnly).toHaveLength(2);
+    expect(providerOnly.map((request) => request.templateKey)).toEqual([
       POSTING_TEMPLATE_KEY.PAYMENT_FX_PROVIDER_FEE_EXPENSE,
-    );
+      POSTING_TEMPLATE_KEY.PAYMENT_FX_PROVIDER_FEE_EXPENSE,
+    ]);
   });
 
   it("delegates quote snapshot loading through the injected port", async () => {
