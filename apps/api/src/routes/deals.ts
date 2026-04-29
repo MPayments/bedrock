@@ -334,6 +334,12 @@ export function dealsRoutes(ctx: AppContext) {
   const DealAttachmentPurposeInputSchema = z.object({
     purpose: FileAttachmentPurposeSchema,
   });
+  const DealAttachmentRecognitionInputSchema = z.object({
+    useRecognition: z
+      .enum(["false", "true"])
+      .optional()
+      .transform((value) => value !== "false"),
+  });
 
   async function getFinanceWorkspaceOrThrow(dealId: string) {
     await requireDeal(ctx, dealId);
@@ -2924,6 +2930,13 @@ export function dealsRoutes(ctx: AppContext) {
             purpose:
               typeof body.purpose === "string" ? body.purpose : undefined,
           });
+        const attachmentRecognitionResult =
+          DealAttachmentRecognitionInputSchema.safeParse({
+            useRecognition:
+              typeof body.useRecognition === "string"
+                ? body.useRecognition
+                : undefined,
+          });
 
         if (!attachmentVisibilityResult.success) {
           return c.json(
@@ -2936,6 +2949,12 @@ export function dealsRoutes(ctx: AppContext) {
         if (!attachmentPurposeResult.success) {
           return c.json(
             { error: "Attachment purpose must be invoice, contract, or other" },
+            400 as const,
+          );
+        }
+        if (!attachmentRecognitionResult.success) {
+          return c.json(
+            { error: "useRecognition must be true or false" },
             400 as const,
           );
         }
@@ -2955,17 +2974,19 @@ export function dealsRoutes(ctx: AppContext) {
             uploadedBy: c.get("user")!.id,
           });
 
-        try {
-          await ctx.dealAttachmentIngestionWorkflow.enqueueIfEligible({
-            dealId: id,
-            fileAssetId: attachment.id,
-          });
-        } catch (error) {
-          ctx.logger.warn("Failed to enqueue deal attachment ingestion", {
-            attachmentId: attachment.id,
-            dealId: id,
-            error: error instanceof Error ? error.message : String(error),
-          });
+        if (attachmentRecognitionResult.data.useRecognition) {
+          try {
+            await ctx.dealAttachmentIngestionWorkflow.enqueueIfEligible({
+              dealId: id,
+              fileAssetId: attachment.id,
+            });
+          } catch (error) {
+            ctx.logger.warn("Failed to enqueue deal attachment ingestion", {
+              attachmentId: attachment.id,
+              dealId: id,
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
         }
 
         await ctx.dealsModule.deals.commands.appendTimelineEvent({

@@ -279,12 +279,8 @@ export function createDealIntakeFormContext({
   const moneyRequestSectionTitle = isPaymentDeal
     ? "Параметры платежа"
     : "Сумма и валюта сделки";
-  const primaryAmountLabel = isPaymentDeal
-    ? "Сумма к выплате бенефициару"
-    : "Сумма";
-  const sourceCurrencyTitle = isPaymentDeal
-    ? "Валюта списания / фондирования"
-    : "Валюта списания";
+  const primaryAmountLabel = isPaymentDeal ? "Сумма к выплате" : "Сумма";
+  const sourceCurrencyTitle = "Валюта списания";
   const targetCurrencyTitle = isPaymentDeal
     ? "Валюта выплаты"
     : "Целевая валюта";
@@ -295,10 +291,10 @@ export function createDealIntakeFormContext({
     ? "Инвойс поставщика"
     : "Входящее поступление";
   const incomingReceiptSectionDescription = isPaymentDeal
-    ? "Данные из инвойса поставщика: сумма, номер и договор. Их можно заполнить вручную или подтянуть из OCR."
+    ? "Данные из инвойса поставщика: сумма, номер и договор. Их можно заполнить вручную или подтянуть из документа."
     : "Данные о платеже, который ожидается от покупателя или плательщика.";
   const expectedAmountLabel = isPaymentDeal
-    ? "Сумма к выплате бенефициару"
+    ? "Сумма к выплате"
     : "Ожидаемая сумма";
   const expectedDateLabel = isPaymentDeal
     ? "Плановая дата выплаты"
@@ -525,7 +521,59 @@ type DealIntakeSectionProps = {
   context: DealIntakeFormContext;
 };
 
-export function DealIntakeCommonSection({ context }: DealIntakeSectionProps) {
+type DealIntakeCommonSectionProps = DealIntakeSectionProps & {
+  hideCustomerNote?: boolean;
+};
+
+type DealIntakeMoneyRequestSectionProps = DealIntakeSectionProps & {
+  hidePurpose?: boolean;
+};
+
+export function DealIntakeCustomerNoteField({
+  context,
+}: DealIntakeSectionProps) {
+  const { intake, readOnly, updateCommon } = context;
+
+  return (
+    <div className="space-y-2">
+      <Label htmlFor="deal-customer-note">Комментарий клиента</Label>
+      <Textarea
+        id="deal-customer-note"
+        disabled={readOnly}
+        rows={3}
+        value={snapshotFieldValue(intake.common.customerNote)}
+        onChange={(event) =>
+          updateCommon("customerNote", event.target.value || null)
+        }
+      />
+    </div>
+  );
+}
+
+export function DealIntakePurposeField({ context }: DealIntakeSectionProps) {
+  const { intake, readOnly, updateMoneyRequest } = context;
+
+  return (
+    <div className="space-y-2">
+      <Label htmlFor="deal-purpose">Назначение</Label>
+      <Textarea
+        id="deal-purpose"
+        data-testid="deal-purpose-input"
+        disabled={readOnly}
+        rows={3}
+        value={snapshotFieldValue(intake.moneyRequest.purpose)}
+        onChange={(event) =>
+          updateMoneyRequest("purpose", event.target.value || null)
+        }
+      />
+    </div>
+  );
+}
+
+export function DealIntakeCommonSection({
+  context,
+  hideCustomerNote = false,
+}: DealIntakeCommonSectionProps) {
   const {
     intake,
     counterparties,
@@ -589,25 +637,17 @@ export function DealIntakeCommonSection({ context }: DealIntakeSectionProps) {
           />
         </div>
       </div>
-      <div className="space-y-2">
-        <Label htmlFor="deal-customer-note">Комментарий клиента</Label>
-        <Textarea
-          id="deal-customer-note"
-          disabled={readOnly}
-          rows={3}
-          value={snapshotFieldValue(intake.common.customerNote)}
-          onChange={(event) =>
-            updateCommon("customerNote", event.target.value || null)
-          }
-        />
-      </div>
+      {hideCustomerNote ? null : (
+        <DealIntakeCustomerNoteField context={context} />
+      )}
     </section>
   );
 }
 
 export function DealIntakeMoneyRequestSection({
   context,
-}: DealIntakeSectionProps) {
+  hidePurpose = false,
+}: DealIntakeMoneyRequestSectionProps) {
   const {
     hasDedicatedIncomingReceiptCurrency,
     currencyOptions,
@@ -634,7 +674,7 @@ export function DealIntakeMoneyRequestSection({
         className={
           shouldInlineMoneyRequestFields
             ? "grid grid-cols-[minmax(0,1fr)_minmax(9rem,12rem)] gap-4"
-            : "grid gap-4"
+            : "grid gap-4 md:grid-cols-2"
         }
       >
         <div className="min-w-0 space-y-2">
@@ -719,19 +759,7 @@ export function DealIntakeMoneyRequestSection({
           </Select>
         </div>
       </div>
-      <div className="space-y-2">
-        <Label htmlFor="deal-purpose">Назначение</Label>
-        <Textarea
-          id="deal-purpose"
-          data-testid="deal-purpose-input"
-          disabled={readOnly}
-          rows={3}
-          value={snapshotFieldValue(intake.moneyRequest.purpose)}
-          onChange={(event) =>
-            updateMoneyRequest("purpose", event.target.value || null)
-          }
-        />
-      </div>
+      {hidePurpose ? null : <DealIntakePurposeField context={context} />}
     </section>
   );
 }

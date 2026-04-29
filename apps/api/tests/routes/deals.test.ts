@@ -719,6 +719,18 @@ function createDealPricingQuoteResult() {
 }
 
 function createTestApp() {
+  const uploadedAttachment = {
+    createdAt: new Date("2026-04-29T10:00:00.000Z"),
+    description: null,
+    fileName: "invoice.pdf",
+    fileSize: 8,
+    id: "00000000-0000-4000-8000-000000000501",
+    mimeType: "application/pdf",
+    purpose: "invoice",
+    updatedAt: new Date("2026-04-29T10:00:00.000Z"),
+    uploadedBy: "user-1",
+    visibility: "internal",
+  };
   const dealsModule = createDealsModuleStub();
   const agreementsModule = {
     agreements: {
@@ -829,6 +841,22 @@ function createTestApp() {
   const documentsService = {
     get: vi.fn(),
   };
+  const filesModule = {
+    files: {
+      commands: {
+        deleteDealAttachment: vi.fn(),
+        uploadDealAttachment: vi.fn(async () => uploadedAttachment),
+      },
+      queries: {
+        getDealAttachmentDownloadUrl: vi.fn(),
+        listDealAttachments: vi.fn(async () => []),
+      },
+    },
+  };
+  const dealAttachmentIngestionWorkflow = {
+    enqueueIfEligible: vi.fn(),
+    reingest: vi.fn(),
+  };
   const documentDraftWorkflow = {
     createDraft: vi.fn(),
   };
@@ -865,6 +893,7 @@ function createTestApp() {
       dealExecutionWorkflow,
       dealPricingWorkflow,
       dealQuoteWorkflow,
+      dealAttachmentIngestionWorkflow,
       dealsModule,
       agreementsModule,
       iamService,
@@ -874,6 +903,7 @@ function createTestApp() {
       currenciesService,
       reconciliationService,
       documentsService,
+      filesModule,
       documentDraftWorkflow,
       createDealsModule: vi.fn(() => dealsModule),
       createLedgerModule: vi.fn(() => ledgerModule),
@@ -900,6 +930,8 @@ function createTestApp() {
     currenciesService,
     reconciliationService,
     documentsService,
+    dealAttachmentIngestionWorkflow,
+    filesModule,
     documentDraftWorkflow,
     persistence,
   };
@@ -2662,6 +2694,85 @@ describe("deals routes", () => {
       dealId: "00000000-0000-4000-8000-000000000010",
       idx: 1,
       override: "blocked",
+    });
+  });
+
+  it("uploads deal attachments without recognition when disabled", async () => {
+    const {
+      app,
+      dealAttachmentIngestionWorkflow,
+      dealsModule,
+      filesModule,
+    } = createTestApp();
+    const deal = createDealDetail();
+    dealsModule.deals.queries.findById.mockResolvedValue(deal);
+    const formData = new FormData();
+    formData.set(
+      "file",
+      new File([Buffer.from("pdf-body")], "invoice.pdf", {
+        type: "application/pdf",
+      }),
+    );
+    formData.set("purpose", "invoice");
+    formData.set("visibility", "internal");
+    formData.set("useRecognition", "false");
+
+    const response = await app.request(
+      `http://localhost/deals/${deal.id}/attachments`,
+      {
+        body: formData,
+        method: "POST",
+      },
+    );
+
+    expect(response.status).toBe(201);
+    expect(
+      filesModule.files.commands.uploadDealAttachment,
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({
+        attachmentPurpose: "invoice",
+        attachmentVisibility: "internal",
+        fileName: "invoice.pdf",
+        ownerId: deal.id,
+      }),
+    );
+    expect(
+      dealAttachmentIngestionWorkflow.enqueueIfEligible,
+    ).not.toHaveBeenCalled();
+  });
+
+  it("uploads deal attachments and enqueues recognition by default", async () => {
+    const {
+      app,
+      dealAttachmentIngestionWorkflow,
+      dealsModule,
+    } = createTestApp();
+    const deal = createDealDetail();
+    dealsModule.deals.queries.findById.mockResolvedValue(deal);
+    const formData = new FormData();
+    formData.set(
+      "file",
+      new File([Buffer.from("pdf-body")], "invoice.pdf", {
+        type: "application/pdf",
+      }),
+    );
+    formData.set("purpose", "invoice");
+    formData.set("visibility", "internal");
+
+    const response = await app.request(
+      `http://localhost/deals/${deal.id}/attachments`,
+      {
+        body: formData,
+        method: "POST",
+      },
+    );
+
+    expect(response.status).toBe(201);
+    expect(
+      dealAttachmentIngestionWorkflow.enqueueIfEligible,
+    ).toHaveBeenCalledWith({
+      dealId: deal.id,
+      fileAssetId: "00000000-0000-4000-8000-000000000501",
     });
   });
 

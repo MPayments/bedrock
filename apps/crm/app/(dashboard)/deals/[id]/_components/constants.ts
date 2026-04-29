@@ -220,11 +220,12 @@ export const ATTACHMENT_VISIBILITY_LABELS: Record<
 
 export const ATTACHMENT_INGESTION_STATUS_LABELS = {
   applied: "Данные учтены",
-  failed: "Не удалось обработать",
+  failed: "Ошибка распознавания",
+  not_started: "Распознавание не запускалось",
   pending: "Ожидает распознавания",
-  processing: "Распознается",
+  processing: "Распознаётся",
   processed_without_changes: "Распознано, без изменений",
-  unavailable: "Обработка недоступна",
+  unavailable: "Распознавание недоступно",
 } as const;
 
 const WARNING_DEAL_WORKFLOW_MESSAGES = new Set<string>([
