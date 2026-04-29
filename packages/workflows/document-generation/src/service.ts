@@ -77,7 +77,11 @@ export interface PdfConverterPort {
 }
 
 export interface TemplateManagerPort {
-  parseTags(templateType: string, organizationId?: string): Promise<string[]>;
+  parseTags(
+    templateType: string,
+    organizationId?: string,
+    locale?: string,
+  ): Promise<string[]>;
   listTemplates(organizationId?: string): Promise<string[]>;
 }
 
@@ -812,9 +816,14 @@ export function createDocumentGenerationWorkflow(
     async getTemplateFields(
       templateName: string,
       organizationId?: string,
+      locale?: string,
     ): Promise<string[]> {
       if (!deps.templateManager) return [];
-      return deps.templateManager.parseTags(templateName, organizationId);
+      return deps.templateManager.parseTags(
+        templateName,
+        organizationId,
+        locale,
+      );
     },
   };
 }

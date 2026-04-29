@@ -271,7 +271,10 @@ function mapCounterpartyForTemplate(counterparty: Counterparty) {
     directorBasisI18n: toLocalizedText(representative?.basisDocumentI18n),
     address: formatPartyAddress(address),
     addressI18n: toLocalizedText(address?.fullAddressI18n, address?.fullAddress),
-    inn: findPartyIdentifier(counterparty, "inn")?.value ?? null,
+    inn:
+      findPartyIdentifier(counterparty, "inn")?.value ??
+      counterparty.externalRef ??
+      null,
     kpp: findPartyIdentifier(counterparty, "kpp")?.value ?? null,
     ogrn: findPartyIdentifier(counterparty, "ogrn")?.value ?? null,
   };
@@ -301,7 +304,10 @@ function mapOrganizationForTemplate(organization: Organization) {
     directorTitleI18n: toLocalizedText(representative?.titleI18n),
     directorBasis: representative?.basisDocument ?? null,
     directorBasisI18n: toLocalizedText(representative?.basisDocumentI18n),
-    inn: findPartyIdentifier(organization, "inn")?.value ?? null,
+    inn:
+      findPartyIdentifier(organization, "inn")?.value ??
+      organization.externalRef ??
+      null,
     taxId: findPartyIdentifier(organization, "tax_id")?.value ?? null,
     kpp: findPartyIdentifier(organization, "kpp")?.value ?? null,
     signatureKey: organization.signatureKey ?? null,

@@ -14,7 +14,11 @@ export interface EasyTemplateXAdapterConfig {
 export function createEasyTemplateXAdapter(
   config: EasyTemplateXAdapterConfig,
 ): TemplateRendererPort & {
-  parseTags(templateType: string, organizationId?: string): Promise<string[]>;
+  parseTags(
+    templateType: string,
+    organizationId?: string,
+    locale?: string,
+  ): Promise<string[]>;
   listTemplates(organizationId?: string): Promise<string[]>;
 } {
   const { templatesDir, objectStorage, logger } = config;
@@ -96,10 +100,11 @@ export function createEasyTemplateXAdapter(
     async parseTags(
       templateType: string,
       organizationId?: string,
+      locale?: string,
     ): Promise<string[]> {
       const templateBuffer = await loadTemplateForLocale(
         templateType,
-        undefined,
+        locale,
         organizationId,
       );
 

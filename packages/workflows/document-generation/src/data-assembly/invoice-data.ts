@@ -33,7 +33,10 @@ export function assembleInvoiceData(
     deal.contractId ?? deal.id,
   );
 
-  const agentKind = organization.kind as string | undefined;
+  const agentKind = organization.kind as
+    | "individual"
+    | "legal_entity"
+    | undefined;
   const isIndividualEntrepreneur = agentKind === "individual";
   const isOrganization = agentKind === "legal_entity";
 
