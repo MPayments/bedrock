@@ -1,12 +1,12 @@
-import { AlertCircle, ShieldCheck, WalletCards } from "lucide-react";
-
-import { Badge } from "@bedrock/sdk-ui/components/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/components/card";
+import { AlertCircle, ShieldCheck } from "lucide-react";
 
 import {
-  DEAL_OPERATIONAL_POSITION_STATE_COLORS,
-  DEAL_OPERATIONAL_POSITION_STATE_LABELS,
-} from "./constants";
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@bedrock/sdk-ui/components/card";
+
 import type { ApiDealOperationalState } from "./types";
 
 type OperationalStateCardProps = {
@@ -58,6 +58,10 @@ export function OperationalStateCard({
     (position) => position.state === "blocked",
   );
 
+  if (blockedPositions.length === 0) {
+    return null;
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -66,49 +70,21 @@ export function OperationalStateCard({
           Операционная готовность
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-6">
-        {blockedPositions.length > 0 ? (
-          <div className="space-y-3">
-            <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-              <AlertCircle className="h-4 w-4" />
-              Что мешает продолжить
+      <CardContent className="space-y-3">
+        <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+          <AlertCircle className="h-4 w-4" />
+          Что мешает продолжить
+        </div>
+        <div className="space-y-2">
+          {blockedPositions.map((position) => (
+            <div
+              key={position.kind}
+              className="rounded-lg border px-3 py-2 text-sm"
+            >
+              {formatPositionIssue(position)}
             </div>
-            <div className="space-y-2">
-              {blockedPositions.map((position) => (
-                <div key={position.kind} className="rounded-lg border px-3 py-2 text-sm">
-                  {formatPositionIssue(position)}
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : (
-          <div className="rounded-lg bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
-            Критичных операционных блокеров сейчас нет.
-          </div>
-        )}
-
-        {visiblePositions.length > 0 ? (
-          <div className="space-y-3">
-            <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-              <WalletCards className="h-4 w-4" />
-              Ключевые этапы движения средств
-            </div>
-            <div className="grid gap-3 md:grid-cols-2">
-              {visiblePositions.map((position) => (
-                <div key={position.kind} className="rounded-lg border p-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="font-medium">
-                      {getCrmPositionLabel(position.kind)}
-                    </div>
-                    <Badge className={DEAL_OPERATIONAL_POSITION_STATE_COLORS[position.state]}>
-                      {DEAL_OPERATIONAL_POSITION_STATE_LABELS[position.state]}
-                    </Badge>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : null}
+          ))}
+        </div>
       </CardContent>
     </Card>
   );

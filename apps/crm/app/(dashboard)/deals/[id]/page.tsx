@@ -80,7 +80,6 @@ import type {
   ApiRequisiteProvider,
   CalculationHistoryView,
   CalculationView,
-  DealLegManualOverride,
   DealStatus,
 } from "./_components/types";
 
@@ -861,7 +860,6 @@ export default function DealDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
-  const [isUpdatingLegKey, setIsUpdatingLegKey] = useState<string | null>(null);
   const [isEditingComment, setIsEditingComment] = useState(false);
   const [commentValue, setCommentValue] = useState("");
   const [isSavingComment, setIsSavingComment] = useState(false);
@@ -1645,46 +1643,6 @@ export default function DealDetailPage() {
     [data?.workflow.transitionReadiness, showError],
   );
 
-  const handleLegOverride = useCallback(
-    async (idx: number, override: DealLegManualOverride) => {
-      try {
-        setIsUpdatingLegKey(String(idx));
-
-        const response = await fetch(
-          `${API_BASE_URL}/deals/${dealId}/legs/${idx}/override`,
-          {
-            body: JSON.stringify({ override }),
-            credentials: "include",
-            headers: { "Content-Type": "application/json" },
-            method: "POST",
-          },
-        );
-
-        if (!response.ok) {
-          throw new Error(
-            await parseErrorMessage(
-              response,
-              `Ошибка обновления этапа исполнения: ${response.status}`,
-            ),
-          );
-        }
-
-        await loadDeal();
-      } catch (nextError) {
-        console.error("Deal leg override error:", nextError);
-        showError(
-          "Ошибка обновления этапа исполнения",
-          nextError instanceof Error
-            ? nextError.message
-            : "Не удалось обновить этап исполнения",
-        );
-      } finally {
-        setIsUpdatingLegKey(null);
-      }
-    },
-    [dealId, loadDeal, showError],
-  );
-
   const handleEditComment = useCallback(() => {
     setCommentValue(data?.deal.comment ?? "");
     setIsEditingComment(true);
@@ -2190,9 +2148,6 @@ export default function DealDetailPage() {
             execution={
               <DealExecutionTab
                 executionPlan={data.workflow.executionPlan}
-                isUpdatingLegKey={isUpdatingLegKey}
-                onBlockedTransitionClick={handleBlockedTransitionClick}
-                onOverrideLeg={handleLegOverride}
                 operationalState={data.workflow.operationalState}
                 sectionCompleteness={data.workflow.sectionCompleteness}
                 transitionReadiness={data.workflow.transitionReadiness}

@@ -299,6 +299,12 @@ export default function OrganizationWorkspacePage() {
       <OrganizationSummaryCard organization={organization} />
       <OrganizationWorkspaceTabs
         activeTab={activeTab}
+        counts={{
+          files:
+            Number(Boolean(organization.signatureUrl)) +
+            Number(Boolean(organization.sealUrl)),
+          requisites: organization.banksCount,
+        }}
         onTabChange={handleTabChange}
       />
 

@@ -16,6 +16,8 @@ import {
   TabsTrigger,
 } from "@bedrock/sdk-ui/components/tabs";
 
+import { WorkspaceTabLabel } from "@/components/app/workspace-tab-label";
+
 export type DealPageTab =
   | "overview"
   | "intake"
@@ -80,18 +82,6 @@ const DEAL_TAB_META: Array<{
   },
 ];
 
-function renderBadgeValue(value: DealPageTabBadge) {
-  if (value === null || value === undefined || value === 0 || value === "0") {
-    return null;
-  }
-
-  return (
-    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
-      {value}
-    </span>
-  );
-}
-
 export function DealTabs({
   activeTab,
   badges,
@@ -112,42 +102,43 @@ export function DealTabs({
         }
       }}
     >
-      <div className="space-y-4">
-        <TabsList>
-          {DEAL_TAB_META.map((tab) => {
-            const Icon = tab.icon;
+      <TabsList
+        variant="line"
+        className="w-full justify-start overflow-x-auto"
+      >
+        {DEAL_TAB_META.map((tab) => {
+          return (
+            <TabsTrigger
+              key={tab.value}
+              className="flex-none"
+              data-testid={`deal-tab-${tab.value}`}
+              value={tab.value}
+            >
+              <WorkspaceTabLabel
+                count={badges?.[tab.value] ?? null}
+                icon={tab.icon}
+                label={tab.label}
+              />
+            </TabsTrigger>
+          );
+        })}
+      </TabsList>
 
-            return (
-              <TabsTrigger
-                key={tab.value}
-                className="h-auto min-w-fit"
-                data-testid={`deal-tab-${tab.value}`}
-                value={tab.value}
-              >
-                <Icon className="h-4 w-4" />
-                <span>{tab.label}</span>
-                {renderBadgeValue(badges?.[tab.value] ?? null)}
-              </TabsTrigger>
-            );
-          })}
-        </TabsList>
-
-        <TabsContent className="space-y-6" value="overview">
-          {overview}
-        </TabsContent>
-        <TabsContent className="space-y-6" value="intake">
-          {intake}
-        </TabsContent>
-        <TabsContent className="space-y-6" value="pricing">
-          {pricing}
-        </TabsContent>
-        <TabsContent className="space-y-6" value="documents">
-          {documents}
-        </TabsContent>
-        <TabsContent className="space-y-6" value="execution">
-          {execution}
-        </TabsContent>
-      </div>
+      <TabsContent className="space-y-6 pt-4" value="overview">
+        {overview}
+      </TabsContent>
+      <TabsContent className="space-y-6 pt-4" value="intake">
+        {intake}
+      </TabsContent>
+      <TabsContent className="space-y-6 pt-4" value="pricing">
+        {pricing}
+      </TabsContent>
+      <TabsContent className="space-y-6 pt-4" value="documents">
+        {documents}
+      </TabsContent>
+      <TabsContent className="space-y-6 pt-4" value="execution">
+        {execution}
+      </TabsContent>
     </Tabs>
   );
 }

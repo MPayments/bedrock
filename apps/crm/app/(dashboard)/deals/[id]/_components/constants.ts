@@ -1,5 +1,10 @@
 import { FORMAL_DOCUMENT_LABELS } from "@bedrock/deals/labels";
 
+import {
+  DEAL_STATUS_COLORS,
+  DEAL_STATUS_LABELS,
+} from "@/lib/deal-status-display";
+
 import type {
   ApiDealTimelineEvent,
   DealLegKind,
@@ -12,29 +17,9 @@ import type {
 
 export { FORMAL_DOCUMENT_LABELS };
 
-export const STATUS_LABELS: Record<DealStatus, string> = {
-  awaiting_funds: "Ожидание средств",
-  awaiting_payment: "Ожидание оплаты",
-  cancelled: "Отменена",
-  closing_documents: "Закрывающие документы",
-  done: "Завершена",
-  draft: "Черновик",
-  preparing_documents: "Подготовка документов",
-  rejected: "Отклонена",
-  submitted: "Отправлена",
-};
+export const STATUS_LABELS: Record<DealStatus, string> = DEAL_STATUS_LABELS;
 
-export const STATUS_COLORS: Record<DealStatus, string> = {
-  awaiting_funds: "bg-orange-100 text-orange-800",
-  awaiting_payment: "bg-yellow-100 text-yellow-800",
-  cancelled: "bg-red-100 text-red-800",
-  closing_documents: "bg-cyan-100 text-cyan-800",
-  done: "bg-emerald-100 text-emerald-800",
-  draft: "bg-slate-100 text-slate-800",
-  preparing_documents: "bg-amber-100 text-amber-800",
-  rejected: "bg-rose-100 text-rose-800",
-  submitted: "bg-sky-100 text-sky-800",
-};
+export const STATUS_COLORS: Record<DealStatus, string> = DEAL_STATUS_COLORS;
 
 export const DEAL_TYPE_LABELS: Record<DealType, string> = {
   currency_exchange: "Обмен валюты",

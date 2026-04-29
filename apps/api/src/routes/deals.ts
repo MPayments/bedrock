@@ -41,8 +41,10 @@ import {
   FileAttachmentSchema,
   FileAttachmentVisibilitySchema,
 } from "@bedrock/files/contracts";
+import type { LedgerModule } from "@bedrock/ledger";
 import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
 import { ValidationError } from "@bedrock/shared/core/errors";
+import type { TreasuryModule } from "@bedrock/treasury";
 import {
   QuoteListItemSchema,
   QuotePreviewResponseSchema,
@@ -169,10 +171,10 @@ async function reserveInventoryForAcceptedQuote(input: {
   ctx: AppContext;
   dealId: string;
   idempotencyKey: string;
-  ledgerModule: ReturnType<AppContext["createLedgerModule"]>;
+  ledgerModule: LedgerModule;
   quoteId: string;
   requestContext: ReturnType<typeof getRequestContext>;
-  treasuryModule: AppContext["treasuryModule"];
+  treasuryModule: TreasuryModule;
 }) {
   const quote = await input.treasuryModule.quotes.queries.findById(
     input.quoteId,
@@ -281,9 +283,11 @@ async function releaseSupersededInventoryReservations(input: {
         subjectType: "organization_requisite",
       },
     });
-    await input.treasuryModule.treasuryOrders.commands.releaseInventoryAllocation({
-      allocationId: allocation.id,
-    });
+    await input.treasuryModule.treasuryOrders.commands.releaseInventoryAllocation(
+      {
+        allocationId: allocation.id,
+      },
+    );
   }
 }
 

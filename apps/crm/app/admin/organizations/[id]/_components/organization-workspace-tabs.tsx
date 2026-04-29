@@ -5,17 +5,21 @@ import { Building2, FileImage, Wallet } from "lucide-react";
 
 import { Tabs, TabsList, TabsTrigger } from "@bedrock/sdk-ui/components/tabs";
 
+import { WorkspaceTabLabel } from "@/components/app/workspace-tab-label";
+
 import type { OrganizationWorkspaceTab } from "../_lib/organization-workspace-api";
 
 type OrganizationWorkspaceTabsProps = {
   activeTab: OrganizationWorkspaceTab;
   controls?: ReactNode;
+  counts?: Partial<Record<OrganizationWorkspaceTab, number | string | null>>;
   onTabChange: (tab: OrganizationWorkspaceTab) => void;
 };
 
 export function OrganizationWorkspaceTabs({
   activeTab,
   controls,
+  counts,
   onTabChange,
 }: OrganizationWorkspaceTabsProps) {
   return (
@@ -34,18 +38,26 @@ export function OrganizationWorkspaceTabs({
             {controls}
           </div>
         ) : null}
-        <TabsList className="gap-2">
-          <TabsTrigger value="organization">
-            <Building2 className="size-4" />
-            Организация
+        <TabsList
+          variant="line"
+          className="w-full justify-start overflow-x-auto"
+        >
+          <TabsTrigger className="flex-none" value="organization">
+            <WorkspaceTabLabel icon={Building2} label="Организация" />
           </TabsTrigger>
-          <TabsTrigger value="requisites">
-            <Wallet className="size-4" />
-            Реквизиты
+          <TabsTrigger className="flex-none" value="requisites">
+            <WorkspaceTabLabel
+              count={counts?.requisites ?? null}
+              icon={Wallet}
+              label="Реквизиты"
+            />
           </TabsTrigger>
-          <TabsTrigger value="files">
-            <FileImage className="size-4" />
-            Файлы
+          <TabsTrigger className="flex-none" value="files">
+            <WorkspaceTabLabel
+              count={counts?.files ?? null}
+              icon={FileImage}
+              label="Файлы"
+            />
           </TabsTrigger>
         </TabsList>
       </div>
