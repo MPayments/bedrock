@@ -26,19 +26,27 @@ function resolveLocalizedText(
   return normalizeValue(localized.en);
 }
 
+function strictLocalizedText(
+  localized: LocalizedTextValue | null | undefined,
+  lang: SupportedLang,
+): string | undefined {
+  if (!localized) return undefined;
+  return normalizeValue(localized[lang]);
+}
+
 export function withLocalizedTemplateFields(
   data: Record<string, unknown>,
   key: string,
   localized?: LocalizedTextValue | null,
   lang: SupportedLang = "ru",
 ): void {
-  const ru = resolveLocalizedText(localized, "ru");
-  const en = resolveLocalizedText(localized, "en");
+  const ruStrict = strictLocalizedText(localized, "ru");
+  const enStrict = strictLocalizedText(localized, "en");
   const selected = resolveLocalizedText(localized, lang);
 
   if (selected != null) data[key] = selected;
-  if (ru != null) data[`${key}_ru`] = ru;
-  if (en != null) data[`${key}_en`] = en;
+  if (ruStrict != null) data[`${key}_ru`] = ruStrict;
+  if (enStrict != null) data[`${key}_en`] = enStrict;
 }
 
 export function applyLocalizedTemplateField(

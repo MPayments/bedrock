@@ -33,6 +33,13 @@ export function assembleInvoiceData(
     deal.contractId ?? deal.id,
   );
 
+  const agentKind = organization.kind as
+    | "individual"
+    | "legal_entity"
+    | undefined;
+  const isIndividualEntrepreneur = agentKind === "individual";
+  const isOrganization = agentKind === "legal_entity";
+
   const raw: Record<string, unknown> = {
     invoiceNumber,
     number: invoiceNumber,
@@ -41,6 +48,10 @@ export function assembleInvoiceData(
     dealContractNumber,
     dealContractDate: deal.contractDate,
     inn: client.inn,
+    clientKpp: client.kpp,
+    memo: deal.memo,
+    isIndividualEntrepreneur,
+    isOrganization,
     baseCurrencyCode: baseCurrency,
     baseCurrencySymbol,
     totalWithExpensesInBase: formatCurrencyAmount(totalInBase),
@@ -57,20 +68,58 @@ export function assembleInvoiceData(
     agentBankSwiftCode: organizationRequisite.swift,
     signature: orgFiles.signature,
     stamp: orgFiles.stamp,
+    showSignature: orgFiles.signature != null,
+    showStamp: orgFiles.stamp != null,
   };
 
   applyLocalizedTemplateField(raw, "orgName", client, "orgName", lang);
   applyLocalizedTemplateField(raw, "orgType", client, "orgType", lang);
+  applyLocalizedTemplateField(raw, "orgAddress", client, "address", lang);
   applyLocalizedTemplateField(raw, "companyName", deal, "companyName", lang);
   applyLocalizedTemplateField(raw, "agentName", organization, "name", lang);
+  applyLocalizedTemplateField(
+    raw,
+    "agentDirectorName",
+    organization,
+    "directorName",
+    lang,
+  );
+  applyLocalizedTemplateField(
+    raw,
+    "agentDirectorTitle",
+    organization,
+    "directorTitle",
+    lang,
+  );
+  applyLocalizedTemplateField(
+    raw,
+    "agentDirectorBasis",
+    organization,
+    "directorBasis",
+    lang,
+  );
   applyLocalizedTemplateField(raw, "agentAddress", organization, "address", lang);
   applyLocalizedTemplateField(raw, "agentCountry", organization, "country", lang);
   applyLocalizedTemplateField(raw, "agentCity", organization, "city", lang);
   applyLocalizedTemplateField(
     raw,
+    "agentBankCity",
+    organizationRequisite,
+    "city",
+    lang,
+  );
+  applyLocalizedTemplateField(
+    raw,
     "agentBankName",
     organizationRequisite,
     "institutionName",
+    lang,
+  );
+  applyLocalizedTemplateField(
+    raw,
+    "agentBankAddress",
+    organizationRequisite,
+    "address",
     lang,
   );
   return prune(raw);

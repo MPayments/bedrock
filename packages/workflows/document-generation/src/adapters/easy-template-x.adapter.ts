@@ -14,7 +14,11 @@ export interface EasyTemplateXAdapterConfig {
 export function createEasyTemplateXAdapter(
   config: EasyTemplateXAdapterConfig,
 ): TemplateRendererPort & {
-  parseTags(templateType: string, organizationId?: string): Promise<string[]>;
+  parseTags(
+    templateType: string,
+    organizationId?: string,
+    locale?: string,
+  ): Promise<string[]>;
   listTemplates(organizationId?: string): Promise<string[]>;
 } {
   const { templatesDir, objectStorage, logger } = config;
@@ -22,7 +26,7 @@ export function createEasyTemplateXAdapter(
   async function getTemplateBuffer(
     templateName: string,
     organizationId?: string,
-  ): Promise<Buffer> {
+  ): Promise<Buffer | null> {
     if (organizationId != null && objectStorage) {
       try {
         const s3Key = `organizations/${organizationId}/templates/${templateName}`;
@@ -41,24 +45,49 @@ export function createEasyTemplateXAdapter(
 
     const templatePath = path.join(templatesDir, templateName);
     if (!fs.existsSync(templatePath)) {
-      throw new Error(`Template ${templateName} not found`);
+      return null;
     }
     return fs.promises.readFile(templatePath);
+  }
+
+  function resolveTemplateNames(templateType: string, locale?: string): string[] {
+    if (templateType.endsWith(".docx")) {
+      return [templateType];
+    }
+    const base = `${templateType}.docx`;
+    if (locale && locale !== "en") {
+      return [`${locale}_${base}`, base];
+    }
+    return [base];
+  }
+
+  async function loadTemplateForLocale(
+    templateType: string,
+    locale: string | undefined,
+    organizationId: string | undefined,
+  ): Promise<Buffer> {
+    const candidates = resolveTemplateNames(templateType, locale);
+    for (const candidate of candidates) {
+      const buffer = await getTemplateBuffer(candidate, organizationId);
+      if (buffer) {
+        return buffer;
+      }
+    }
+    throw new Error(
+      `Template ${candidates.join(" or ")} not found`,
+    );
   }
 
   return {
     async renderDocx(
       templateType: string,
       data: Record<string, unknown>,
-      _locale: string,
+      locale: string,
       organizationId?: string,
     ): Promise<Buffer> {
-      const templateName = templateType.endsWith(".docx")
-        ? templateType
-        : `${templateType}.docx`;
-
-      const templateBuffer = await getTemplateBuffer(
-        templateName,
+      const templateBuffer = await loadTemplateForLocale(
+        templateType,
+        locale,
         organizationId,
       );
 
@@ -71,13 +100,11 @@ export function createEasyTemplateXAdapter(
     async parseTags(
       templateType: string,
       organizationId?: string,
+      locale?: string,
     ): Promise<string[]> {
-      const templateName = templateType.endsWith(".docx")
-        ? templateType
-        : `${templateType}.docx`;
-
-      const templateBuffer = await getTemplateBuffer(
-        templateName,
+      const templateBuffer = await loadTemplateForLocale(
+        templateType,
+        locale,
         organizationId,
       );
 

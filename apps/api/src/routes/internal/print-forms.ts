@@ -9,7 +9,12 @@ import {
   findRequisiteIdentifier,
   findRequisiteProviderIdentifier,
   formatPartyAddress,
+  formatRequisiteProviderAddress,
+  formatRequisiteProviderAddressI18n,
+  resolveRequisiteProviderCity,
+  resolveRequisiteProviderCityI18n,
   resolveRequisiteProviderDisplayName,
+  resolveRequisiteProviderDisplayNameI18n,
 } from "@bedrock/parties";
 import type {
   Counterparty,
@@ -282,6 +287,7 @@ function mapOrganizationForTemplate(organization: Organization) {
 
   return {
     id: organization.id,
+    kind: organization.kind,
     name: profile?.shortName ?? organization.shortName,
     nameI18n: toLocalizedText(
       profile?.shortNameI18n,
@@ -294,6 +300,10 @@ function mapOrganizationForTemplate(organization: Organization) {
     cityI18n: toLocalizedText(address?.cityI18n, address?.city),
     directorName: representative?.fullName ?? null,
     directorNameI18n: toLocalizedText(representative?.fullNameI18n),
+    directorTitle: representative?.title ?? null,
+    directorTitleI18n: toLocalizedText(representative?.titleI18n),
+    directorBasis: representative?.basisDocument ?? null,
+    directorBasisI18n: toLocalizedText(representative?.basisDocumentI18n),
     inn:
       findPartyIdentifier(organization, "inn")?.value ??
       organization.externalRef ??
@@ -316,6 +326,16 @@ function mapOrganizationRequisiteForTemplate(input: {
     id: requisite.id,
     accountNo:
       findRequisiteIdentifier(requisite, "local_account_number")?.value ?? null,
+    address:
+      formatRequisiteProviderAddress({
+        branchId: requisite.providerBranchId,
+        provider,
+      }) ?? null,
+    addressI18n:
+      formatRequisiteProviderAddressI18n({
+        branchId: requisite.providerBranchId,
+        provider,
+      }) ?? null,
     bic:
       findRequisiteProviderIdentifier({
         branchId: requisite.providerBranchId,
@@ -331,6 +351,21 @@ function mapOrganizationRequisiteForTemplate(input: {
     currencyCode,
     institutionName:
       resolveRequisiteProviderDisplayName({
+        branchId: requisite.providerBranchId,
+        provider,
+      }) ?? null,
+    institutionNameI18n:
+      resolveRequisiteProviderDisplayNameI18n({
+        branchId: requisite.providerBranchId,
+        provider,
+      }) ?? null,
+    city:
+      resolveRequisiteProviderCity({
+        branchId: requisite.providerBranchId,
+        provider,
+      }) ?? null,
+    cityI18n:
+      resolveRequisiteProviderCityI18n({
         branchId: requisite.providerBranchId,
         provider,
       }) ?? null,
@@ -644,6 +679,7 @@ async function buildDealDocumentPrintContext(input: {
       invoiceDate: document ? formatIsoDate(document.occurredAt) : null,
       invoiceId: document?.id ?? null,
       invoiceNumber: document?.docNo ?? null,
+      memo: readPayloadString(document?.payload, "memo"),
       swiftCode:
         findRequisiteProviderIdentifier({
           branchId: counterpartyBankRequisite?.providerBranchId,
