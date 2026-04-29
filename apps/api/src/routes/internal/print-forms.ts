@@ -284,6 +284,7 @@ function mapOrganizationForTemplate(organization: Organization) {
 
   return {
     id: organization.id,
+    kind: organization.kind,
     name: profile?.shortName ?? organization.shortName,
     nameI18n: toLocalizedText(
       profile?.shortNameI18n,
@@ -296,6 +297,8 @@ function mapOrganizationForTemplate(organization: Organization) {
     cityI18n: toLocalizedText(address?.cityI18n, address?.city),
     directorName: representative?.fullName ?? null,
     directorNameI18n: toLocalizedText(representative?.fullNameI18n),
+    directorTitle: representative?.title ?? null,
+    directorTitleI18n: toLocalizedText(representative?.titleI18n),
     directorBasis: representative?.basisDocument ?? null,
     directorBasisI18n: toLocalizedText(representative?.basisDocumentI18n),
     inn: findPartyIdentifier(organization, "inn")?.value ?? null,

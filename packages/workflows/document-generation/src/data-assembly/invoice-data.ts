@@ -33,6 +33,10 @@ export function assembleInvoiceData(
     deal.contractId ?? deal.id,
   );
 
+  const agentKind = organization.kind as string | undefined;
+  const isIndividualEntrepreneur = agentKind === "individual";
+  const isOrganization = agentKind === "legal_entity";
+
   const raw: Record<string, unknown> = {
     invoiceNumber,
     number: invoiceNumber,
@@ -43,6 +47,8 @@ export function assembleInvoiceData(
     inn: client.inn,
     clientKpp: client.kpp,
     memo: deal.memo,
+    isIndividualEntrepreneur,
+    isOrganization,
     baseCurrencyCode: baseCurrency,
     baseCurrencySymbol,
     totalWithExpensesInBase: formatCurrencyAmount(totalInBase),
@@ -73,6 +79,20 @@ export function assembleInvoiceData(
     "agentDirectorName",
     organization,
     "directorName",
+    lang,
+  );
+  applyLocalizedTemplateField(
+    raw,
+    "agentDirectorTitle",
+    organization,
+    "directorTitle",
+    lang,
+  );
+  applyLocalizedTemplateField(
+    raw,
+    "agentDirectorBasis",
+    organization,
+    "directorBasis",
     lang,
   );
   applyLocalizedTemplateField(raw, "agentAddress", organization, "address", lang);
