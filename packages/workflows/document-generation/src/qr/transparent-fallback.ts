@@ -8,5 +8,5 @@ const PNG_BYTES = Buffer.from(
 export const TRANSPARENT_QR_FALLBACK: ImageContent = bufferToImageContent(
   PNG_BYTES,
   217,
-  131,
+  217,
 );

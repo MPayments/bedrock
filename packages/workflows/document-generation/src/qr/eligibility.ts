@@ -29,7 +29,7 @@ const CORR_ACCOUNT_RE = /^301\d{17}$/;
 const INN_RE = /^\d{10}$|^\d{12}$/;
 
 const QR_PLACEHOLDER_WIDTH = 217;
-const QR_PLACEHOLDER_HEIGHT = 131;
+const QR_PLACEHOLDER_HEIGHT = 217;
 
 function asString(value: unknown): string | null {
   return typeof value === "string" && value !== "" ? value : null;
@@ -96,6 +96,9 @@ export async function buildInvoiceQrIfEligible(
       "Failed to build invoice QR, falling back to transparent placeholder",
       {
         error: error instanceof Error ? error.message : "Unknown QR error",
+        dealId: asString(input.deal.id),
+        organizationId: asString(input.organization.id),
+        organizationRequisiteId: asString(input.organizationRequisite.id),
       },
     );
     return TRANSPARENT_QR_FALLBACK;
