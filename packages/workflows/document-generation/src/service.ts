@@ -62,6 +62,7 @@ import {
   CustomerContractNotFoundError,
   CustomerContractOrganizationNotFoundError,
 } from "./errors";
+import { buildInvoiceQrIfEligible } from "./qr";
 
 export interface TemplateRendererPort {
   renderDocx(
@@ -736,6 +737,19 @@ export function createDocumentGenerationWorkflow(
         date,
         lang,
       );
+
+      if (input.templateType === "invoice") {
+        (data as Record<string, unknown>).qr = await buildInvoiceQrIfEligible(
+          {
+            lang,
+            deal: input.deal,
+            calculation: input.calculation,
+            organization: input.organization,
+            organizationRequisite: input.organizationRequisite,
+          },
+          { logger: deps.logger },
+        );
+      }
 
       const { buffer, mimeType } = await renderAndConvert(
         input.templateType,

@@ -24,12 +24,14 @@
     "libreoffice-convert": "^1.6.1",
     "lvovich": "^2.0.0",
     "number-to-words-ru": "^2.1.0",
+    "qrcode": "^1.5.4",
     "russian-nouns-js": "^2.1.0",
     "zod": "^4.1.11"
   },
   "devDependencies": {
     "@bedrock/typescript-config": "workspace:*",
     "@types/node": "^24",
+    "@types/qrcode": "^1.5.6",
     "eslint": "^10.2.0",
     "typescript": "^6.0.2",
     "vitest": "^4.1.4"
