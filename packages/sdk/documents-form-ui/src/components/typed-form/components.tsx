@@ -62,6 +62,9 @@ function DocumentTypedFormRow({
   row: ReturnType<typeof resolveDocumentFormSectionRows>[number];
   sectionId: string;
 }) {
+  const {
+    meta: { mode },
+  } = useDocumentTypedForm();
   const dependencyNames = collectVisibilityDependencyNames(
     row.fields.map(({ field }) => field),
   );
@@ -73,7 +76,10 @@ function DocumentTypedFormRow({
     watchedDependencyValues,
   );
   const visibleFields = row.fields.filter(
-    ({ field }) => !field.hidden && isFieldVisible(field, dependencyValues),
+    ({ field }) =>
+      !field.hidden &&
+      !(field.createOnly && mode !== "create") &&
+      isFieldVisible(field, dependencyValues),
   );
 
   if (visibleFields.length === 0) {

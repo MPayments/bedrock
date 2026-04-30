@@ -9,6 +9,7 @@ import { buildDocNo } from "../../domain/document";
 import { DocumentAggregate, type Document } from "../../domain/document";
 import { collectDocumentOrganizationIds } from "../../domain/document-period-scope";
 import { buildSummary } from "../../domain/document-summary";
+import { DocumentValidationError } from "../../errors";
 import { validateInput } from "../../validation";
 import {
   buildDocumentWithOperationId,
@@ -150,13 +151,15 @@ export function createCreateDraftHandler(context: DocumentsServiceContext) {
                 `${input.docType}.payload`,
               );
               const documentId = randomUUID();
+              const docNo =
+                draft.docNo ?? buildDocNo(module.docNoPrefix, documentId);
               const postingStatus = module.postingRequired
                 ? "unposted"
                 : "not_required";
               const draftCandidate: Document = {
                 id: documentId,
                 docType: module.docType,
-                docNo: buildDocNo(module.docNoPrefix, documentId),
+                docNo,
                 moduleId,
                 moduleVersion,
                 payloadVersion: module.payloadVersion,
@@ -227,6 +230,7 @@ export function createCreateDraftHandler(context: DocumentsServiceContext) {
                 id: documentId,
                 docType: module.docType,
                 docNoPrefix: module.docNoPrefix,
+                docNoOverride: draft.docNo,
                 moduleId,
                 moduleVersion,
                 payloadVersion: module.payloadVersion,
@@ -240,14 +244,21 @@ export function createCreateDraftHandler(context: DocumentsServiceContext) {
                 now: currentNow,
               }).toSnapshot();
 
+              const inserted =
+                await documentsCommand.insertDocument(draftDocument);
               const document =
-                (await documentsCommand.insertDocument(draftDocument)) ??
+                inserted ??
                 (await documentsCommand.findDocumentByCreateIdempotencyKey({
                   docType: input.docType,
                   createIdempotencyKey: input.createIdempotencyKey,
                 }));
 
               if (!document) {
+                if (draft.docNo) {
+                  throw new DocumentValidationError(
+                    `Документ с номером "${draft.docNo}" уже существует`,
+                  );
+                }
                 throw new Error("Failed to create document draft");
               }
 

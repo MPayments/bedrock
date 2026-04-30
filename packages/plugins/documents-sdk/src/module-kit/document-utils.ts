@@ -22,12 +22,13 @@ export function parseDocumentPayload<TSchema extends z.ZodTypeAny>(
 }
 
 export function buildDocumentDraft<
-  TInput extends { occurredAt: Date },
+  TInput extends { occurredAt: Date; docNo?: string | undefined },
   TPayload,
 >(input: TInput, payload: TPayload) {
   return {
     occurredAt: input.occurredAt,
     payload,
+    docNo: input.docNo,
   };
 }
 
