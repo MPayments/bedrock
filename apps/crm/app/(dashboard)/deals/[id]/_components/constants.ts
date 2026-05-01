@@ -10,7 +10,6 @@ import type {
   DealLegKind,
   DealLegState,
   DealOperationalPositionKind,
-  DealOperationalPositionState,
   DealStatus,
   DealType,
 } from "./types";
@@ -76,30 +75,6 @@ const DEAL_OPERATIONAL_POSITION_LABELS: Record<
   downstream_payable: "Исходящая кредиторка",
   spread_revenue: "Доход от спреда",
   suspense: "Суспенс",
-};
-
-export const DEAL_OPERATIONAL_POSITION_STATE_LABELS: Record<
-  DealOperationalPositionState,
-  string
-> = {
-  blocked: "Заблокирована",
-  done: "Закрыта",
-  in_progress: "В работе",
-  not_applicable: "Не применяется",
-  pending: "Ожидает",
-  ready: "Готова",
-};
-
-export const DEAL_OPERATIONAL_POSITION_STATE_COLORS: Record<
-  DealOperationalPositionState,
-  string
-> = {
-  blocked: "bg-red-100 text-red-800",
-  done: "bg-emerald-100 text-emerald-800",
-  in_progress: "bg-blue-100 text-blue-800",
-  not_applicable: "bg-zinc-100 text-zinc-700",
-  pending: "bg-slate-100 text-slate-800",
-  ready: "bg-amber-100 text-amber-800",
 };
 
 export const DEAL_SECTION_LABELS: Record<string, string> = {

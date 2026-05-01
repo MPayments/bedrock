@@ -848,7 +848,7 @@ function filterWarningsForDefinition(
   return warnings;
 }
 
-export async function listDocumentPrintForms(input: {
+async function listDocumentPrintForms(input: {
   actorUserId: string;
   ctx: PrintFormsContext;
   docType: string;
@@ -877,7 +877,7 @@ export async function listDocumentPrintForms(input: {
   );
 }
 
-export async function generateDocumentPrintForm(input: {
+async function generateDocumentPrintForm(input: {
   actorUserId: string;
   ctx: PrintFormsContext;
   docType: string;
@@ -903,7 +903,7 @@ export async function generateDocumentPrintForm(input: {
   });
 }
 
-export async function listDealPrintForms(input: {
+async function listDealPrintForms(input: {
   ctx: PrintFormsContext;
   dealId: string;
 }): Promise<PrintFormDescriptor[]> {
@@ -926,7 +926,7 @@ export async function listDealPrintForms(input: {
   );
 }
 
-export async function generateDealPrintForm(input: {
+async function generateDealPrintForm(input: {
   ctx: PrintFormsContext;
   dealId: string;
   formId: string;
@@ -1051,7 +1051,7 @@ async function serializeCalculationForPrintForm(input: {
   };
 }
 
-export async function listCalculationPrintForms(input: {
+async function listCalculationPrintForms(input: {
   ctx: PrintFormsContext;
   calculationId: string;
 }): Promise<PrintFormDescriptor[]> {
@@ -1067,7 +1067,7 @@ export async function listCalculationPrintForms(input: {
   return descriptorsFor({ ownerType: "calculation" });
 }
 
-export async function generateCalculationPrintForm(input: {
+async function generateCalculationPrintForm(input: {
   ctx: PrintFormsContext;
   calculationId: string;
   formId: string;
@@ -1197,7 +1197,7 @@ async function buildAgreementContractPrintContext(input: {
   };
 }
 
-export async function listAgreementVersionPrintForms(input: {
+async function listAgreementVersionPrintForms(input: {
   agreementId: string;
   ctx: PrintFormsContext;
   versionId: string;
@@ -1210,7 +1210,7 @@ export async function listAgreementVersionPrintForms(input: {
   });
 }
 
-export async function generateAgreementVersionPrintForm(input: {
+async function generateAgreementVersionPrintForm(input: {
   agreementId: string;
   ctx: PrintFormsContext;
   formId: string;

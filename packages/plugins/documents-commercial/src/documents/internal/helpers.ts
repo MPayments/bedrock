@@ -38,27 +38,6 @@ import {
 
 const CUSTOMER_FEE_INVOICE_TITLE = "Счет на агентское вознаграждение";
 
-function resolveDealFundingStrategy(
-  dealFxContext: NonNullable<
-    Awaited<ReturnType<typeof resolveInvoiceDealFxContext>>
-  >,
-) {
-  if (!dealFxContext.hasConvertLeg) {
-    return null;
-  }
-
-  if (
-    dealFxContext.fundingResolution.state !== "resolved" ||
-    !dealFxContext.fundingResolution.strategy
-  ) {
-    throw new DocumentValidationError(
-      "linked FX deal does not have a resolved funding strategy",
-    );
-  }
-
-  return dealFxContext.fundingResolution.strategy;
-}
-
 export function buildQuoteSnapshotHash(snapshot: Omit<QuoteSnapshot, "snapshotHash">) {
   return createHash("sha256").update(canonicalJson(snapshot)).digest("hex");
 }
@@ -108,7 +87,7 @@ export function getInvoiceTitleByPurpose(payload: InvoicePayload) {
     : "Счёт на оплату";
 }
 
-export function buildQuoteBillingSetRef(input: {
+function buildQuoteBillingSetRef(input: {
   dealId: string;
   quoteId: string;
 }) {
@@ -278,7 +257,7 @@ function isProviderExpenseBucket(bucket: FinancialLine["bucket"]) {
   return bucket === "provider_fee_expense" || bucket === "execution_expense";
 }
 
-export function isFeeRevenueBucket(bucket: FinancialLine["bucket"]) {
+function isFeeRevenueBucket(bucket: FinancialLine["bucket"]) {
   return bucket === "fee_revenue";
 }
 
@@ -299,13 +278,6 @@ export function filterFinancialLinesForInvoicePurpose(input: {
   }
 
   return input.lines;
-}
-
-export function getInvoicePurposeQuoteComponentIds(input: {
-  lines: FinancialLine[];
-  purpose: InvoicePurpose;
-}) {
-  return filterFinancialLinesForInvoicePurpose(input).map((line) => line.id);
 }
 
 export function calculateDealLinkedInvoiceExpectedAmount(input: {
@@ -941,20 +913,4 @@ export function parseInvoicePayload(document: Document) {
 
 export function parseApplicationPayload(document: Document): ApplicationPayload {
   return parseDocumentPayload(ApplicationPayloadSchema, document);
-}
-
-export async function invoiceRequiresExchange(
-  deps: Pick<
-    CommercialModuleDeps,
-    "dealFx" | "documentBusinessLinks"
-  >,
-  invoice: Document,
-) {
-  const dealFxContext = await resolveInvoiceDealFxContext(deps, invoice.id);
-
-  if (dealFxContext) {
-    return resolveDealFundingStrategy(dealFxContext) === "external_fx";
-  }
-
-  return false;
 }
