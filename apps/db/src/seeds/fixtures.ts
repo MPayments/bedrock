@@ -59,6 +59,8 @@ export const REQUISITE_PROVIDER_IDS = {
   ZHEJIANG_CHOUZHOU_COMMERCIAL_BANK:
     "00000000-0000-4000-8000-000000000410",
   UNITED_BANK_LIMITED: "00000000-0000-4000-8000-000000000411",
+  BANK_NEGARA_INDONESIA: "00000000-0000-4000-8000-000000000412",
+  BANK_MANDIRI: "00000000-0000-4000-8000-000000000413",
 } as const;
 
 export const REQUISITE_IDS = {
@@ -95,6 +97,13 @@ export const REQUISITE_IDS = {
   CARBONPRO_CNY_EXPOBANK: "00000000-0000-4000-8000-000000000562",
   FAHR_RUB_SLAVIA: "00000000-0000-4000-8000-000000000563",
   BARNAVA_AED_UNITED_BANK: "00000000-0000-4000-8000-000000000564",
+  BINTANG_BNI_IDR: "00000000-0000-4000-8000-000000000565",
+  BINTANG_BNI_USD: "00000000-0000-4000-8000-000000000566",
+  BINTANG_BNI_EUR: "00000000-0000-4000-8000-000000000567",
+  BINTANG_BNI_JPY: "00000000-0000-4000-8000-000000000568",
+  BINTANG_BNI_KRW: "00000000-0000-4000-8000-000000000569",
+  BINTANG_MANDIRI_USD: "00000000-0000-4000-8000-000000000570",
+  BINTANG_MANDIRI_IDR: "00000000-0000-4000-8000-000000000571",
 } as const;
 
 const CUSTOMER_ID_BY_KEY: Record<CustomerCounterpartyKey, string> = {
@@ -685,6 +694,51 @@ export const REQUISITE_PROVIDERS: readonly SeedRequisiteProviderFixture[] = [
     bic: null,
     swift: "UNILAEADXXX",
   },
+  {
+    id: REQUISITE_PROVIDER_IDS.BANK_NEGARA_INDONESIA,
+    kind: "bank",
+    legalName: "PT Bank Negara Indonesia (Persero) Tbk",
+    legalNameI18n: {
+      en: "PT Bank Negara Indonesia (Persero) Tbk",
+    },
+    displayName: "Bank BNI",
+    displayNameI18n: {
+      en: "Bank BNI",
+    },
+    description:
+      "BNI Karangasem sub-branch settlement bank for PT BINTANG UTARA TRADING.",
+    country: "ID",
+    address: "BNI Cabang Singaraja, Capem Karangasem, Bali, Indonesia",
+    addressI18n: {
+      en: "BNI Cabang Singaraja, Capem Karangasem, Bali, Indonesia",
+    },
+    contact: null,
+    bic: null,
+    swift: "BNINIDJASGR",
+  },
+  {
+    id: REQUISITE_PROVIDER_IDS.BANK_MANDIRI,
+    kind: "bank",
+    legalName: "PT Bank Mandiri (Persero) Tbk",
+    legalNameI18n: {
+      en: "PT Bank Mandiri (Persero) Tbk",
+    },
+    displayName: "Bank Mandiri",
+    displayNameI18n: {
+      en: "Bank Mandiri",
+    },
+    description:
+      "Bank Mandiri Denpasar Udayana settlement bank for PT BINTANG UTARA TRADING.",
+    country: "ID",
+    address:
+      "Kecamatan Denpasar Udayana, Jl. Udayana No. 11, Denpasar, Indonesia",
+    addressI18n: {
+      en: "Kecamatan Denpasar Udayana, Jl. Udayana No. 11, Denpasar, Indonesia",
+    },
+    contact: null,
+    bic: null,
+    swift: "BMRIIDJAXXX",
+  },
 ] as const;
 
 const CUSTOMER_REQUISITES: readonly SeedRequisiteFixture[] =
@@ -841,6 +895,137 @@ const IMAGE_COUNTERPARTY_REQUISITES: readonly SeedRequisiteFixture[] = [
     iban: "AE890470000000200853936",
     swift: "UNILAEADXXX",
     isDefault: true,
+  },
+] as const;
+
+const BINTANG_UTARA_REQUISITES: readonly SeedRequisiteFixture[] = [
+  {
+    id: REQUISITE_IDS.BINTANG_BNI_IDR,
+    ownerType: "organization",
+    ownerId: ORGANIZATION_IDS.BINTANG_UTARA_TRADING,
+    providerId: REQUISITE_PROVIDER_IDS.BANK_NEGARA_INDONESIA,
+    currencyCode: "IDR",
+    kind: "bank",
+    label: "Bintang Utara IDR (BNI)",
+    description: "IDR settlement account at Bank BNI",
+    beneficiaryName: "PT BINTANG UTARA TRADING",
+    institutionName: "Bank BNI",
+    accountNo: "2054916367",
+    swift: "BNINIDJASGR",
+    bankAddress: "BNI Cabang Singaraja, Capem Karangasem, Bali, Indonesia",
+    notes:
+      "Account address: Jl. Dewi Sri I, No. 20 Desa/Kelurahan Legian, Kecamatan Kuta, Kabupaten Badung, Provinsi Bali.",
+    isDefault: true,
+  },
+  {
+    id: REQUISITE_IDS.BINTANG_BNI_USD,
+    ownerType: "organization",
+    ownerId: ORGANIZATION_IDS.BINTANG_UTARA_TRADING,
+    providerId: REQUISITE_PROVIDER_IDS.BANK_NEGARA_INDONESIA,
+    currencyCode: "USD",
+    kind: "bank",
+    label: "Bintang Utara USD (BNI)",
+    description: "USD settlement account at Bank BNI",
+    beneficiaryName: "PT BINTANG UTARA TRADING",
+    institutionName: "Bank BNI",
+    accountNo: "2054917190",
+    swift: "BNINIDJASGR",
+    bankAddress: "BNI Cabang Singaraja, Capem Karangasem, Bali, Indonesia",
+    notes:
+      "Account address: Jl. Dewi Sri I, No. 20 Desa/Kelurahan Legian, Kecamatan Kuta, Kabupaten Badung, Provinsi Bali.",
+    isDefault: true,
+  },
+  {
+    id: REQUISITE_IDS.BINTANG_BNI_EUR,
+    ownerType: "organization",
+    ownerId: ORGANIZATION_IDS.BINTANG_UTARA_TRADING,
+    providerId: REQUISITE_PROVIDER_IDS.BANK_NEGARA_INDONESIA,
+    currencyCode: "EUR",
+    kind: "bank",
+    label: "Bintang Utara EUR (BNI)",
+    description: "EUR settlement account at Bank BNI",
+    beneficiaryName: "PT BINTANG UTARA TRADING",
+    institutionName: "Bank BNI",
+    accountNo: "2053104764",
+    swift: "BNINIDJASGR",
+    bankAddress: "BNI Cabang Singaraja, Capem Karangasem, Bali, Indonesia",
+    notes:
+      "Account address: Jl. Dewi Sri I, No. 20 Desa/Kelurahan Legian, Kecamatan Kuta, Kabupaten Badung, Provinsi Bali.",
+    isDefault: true,
+  },
+  {
+    id: REQUISITE_IDS.BINTANG_BNI_JPY,
+    ownerType: "organization",
+    ownerId: ORGANIZATION_IDS.BINTANG_UTARA_TRADING,
+    providerId: REQUISITE_PROVIDER_IDS.BANK_NEGARA_INDONESIA,
+    currencyCode: "JPY",
+    kind: "bank",
+    label: "Bintang Utara JPY (BNI)",
+    description: "JPY settlement account at Bank BNI",
+    beneficiaryName: "PT BINTANG UTARA TRADING",
+    institutionName: "Bank BNI",
+    accountNo: "2053120492",
+    swift: "BNINIDJASGR",
+    bankAddress: "BNI Cabang Singaraja, Capem Karangasem, Bali, Indonesia",
+    notes:
+      "Account address: Jl. Dewi Sri I, No. 20 Desa/Kelurahan Legian, Kecamatan Kuta, Kabupaten Badung, Provinsi Bali.",
+    isDefault: true,
+  },
+  {
+    id: REQUISITE_IDS.BINTANG_BNI_KRW,
+    ownerType: "organization",
+    ownerId: ORGANIZATION_IDS.BINTANG_UTARA_TRADING,
+    providerId: REQUISITE_PROVIDER_IDS.BANK_NEGARA_INDONESIA,
+    currencyCode: "KRW",
+    kind: "bank",
+    label: "Bintang Utara KRW (BNI)",
+    description: "KRW settlement account at Bank BNI",
+    beneficiaryName: "PT BINTANG UTARA TRADING",
+    institutionName: "Bank BNI",
+    accountNo: "2053137064",
+    swift: "BNINIDJASGR",
+    bankAddress: "BNI Cabang Singaraja, Capem Karangasem, Bali, Indonesia",
+    notes:
+      "Account address: Jl. Dewi Sri I, No. 20 Desa/Kelurahan Legian, Kecamatan Kuta, Kabupaten Badung, Provinsi Bali.",
+    isDefault: true,
+  },
+  {
+    id: REQUISITE_IDS.BINTANG_MANDIRI_USD,
+    ownerType: "organization",
+    ownerId: ORGANIZATION_IDS.BINTANG_UTARA_TRADING,
+    providerId: REQUISITE_PROVIDER_IDS.BANK_MANDIRI,
+    currencyCode: "USD",
+    kind: "bank",
+    label: "Bintang Utara USD (Mandiri)",
+    description: "USD settlement account at Bank Mandiri",
+    beneficiaryName: "DISCOVERY CANDIDASA COTTAGES AND VILLAS",
+    institutionName: "PT Bank Mandiri (Persero) Tbk",
+    accountNo: "1450017174208",
+    swift: "BMRIIDJAXXX",
+    bankAddress:
+      "Kecamatan Denpasar Udayana, Jl. Udayana No. 11, Denpasar, Indonesia",
+    notes:
+      "Account address: Jl. Pantai Indah No. 06 Candidasa, Bugbug - Karangasem, 80811.",
+    isDefault: false,
+  },
+  {
+    id: REQUISITE_IDS.BINTANG_MANDIRI_IDR,
+    ownerType: "organization",
+    ownerId: ORGANIZATION_IDS.BINTANG_UTARA_TRADING,
+    providerId: REQUISITE_PROVIDER_IDS.BANK_MANDIRI,
+    currencyCode: "IDR",
+    kind: "bank",
+    label: "Bintang Utara IDR (Mandiri)",
+    description: "IDR settlement account at Bank Mandiri",
+    beneficiaryName: "DISCOVERY CANDIDASA COTTAGES AND VILLAS",
+    institutionName: "PT Bank Mandiri (Persero) Tbk",
+    accountNo: "1450017124229",
+    swift: "BMRIIDJAXXX",
+    bankAddress:
+      "Kecamatan Denpasar Udayana, Jl. Udayana No. 11, Denpasar, Indonesia",
+    notes:
+      "Account address: Jl. Pantai Indah No. 06 Candidasa, Bugbug - Karangasem, 80811.",
+    isDefault: false,
   },
 ] as const;
 
@@ -1115,6 +1300,7 @@ export const REQUISITES: readonly SeedRequisiteFixture[] = [
   },
   ...CUSTOMER_REQUISITES,
   ...IMAGE_COUNTERPARTY_REQUISITES,
+  ...BINTANG_UTARA_REQUISITES,
 ] as const;
 
 export const AGREEMENTS: readonly SeedAgreementFixture[] =

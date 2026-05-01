@@ -13,6 +13,8 @@ export const CURRENCY_IDS = {
   GBP: "00000000-0000-4000-8000-000000000108",
   JPY: "00000000-0000-4000-8000-000000000109",
   TRY: "00000000-0000-4000-8000-000000000110",
+  IDR: "00000000-0000-4000-8000-000000000111",
+  KRW: "00000000-0000-4000-8000-000000000112",
 } as const;
 
 export function currencyIdForCode(code: string): string {
@@ -66,10 +68,24 @@ const CURRENCY_SEEDS = [
     precision: 2,
   },
   {
+    id: CURRENCY_IDS.IDR,
+    code: "IDR",
+    name: "Индонезийская рупия",
+    symbol: "Rp",
+    precision: 2,
+  },
+  {
     id: CURRENCY_IDS.JPY,
     code: "JPY",
     name: "Японский йен",
     symbol: "¥",
+    precision: 0,
+  },
+  {
+    id: CURRENCY_IDS.KRW,
+    code: "KRW",
+    name: "Южнокорейская вона",
+    symbol: "₩",
     precision: 0,
   },
   {
