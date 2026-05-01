@@ -30,6 +30,7 @@ function normalizeCommercialMajorAmountInput(
 export function getDefaultInvoiceValues() {
   return {
     occurredAt: nowDateTimeLocal(),
+    docNo: "",
     customerId: "",
     counterpartyId: "",
     organizationId: "",
@@ -81,6 +82,7 @@ export function createInvoicePayload(values: Record<string, unknown>) {
 
   return parseSchema(InvoiceInputSchema, {
     occurredAt: toOccurredAtIso(values.occurredAt),
+    docNo: optionalString(values.docNo),
     customerId: readString(values.customerId).trim(),
     counterpartyId: readString(values.counterpartyId).trim(),
     organizationId: optionalString(values.organizationId),

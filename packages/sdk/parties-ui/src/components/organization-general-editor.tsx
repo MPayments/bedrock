@@ -38,30 +38,6 @@ import {
 import { Spinner } from "@bedrock/sdk-ui/components/spinner";
 import { Textarea } from "@bedrock/sdk-ui/components/textarea";
 
-const ORGANIZATION_COUNTRY_OPTIONS = [
-  "AE",
-  "AM",
-  "BY",
-  "CN",
-  "CY",
-  "DE",
-  "GB",
-  "GE",
-  "HK",
-  "IN",
-  "KZ",
-  "KG",
-  "RU",
-  "SG",
-  "TR",
-  "UA",
-  "US",
-] as const;
-
-const ORGANIZATION_COUNTRY_CODE_SET = new Set<string>(
-  ORGANIZATION_COUNTRY_OPTIONS,
-);
-
 const OrganizationGeneralFormSchema = z.object({
   shortName: z.string().trim().min(1, "Краткое наименование обязательно"),
   shortNameEn: z.string(),
@@ -71,11 +47,7 @@ const OrganizationGeneralFormSchema = z.object({
   country: z
     .string()
     .trim()
-    .transform((value) => value.toUpperCase())
-    .refine(
-      (value) => value.length === 0 || ORGANIZATION_COUNTRY_CODE_SET.has(value),
-      "Выберите страну из списка",
-    ),
+    .transform((value) => value.toUpperCase()),
   externalRef: z.string().trim(),
   description: z.string(),
 });

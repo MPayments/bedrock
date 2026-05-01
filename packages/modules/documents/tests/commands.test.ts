@@ -281,6 +281,65 @@ describe("documents command flows", () => {
     expect(result.postingOperationId).toBeNull();
   });
 
+  it("uses docNo override returned from module.createDraft", async () => {
+    const moduleStub = createModuleStub({
+      async createDraft() {
+        return {
+          occurredAt: new Date("2026-03-01T12:00:00.000Z"),
+          payload: { memo: "created" },
+          docNo: "INV-CUSTOM-2026-001",
+        };
+      },
+    });
+    const { context, insertedRows } = createContext({
+      module: moduleStub,
+      selectRows: [[]],
+    });
+    const handler = createCreateDraftHandler(context as any);
+
+    await handler({
+      docType: "test_document",
+      createIdempotencyKey: "create-idem-docno",
+      payload: { memo: "created" },
+      actorUserId: "maker-1",
+    });
+
+    expect(insertedRows[0]).toEqual(
+      expect.objectContaining({ docNo: "INV-CUSTOM-2026-001" }),
+    );
+  });
+
+  it("throws a friendly error when a custom docNo collides with an existing document", async () => {
+    const moduleStub = createModuleStub({
+      async createDraft() {
+        return {
+          occurredAt: new Date("2026-03-01T12:00:00.000Z"),
+          payload: { memo: "created" },
+          docNo: "INV-DUP-1",
+        };
+      },
+    });
+    const { context, repository } = createContext({
+      module: moduleStub,
+      selectRows: [[]],
+    });
+    repository.insertDocument.mockResolvedValueOnce(null as never);
+    repository.findDocumentByCreateIdempotencyKey.mockResolvedValueOnce(
+      null as never,
+    );
+
+    const handler = createCreateDraftHandler(context as any);
+
+    await expect(
+      handler({
+        docType: "test_document",
+        createIdempotencyKey: "create-idem-dup",
+        payload: { memo: "created" },
+        actorUserId: "maker-1",
+      }),
+    ).rejects.toThrow('Документ с номером "INV-DUP-1" уже существует');
+  });
+
   it("updates active draft documents", async () => {
     const document = makeDocument();
     const { context } = createContext({

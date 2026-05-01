@@ -5,13 +5,15 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createEasyTemplateXAdapter } from "../src/adapters/easy-template-x.adapter";
 
+const parseTagsResult: { tags: { name: string }[] } = { tags: [] };
+
 vi.mock("easy-template-x", () => ({
   TemplateHandler: class {
     async process(buf: Buffer): Promise<Buffer> {
       return buf;
     }
     async parseTags(_buf: Buffer): Promise<{ name: string }[]> {
-      return [];
+      return parseTagsResult.tags;
     }
   },
 }));
@@ -184,5 +186,27 @@ describe("easy-template-x adapter — locale-aware template resolution", () => {
       objectStorage.download.mock.calls as unknown as [string][]
     ).map((call) => call[0]);
     expect(queriedKeys).toEqual(["organizations/org-1/templates/invoice.docx"]);
+  });
+
+  it("parseTags filters out image placeholders (signature, stamp, qr)", async () => {
+    const tmp = makeTmpDir();
+    cleanups.push(tmp);
+    fs.writeFileSync(path.join(tmp, "ru_invoice.docx"), Buffer.from("ru"));
+
+    parseTagsResult.tags = [
+      { name: "signature" },
+      { name: "stamp" },
+      { name: "qr" },
+      { name: "agentInn" },
+      { name: "agentBankBic" },
+    ];
+
+    const adapter = createEasyTemplateXAdapter({ templatesDir: tmp, logger });
+
+    const tags = await adapter.parseTags("invoice", undefined, "ru");
+
+    expect(tags.sort()).toEqual(["agentBankBic", "agentInn"]);
+
+    parseTagsResult.tags = [];
   });
 });

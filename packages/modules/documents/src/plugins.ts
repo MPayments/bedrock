@@ -29,6 +29,7 @@ export interface DocumentModuleContext {
 export interface DocumentDraftResult {
   occurredAt: Date;
   payload: Record<string, unknown>;
+  docNo?: string;
 }
 
 export interface DocumentUpdateDraftResult {

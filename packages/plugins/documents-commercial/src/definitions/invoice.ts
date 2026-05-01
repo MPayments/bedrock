@@ -29,6 +29,15 @@ export const invoiceDocumentDefinition = {
         id: "main",
         title: "Основные реквизиты",
         fields: [
+          {
+            kind: "text",
+            name: "docNo",
+            label: "Номер документа",
+            placeholder: "Сгенерируется автоматически, если оставить пустым",
+            description:
+              "Можно задать свой номер. После создания изменить нельзя.",
+            createOnly: true,
+          },
           { kind: "datetime", name: "occurredAt", label: "Дата документа" },
           { kind: "customer", name: "customerId", label: "Клиент" },
           { kind: "counterparty", name: "counterpartyId", label: "Контрагент" },
@@ -50,6 +59,7 @@ export const invoiceDocumentDefinition = {
         ],
         layout: {
           rows: [
+            { fields: ["docNo"] },
             { fields: ["occurredAt"] },
             {
               columns: {

@@ -973,6 +973,47 @@ describe("document generation workflow", () => {
     expect(result.fileName).toMatch(/^invoice-[0-9A-F]{8}\.docx$/);
   });
 
+  it("generateDealDocument() always passes a qr ImageContent for invoice templates", async () => {
+    const { templateRenderer, workflow } = createWorkflow();
+
+    await workflow.generateDealDocument({
+      templateType: "invoice",
+      deal: { id: "22222222-3333-4444-8555-666666666666" },
+      calculation: {},
+      client: {},
+      contract: {},
+      organization: { id: IDS.organization },
+      organizationRequisite: {},
+    });
+
+    const payload = (templateRenderer.renderDocx.mock.calls as unknown[][])[0]?.[
+      1
+    ] as Record<string, unknown> | undefined;
+    expect(payload).toBeDefined();
+    expect(payload?.qr).toBeDefined();
+    expect((payload?.qr as { _type: string })._type).toBe("image");
+  });
+
+  it("generateDealDocument() does not inject qr for non-invoice templates", async () => {
+    const { templateRenderer, workflow } = createWorkflow();
+
+    await workflow.generateDealDocument({
+      templateType: "application",
+      deal: { id: "22222222-3333-4444-8555-666666666666" },
+      calculation: {},
+      client: {},
+      contract: {},
+      organization: { id: IDS.organization },
+      organizationRequisite: {},
+    });
+
+    const payload = (templateRenderer.renderDocx.mock.calls as unknown[][])[0]?.[
+      1
+    ] as Record<string, unknown> | undefined;
+    expect(payload).toBeDefined();
+    expect(payload?.qr).toBeUndefined();
+  });
+
   it("generateFromRawData() uses the template name and a random suffix", async () => {
     const { workflow } = createWorkflow();
 

@@ -113,7 +113,7 @@ export function createEasyTemplateXAdapter(
       const tags: { name: string }[] =
         await handler.parseTags(templateBuffer);
 
-      const IMAGE_FIELDS = new Set(["signature", "stamp"]);
+      const IMAGE_FIELDS = new Set(["signature", "stamp", "qr"]);
       const names = tags
         .map((tag) => tag.name)
         .filter((name) => !IMAGE_FIELDS.has(name));

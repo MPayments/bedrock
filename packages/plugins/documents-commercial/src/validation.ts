@@ -105,6 +105,7 @@ export const QuoteSnapshotSchema = z.object({
 });
 
 const invoiceBaseInputSchema = baseOccurredAtSchema.extend({
+  docNo: z.string().trim().min(1).max(64).optional(),
   customerId: uuidSchema,
   counterpartyId: uuidSchema,
   organizationId: uuidSchema.optional(),

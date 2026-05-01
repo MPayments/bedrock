@@ -19,6 +19,7 @@ interface DocumentFormFieldBase {
   description?: string;
   placeholder?: string;
   hidden?: boolean;
+  createOnly?: boolean;
   visibleWhen?: DocumentFormVisibilityRule;
   deriveFrom?: {
     kind: "accountCurrency";

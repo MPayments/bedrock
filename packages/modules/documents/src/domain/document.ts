@@ -125,6 +125,7 @@ export interface CreateDocumentProps {
   id: string;
   docType: string;
   docNoPrefix: string;
+  docNoOverride?: string;
   moduleId: string;
   moduleVersion: number;
   payloadVersion: number;
@@ -168,7 +169,7 @@ export class DocumentAggregate extends Entity<string> {
     return new DocumentAggregate({
       id: input.id,
       docType: input.docType,
-      docNo: buildDocNo(input.docNoPrefix, input.id),
+      docNo: input.docNoOverride ?? buildDocNo(input.docNoPrefix, input.id),
       moduleId: input.moduleId,
       moduleVersion: input.moduleVersion,
       payloadVersion: input.payloadVersion,

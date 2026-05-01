@@ -1,4 +1,9 @@
 import {
+  formatFractionDecimal,
+  parseDecimalToFraction,
+} from "@bedrock/shared/money";
+
+import {
   applyLocalizedTemplateField,
   getLocalizedValue,
   withLocalizedTemplateFields,
@@ -12,6 +17,54 @@ import {
 import { resolveDocumentNumber } from "./document-number";
 import type { DocumentLang, PartialOrgFiles } from "./types";
 import { formatDateByLang, prune } from "./types";
+
+function formatIsoDateByLang(
+  value: unknown,
+  lang: DocumentLang,
+): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+  if (!match) return undefined;
+  const [, y, m, d] = match;
+  const date = new Date(Date.UTC(Number(y), Number(m) - 1, Number(d)));
+  const locale = lang === "en" ? "en-US" : "ru-RU";
+  return date.toLocaleDateString(locale, {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+function multiplyDecimalStrings(
+  amount: string | number | undefined | null,
+  rate: string | number | undefined | null,
+  scale = 2,
+): string {
+  if (
+    amount === undefined ||
+    amount === null ||
+    amount === "" ||
+    rate === undefined ||
+    rate === null ||
+    rate === ""
+  ) {
+    return "0";
+  }
+  const amountStr = typeof amount === "number" ? amount.toString() : amount;
+  const rateStr = typeof rate === "number" ? rate.toString() : rate;
+  if (amountStr === "0" || amountStr === "0.00") return "0";
+  try {
+    const a = parseDecimalToFraction(amountStr);
+    const r = parseDecimalToFraction(rateStr);
+    return formatFractionDecimal(a.num * r.num, a.den * r.den, {
+      scale,
+      trimTrailingZeros: false,
+    });
+  } catch {
+    return "0";
+  }
+}
 
 export function assembleAcceptanceData(
   deal: Record<string, unknown>,
@@ -38,6 +91,14 @@ export function assembleAcceptanceData(
   const baseCurrency = (calculation.baseCurrencyCode as string) || "RUB";
   const baseCurrencySymbol = getCurrencySymbol(baseCurrency);
   const totalFeeInBase = calculation.totalFeeAmountInBase as string | number;
+  const originalAmountInBaseDecimal = multiplyDecimalStrings(
+    calculation.originalAmount as string | number | undefined,
+    (calculation.finalRate ?? calculation.rate) as
+      | string
+      | number
+      | undefined,
+  );
+  const totalAmountInBase = calculation.totalInBase as string | number;
   const acceptanceNumber = resolveDocumentNumber(
     deal.acceptanceNumber,
     deal.id,
@@ -56,11 +117,11 @@ export function assembleAcceptanceData(
     acceptanceNumber,
     number: acceptanceNumber,
     contractNumber,
-    contractDate: contract.contractDate,
+    contractDate: formatIsoDateByLang(contract.contractDate, lang),
     dealContractNumber,
-    dealContractDate: deal.contractDate,
+    dealContractDate: formatIsoDateByLang(deal.contractDate, lang),
     dealInvoiceNumber,
-    dealInvoiceDate: deal.invoiceDate,
+    dealInvoiceDate: formatIsoDateByLang(deal.invoiceDate, lang),
     directorName: genitive,
     directorInitials: initials,
     inn: client.inn,
@@ -72,9 +133,8 @@ export function assembleAcceptanceData(
     originalAmount: formatCurrencyAmount(calculation.originalAmount as string | number),
     baseCurrencyCode: baseCurrency,
     baseCurrencySymbol,
-    originalAmountInBase: formatCurrencyAmount(
-      calculation.totalInBase as string | number,
-    ),
+    originalAmountInBase: formatCurrencyAmount(originalAmountInBaseDecimal),
+    totalAmountInBase: formatCurrencyAmount(totalAmountInBase),
     agreementFeePercentage: calculation.agreementFeePercentage,
     agreementFeeAmount: formatCurrencyAmount(
       calculation.agreementFeeAmount as string | number,
