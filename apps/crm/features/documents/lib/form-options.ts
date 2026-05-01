@@ -26,6 +26,15 @@ const CurrencyOptionsResponseSchema = z.object({
   data: z.array(CurrencyOptionItemSchema),
 });
 
+const DealDocumentOptionItemSchema = z.object({
+  id: z.string(),
+  docType: z.string(),
+  docNo: z.string().nullish(),
+  title: z.string().nullish(),
+});
+
+const DealDocumentOptionsResponseSchema = z.array(DealDocumentOptionItemSchema);
+
 const CustomerOptionItemSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -52,8 +61,23 @@ async function fetchJson<T>(
   }
 }
 
-export async function fetchCrmDocumentFormOptions(): Promise<DocumentFormOptions> {
-  const [counterparties, customers, organizations, currencies] =
+function formatDealDocumentOptionLabel(
+  document: z.infer<typeof DealDocumentOptionItemSchema>,
+) {
+  const title = document.title?.trim();
+  const docNo = document.docNo?.trim();
+
+  if (docNo && title) {
+    return `${docNo} · ${title}`;
+  }
+
+  return docNo || title || document.id;
+}
+
+export async function fetchCrmDocumentFormOptions(input?: {
+  dealId?: string;
+}): Promise<DocumentFormOptions> {
+  const [counterparties, customers, organizations, currencies, documents] =
     await Promise.all([
       fetchJson(
         `${API_BASE_URL}/counterparties/options`,
@@ -71,6 +95,12 @@ export async function fetchCrmDocumentFormOptions(): Promise<DocumentFormOptions
         `${API_BASE_URL}/currencies/options`,
         CurrencyOptionsResponseSchema,
       ),
+      input?.dealId
+        ? fetchJson(
+            `${API_BASE_URL}/deals/${encodeURIComponent(input.dealId)}/formal-documents`,
+            DealDocumentOptionsResponseSchema,
+          )
+        : Promise.resolve(null),
     ]);
 
   const empty = createEmptyDocumentFormOptions();
@@ -82,6 +112,12 @@ export async function fetchCrmDocumentFormOptions(): Promise<DocumentFormOptions
         id: customer.id,
         label: customer.name,
       })) ?? empty.customers,
+    documents:
+      documents?.map((document) => ({
+        id: document.id,
+        docType: document.docType,
+        label: formatDealDocumentOptionLabel(document),
+      })) ?? empty.documents,
     organizations: organizations?.data ?? empty.organizations,
     currencies: currencies?.data ?? empty.currencies,
   };

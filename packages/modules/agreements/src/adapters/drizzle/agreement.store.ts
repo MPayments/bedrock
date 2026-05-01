@@ -52,6 +52,7 @@ export class DrizzleAgreementStore implements AgreementStore {
         versionNumber: input.versionNumber,
         contractNumber: input.contractNumber,
         contractDate: input.contractDate,
+        feeBillingMode: input.feeBillingMode,
       })
       .returning();
 

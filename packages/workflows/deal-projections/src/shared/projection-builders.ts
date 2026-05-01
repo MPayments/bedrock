@@ -18,6 +18,8 @@ import {
 import { getDateTimeValue, toDateOrNull } from "./utils";
 import { isDealInTerminalStatus, isQuoteEligible } from "./workflow-helpers";
 
+export { buildDealInvoiceBillingSplit } from "../documents/invoice-billing";
+
 const EXTERNAL_EVIDENCE_REQUIRED_MESSAGE =
   "Загрузите подтверждающие документы по сделке";
 const PAYMENT_INVOICE_REQUIRED_MESSAGE = "Инвойс по сделке не загружен";
@@ -174,12 +176,29 @@ export function buildCrmEvidenceRequirements(input: {
   ];
 }
 
-export function buildCrmDocumentRequirements(workflow: DealWorkflowProjection) {
+type FeeBillingMode =
+  | "included_in_principal_invoice"
+  | "separate_fee_invoice";
+type InvoicePurpose = "combined" | "principal" | "agency_fee";
+
+function resolveOpeningInvoicePurposes(mode: FeeBillingMode | null | undefined) {
+  return mode === "separate_fee_invoice"
+    ? (["principal", "agency_fee"] as InvoicePurpose[])
+    : (["combined"] as InvoicePurpose[]);
+}
+
+export function buildCrmDocumentRequirements(
+  workflow: DealWorkflowProjection,
+  options: {
+    feeBillingMode?: FeeBillingMode | null;
+  } = {},
+) {
   const requirements: {
     activeDocumentId: string | null;
     blockingReasons: string[];
     createAllowed: boolean;
     docType: string;
+    invoicePurpose: InvoicePurpose | null;
     openAllowed: boolean;
     stage: "opening" | "closing";
     state: "in_progress" | "missing" | "not_required" | "ready";
@@ -194,16 +213,31 @@ export function buildCrmDocumentRequirements(workflow: DealWorkflowProjection) {
     type: workflow.summary.type,
   });
 
-  for (const [stage, docType] of [
-    ["opening", openingDocType] as const,
-    ["closing", closingDocType] as const,
-  ]) {
+  const entries: {
+    docType: string | null;
+    invoicePurpose: InvoicePurpose | null;
+    stage: "opening" | "closing";
+  }[] = [
+    ...(openingDocType === "invoice"
+      ? resolveOpeningInvoicePurposes(options.feeBillingMode).map(
+          (invoicePurpose) => ({
+            docType: openingDocType,
+            invoicePurpose,
+            stage: "opening" as const,
+          }),
+        )
+      : [{ docType: openingDocType, invoicePurpose: null, stage: "opening" as const }]),
+    { docType: closingDocType, invoicePurpose: null, stage: "closing" as const },
+  ];
+
+  for (const { docType, invoicePurpose, stage } of entries) {
     if (!docType) {
       continue;
     }
 
     const document = findRelatedFormalDocument({
       docType,
+      invoicePurpose: docType === "invoice" ? invoicePurpose : undefined,
       documents: workflow.relatedResources.formalDocuments,
     });
     const ready = document
@@ -224,6 +258,7 @@ export function buildCrmDocumentRequirements(workflow: DealWorkflowProjection) {
         : ["Формальный документ еще не создан"],
       createAllowed: !document && createAllowed,
       docType,
+      invoicePurpose: docType === "invoice" ? invoicePurpose : null,
       openAllowed: Boolean(document?.id),
       stage,
       state: !document ? "missing" : ready ? "ready" : "in_progress",

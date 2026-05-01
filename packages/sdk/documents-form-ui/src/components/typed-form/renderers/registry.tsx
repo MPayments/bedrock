@@ -12,6 +12,7 @@ import { FxQuotePreviewFieldRenderer } from "./fx-quote-preview-field-renderer";
 import {
   CurrencyFieldRenderer,
   CustomerFieldRenderer,
+  DocumentFieldRenderer,
   EnumFieldRenderer,
   NumberFieldRenderer,
   TextLikeFieldRenderer,
@@ -31,6 +32,7 @@ export const DOCUMENT_TYPED_FORM_RENDERER_KINDS = {
   counterparty: true,
   customer: true,
   currency: true,
+  document: true,
   account: true,
   financialLines: true,
   fxQuotePreview: true,
@@ -67,6 +69,8 @@ export const documentTypedFormFieldRenderers: DocumentTypedFormFieldRendererRegi
       CustomerFieldRenderer as ComponentType<DocumentTypedFormFieldRendererProps>,
     currency:
       CurrencyFieldRenderer as ComponentType<DocumentTypedFormFieldRendererProps>,
+    document:
+      DocumentFieldRenderer as ComponentType<DocumentTypedFormFieldRendererProps>,
     account:
       AccountFieldRenderer as ComponentType<DocumentTypedFormFieldRendererProps>,
     financialLines:

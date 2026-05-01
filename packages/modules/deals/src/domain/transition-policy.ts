@@ -321,6 +321,7 @@ function collectDocumentBlockers(input: {
   codeNotReady: DealTransitionBlocker["code"];
   documents: DealRelatedFormalDocument[];
   docType: string | null;
+  invoicePurpose?: string | null;
   messagePrefix: string;
 }): DealTransitionBlocker[] {
   if (!input.docType) {
@@ -328,9 +329,18 @@ function collectDocumentBlockers(input: {
   }
 
   const blockers: DealTransitionBlocker[] = [];
-  const matchingDocuments = input.documents.filter(
-    (document) => document.docType === input.docType,
-  );
+  const matchingDocuments = input.documents.filter((document) => {
+    const documentInvoicePurpose =
+      document.docType === "invoice"
+        ? (document.invoicePurpose ?? "combined")
+        : (document.invoicePurpose ?? null);
+
+    return (
+      document.docType === input.docType &&
+      (input.invoicePurpose === undefined ||
+        documentInvoicePurpose === input.invoicePurpose)
+    );
+  });
 
   if (matchingDocuments.length === 0) {
     blockers.push({
@@ -338,6 +348,7 @@ function collectDocumentBlockers(input: {
       message: `${input.messagePrefix} document is required: ${input.docType}`,
       meta: {
         docType: input.docType,
+        ...(input.invoicePurpose ? { invoicePurpose: input.invoicePurpose } : {}),
       },
     });
 
@@ -350,6 +361,7 @@ function collectDocumentBlockers(input: {
       message: `${input.messagePrefix} document is not ready: ${input.docType}`,
       meta: {
         docType: input.docType,
+        ...(input.invoicePurpose ? { invoicePurpose: input.invoicePurpose } : {}),
       },
     });
   }
@@ -428,6 +440,7 @@ export function evaluateDealTransitionReadiness(input: {
   intake: TransitionPolicyIntake;
   now: Date;
   operationalState: DealOperationalState;
+  openingInvoicePurposes?: string[];
   participants: DealWorkflowParticipant[];
   status: DealStatus;
   targetStatus: DealStatus;
@@ -490,14 +503,25 @@ export function evaluateDealTransitionReadiness(input: {
   );
 
   if (requiresAwaitingFundsChecks) {
+    const openingDocType = OPENING_DOCUMENT_TYPE_BY_DEAL_TYPE[input.intake.type];
+    const invoicePurposes =
+      openingDocType === "invoice"
+        ? (input.openingInvoicePurposes?.length
+            ? input.openingInvoicePurposes
+            : ["combined"])
+        : [null];
+
     blockers.push(
-      ...collectDocumentBlockers({
-        codeMissing: "opening_document_missing",
-        codeNotReady: "opening_document_not_ready",
-        documents: input.documents,
-        docType: OPENING_DOCUMENT_TYPE_BY_DEAL_TYPE[input.intake.type],
-        messagePrefix: "Opening",
-      }),
+      ...invoicePurposes.flatMap((invoicePurpose) =>
+        collectDocumentBlockers({
+          codeMissing: "opening_document_missing",
+          codeNotReady: "opening_document_not_ready",
+          documents: input.documents,
+          docType: openingDocType,
+          invoicePurpose,
+          messagePrefix: "Opening",
+        }),
+      ),
     );
   }
 
@@ -581,12 +605,14 @@ export function listDealTransitionReadiness(input: {
   intake: TransitionPolicyIntake;
   now: Date;
   operationalState: DealOperationalState;
+  openingInvoicePurposes?: string[];
   participants: DealWorkflowParticipant[];
   status: DealStatus;
 }): DealTransitionReadiness[] {
   return DEAL_STATUS_TRANSITIONS[input.status].map((targetStatus) =>
     evaluateDealTransitionReadiness({
       ...input,
+      openingInvoicePurposes: input.openingInvoicePurposes,
       targetStatus,
     }),
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, type ReactNode } from "react";
+import { Fragment, isValidElement, type ReactNode } from "react";
 
 import { Badge } from "@bedrock/sdk-ui/components/badge";
 import { cn } from "@bedrock/sdk-ui/lib/utils";
@@ -35,7 +35,11 @@ export function EntityPageHeader({
   titleSecondary,
 }: EntityPageHeaderProps) {
   const items = (infoItems ?? []).filter(
-    (item) => item !== null && item !== undefined && item !== "",
+    (item) =>
+      item !== null &&
+      item !== undefined &&
+      item !== "" &&
+      (!isValidElement(item) || item.key !== "id"),
   );
 
   return (

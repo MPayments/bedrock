@@ -250,6 +250,10 @@ const FinanceDealExecutionLegDocumentActionSchema = z.object({
   activeDocumentId: z.string().uuid().nullable(),
   createAllowed: z.boolean(),
   docType: z.string(),
+  invoicePurpose: z
+    .enum(["combined", "principal", "agency_fee"])
+    .nullable()
+    .optional(),
   openAllowed: z.boolean(),
 });
 
@@ -265,6 +269,10 @@ const FinanceDealFormalDocumentRequirementSchema = z.object({
   blockingReasons: z.array(z.string()),
   createAllowed: z.boolean(),
   docType: z.string(),
+  invoicePurpose: z
+    .enum(["combined", "principal", "agency_fee"])
+    .nullable()
+    .optional(),
   openAllowed: z.boolean(),
   stage: z.enum(["opening", "closing"]),
   state: z.enum(["in_progress", "missing", "not_required", "ready"]),
@@ -313,6 +321,28 @@ const FinanceDealRouteAttachmentSchema = z.object({
 });
 
 const FinanceDealPricingContextSchema = z.object({
+  billingSplit: z
+    .object({
+      agencyFee: z
+        .object({
+          amountMinor: z.string(),
+          currency: z.string(),
+          invoicePurpose: z.literal("agency_fee"),
+        })
+        .nullable(),
+      billingSetRef: z.string().nullable(),
+      blockedReason: z.string().nullable(),
+      mode: z.enum(["included_in_principal_invoice", "separate_fee_invoice"]),
+      principal: z
+        .object({
+          amountMinor: z.string(),
+          currency: z.string(),
+          invoicePurpose: z.enum(["combined", "principal"]),
+        })
+        .nullable(),
+    })
+    .nullable()
+    .optional(),
   fundingMessage: z.string().nullable(),
   fundingResolution: z.object({
     availableMinor: z.string().nullable(),
@@ -350,6 +380,10 @@ const FinanceDealFormalDocumentSchema = z.object({
   createdAt: z.iso.datetime().nullable(),
   docType: z.string(),
   id: z.string().uuid(),
+  invoicePurpose: z
+    .enum(["combined", "principal", "agency_fee"])
+    .nullable()
+    .optional(),
   lifecycleStatus: z.string().nullable(),
   occurredAt: z.iso.datetime().nullable(),
   postingStatus: z.string().nullable(),

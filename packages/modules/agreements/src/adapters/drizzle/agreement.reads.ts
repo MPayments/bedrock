@@ -50,6 +50,7 @@ const agreementSummarySelect = {
   currentVersionNumber: agreementVersions.versionNumber,
   currentVersionContractNumber: agreementVersions.contractNumber,
   currentVersionContractDate: agreementVersions.contractDate,
+  currentVersionFeeBillingMode: agreementVersions.feeBillingMode,
   currentVersionCreatedAt: agreementVersions.createdAt,
   currentVersionUpdatedAt: agreementVersions.updatedAt,
 };
@@ -66,6 +67,9 @@ interface AgreementSummaryRow {
   currentVersionNumber: number;
   currentVersionContractNumber: string | null;
   currentVersionContractDate: Date | null;
+  currentVersionFeeBillingMode:
+    | "included_in_principal_invoice"
+    | "separate_fee_invoice";
   currentVersionCreatedAt: Date;
   currentVersionUpdatedAt: Date;
 }
@@ -78,6 +82,7 @@ function mapAgreementVersionSummary(
     versionNumber: Number(row.currentVersionNumber),
     contractNumber: row.currentVersionContractNumber,
     contractDate: row.currentVersionContractDate,
+    feeBillingMode: row.currentVersionFeeBillingMode,
     createdAt: row.currentVersionCreatedAt,
     updatedAt: row.currentVersionUpdatedAt,
   };

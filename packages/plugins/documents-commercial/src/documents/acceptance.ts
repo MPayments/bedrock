@@ -16,8 +16,10 @@ import {
 import {
   getInvoiceAcceptanceChild,
   getInvoiceExchangeChild,
+  getInvoicePurpose,
   invoiceRequiresExchange,
   loadInvoice,
+  parseInvoicePayload,
   requirePostedDocument,
 } from "./internal/helpers";
 import type { CommercialModuleDeps } from "./internal/types";
@@ -45,6 +47,11 @@ export function createAcceptanceDocumentModule(
         true,
       );
       requirePostedDocument(invoice);
+      if (getInvoicePurpose(parseInvoicePayload(invoice)) === "agency_fee") {
+        throw new DocumentValidationError(
+          "acceptance must reference the principal invoice, not the agency fee invoice",
+        );
+      }
       if (await getInvoiceAcceptanceChild(deps, context.runtime, invoice.id)) {
         throw new DocumentValidationError(
           "acceptance already exists for this invoice",
@@ -107,6 +114,11 @@ export function createAcceptanceDocumentModule(
         true,
       );
       requirePostedDocument(invoice);
+      if (getInvoicePurpose(parseInvoicePayload(invoice)) === "agency_fee") {
+        throw new DocumentValidationError(
+          "acceptance must reference the principal invoice, not the agency fee invoice",
+        );
+      }
       if (await getInvoiceAcceptanceChild(deps, context.runtime, invoice.id)) {
         throw new DocumentValidationError(
           "acceptance already exists for this invoice",

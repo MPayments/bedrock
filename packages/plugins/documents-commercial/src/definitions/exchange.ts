@@ -38,10 +38,11 @@ export const exchangeDocumentDefinition = {
         fields: [
           { kind: "datetime", name: "occurredAt", label: "Дата документа" },
           {
-            kind: "text",
+            kind: "document",
             name: "invoiceDocumentId",
             label: "Счёт на оплату",
-            placeholder: "UUID инвойса",
+            disabled: true,
+            docTypes: ["invoice"],
           },
           {
             kind: "text",

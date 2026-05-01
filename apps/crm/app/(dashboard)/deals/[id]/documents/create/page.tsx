@@ -30,6 +30,7 @@ export default function DealDocumentCreatePage() {
   const searchParams = useSearchParams();
   const dealId = params?.id ?? "";
   const docType = searchParams.get("docType") ?? "";
+  const invoicePurpose = searchParams.get("invoicePurpose");
 
   const [workbench, setWorkbench] =
     useState<ApiCrmDealWorkbenchProjection | null>(null);
@@ -56,7 +57,14 @@ export default function DealDocumentCreatePage() {
               ]
             : []),
           {
-            href: buildCrmDealDocumentCreateHref(dealId, docType),
+            href: buildCrmDealDocumentCreateHref(dealId, docType, {
+              invoicePurpose:
+                invoicePurpose === "combined" ||
+                invoicePurpose === "principal" ||
+                invoicePurpose === "agency_fee"
+                  ? invoicePurpose
+                  : null,
+            }),
             label: `Создание ${getCrmDocumentTypeLabel(docType).toLowerCase()}`,
           },
         ]
@@ -76,7 +84,7 @@ export default function DealDocumentCreatePage() {
             cache: "no-store",
             credentials: "include",
           }).then((r) => (r.ok ? r.json() : null)),
-          fetchCrmDocumentFormOptions(),
+          fetchCrmDocumentFormOptions({ dealId }),
         ]);
         if (cancelled) return;
         if (!workbenchResponse) {
@@ -103,8 +111,15 @@ export default function DealDocumentCreatePage() {
 
   const initialPayload = useMemo(() => {
     if (!workbench || !formOptions) return undefined;
-    return buildCrmDealDocumentInitialPayload(workbench, docType, formOptions);
-  }, [docType, formOptions, workbench]);
+    return buildCrmDealDocumentInitialPayload(workbench, docType, formOptions, {
+      invoicePurpose:
+        invoicePurpose === "combined" ||
+        invoicePurpose === "principal" ||
+        invoicePurpose === "agency_fee"
+          ? invoicePurpose
+          : null,
+    });
+  }, [docType, formOptions, invoicePurpose, workbench]);
 
   if (loading) {
     return (

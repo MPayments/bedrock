@@ -80,6 +80,12 @@ const quoteLegSnapshotSchema = z.object({
   executionCounterpartyId: uuidSchema.nullable(),
 });
 
+export const InvoicePurposeSchema = z.enum([
+  "combined",
+  "principal",
+  "agency_fee",
+]);
+
 export const QuoteSnapshotSchema = z.object({
   quoteId: uuidSchema,
   quoteRef: z.string().trim().min(1).max(255),
@@ -104,6 +110,9 @@ const invoiceBaseInputSchema = baseOccurredAtSchema.extend({
   organizationId: uuidSchema.optional(),
   organizationRequisiteId: uuidSchema,
   memo: memoSchema,
+  invoicePurpose: InvoicePurposeSchema.optional().default("combined"),
+  billingSetRef: z.string().trim().min(1).max(255).optional(),
+  quoteComponentIds: z.array(z.string().trim().min(1).max(255)).optional(),
 });
 
 const invoiceInputBaseSchema = invoiceBaseInputSchema.extend({
@@ -137,6 +146,9 @@ const invoiceBasePayloadSchema = baseOccurredAtSchema.extend({
   organizationId: uuidSchema.optional(),
   organizationRequisiteId: uuidSchema,
   memo: memoSchema,
+  invoicePurpose: InvoicePurposeSchema.default("combined"),
+  billingSetRef: z.string().trim().min(1).max(255).optional(),
+  quoteComponentIds: z.array(z.string().trim().min(1).max(255)).default([]),
 });
 
 export const InvoiceCurrentPayloadSchema = invoiceBasePayloadSchema.extend({
@@ -175,6 +187,7 @@ export const AcceptancePayloadSchema = baseOccurredAtSchema.extend({
 });
 
 export type FinancialLinePayload = z.infer<typeof financialLinePayloadSchema>;
+export type InvoicePurpose = z.infer<typeof InvoicePurposeSchema>;
 export type QuoteSnapshot = z.infer<typeof QuoteSnapshotSchema>;
 export type InvoiceInput = z.infer<typeof InvoiceInputSchema>;
 export type InvoiceCurrentPayload = z.infer<typeof InvoiceCurrentPayloadSchema>;

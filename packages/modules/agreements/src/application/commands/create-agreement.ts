@@ -106,6 +106,7 @@ export class CreateAgreementCommand {
           organizationRequisiteId: validated.organizationRequisiteId,
           contractNumber: validated.contractNumber,
           contractDate: validated.contractDate?.toISOString() ?? null,
+          feeBillingMode: validated.feeBillingMode,
           feeRules: validated.feeRules,
         },
         actorId: validated.actorUserId,
@@ -137,6 +138,7 @@ export class CreateAgreementCommand {
             versionNumber: 1,
             contractNumber: validated.contractNumber,
             contractDate: validated.contractDate ?? null,
+            feeBillingMode: validated.feeBillingMode,
           });
 
           await tx.agreementStore.createAgreementParties([

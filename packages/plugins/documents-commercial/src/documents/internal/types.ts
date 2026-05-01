@@ -38,7 +38,8 @@ export interface CommercialQuoteUsagePort {
   markQuoteUsedForInvoice(input: {
     runtime: CommercialDocumentRuntime;
     quoteId: string;
-    invoiceDocumentId: string;
+    usedByRef: string;
+    usedDocumentId: string | null;
     at: Date;
   }): Promise<void>;
 }

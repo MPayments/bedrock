@@ -54,7 +54,7 @@ export default async function TreasuryOverviewPage() {
           description:
             staleSources > 0
               ? `Просроченных источников: ${formatCount(staleSources)}`
-              : "Все treasury FX-источники актуальны в пределах TTL.",
+              : "Все казначейские FX-источники актуальны в пределах TTL.",
           href: "/treasury/rates",
         },
         {

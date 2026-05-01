@@ -33,6 +33,9 @@ export function getDefaultInvoiceValues() {
     counterpartyId: "",
     organizationId: "",
     organizationRequisiteId: "",
+    invoicePurpose: "combined",
+    billingSetRef: "",
+    quoteComponentIds: [],
     amount: "",
     currency: "",
     memo: "",
@@ -40,12 +43,22 @@ export function getDefaultInvoiceValues() {
 }
 
 export function createInvoicePayload(values: Record<string, unknown>) {
+  const quoteComponentIds = Array.isArray(values.quoteComponentIds)
+    ? values.quoteComponentIds.filter(
+        (value): value is string =>
+          typeof value === "string" && value.trim().length > 0,
+      )
+    : undefined;
+
   return parseSchema(InvoiceInputSchema, {
     occurredAt: toOccurredAtIso(values.occurredAt),
     customerId: readString(values.customerId).trim(),
     counterpartyId: readString(values.counterpartyId).trim(),
     organizationId: optionalString(values.organizationId),
     organizationRequisiteId: readString(values.organizationRequisiteId).trim(),
+    invoicePurpose: readString(values.invoicePurpose).trim() || "combined",
+    billingSetRef: optionalString(values.billingSetRef),
+    quoteComponentIds,
     amount: normalizeCommercialMajorAmountInput(values.amount, values.currency),
     currency: readString(values.currency).trim(),
     memo: optionalString(values.memo),

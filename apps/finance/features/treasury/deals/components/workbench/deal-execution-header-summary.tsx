@@ -194,6 +194,18 @@ function getDocTypeLabel(docType: string): string {
   return FORMAL_DOCUMENT_LABELS[docType] ?? docType;
 }
 
+function getRequirementLabel(requirement: FormalDocRequirement): string {
+  if (requirement.docType === "invoice") {
+    if (requirement.invoicePurpose === "agency_fee") {
+      return "Счет на агентское вознаграждение";
+    }
+
+    return "Счёт на оплату";
+  }
+
+  return getDocTypeLabel(requirement.docType);
+}
+
 function findNextMissingRequirement(
   requirements: readonly FormalDocRequirement[],
 ): FormalDocRequirement | null {
@@ -238,7 +250,7 @@ function renderDocumentsTile(deal: FinanceDealWorkbench) {
 
   const nextMissing = findNextMissingRequirement(requirements);
   const sublabel = nextMissing
-    ? `Не хватает: ${getDocTypeLabel(nextMissing.docType)}`
+    ? `Не хватает: ${getRequirementLabel(nextMissing)}`
     : "Документы в работе";
 
   return (

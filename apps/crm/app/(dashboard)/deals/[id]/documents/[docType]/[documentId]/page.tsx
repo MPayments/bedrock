@@ -170,7 +170,7 @@ export default function DealDocumentDetailPage() {
     setLoading(true);
     const [result, options, workbenchPayload] = await Promise.all([
       fetchCrmDocumentById({ docType, documentId }),
-      fetchCrmDocumentFormOptions(),
+      fetchCrmDocumentFormOptions({ dealId }),
       fetch(`${API_BASE_URL}/deals/${dealId}/crm-workbench`, {
         cache: "no-store",
         credentials: "include",

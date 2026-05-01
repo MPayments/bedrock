@@ -39,7 +39,9 @@ function getOpeningInvoiceDocumentId(
   return (
     deal.formalDocumentRequirements.find(
       (requirement) =>
-        requirement.stage === "opening" && requirement.docType === "invoice",
+        requirement.stage === "opening" &&
+        requirement.docType === "invoice" &&
+        requirement.invoicePurpose !== "agency_fee",
     )?.activeDocumentId ?? null
   );
 }
@@ -135,11 +137,13 @@ export function buildDealScopedDocumentInitialPayload(input: {
     FinanceDealWorkbench,
     | "calculationHistory"
     | "formalDocumentRequirements"
+    | "pricing"
     | "relatedResources"
     | "summary"
     | "workflow"
   >;
   docType: string;
+  invoicePurpose?: "combined" | "principal" | "agency_fee" | null;
   organizationRequisites?: Pick<SerializedRequisite, "currencyId" | "id" | "isDefault">[];
   reconciliationExceptionId?: string | null;
 }): Record<string, unknown> | undefined {
@@ -156,11 +160,18 @@ export function buildDealScopedDocumentInitialPayload(input: {
         getWorkflowParticipant(input.deal, "internal_entity")?.organizationId ??
         null;
       const calculation = getSelectedCalculation(input.deal);
+      const splitAmount =
+        input.invoicePurpose === "agency_fee"
+          ? input.deal.pricing.billingSplit?.agencyFee
+          : input.invoicePurpose === "principal"
+            ? input.deal.pricing.billingSplit?.principal
+            : input.deal.pricing.billingSplit?.principal;
       const currency =
-        getCalculationCurrencyCode(input.deal, input.options);
+        splitAmount?.currency ?? getCalculationCurrencyCode(input.deal, input.options);
+      const amountMinor = splitAmount?.amountMinor ?? calculation?.totalAmountMinor ?? null;
       const amount =
-        calculation && currency
-          ? minorToAmountString(calculation.totalAmountMinor, {
+        amountMinor && currency
+          ? minorToAmountString(amountMinor, {
               currency,
             })
           : null;
@@ -175,6 +186,8 @@ export function buildDealScopedDocumentInitialPayload(input: {
         counterpartyId,
         currency,
         customerId,
+        invoicePurpose: input.invoicePurpose ?? null,
+        billingSetRef: input.deal.pricing.billingSplit?.billingSetRef ?? null,
         organizationId,
         organizationRequisiteId,
       });

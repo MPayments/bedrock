@@ -18,7 +18,6 @@ import type {
 import { QuoteExecutionCard } from "@/features/treasury/quote-executions/components/quote-execution-card";
 import { StepCard } from "@/features/treasury/steps/components/step-card";
 import type { PartyKindOrSnapshot } from "@/features/treasury/steps/lib/party-options";
-import { getStepKindLabel } from "@/features/treasury/steps/lib/step-helpers";
 import { executeMutation } from "@/lib/resources/http";
 
 import { DealAttachmentsCard } from "./deal-attachments-card";
@@ -33,6 +32,21 @@ import { DealExecutionHeaderSummary } from "./workbench/deal-execution-header-su
 import { useWorkbenchActions } from "./workbench/use-workbench-actions";
 import { refreshPage } from "./workbench/utils";
 import { FinanceDealWorkspaceLayout } from "./workspace-layout";
+
+type ExecutionPlanLeg = FinanceDealWorkbench["executionPlan"][number];
+
+function getExecutionLegDisplayLabel(leg: ExecutionPlanLeg): string {
+  if (
+    leg.kind === "payout" &&
+    leg.fromCurrencyId !== null &&
+    leg.toCurrencyId !== null &&
+    leg.fromCurrencyId !== leg.toCurrencyId
+  ) {
+    return "Выплата с конвертацией";
+  }
+
+  return getDealLegKindLabel(leg.kind);
+}
 
 function expectedPostingDocTypes(
   kind: FinanceDealPaymentStep["kind"],
@@ -267,16 +281,17 @@ export function FinanceDealWorkbench({ deal }: FinanceDealWorkbenchProps) {
                 <QuoteExecutionCard
                   disabled={!canWrite}
                   execution={selectedQuoteExecution}
-                  title={`Шаг ${selectedLeg.idx} · ${getDealLegKindLabel(
-                    selectedLeg.kind,
+                  title={`Шаг ${selectedLeg.idx} · ${getExecutionLegDisplayLabel(
+                    selectedLeg,
                   )}`}
                   onChanged={handleQuoteExecutionChanged}
                 />
               ) : selectedStep && selectedLeg ? (
                 <StepCard
                   step={selectedStep}
-                  title={`Шаг ${selectedLeg.idx} · ${getStepKindLabel(
-                    selectedStep,
+                  kindLabel={getExecutionLegDisplayLabel(selectedLeg)}
+                  title={`Шаг ${selectedLeg.idx} · ${getExecutionLegDisplayLabel(
+                    selectedLeg,
                   )}`}
                   uploadAssetPath={`/v1/treasury/steps/${encodeURIComponent(
                     selectedStep.id,

@@ -85,6 +85,10 @@ export const agreementVersions = pgTable(
     versionNumber: integer("version_number").notNull(),
     contractNumber: text("contract_number"),
     contractDate: date("contract_date", { mode: "date" }),
+    feeBillingMode: text("fee_billing_mode")
+      .$type<"included_in_principal_invoice" | "separate_fee_invoice">()
+      .notNull()
+      .default("included_in_principal_invoice"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .default(sql`now()`),
@@ -99,6 +103,10 @@ export const agreementVersions = pgTable(
       table.versionNumber,
     ),
     index("agreement_versions_agreement_idx").on(table.agreementId),
+    check(
+      "agreement_versions_fee_billing_mode_chk",
+      sql`${table.feeBillingMode} in ('included_in_principal_invoice', 'separate_fee_invoice')`,
+    ),
   ],
 );
 

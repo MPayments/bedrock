@@ -228,6 +228,65 @@ export function CurrencyFieldRenderer({
   );
 }
 
+export function DocumentFieldRenderer({
+  className,
+  field,
+}: DocumentTypedFormFieldRendererProps<"document">) {
+  const {
+    meta: {
+      selectOptions: { documents },
+    },
+  } = useDocumentTypedForm();
+  const { control } = useFormContext<DocumentFormValues>();
+  const { disabled, submitting } = useDocumentTypedFormDisabledState();
+  const errorMessage = useDocumentTypedFormFieldError(field.name);
+  const options = field.docTypes?.length
+    ? documents.filter((option) => field.docTypes?.includes(option.docType))
+    : documents;
+
+  return (
+    <DocumentTypedFormFieldShell
+      className={className}
+      description={field.description}
+      errorMessage={errorMessage}
+      field={field}
+    >
+      <Controller
+        control={control}
+        name={field.name}
+        render={({ field: controlledField }) => {
+          const selectedValue = readValueAsString(controlledField.value).trim();
+          const selectedLabel =
+            findSelectedLabel(controlledField.value, options) ||
+            selectedValue ||
+            undefined;
+
+          return (
+            <Select
+              value={selectedValue}
+              disabled={field.disabled || disabled || submitting}
+              onValueChange={(value) => controlledField.onChange(value)}
+            >
+              <SelectTrigger id={getDocumentFormFieldId(field.name)}>
+                <SelectValue placeholder="Выберите документ">
+                  {selectedLabel}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {options.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          );
+        }}
+      />
+    </DocumentTypedFormFieldShell>
+  );
+}
+
 export function CustomerFieldRenderer({
   className,
   field,

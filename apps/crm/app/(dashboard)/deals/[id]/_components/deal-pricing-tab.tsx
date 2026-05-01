@@ -230,6 +230,7 @@ function cloneCommercialDraft(context: ApiDealPricingContext) {
     },
     fixedFeeAmount: context.commercialDraft.fixedFeeAmount ?? null,
     fixedFeeCurrency: context.commercialDraft.fixedFeeCurrency ?? null,
+    feeBillingMode: context.commercialDraft.feeBillingMode ?? null,
     quoteMarkupBps: context.commercialDraft.quoteMarkupBps ?? null,
   };
 }
@@ -1194,11 +1195,12 @@ export function DealPricingTab({
               const isProfitNegative = profitValue < 0n;
               const routeBench =
                 previewOrAcceptedSnapshot.benchmarks?.routeBase ?? null;
+              const costBench =
+                previewOrAcceptedSnapshot.benchmarks?.cost ?? null;
               const marketBench =
                 previewOrAcceptedSnapshot.benchmarks?.market ?? null;
               const clientBench =
                 previewOrAcceptedSnapshot.benchmarks?.client ?? null;
-              const referenceBench = routeBench ?? marketBench;
               const selectedInventoryId =
                 commercialDraft.executionSource.type === "treasury_inventory"
                   ? commercialDraft.executionSource.inventoryPositionId
@@ -1309,6 +1311,15 @@ export function DealPricingTab({
                     }
                   />
                   {(() => {
+                    const markupVsCost =
+                      clientBench && costBench
+                        ? formatSignedPercentVsRate(
+                            clientBench.rateNum,
+                            clientBench.rateDen,
+                            costBench.rateNum,
+                            costBench.rateDen,
+                          )
+                        : null;
                     const markupVsMarket =
                       clientBench && marketBench
                         ? formatSignedPercentVsRate(
@@ -1318,16 +1329,21 @@ export function DealPricingTab({
                             marketBench.rateDen,
                           )
                         : null;
-                    const baseLabel = referenceBench
-                      ? `База ${rationalToDecimalString(referenceBench.rateDen, referenceBench.rateNum, 4)}`
+                    const costLabel = costBench
+                      ? `Себестоимость ${rationalToDecimalString(costBench.rateDen, costBench.rateNum, 4)}`
                       : null;
-                    const markupLabel = markupVsMarket
+                    const markupLabel = markupVsCost
+                      ? markupVsCost === "0.00%"
+                        ? "по себестоимости"
+                        : `${markupVsCost} к себестоимости`
+                      : null;
+                    const marketLabel = markupVsMarket
                       ? `${markupVsMarket} к рынку`
                       : null;
                     const sublabel =
-                      baseLabel && markupLabel
-                        ? `${baseLabel} · ${markupLabel}`
-                        : (baseLabel ?? markupLabel ?? undefined);
+                      costLabel && markupLabel
+                        ? `${costLabel} · ${markupLabel}`
+                        : (costLabel ?? markupLabel ?? marketLabel ?? undefined);
                     return (
                       <PricingMetricTile
                         label="Курс клиенту"

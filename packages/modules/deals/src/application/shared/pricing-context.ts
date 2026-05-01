@@ -22,6 +22,7 @@ function createDefaultDealPricingContext(): DealPricingContext {
       executionSource: { type: "route_execution" },
       fixedFeeAmount: null,
       fixedFeeCurrency: null,
+      feeBillingMode: null,
       quoteMarkupBps: null,
     },
     fundingAdjustments: [],
@@ -237,6 +238,10 @@ export function applyDealPricingContextPatch(input: {
         draftPatch.fixedFeeCurrency === undefined
           ? next.commercialDraft.fixedFeeCurrency
           : draftPatch.fixedFeeCurrency,
+      feeBillingMode:
+        draftPatch.feeBillingMode === undefined
+          ? next.commercialDraft.feeBillingMode
+          : draftPatch.feeBillingMode,
       clientPricing:
         draftPatch.clientPricing === undefined
           ? next.commercialDraft.clientPricing

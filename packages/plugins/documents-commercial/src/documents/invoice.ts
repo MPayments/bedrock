@@ -17,10 +17,13 @@ import {
   buildDealLinkedInvoicePostingPlan,
   buildDirectInvoicePostingPlan,
   buildInventoryFundedInvoicePostingPlan,
+  calculateDealLinkedInvoiceExpectedAmount,
   getInvoiceAcceptanceChild,
   getInvoiceExchangeChild,
   getInvoiceAmountMinor,
   getInvoiceCurrency,
+  getInvoicePurpose,
+  getInvoiceTitleByPurpose,
   parseInvoicePayload,
   resolveInvoiceDealFxContext,
   resolveOrganizationBinding,
@@ -34,33 +37,27 @@ function assertDealLinkedInvoiceMatchesCalculation(input: {
   payload: {
     amountMinor: string;
     currency: string;
+    invoicePurpose?: "combined" | "principal" | "agency_fee";
   };
 }) {
   if (!input.dealFxContext.hasConvertLeg) {
     return;
   }
 
-  if (!input.dealFxContext.calculationCurrency) {
+  const expected = calculateDealLinkedInvoiceExpectedAmount({
+    dealFxContext: input.dealFxContext,
+    purpose: input.payload.invoicePurpose ?? "combined",
+  });
+
+  if (input.payload.currency !== expected.currency) {
     throw new DocumentValidationError(
-      "linked FX deal does not have a resolved calculation currency",
+      `Currency mismatch: invoice=${input.payload.currency}, expected=${expected.currency}`,
     );
   }
 
-  if (!input.dealFxContext.totalAmountMinor) {
+  if (input.payload.amountMinor !== expected.amountMinor.toString()) {
     throw new DocumentValidationError(
-      "linked FX deal does not have a resolved invoice total amount",
-    );
-  }
-
-  if (input.payload.currency !== input.dealFxContext.calculationCurrency) {
-    throw new DocumentValidationError(
-      `Currency mismatch: invoice=${input.payload.currency}, expected=${input.dealFxContext.calculationCurrency}`,
-    );
-  }
-
-  if (input.payload.amountMinor !== input.dealFxContext.totalAmountMinor) {
-    throw new DocumentValidationError(
-      `Amount mismatch: invoice=${input.payload.amountMinor}, expected=${input.dealFxContext.totalAmountMinor}`,
+      `Amount mismatch: invoice=${input.payload.amountMinor}, expected=${expected.amountMinor.toString()}`,
     );
   }
 }
@@ -92,6 +89,9 @@ export function createInvoiceDocumentModule(
         counterpartyId: input.counterpartyId,
         currency: input.currency,
         customerId: input.customerId,
+        invoicePurpose: input.invoicePurpose,
+        billingSetRef: input.billingSetRef,
+        quoteComponentIds: input.quoteComponentIds ?? [],
         memo: input.memo,
         organizationId: input.organizationId,
         organizationRequisiteId: input.organizationRequisiteId,
@@ -118,7 +118,7 @@ export function createInvoiceDocumentModule(
       const payload = parseInvoicePayload(document);
 
       return {
-        title: "Счёт на оплату",
+        title: getInvoiceTitleByPurpose(payload),
         amountMinor: BigInt(getInvoiceAmountMinor(payload)),
         currency: getInvoiceCurrency(payload),
         memo: payload.memo ?? null,
@@ -193,6 +193,10 @@ export function createInvoiceDocumentModule(
           dealFxContext,
           payload,
         });
+      } else if (getInvoicePurpose(payload) !== "combined") {
+        throw new DocumentValidationError(
+          "split invoice purpose requires an invoice linked to an FX deal",
+        );
       }
 
       const expectedCurrency =
@@ -263,6 +267,12 @@ export function createInvoiceDocumentModule(
           payload,
           bookId: binding.bookId,
         });
+      }
+
+      if (getInvoicePurpose(payload) !== "combined") {
+        throw new DocumentValidationError(
+          "split invoice purpose requires an invoice linked to an FX deal",
+        );
       }
 
       return buildDirectInvoicePostingPlan({

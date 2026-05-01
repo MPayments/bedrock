@@ -240,6 +240,7 @@ export function createDrizzleDocumentsReadModel(input: {
           dealId: schema.documentBusinessLinks.dealId,
           documentId: schema.documents.id,
           docType: schema.documents.docType,
+          invoicePurpose: sql<string | null>`case when ${schema.documents.docType} = 'invoice' then coalesce(${schema.documents.payload}->>'invoicePurpose', 'combined') else null end`,
           lifecycleStatus: schema.documents.lifecycleStatus,
           occurredAt: schema.documents.occurredAt,
           operationId: schema.documentOperations.operationId,
@@ -264,6 +265,7 @@ export function createDrizzleDocumentsReadModel(input: {
           dealId: string | null;
           documentId: string;
           docType: string;
+          invoicePurpose: string | null;
           lifecycleStatus: string;
           occurredAt: Date;
           ledgerOperationIds: string[];
@@ -278,6 +280,7 @@ export function createDrizzleDocumentsReadModel(input: {
           dealId: row.dealId,
           documentId: row.documentId,
           docType: row.docType,
+          invoicePurpose: row.invoicePurpose,
           lifecycleStatus: row.lifecycleStatus,
           occurredAt: row.occurredAt,
           ledgerOperationIds: [],

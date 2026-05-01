@@ -3,6 +3,7 @@ import {
   type QuoteExecutionsServiceDeps,
 } from "./context";
 import {
+  AmendQuoteExecutionInputSchema,
   AttachQuoteExecutionPostingInputSchema,
   CancelQuoteExecutionInputSchema,
   ConfirmQuoteExecutionInputSchema,
@@ -12,6 +13,7 @@ import {
   ListQuoteExecutionsQuerySchema,
   QuoteExecutionListResponseSchema,
   SubmitQuoteExecutionInputSchema,
+  type AmendQuoteExecutionInput,
   type AttachQuoteExecutionPostingInput,
   type CancelQuoteExecutionInput,
   type ConfirmQuoteExecutionInput,
@@ -134,6 +136,23 @@ export function createQuoteExecutionsService(
     return QuoteExecutionSchema.parse(updated);
   }
 
+  async function amend(raw: AmendQuoteExecutionInput) {
+    const input = AmendQuoteExecutionInputSchema.parse(raw);
+    const current = await context.repository.findById(input.executionId);
+    if (!current) {
+      throw new QuoteExecutionNotFoundError(input.executionId);
+    }
+    const next = QuoteExecution.fromSnapshot(current).amendExecutionParties({
+      executionParties: input.executionParties,
+      updatedAt: context.runtime.now(),
+    });
+    const updated = await context.repository.update(next.toSnapshot());
+    if (!updated) {
+      throw new QuoteExecutionNotFoundError(input.executionId);
+    }
+    return QuoteExecutionSchema.parse(updated);
+  }
+
   async function confirm(raw: ConfirmQuoteExecutionInput) {
     const input = ConfirmQuoteExecutionInputSchema.parse(raw);
     const current = await context.repository.findById(input.executionId);
@@ -223,7 +242,7 @@ export function createQuoteExecutionsService(
   }
 
   return {
-    commands: { attachPosting, cancel, confirm, create, expire, submit },
+    commands: { amend, attachPosting, cancel, confirm, create, expire, submit },
     queries: { findById, list },
   };
 }

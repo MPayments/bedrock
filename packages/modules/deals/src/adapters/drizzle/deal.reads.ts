@@ -8,6 +8,7 @@ import {
   type SQL,
 } from "drizzle-orm";
 
+import { agreements, agreementVersions } from "@bedrock/agreements/schema";
 import {
   calculationLines,
   calculationSnapshots,
@@ -308,6 +309,10 @@ function buildPortalCalculationSummary(
 }
 
 interface DealSummaryRow {
+  agreementFeeBillingMode:
+    | "included_in_principal_invoice"
+    | "separate_fee_invoice"
+    | null;
   agreementId: string;
   agentId: string | null;
   calculationId: string | null;
@@ -349,11 +354,20 @@ interface DealPricingContextRow {
   snapshot: unknown;
 }
 
+function normalizeInvoicePurpose(
+  value: string | null | undefined,
+): "combined" | "principal" | "agency_fee" | null {
+  return value === "combined" || value === "principal" || value === "agency_fee"
+    ? value
+    : null;
+}
+
 export interface DealTraceDocumentRow {
   approvalStatus: string;
   dealId: string | null;
   documentId: string;
   docType: string;
+  invoicePurpose: string | null;
   ledgerOperationIds: string[];
   lifecycleStatus: string;
   occurredAt: Date;
@@ -380,6 +394,7 @@ export class DrizzleDealReads implements DealReads {
   private async loadSummaryRow(id: string): Promise<DealSummaryRow | null> {
     const [row] = await this.db
       .select({
+        agreementFeeBillingMode: agreementVersions.feeBillingMode,
         agreementId: deals.agreementId,
         agentId: deals.agentId,
         calculationId: deals.calculationId,
@@ -399,6 +414,11 @@ export class DrizzleDealReads implements DealReads {
       })
       .from(deals)
       .innerJoin(dealIntakeSnapshots, eq(deals.id, dealIntakeSnapshots.dealId))
+      .innerJoin(agreements, eq(deals.agreementId, agreements.id))
+      .leftJoin(
+        agreementVersions,
+        eq(agreements.currentVersionId, agreementVersions.id),
+      )
       .where(eq(deals.id, id))
       .limit(1);
 
@@ -414,6 +434,7 @@ export class DrizzleDealReads implements DealReads {
 
     const rows = await this.db
       .select({
+        agreementFeeBillingMode: agreementVersions.feeBillingMode,
         agreementId: deals.agreementId,
         agentId: deals.agentId,
         calculationId: deals.calculationId,
@@ -433,6 +454,11 @@ export class DrizzleDealReads implements DealReads {
       })
       .from(deals)
       .innerJoin(dealIntakeSnapshots, eq(deals.id, dealIntakeSnapshots.dealId))
+      .innerJoin(agreements, eq(deals.agreementId, agreements.id))
+      .leftJoin(
+        agreementVersions,
+        eq(agreements.currentVersionId, agreementVersions.id),
+      )
       .where(inArray(deals.id, uniqueIds));
 
     const rowById = new Map(rows.map((row) => [row.id, row] as const));
@@ -677,6 +703,7 @@ export class DrizzleDealReads implements DealReads {
       createdAt: row.occurredAt,
       docType: row.docType,
       id: row.documentId,
+      invoicePurpose: normalizeInvoicePurpose(row.invoicePurpose),
       lifecycleStatus: row.lifecycleStatus,
       occurredAt: row.occurredAt,
       postingStatus: row.postingStatus,
@@ -846,12 +873,21 @@ export class DrizzleDealReads implements DealReads {
       intake: summary.snapshot,
       participants,
     });
-    const routeSnapshot = pricingContextRow
+    const pricingContext = pricingContextRow
       ? (normalizeStoredDealPricingContext({
           revision: pricingContextRow.revision,
           snapshot: pricingContextRow.snapshot,
-        }).routeAttachment?.snapshot ?? null)
+        }) ?? null)
       : null;
+    const routeSnapshot = pricingContext?.routeAttachment?.snapshot ?? null;
+    const feeBillingMode =
+      pricingContext?.commercialDraft.feeBillingMode ??
+      summary.agreementFeeBillingMode ??
+      "included_in_principal_invoice";
+    const openingInvoicePurposes =
+      feeBillingMode === "separate_fee_invoice"
+        ? ["principal", "agency_fee"]
+        : undefined;
 
     const sectionCompleteness = evaluateDealSectionCompleteness(summary.snapshot);
     const now = new Date();
@@ -888,6 +924,7 @@ export class DrizzleDealReads implements DealReads {
       intake: summary.snapshot,
       now,
       operationalState,
+      openingInvoicePurposes,
       participants,
       status: summary.status,
     });
@@ -1152,6 +1189,7 @@ export class DrizzleDealReads implements DealReads {
         dealId: row.dealId,
         docType: row.docType,
         id: row.documentId,
+        invoicePurpose: normalizeInvoicePurpose(row.invoicePurpose),
         ledgerOperationIds: row.ledgerOperationIds,
         lifecycleStatus: row.lifecycleStatus,
         occurredAt: row.occurredAt,

@@ -7,7 +7,9 @@ import {
 import type { DealDetails, DealTrace } from "@bedrock/deals/contracts";
 import { DealTraceSchema } from "@bedrock/deals/contracts";
 import { NotFoundError, ValidationError } from "@bedrock/shared/core/errors";
+import { minorToAmountString } from "@bedrock/shared/money";
 import type { QuotePreviewRecord } from "@bedrock/treasury/contracts";
+import { resolveDealInvoiceBillingSelection } from "@bedrock/workflow-deal-projections";
 
 import {
   extractAgreementCommercialDefaults,
@@ -214,14 +216,79 @@ export async function createDealScopedFormalDocument(input: {
     );
   }
 
+  const payload =
+    input.docType === "invoice"
+      ? await enrichDealScopedInvoicePayload({
+          ctx: input.ctx,
+          dealId: input.dealId,
+          payload: input.body.input,
+        })
+      : input.body.input;
+
   return input.ctx.documentDraftWorkflow.createDraft({
     actorUserId: input.actorUserId,
     createIdempotencyKey: input.idempotencyKey,
     dealId: input.dealId,
     docType: input.docType,
-    payload: input.body.input,
+    payload,
     requestContext: input.requestContext,
   });
+}
+
+function readInvoicePurpose(payload: unknown) {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return "combined";
+  }
+
+  const value = (payload as Record<string, unknown>).invoicePurpose;
+  return value === "principal" || value === "agency_fee" ? value : "combined";
+}
+
+async function enrichDealScopedInvoicePayload(input: {
+  ctx: AppContext;
+  dealId: string;
+  payload: unknown;
+}) {
+  const purpose = readInvoicePurpose(input.payload);
+
+  if (purpose === "combined") {
+    return input.payload;
+  }
+
+  if (!input.payload || typeof input.payload !== "object" || Array.isArray(input.payload)) {
+    return input.payload;
+  }
+
+  const workflow = await input.ctx.dealsModule.deals.queries.findWorkflowById(
+    input.dealId,
+  );
+  const quoteId = workflow?.acceptedQuote?.quoteId ?? null;
+  if (!quoteId) {
+    throw new ValidationError(
+      "Split invoice creation requires an accepted quote",
+    );
+  }
+
+  const quoteDetails = await input.ctx.treasuryModule.quotes.queries.getQuoteDetails({
+    quoteRef: quoteId,
+  });
+  const selection = resolveDealInvoiceBillingSelection({
+    dealId: input.dealId,
+    invoicePurpose: purpose,
+    quoteDetails,
+  });
+  const sourcePayload = input.payload as Record<string, unknown>;
+
+  return {
+    ...sourcePayload,
+    amount: minorToAmountString(selection.amountMinor, {
+      currency: selection.currency,
+    }),
+    billingSetRef: selection.billingSetRef,
+    currency: selection.currency,
+    invoicePurpose: selection.invoicePurpose,
+    quoteComponentIds: selection.quoteComponentIds,
+  };
 }
 
 export async function buildDealTrace(

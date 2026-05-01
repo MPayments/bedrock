@@ -45,6 +45,7 @@ export type DocumentTypedFormMeta = {
     currencies: DocumentTypedFormSelectOption[];
     counterparties: DocumentTypedFormSelectOption[];
     customers: DocumentTypedFormSelectOption[];
+    documents: Array<DocumentTypedFormSelectOption & { docType: string }>;
     organizations: DocumentTypedFormSelectOption[];
   };
   requisitesByOwnerKey: Map<string, RequisiteOption[]>;

@@ -59,6 +59,7 @@ export {
   type ListPaymentStepsQuery,
 } from "./payment-steps/application/contracts/queries";
 export {
+  AmendQuoteExecutionInputSchema,
   AttachQuoteExecutionPostingInputSchema,
   CancelQuoteExecutionInputSchema,
   ConfirmQuoteExecutionInputSchema,
@@ -68,6 +69,7 @@ export {
   ListQuoteExecutionsQuerySchema,
   QuoteExecutionListResponseSchema,
   SubmitQuoteExecutionInputSchema,
+  type AmendQuoteExecutionInput,
   type AttachQuoteExecutionPostingInput,
   type CancelQuoteExecutionInput,
   type ConfirmQuoteExecutionInput,

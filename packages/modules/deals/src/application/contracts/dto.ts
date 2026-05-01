@@ -342,6 +342,10 @@ export const DealPricingCommercialDraftSchema = z.object({
     .default({ type: "route_execution" }),
   fixedFeeAmount: nullableDecimalStringSchema.optional().default(null),
   fixedFeeCurrency: z.string().trim().min(1).max(16).nullable().default(null),
+  feeBillingMode: z
+    .enum(["included_in_principal_invoice", "separate_fee_invoice"])
+    .nullable()
+    .default(null),
   quoteMarkupBps: z.number().int().nonnegative().nullable().default(null),
 });
 
@@ -596,6 +600,10 @@ export const DealRelatedFormalDocumentSchema = z.object({
   createdAt: z.date().nullable(),
   docType: z.string(),
   id: z.uuid(),
+  invoicePurpose: z
+    .enum(["combined", "principal", "agency_fee"])
+    .nullable()
+    .optional(),
   lifecycleStatus: z.string().nullable(),
   occurredAt: z.date().nullable(),
   postingStatus: z.string().nullable(),
@@ -926,6 +934,10 @@ export const DealTraceFormalDocumentSchema = z.object({
   dealId: z.uuid().nullable(),
   docType: z.string(),
   id: z.uuid(),
+  invoicePurpose: z
+    .enum(["combined", "principal", "agency_fee"])
+    .nullable()
+    .optional(),
   ledgerOperationIds: z.array(z.uuid()),
   lifecycleStatus: z.string(),
   occurredAt: z.date(),

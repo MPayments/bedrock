@@ -83,6 +83,26 @@ export const invoiceDocumentDefinition = {
             name: "currency",
             label: "Валюта списания",
           },
+          {
+            kind: "enum",
+            name: "invoicePurpose",
+            label: "Назначение счета",
+            hidden: true,
+            options: [
+              { value: "combined", label: "Счёт на оплату" },
+              { value: "principal", label: "Счёт на оплату" },
+              {
+                value: "agency_fee",
+                label: "Счет на агентское вознаграждение",
+              },
+            ],
+          },
+          {
+            kind: "text",
+            name: "billingSetRef",
+            label: "Billing set",
+            hidden: true,
+          },
         ],
         layout: {
           rows: [{ fields: ["amount", "currency"] }],
@@ -100,6 +120,9 @@ export const invoiceDocumentDefinition = {
         counterpartyId: normalized.counterpartyId,
         organizationId: normalized.organizationId ?? "",
         organizationRequisiteId: normalized.organizationRequisiteId,
+        invoicePurpose: normalized.invoicePurpose,
+        billingSetRef: normalized.billingSetRef ?? "",
+        quoteComponentIds: normalized.quoteComponentIds,
         amount: normalized.amount,
         currency: normalized.currency,
         memo: normalized.memo ?? "",

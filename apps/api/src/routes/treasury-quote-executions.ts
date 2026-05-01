@@ -32,6 +32,13 @@ const SubmitQuoteExecutionBodySchema = z.object({
   providerSnapshot: z.unknown().optional().default(null),
 });
 
+const AmendQuoteExecutionBodySchema = z.object({
+  executionParties: z.object({
+    creditParty: PaymentStepPartyRefSchema,
+    debitParty: PaymentStepPartyRefSchema,
+  }),
+});
+
 const ConfirmQuoteExecutionBodySchema = z.object({
   failureReason: z.string().trim().max(1000).nullable().optional().default(null),
   outcome: z.enum(["settled", "failed"]),
@@ -334,6 +341,49 @@ export function treasuryQuoteExecutionsRoutes(ctx: AppContext) {
     },
   });
 
+  const amendRoute = createRoute({
+    middleware: [requirePermission({ deals: ["update"] })],
+    method: "post",
+    path: "/{executionId}/amend",
+    tags: ["Treasury"],
+    summary: "Amend treasury quote execution settlement parties",
+    request: {
+      params: QuoteExecutionIdParamsSchema,
+      body: {
+        content: {
+          "application/json": { schema: AmendQuoteExecutionBodySchema },
+        },
+        required: true,
+      },
+    },
+    responses: {
+      200: {
+        description: "Quote execution amended",
+        content: {
+          "application/json": { schema: QuoteExecutionResponseSchema },
+        },
+      },
+      400: {
+        description: "Validation or idempotency header error",
+        content: {
+          "application/json": { schema: ErrorSchema },
+        },
+      },
+      404: {
+        description: "Quote execution not found",
+        content: {
+          "application/json": { schema: ErrorSchema },
+        },
+      },
+      409: {
+        description: "Invalid state or idempotency conflict",
+        content: {
+          "application/json": { schema: ErrorSchema },
+        },
+      },
+    },
+  });
+
   const confirmRoute = createRoute({
     middleware: [requirePermission({ deals: ["update"] })],
     method: "post",
@@ -497,6 +547,25 @@ export function treasuryQuoteExecutionsRoutes(ctx: AppContext) {
               executionId,
               providerRef: body.providerRef,
               providerSnapshot: body.providerSnapshot,
+            }),
+        });
+        if (result instanceof Response) return result;
+        return c.json(result, 200);
+      } catch (error) {
+        return handleRouteError(c, error);
+      }
+    })
+    .openapi(amendRoute, async (c) => {
+      try {
+        const { executionId } = c.req.valid("param");
+        const body = c.req.valid("json");
+        const result = await runIdempotentQuoteExecutionMutation(ctx, c, {
+          action: "amend",
+          request: { ...body, executionId },
+          run: (quoteExecutions) =>
+            quoteExecutions.commands.amend({
+              executionId,
+              executionParties: body.executionParties,
             }),
         });
         if (result instanceof Response) return result;

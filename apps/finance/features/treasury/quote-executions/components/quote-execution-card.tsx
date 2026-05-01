@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertTriangle, ArrowRight } from "lucide-react";
+import { AlertTriangle, ArrowRight, Check } from "lucide-react";
 
 import {
   Alert,
@@ -12,7 +12,15 @@ import { Badge } from "@bedrock/sdk-ui/components/badge";
 import { Button } from "@bedrock/sdk-ui/components/button";
 import { Input } from "@bedrock/sdk-ui/components/input";
 import { Label } from "@bedrock/sdk-ui/components/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@bedrock/sdk-ui/components/select";
 import { toast } from "@bedrock/sdk-ui/components/sonner";
+import { Spinner } from "@bedrock/sdk-ui/components/spinner";
 import { Textarea } from "@bedrock/sdk-ui/components/textarea";
 import { formatCompactId } from "@bedrock/shared/core/uuid";
 import {
@@ -23,9 +31,12 @@ import {
 import type { FinanceDealQuoteExecution } from "@/features/treasury/deals/lib/queries";
 import { listCurrencyOptions } from "@/features/treasury/steps/lib/currency-options";
 import {
+  listPartyOptions,
   listRequisiteOptions,
   resolvePartyOption,
   type PartyKind,
+  type PartyOption,
+  type RequisiteOption,
 } from "@/features/treasury/steps/lib/party-options";
 import { executeMutation } from "@/lib/resources/http";
 
@@ -74,6 +85,37 @@ function isPartyKind(value: string | null | undefined): value is PartyKind {
   );
 }
 
+type QuoteExecutionParties = NonNullable<
+  FinanceDealQuoteExecution["executionParties"]
+>;
+type QuoteExecutionPartyRef = QuoteExecutionParties["debitParty"];
+
+const PARTY_KIND_LABELS: Record<PartyKind, string> = {
+  counterparty: "Контрагент",
+  customer: "Клиент",
+  organization: "Организация",
+};
+
+function partiesKey(parties: QuoteExecutionParties | null): string {
+  if (!parties) return "";
+  return JSON.stringify({
+    creditPartyId: parties.creditParty.id,
+    creditRequisiteId: parties.creditParty.requisiteId,
+    debitPartyId: parties.debitParty.id,
+    debitRequisiteId: parties.debitParty.requisiteId,
+  });
+}
+
+function cloneParties(
+  parties: QuoteExecutionParties | null,
+): QuoteExecutionParties | null {
+  if (!parties) return null;
+  return {
+    creditParty: { ...parties.creditParty },
+    debitParty: { ...parties.debitParty },
+  };
+}
+
 export function QuoteExecutionCard({
   disabled,
   execution,
@@ -92,12 +134,16 @@ export function QuoteExecutionCard({
   const [memo, setMemo] = useState("");
   const [failureReason, setFailureReason] = useState("");
   const [isMutating, setIsMutating] = useState(false);
-  const [partyLabelsById, setPartyLabelsById] = useState<Record<string, string>>(
-    {},
+  const [settlementParties, setSettlementParties] =
+    useState<QuoteExecutionParties | null>(() =>
+      cloneParties(execution.executionParties),
+    );
+  const [settlementBaselineKey, setSettlementBaselineKey] = useState(() =>
+    partiesKey(execution.executionParties),
   );
-  const [requisiteLabelsById, setRequisiteLabelsById] = useState<
-    Record<string, string>
-  >({});
+  const [settlementSaveState, setSettlementSaveState] = useState<
+    "idle" | "saving" | "saved"
+  >("idle");
 
   useEffect(() => {
     let cancelled = false;
@@ -114,69 +160,10 @@ export function QuoteExecutionCard({
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    if (!execution.executionParties) {
-      setPartyLabelsById({});
-      setRequisiteLabelsById({});
-      return () => {
-        cancelled = true;
-      };
-    }
-    const parties = [
-      execution.executionParties.debitParty,
-      execution.executionParties.creditParty,
-    ];
-
-    async function resolveSettlementLabels() {
-      const partyEntries: Record<string, string> = {};
-      const requisiteEntries: Record<string, string> = {};
-
-      await Promise.all(
-        parties.map(async (party) => {
-          const explicitKind = isPartyKind(party.entityKind)
-            ? party.entityKind
-            : null;
-          const resolved = party.displayName
-            ? null
-            : await resolvePartyOption(party.id);
-          const kind = explicitKind ?? resolved?.kind ?? null;
-
-          partyEntries[party.id] =
-            party.displayName ?? resolved?.label ?? formatQuoteRef(party.id);
-
-          if (!party.requisiteId) return;
-          if (kind) {
-            const requisiteOptions = await listRequisiteOptions({
-              ownerId: party.id,
-              ownerType: kind,
-            });
-            const requisite = requisiteOptions.find(
-              (option) => option.id === party.requisiteId,
-            );
-            if (requisite) {
-              requisiteEntries[party.requisiteId] = requisite.label;
-              return;
-            }
-          }
-          requisiteEntries[party.requisiteId] = formatQuoteRef(
-            party.requisiteId,
-          );
-        }),
-      );
-
-      if (!cancelled) {
-        setPartyLabelsById(partyEntries);
-        setRequisiteLabelsById(requisiteEntries);
-      }
-    }
-
-    resolveSettlementLabels();
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    execution.executionParties,
-  ]);
+    setSettlementParties(cloneParties(execution.executionParties));
+    setSettlementBaselineKey(partiesKey(execution.executionParties));
+    setSettlementSaveState("idle");
+  }, [execution.executionParties]);
 
   function formatAmount(amountMinor: string, currencyId: string) {
     const currency = currencyCodeById.get(currencyId);
@@ -257,6 +244,43 @@ export function QuoteExecutionCard({
     await onChanged?.(execution);
   }
 
+  async function saveSettlementParties() {
+    if (!settlementParties) return;
+    setSettlementSaveState("saving");
+    setIsMutating(true);
+    const result = await executeMutation<FinanceDealQuoteExecution>({
+      fallbackMessage: "Не удалось сохранить реквизиты исполнения",
+      request: () =>
+        fetch(
+          `/v1/treasury/quote-executions/${encodeURIComponent(
+            execution.id,
+          )}/amend`,
+          {
+            body: JSON.stringify({ executionParties: settlementParties }),
+            credentials: "include",
+            headers: {
+              "Content-Type": "application/json",
+              "Idempotency-Key": createIdempotencyKey(),
+            },
+            method: "POST",
+          },
+        ),
+    });
+    setIsMutating(false);
+
+    if (!result.ok) {
+      setSettlementSaveState("idle");
+      toast.error(result.message);
+      return;
+    }
+
+    setSettlementSaveState("saved");
+    setSettlementBaselineKey(partiesKey(result.data.executionParties));
+    setSettlementParties(cloneParties(result.data.executionParties));
+    toast.success("Реквизиты исполнения сохранены");
+    await onChanged?.(result.data);
+  }
+
   async function submit() {
     const trimmedRef = providerRef.trim();
     const trimmedMemo = memo.trim();
@@ -296,43 +320,21 @@ export function QuoteExecutionCard({
     execution.state === "draft" || execution.state === "pending";
   const canExpire =
     execution.state === "draft" || execution.state === "pending";
+  const canAmendSettlement =
+    execution.state === "draft" ||
+    execution.state === "pending" ||
+    execution.state === "failed";
   const executionRate = formatExecutionRate();
-  const hasFooterActions = canCancel || canExpire || canSubmit || canComplete;
-  const executionParties = execution.executionParties;
-
-  function settlementPartyView(input: {
-    party: NonNullable<
-      FinanceDealQuoteExecution["executionParties"]
-    >["debitParty"];
-    title: string;
-  }) {
-    const label =
-      input.party.displayName ??
-      partyLabelsById[input.party.id] ??
-      formatQuoteRef(input.party.id);
-    const requisiteLabel = input.party.requisiteId
-      ? requisiteLabelsById[input.party.requisiteId] ??
-        formatQuoteRef(input.party.requisiteId)
-      : "Реквизит не задан";
-
-    return (
-      <div className="min-w-0 rounded-md border p-3">
-        <div className="text-muted-foreground text-xs">{input.title}</div>
-        <div className="mt-1 truncate text-sm font-medium">{label}</div>
-        <div
-          className={
-            input.party.requisiteId
-              ? "text-muted-foreground mt-1 truncate text-xs"
-              : "text-destructive mt-1 truncate text-xs"
-          }
-        >
-          {input.party.requisiteId
-            ? `Реквизит: ${requisiteLabel}`
-            : requisiteLabel}
-        </div>
-      </div>
-    );
-  }
+  const settlementHasChanges =
+    partiesKey(settlementParties) !== settlementBaselineKey;
+  const hasSettlementSaveAction =
+    Boolean(settlementParties) && canAmendSettlement && settlementHasChanges;
+  const hasFooterActions =
+    canCancel ||
+    canExpire ||
+    canSubmit ||
+    canComplete ||
+    hasSettlementSaveAction;
 
   return (
     <section className="bg-card rounded-lg border">
@@ -389,17 +391,39 @@ export function QuoteExecutionCard({
           ) : null}
         </div>
       </dl>
-      {executionParties ? (
+      {settlementParties ? (
         <div className="grid gap-3 border-t p-4 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-center">
-          {settlementPartyView({
-            party: executionParties.debitParty,
-            title: "Списать с",
-          })}
+          <SettlementPartyEditor
+            editable={canAmendSettlement && !disabled && !isMutating}
+            expectedCurrencyId={execution.fromCurrencyId}
+            executionId={execution.id}
+            party={settlementParties.debitParty}
+            side="debit"
+            title="Списать с"
+            onChange={(party) => {
+              setSettlementSaveState("idle");
+              setSettlementParties({
+                ...settlementParties,
+                debitParty: party,
+              });
+            }}
+          />
           <ArrowRight className="text-muted-foreground mx-auto hidden size-4 sm:block" />
-          {settlementPartyView({
-            party: executionParties.creditParty,
-            title: "Зачислить на",
-          })}
+          <SettlementPartyEditor
+            editable={canAmendSettlement && !disabled && !isMutating}
+            expectedCurrencyId={execution.toCurrencyId}
+            executionId={execution.id}
+            party={settlementParties.creditParty}
+            side="credit"
+            title="Зачислить на"
+            onChange={(party) => {
+              setSettlementSaveState("idle");
+              setSettlementParties({
+                ...settlementParties,
+                creditParty: party,
+              });
+            }}
+          />
         </div>
       ) : (
         <div className="border-t p-4 text-sm">
@@ -455,6 +479,21 @@ export function QuoteExecutionCard({
       ) : null}
       {hasFooterActions ? (
         <footer className="flex flex-wrap justify-end gap-2 border-t p-4">
+          {hasSettlementSaveAction ? (
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={disabled || isMutating}
+              onClick={saveSettlementParties}
+            >
+              {settlementSaveState === "saving" ? (
+                <Spinner data-icon="inline-start" />
+              ) : settlementSaveState === "saved" ? (
+                <Check className="size-4" />
+              ) : null}
+              Сохранить реквизиты
+            </Button>
+          ) : null}
           {canCancel ? (
             <Button
               size="sm"
@@ -490,10 +529,10 @@ export function QuoteExecutionCard({
           {canSubmit ? (
             <Button
               size="sm"
-              disabled={disabled || isMutating}
+              disabled={disabled || isMutating || settlementHasChanges}
               onClick={submit}
             >
-              Отправить
+              Направить в исполнение
             </Button>
           ) : null}
           {canComplete ? (
@@ -503,7 +542,7 @@ export function QuoteExecutionCard({
                 disabled={disabled || isMutating}
                 onClick={() => confirm("settled")}
               >
-                Завершить
+                Подтвердить исполнение
               </Button>
               <Button
                 size="sm"
@@ -518,5 +557,186 @@ export function QuoteExecutionCard({
         </footer>
       ) : null}
     </section>
+  );
+}
+
+interface SettlementPartyEditorProps {
+  editable: boolean;
+  expectedCurrencyId: string;
+  executionId: string;
+  party: QuoteExecutionPartyRef;
+  side: "credit" | "debit";
+  title: string;
+  onChange: (party: QuoteExecutionPartyRef) => void;
+}
+
+function SettlementPartyEditor({
+  editable,
+  expectedCurrencyId,
+  executionId,
+  onChange,
+  party,
+  side,
+  title,
+}: SettlementPartyEditorProps) {
+  const explicitKind = isPartyKind(party.entityKind) ? party.entityKind : null;
+  const [resolvedParty, setResolvedParty] = useState<{
+    kind: PartyKind;
+    label: string;
+  } | null>(null);
+  const [partyOptions, setPartyOptions] = useState<PartyOption[]>([]);
+  const [requisiteOptions, setRequisiteOptions] = useState<RequisiteOption[]>(
+    [],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    resolvePartyOption(party.id).then((resolved) => {
+      if (!cancelled) setResolvedParty(resolved);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [party.id]);
+
+  const kind = explicitKind ?? resolvedParty?.kind ?? null;
+
+  useEffect(() => {
+    if (!kind || !editable) {
+      setPartyOptions([]);
+      return;
+    }
+    let cancelled = false;
+    listPartyOptions(kind).then((options) => {
+      if (!cancelled) setPartyOptions(options);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [editable, kind]);
+
+  useEffect(() => {
+    if (!kind) {
+      setRequisiteOptions([]);
+      return;
+    }
+    let cancelled = false;
+    listRequisiteOptions({ ownerId: party.id, ownerType: kind }).then(
+      (options) => {
+        if (cancelled) return;
+        setRequisiteOptions(
+          options.filter((option) => option.currencyId === expectedCurrencyId),
+        );
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [expectedCurrencyId, kind, party.id]);
+
+  const selectedPartyLabel =
+    partyOptions.find((option) => option.id === party.id)?.label ??
+    party.displayName ??
+    resolvedParty?.label ??
+    formatQuoteRef(party.id);
+  const selectedRequisiteLabel =
+    requisiteOptions.find((option) => option.id === party.requisiteId)?.label ??
+    (party.requisiteId ? formatQuoteRef(party.requisiteId) : undefined);
+
+  if (!kind) {
+    return (
+      <div className="space-y-2">
+        <Label>{title}</Label>
+        <div className="text-sm font-medium">{selectedPartyLabel}</div>
+        <div
+          className={
+            party.requisiteId
+              ? "text-muted-foreground text-xs"
+              : "text-destructive text-xs"
+          }
+        >
+          {party.requisiteId ? "Реквизит привязан" : "Реквизит не задан"}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={`quote-execution-${executionId}-${side}-party`}>
+        {title}
+        <span className="text-muted-foreground ml-2 text-xs">
+          · {PARTY_KIND_LABELS[kind]}
+        </span>
+      </Label>
+      <Select
+        value={party.id}
+        disabled={!editable}
+        onValueChange={(value) => {
+          const selected = partyOptions.find((option) => option.id === value);
+          onChange({
+            ...party,
+            displayName: selected?.label ?? null,
+            id: value as QuoteExecutionPartyRef["id"],
+            requisiteId: null,
+            snapshot: null,
+          });
+        }}
+      >
+        <SelectTrigger
+          id={`quote-execution-${executionId}-${side}-party`}
+          className="w-full"
+        >
+          <SelectValue placeholder="Выберите участника">
+            {selectedPartyLabel}
+          </SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          {partyOptions.length === 0 ? (
+            <SelectItem value={party.id}>{selectedPartyLabel}</SelectItem>
+          ) : null}
+          {partyOptions.map((option) => (
+            <SelectItem key={option.id} value={option.id}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      <Select
+        value={party.requisiteId ?? ""}
+        disabled={!editable || requisiteOptions.length === 0}
+        onValueChange={(value) => {
+          onChange({
+            ...party,
+            requisiteId: value
+              ? (value as NonNullable<QuoteExecutionPartyRef["requisiteId"]>)
+              : null,
+          });
+        }}
+      >
+        <SelectTrigger
+          id={`quote-execution-${executionId}-${side}-requisite`}
+          className="w-full"
+        >
+          <SelectValue
+            placeholder={
+              requisiteOptions.length === 0
+                ? "Нет реквизитов в валюте шага"
+                : "Выберите реквизит"
+            }
+          >
+            {selectedRequisiteLabel ?? undefined}
+          </SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          {requisiteOptions.map((option) => (
+            <SelectItem key={option.id} value={option.id}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
   );
 }

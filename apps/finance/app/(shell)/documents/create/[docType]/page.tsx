@@ -84,6 +84,13 @@ export default async function DocumentCreateByTypePage({
   const requestedReturnTo = normalizeInternalReturnToPath(
     getFirstSearchParamValue(rawSearchParams.returnTo),
   );
+  const rawInvoicePurpose = getFirstSearchParamValue(rawSearchParams.invoicePurpose);
+  const invoicePurpose =
+    rawInvoicePurpose === "combined" ||
+    rawInvoicePurpose === "principal" ||
+    rawInvoicePurpose === "agency_fee"
+      ? rawInvoicePurpose
+      : null;
 
   const [options, deal] = await Promise.all([
     getDocumentFormOptions().catch(() => createEmptyDocumentFormOptions()),
@@ -125,6 +132,7 @@ export default async function DocumentCreateByTypePage({
         agreement,
         deal,
         docType,
+        invoicePurpose,
         options,
         organizationRequisites,
         reconciliationExceptionId,

@@ -171,6 +171,11 @@ function DocumentTypedFormProvider({
         value: customer.id,
         label: customer.label,
       })),
+      documents: (options.documents ?? []).map((document) => ({
+        value: document.id,
+        docType: document.docType,
+        label: document.label,
+      })),
       organizations: options.organizations.map((organization) => ({
         value: organization.id,
         label: organization.label,
@@ -180,6 +185,7 @@ function DocumentTypedFormProvider({
       options.counterparties,
       options.currencies,
       options.customers,
+      options.documents,
       options.organizations,
     ],
   );

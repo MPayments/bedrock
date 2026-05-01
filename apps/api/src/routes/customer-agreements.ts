@@ -185,6 +185,9 @@ export const CustomerAgreementSchema = z.object({
   contractDate: z.string().nullable(),
   agentFee: z.string().nullable(),
   fixedFee: z.string().nullable(),
+  feeBillingMode: z
+    .enum(["included_in_principal_invoice", "separate_fee_invoice"])
+    .default("included_in_principal_invoice"),
   organizationId: z.string().uuid(),
   organizationRequisiteId: z.string().uuid(),
   isActive: z.boolean(),
@@ -198,6 +201,7 @@ export interface CustomerAgreementUpdateInput {
   contractDate?: string | null;
   contractNumber?: string | null;
   fixedFee?: string | null;
+  feeBillingMode?: "included_in_principal_invoice" | "separate_fee_invoice";
   organizationId?: string;
   organizationRequisiteId?: string;
 }
@@ -213,6 +217,7 @@ function serializeCustomerAgreement(
     contractDate: formatContractDate(agreement.currentVersion.contractDate),
     agentFee: fees.agentFee,
     fixedFee: fees.fixedFee,
+    feeBillingMode: agreement.currentVersion.feeBillingMode,
     organizationId: agreement.organizationId,
     organizationRequisiteId: agreement.organizationRequisiteId,
     isActive: agreement.isActive,
@@ -310,6 +315,7 @@ export async function createCustomerAgreementForCustomer(
     contractDate?: string | null;
     contractNumber?: string | null;
     customerId: string;
+    feeBillingMode?: "included_in_principal_invoice" | "separate_fee_invoice";
     fixedFee?: string | null;
     organizationId: string;
     organizationRequisiteId: string;
@@ -337,6 +343,7 @@ export async function createCustomerAgreementForCustomer(
     contractNumber:
       trimToNull(input.contractNumber) ??
       buildDefaultCustomerAgreementContractNumber(input.customerId),
+    feeBillingMode: input.feeBillingMode ?? "included_in_principal_invoice",
     feeRules: await buildAgreementFeeRules({
       agentFee: input.agentFee,
       ctx,
@@ -384,6 +391,7 @@ export async function updateCustomerAgreement(
       input.contractNumber === undefined
         ? undefined
         : trimToNull(input.contractNumber),
+    feeBillingMode: input.feeBillingMode,
     feeRules:
       input.agentFee === undefined && input.fixedFee === undefined
         ? undefined

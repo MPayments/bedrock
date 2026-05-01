@@ -267,7 +267,8 @@ describe("commercial document deps", () => {
     await deps.quoteUsage.markQuoteUsedForInvoice({
       runtime: {} as any,
       quoteId: "00000000-0000-4000-8000-000000000010",
-      invoiceDocumentId: "3510af80-077f-4a55-8803-5a330e144a0a",
+      usedByRef: "invoice:3510af80-077f-4a55-8803-5a330e144a0a",
+      usedDocumentId: "3510af80-077f-4a55-8803-5a330e144a0a",
       at: new Date("2026-04-05T08:35:00.000Z"),
     });
 

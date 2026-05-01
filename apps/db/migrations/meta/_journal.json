@@ -64,6 +64,13 @@
       "when": 1777381012574,
       "tag": "0008_chubby_killraven",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1777473731000,
+      "tag": "0009_split_fee_invoice",
+      "breakpoints": true
     }
   ]
 }

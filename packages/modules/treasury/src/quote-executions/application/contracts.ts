@@ -79,6 +79,11 @@ export const SubmitQuoteExecutionInputSchema = z.object({
   providerSnapshot: z.unknown().optional().default(null),
 });
 
+export const AmendQuoteExecutionInputSchema = z.object({
+  executionId: z.uuid(),
+  executionParties: QuoteExecutionPartiesSchema,
+});
+
 export const ConfirmQuoteExecutionInputSchema = z.object({
   executionId: z.uuid(),
   failureReason: OptionalFailureReasonSchema,
@@ -118,6 +123,9 @@ export const QuoteExecutionListResponseSchema = createPaginatedListSchema(
 
 export type AttachQuoteExecutionPostingInput = z.infer<
   typeof AttachQuoteExecutionPostingInputSchema
+>;
+export type AmendQuoteExecutionInput = z.infer<
+  typeof AmendQuoteExecutionInputSchema
 >;
 export type CancelQuoteExecutionInput = z.infer<
   typeof CancelQuoteExecutionInputSchema

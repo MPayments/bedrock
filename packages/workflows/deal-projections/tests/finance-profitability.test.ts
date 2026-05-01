@@ -16,6 +16,7 @@ function makeTrace(profitability: unknown) {
 
 describe("extractNetProfitFromQuoteTrace", () => {
   const VALID_PROFITABILITY = {
+    commercialDiscountMinor: "0",
     commercialRevenueMinor: "265000",
     costPriceMinor: "24260000",
     currency: "RUB",

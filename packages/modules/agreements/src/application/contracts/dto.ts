@@ -6,6 +6,7 @@ import {
 } from "@bedrock/shared/core/pagination";
 
 import {
+  AgreementFeeBillingModeSchema,
   AgreementFeeRuleKindSchema,
   AgreementFeeRuleUnitSchema,
   AgreementPartyRoleSchema,
@@ -41,6 +42,7 @@ export const AgreementVersionSummarySchema = z.object({
   versionNumber: z.number().int(),
   contractNumber: z.string().nullable(),
   contractDate: z.date().nullable(),
+  feeBillingMode: AgreementFeeBillingModeSchema,
   createdAt: z.date(),
   updatedAt: z.date(),
 });

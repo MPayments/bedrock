@@ -47,11 +47,21 @@ export function isFormalDocumentReady(input: {
 
 export function findRelatedFormalDocument(input: {
   docType: string;
+  invoicePurpose?: string | null;
   documents: DealWorkflowProjection["relatedResources"]["formalDocuments"];
 }) {
-  const matching = input.documents.filter(
-    (document) => document.docType === input.docType,
-  );
+  const matching = input.documents.filter((document) => {
+    const documentInvoicePurpose =
+      document.docType === "invoice"
+        ? (document.invoicePurpose ?? "combined")
+        : (document.invoicePurpose ?? null);
+
+    return (
+      document.docType === input.docType &&
+      (input.invoicePurpose === undefined ||
+        documentInvoicePurpose === input.invoicePurpose)
+    );
+  });
 
   return (
     matching.find((document) => document.lifecycleStatus === "active") ??
