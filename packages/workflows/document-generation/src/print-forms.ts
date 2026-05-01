@@ -71,6 +71,7 @@ export interface PrintFormApplicationDeps {
       date?: Date;
       deal: Record<string, unknown>;
       format?: ClientContractFormat;
+      invoice?: Record<string, unknown> | null;
       lang?: DocumentLanguage;
       organization: Record<string, unknown>;
       organizationRequisite: Record<string, unknown>;
@@ -213,6 +214,18 @@ function readPayloadString(payload: unknown, key: string): string | null {
   }
 
   const value = (payload as Record<string, unknown>)[key];
+  return typeof value === "string" && value.trim().length > 0
+    ? value.trim()
+    : null;
+}
+
+function readRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function readString(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0
     ? value.trim()
     : null;
@@ -477,6 +490,8 @@ async function buildCalculationTemplateData(input: {
       finalRate: "1",
       id: "calculation",
       originalAmount: input.fallbackAmount ?? "0",
+      paymentAmount: input.fallbackAmount ?? "0",
+      paymentCurrencyCode: input.fallbackCurrency ?? "RUB",
       quoteMarkupAmount: "0",
       quoteMarkupPercentage: "0",
       rate: "1",
@@ -507,6 +522,18 @@ async function buildCalculationTemplateData(input: {
         ? input.ctx.currenciesService.findById(snapshot.fixedFeeCurrencyId)
         : Promise.resolve(null),
     ]);
+  const quoteSnapshot = readRecord(snapshot.quoteSnapshot);
+  const quoteSnapshotQuote = readRecord(quoteSnapshot?.quote) ?? quoteSnapshot;
+  const paymentAmountMinor = readString(quoteSnapshotQuote?.toAmountMinor);
+  const paymentCurrencyCode = readString(quoteSnapshotQuote?.toCurrency);
+  const paymentAmount =
+    paymentAmountMinor && paymentCurrencyCode
+      ? minorToAmountString(paymentAmountMinor, { currency: paymentCurrencyCode })
+      : minorToAmountString(snapshot.originalAmountMinor, {
+          currency: calculationCurrency.code,
+        });
+  const paymentCurrencyCodeResolved =
+    paymentCurrencyCode ?? calculationCurrency.code;
 
   return {
     additionalExpenses: minorToAmountString(
@@ -528,16 +555,18 @@ async function buildCalculationTemplateData(input: {
       currency: fixedFeeCurrency?.code ?? calculationCurrency.code,
     }),
     fixedFeeCurrencyCode: fixedFeeCurrency?.code ?? null,
-    finalRate: `${snapshot.rateNum}/${snapshot.rateDen}`,
+    finalRate: rationalToDecimalString(snapshot.rateDen, snapshot.rateNum),
     id: calculation.id,
     originalAmount: minorToAmountString(snapshot.originalAmountMinor, {
       currency: calculationCurrency.code,
     }),
+    paymentAmount,
+    paymentCurrencyCode: paymentCurrencyCodeResolved,
     quoteMarkupAmount: minorToAmountString(snapshot.quoteMarkupAmountMinor, {
       currency: calculationCurrency.code,
     }),
     quoteMarkupPercentage: snapshot.quoteMarkupBps,
-    rate: `${snapshot.rateNum}/${snapshot.rateDen}`,
+    rate: rationalToDecimalString(snapshot.rateDen, snapshot.rateNum),
     totalAmount: minorToAmountString(snapshot.totalAmountMinor, {
       currency: calculationCurrency.code,
     }),
@@ -697,6 +726,8 @@ async function buildDealDocumentPrintContext(input: {
     input.ctx,
     counterpartyBankRequisite?.providerId,
   );
+  const beneficiaryBankInstruction =
+    workflow?.intake?.externalBeneficiary?.bankInstructionSnapshot ?? null;
   const fallbackCurrency =
     invoiceDocument?.currency ??
     document?.currency ??
@@ -762,6 +793,13 @@ async function buildDealDocumentPrintContext(input: {
       applicationNumber: applicationDocument?.docNo ?? null,
       acceptanceNumber:
         document?.docType === "acceptance" ? document.docNo : null,
+      bankName:
+        beneficiaryBankInstruction?.bankName ??
+        resolveRequisiteProviderDisplayName({
+          branchId: counterpartyBankRequisite?.providerBranchId,
+          provider: counterpartyBankProvider,
+        }) ??
+        null,
       companyName: counterparty.fullName,
       companyNameI18n: toLocalizedText(
         counterparty.partyProfile?.profile?.fullNameI18n,
@@ -778,12 +816,21 @@ async function buildDealDocumentPrintContext(input: {
       invoiceNumber: invoiceDocument?.docNo ?? null,
       memo: readPayloadString(document?.payload, "memo"),
       swiftCode:
+        beneficiaryBankInstruction?.swift ??
         findRequisiteProviderIdentifier({
           branchId: counterpartyBankRequisite?.providerBranchId,
           provider: counterpartyBankProvider,
           scheme: "swift",
         })?.value ?? null,
     },
+    invoice: invoiceDocument
+      ? {
+          amount: fallbackAmount,
+          currencyCode: fallbackCurrency,
+          id: invoiceDocument.id,
+          number: invoiceDocument.docNo,
+        }
+      : null,
     organization: organizationData,
     organizationRequisite: organizationRequisiteData,
     warnings,

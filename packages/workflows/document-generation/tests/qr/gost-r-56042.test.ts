@@ -93,6 +93,18 @@ describe("formatGost56042Payload", () => {
     expect(result).toContain("|Sum=123450");
   });
 
+  it("normalizes large decimal strings without floating point rounding", () => {
+    const result = formatGost56042Payload({
+      name: "Org",
+      personalAcc: VALID_ACC,
+      bankName: "Bank",
+      bic: VALID_BIC,
+      correspAcc: VALID_CORR,
+      sum: "9007199254740993.01",
+    });
+    expect(result).toContain("|Sum=900719925474099301");
+  });
+
   it("starts with ST00012 prefix", () => {
     const result = formatGost56042Payload({
       name: "X",
@@ -241,5 +253,18 @@ describe("formatGost56042Payload", () => {
         sum: "abc",
       }),
     ).toThrow(/not a number/);
+  });
+
+  it("throws instead of rounding amounts beyond kopeck precision", () => {
+    expect(() =>
+      formatGost56042Payload({
+        name: "X",
+        personalAcc: VALID_ACC,
+        bankName: "B",
+        bic: VALID_BIC,
+        correspAcc: VALID_CORR,
+        sum: "10.999",
+      }),
+    ).toThrow(/more than 2 fractional digits/);
   });
 });

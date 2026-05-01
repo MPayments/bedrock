@@ -703,6 +703,7 @@ export function createDocumentGenerationWorkflow(
       calculation: Record<string, unknown>;
       client: Record<string, unknown>;
       contract: Record<string, unknown>;
+      invoice?: Record<string, unknown> | null;
       organization: Record<string, unknown>;
       organizationRequisite: Record<string, unknown>;
       date?: Date;
@@ -751,6 +752,7 @@ export function createDocumentGenerationWorkflow(
             lang,
             deal: input.deal,
             calculation: input.calculation,
+            invoice: input.invoice ?? null,
             organization: input.organization,
             organizationRequisite: input.organizationRequisite,
           },

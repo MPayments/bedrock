@@ -394,6 +394,51 @@ describe("print form application", () => {
     });
   });
 
+  it("builds application print context from quote target amount and client RUB rate", async () => {
+    const { app, deps } = createHarness();
+    const calculation = createCalculation();
+    deps.calculationsModule.calculations.queries.findById.mockResolvedValueOnce({
+      ...calculation,
+      currentSnapshot: {
+        ...calculation.currentSnapshot,
+        baseCurrencyId: IDS.currencyUsd,
+        calculationCurrencyId: IDS.currencyRub,
+        originalAmountMinor: "899867426",
+        quoteSnapshot: {
+          quote: {
+            toAmountMinor: "12000000",
+            toCurrency: "USD",
+          },
+        },
+        rateDen: "449933713",
+        rateNum: "6000000",
+      },
+    });
+
+    await app.generateDocumentPrintForm({
+      actorUserId: IDS.actor,
+      docType: "application",
+      documentId: IDS.application,
+      formId: "document.application-ru",
+      format: "docx",
+    });
+
+    expect(deps.documentGenerationWorkflow.generateDealDocument).toHaveBeenCalledWith(
+      expect.objectContaining({
+        calculation: expect.objectContaining({
+          originalAmount: "8998674.26",
+          paymentAmount: "120000",
+          paymentCurrencyCode: "USD",
+          rate: "74.988952",
+        }),
+        deal: expect.objectContaining({
+          bankName: "Test Bank",
+        }),
+        templateType: "application",
+      }),
+    );
+  });
+
   it("resolves acceptance parent application and dependent invoice for print context", async () => {
     const { app, deps } = createHarness();
 
@@ -423,6 +468,12 @@ describe("print form application", () => {
           invoiceNumber: "INV-1",
           memo: "paid",
         }),
+        invoice: {
+          amount: "100.00",
+          currencyCode: "USD",
+          id: IDS.invoice,
+          number: "INV-1",
+        },
         format: "pdf",
         templateType: "acceptance",
       }),
