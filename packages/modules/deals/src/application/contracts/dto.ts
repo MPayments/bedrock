@@ -7,7 +7,6 @@ import {
 } from "@bedrock/shared/core/pagination";
 import {
   PaymentRouteCalculationSchema,
-  PaymentRouteDraftSchema,
   PaymentRouteTemplateListItemSchema,
   QuotePreviewResponseSchema,
   QuoteSchema,
@@ -31,6 +30,7 @@ import {
   DealTypeSchema,
   LegacyDealParticipantRoleSchema,
 } from "./zod";
+import { DealRouteVersionSnapshotSchema } from "../../domain/route-version";
 
 const DecimalStringSchema = z
   .string()
@@ -157,13 +157,16 @@ export const PaymentDealIntakeDraftSchema = DealIntakeBaseSchema.extend({
   type: z.literal("payment"),
 });
 
-export const CurrencyExchangeDealIntakeDraftSchema = DealIntakeBaseSchema.extend({
-  type: z.literal("currency_exchange"),
-});
+export const CurrencyExchangeDealIntakeDraftSchema =
+  DealIntakeBaseSchema.extend({
+    type: z.literal("currency_exchange"),
+  });
 
-export const CurrencyTransitDealIntakeDraftSchema = DealIntakeBaseSchema.extend({
-  type: z.literal("currency_transit"),
-});
+export const CurrencyTransitDealIntakeDraftSchema = DealIntakeBaseSchema.extend(
+  {
+    type: z.literal("currency_transit"),
+  },
+);
 
 export const ExporterSettlementDealIntakeDraftSchema =
   DealIntakeBaseSchema.extend({
@@ -278,9 +281,7 @@ export const DealFundingAdjustmentSchema = z.object({
   label: z.string().trim().min(1).max(255),
 });
 
-export type DealFundingAdjustment = z.infer<
-  typeof DealFundingAdjustmentSchema
->;
+export type DealFundingAdjustment = z.infer<typeof DealFundingAdjustmentSchema>;
 
 export const DealPricingCommercialDraftSchema = z.object({
   clientPricing: z
@@ -355,7 +356,7 @@ export type DealPricingCommercialDraft = z.infer<
 
 export const DealPricingRouteAttachmentSchema = z.object({
   attachedAt: z.coerce.date(),
-  snapshot: PaymentRouteDraftSchema,
+  snapshot: DealRouteVersionSnapshotSchema,
   templateId: z.uuid(),
   templateName: z.string().trim().min(1),
 });
@@ -374,9 +375,11 @@ export type DealPricingContextSnapshot = z.infer<
   typeof DealPricingContextSnapshotSchema
 >;
 
-export const DealPricingContextSchema = DealPricingContextSnapshotSchema.extend({
-  revision: z.number().int().positive(),
-});
+export const DealPricingContextSchema = DealPricingContextSnapshotSchema.extend(
+  {
+    revision: z.number().int().positive(),
+  },
+);
 
 export type DealPricingContext = z.infer<typeof DealPricingContextSchema>;
 
@@ -389,7 +392,10 @@ export const DealFundingPositionSchema = z.object({
   currencyCode: z.string().trim().min(1).max(16),
   currencyId: z.uuid(),
   netFundingNeedMinor: signedMinorAmountStringSchema.or(z.literal("0")),
-  requiredMinor: z.string().trim().regex(/^(0|[1-9]\d*)$/u),
+  requiredMinor: z
+    .string()
+    .trim()
+    .regex(/^(0|[1-9]\d*)$/u),
 });
 
 export type DealFundingPosition = z.infer<typeof DealFundingPositionSchema>;
@@ -415,8 +421,14 @@ export const DealPricingRateSnapshotSchema = z.object({
   asOf: z.coerce.date(),
   baseCurrency: z.string().trim().min(1).max(16),
   quoteCurrency: z.string().trim().min(1).max(16),
-  rateDen: z.string().trim().regex(/^(0|[1-9]\d*)$/u),
-  rateNum: z.string().trim().regex(/^(0|[1-9]\d*)$/u),
+  rateDen: z
+    .string()
+    .trim()
+    .regex(/^(0|[1-9]\d*)$/u),
+  rateNum: z
+    .string()
+    .trim()
+    .regex(/^(0|[1-9]\d*)$/u),
   sourceKind: DealPricingRateSourceKindSchema,
   sourceLabel: z.string().trim().min(1).max(255).nullable().default(null),
 });
@@ -433,12 +445,12 @@ export const DealPricingBenchmarksSchema = z.object({
   routeBase: DealPricingRateSnapshotSchema.nullable(),
 });
 
-export type DealPricingBenchmarks = z.infer<
-  typeof DealPricingBenchmarksSchema
->;
+export type DealPricingBenchmarks = z.infer<typeof DealPricingBenchmarksSchema>;
 
 export const DealPricingProfitabilitySchema = z.object({
-  commercialDiscountMinor: signedMinorAmountStringSchema.or(z.literal("0")).default("0"),
+  commercialDiscountMinor: signedMinorAmountStringSchema
+    .or(z.literal("0"))
+    .default("0"),
   commercialRevenueMinor: signedMinorAmountStringSchema.or(z.literal("0")),
   costPriceMinor: signedMinorAmountStringSchema.or(z.literal("0")),
   currency: z.string().trim().min(1).max(16),
@@ -517,11 +529,10 @@ export type DealPricingQuoteResult = z.infer<
   typeof DealPricingQuoteResultSchema
 >;
 
-export const DealPricingCommitResultSchema = DealPricingQuoteResultSchema.extend(
-  {
+export const DealPricingCommitResultSchema =
+  DealPricingQuoteResultSchema.extend({
     calculationId: z.uuid(),
-  },
-);
+  });
 
 export type DealPricingCommitResult = z.infer<
   typeof DealPricingCommitResultSchema
@@ -652,9 +663,7 @@ export const DealFundingResolutionSchema = z.object({
   targetCurrencyId: z.uuid().nullable(),
 });
 
-export type DealFundingResolution = z.infer<
-  typeof DealFundingResolutionSchema
->;
+export type DealFundingResolution = z.infer<typeof DealFundingResolutionSchema>;
 
 export const DealSummarySchema = z.object({
   agreementId: z.uuid(),
@@ -772,9 +781,11 @@ export type PortalDealIntakeSummary = z.infer<
   typeof PortalDealIntakeSummarySchema
 >;
 
-export const PortalDealCalculationSummarySchema = z.object({
-  id: z.uuid(),
-}).nullable();
+export const PortalDealCalculationSummarySchema = z
+  .object({
+    id: z.uuid(),
+  })
+  .nullable();
 
 export type PortalDealCalculationSummary = z.infer<
   typeof PortalDealCalculationSummarySchema
@@ -954,7 +965,9 @@ export const DealTraceGeneratedFileSchema = z.object({
   linkKind: z.string(),
 });
 
-export type DealTraceGeneratedFile = z.infer<typeof DealTraceGeneratedFileSchema>;
+export type DealTraceGeneratedFile = z.infer<
+  typeof DealTraceGeneratedFileSchema
+>;
 
 export const DealTraceProjectionSchema = z.object({
   calculationId: z.uuid().nullable(),

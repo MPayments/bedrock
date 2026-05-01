@@ -1,5 +1,4 @@
-import type { PaymentRouteDraft } from "@bedrock/treasury/model";
-
+import type { DealRouteVersionSnapshot } from "../../domain/route-version";
 import type { DealType } from "../contracts/zod";
 
 export interface DealAgreementReference {
@@ -35,23 +34,18 @@ export interface DealCurrencyReference {
 export interface DealPaymentRouteTemplateReference {
   id: string;
   name: string;
-  snapshot: PaymentRouteDraft;
+  snapshot: DealRouteVersionSnapshot;
 }
 
 export interface DealReferencesPort {
   findAgreementById(id: string): Promise<DealAgreementReference | null>;
   findCalculationById(id: string): Promise<DealCalculationReference | null>;
-  findCounterpartyById(
-    id: string,
-  ): Promise<
-    | {
-        id: string;
-        customerId?: string | null;
-        fullName?: string | null;
-        shortName?: string | null;
-      }
-    | null
-  >;
+  findCounterpartyById(id: string): Promise<{
+    id: string;
+    customerId?: string | null;
+    fullName?: string | null;
+    shortName?: string | null;
+  } | null>;
   findCurrencyById(id: string): Promise<DealCurrencyReference | null>;
   findCustomerById(id: string): Promise<{ id: string } | null>;
   findQuoteById(id: string): Promise<DealQuoteReference | null>;

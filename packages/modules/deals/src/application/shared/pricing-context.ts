@@ -1,8 +1,3 @@
-import {
-  PaymentRouteDraftSchema,
-  type PaymentRouteFee,
-} from "@bedrock/treasury/contracts";
-
 import type {
   AttachDealPricingRouteInput,
   UpdateDealPricingContextInput,
@@ -14,6 +9,10 @@ import {
   type DealPricingContext,
   type DealPricingContextSnapshot,
 } from "../contracts/dto";
+import {
+  DealRouteVersionSnapshotSchema,
+  type DealRouteFee,
+} from "../../domain/route-version";
 
 function createDefaultDealPricingContext(): DealPricingContext {
   return DealPricingContextSchema.parse({
@@ -32,7 +31,8 @@ function createDefaultDealPricingContext(): DealPricingContext {
 }
 
 export function createDefaultDealPricingContextSnapshot(): DealPricingContextSnapshot {
-  const { revision: _revision, ...snapshot } = createDefaultDealPricingContext();
+  const { revision: _revision, ...snapshot } =
+    createDefaultDealPricingContext();
   return DealPricingContextSnapshotSchema.parse(snapshot);
 }
 
@@ -55,7 +55,11 @@ export function normalizeStoredDealPricingContext(input: {
   revision: number | null | undefined;
   snapshot: unknown;
 }): DealPricingContext {
-  if (!input.snapshot || input.revision === null || input.revision === undefined) {
+  if (
+    !input.snapshot ||
+    input.revision === null ||
+    input.revision === undefined
+  ) {
     return createDefaultDealPricingContext();
   }
 
@@ -76,7 +80,9 @@ export function attachDealPricingRouteSnapshot(input: {
     ...context,
     routeAttachment: {
       attachedAt: input.now,
-      snapshot: PaymentRouteDraftSchema.parse(structuredClone(input.route.snapshot)),
+      snapshot: DealRouteVersionSnapshotSchema.parse(
+        structuredClone(input.route.snapshot),
+      ),
       templateId: input.route.templateId,
       templateName: input.route.templateName,
     },
@@ -96,7 +102,7 @@ export function detachDealPricingRouteSnapshot(
 
 export interface DealLegRouteAmendment {
   executionCounterpartyId?: string | null;
-  fees?: PaymentRouteFee[];
+  fees?: DealRouteFee[];
   legIdx: number;
   requisiteId?: string | null;
 }
@@ -106,11 +112,11 @@ export function applyDealLegRouteAmendment(input: {
   context: DealPricingContext;
 }): {
   after: {
-    fees: PaymentRouteFee[];
+    fees: DealRouteFee[];
     participant: Record<string, unknown> | null;
   };
   before: {
-    fees: PaymentRouteFee[];
+    fees: DealRouteFee[];
     participant: Record<string, unknown> | null;
   };
   snapshot: DealPricingContextSnapshot;
@@ -129,13 +135,13 @@ export function applyDealLegRouteAmendment(input: {
   }
 
   const snapshotDraft = attachment.snapshot as unknown as {
-    additionalFees: PaymentRouteFee[];
+    additionalFees: DealRouteFee[];
     amountInMinor: string;
     amountOutMinor: string;
     currencyInId: string;
     currencyOutId: string;
     legs: {
-      fees: PaymentRouteFee[];
+      fees: DealRouteFee[];
       fromCurrencyId: string;
       id: string;
       toCurrencyId: string;
@@ -155,7 +161,7 @@ export function applyDealLegRouteAmendment(input: {
 
   const participantIndex = legIndex + 1;
   const participant = snapshotDraft.participants[participantIndex] ?? null;
-  const beforeFees: PaymentRouteFee[] = structuredClone(leg.fees);
+  const beforeFees: DealRouteFee[] = structuredClone(leg.fees);
   const beforeParticipant: Record<string, unknown> | null = participant
     ? structuredClone(participant)
     : null;
@@ -193,7 +199,7 @@ export function applyDealLegRouteAmendment(input: {
     fundingAdjustments: clone.fundingAdjustments,
     routeAttachment: {
       ...attachment,
-      snapshot: PaymentRouteDraftSchema.parse(snapshotDraft),
+      snapshot: DealRouteVersionSnapshotSchema.parse(snapshotDraft),
     },
   });
 
@@ -206,9 +212,7 @@ export function applyDealLegRouteAmendment(input: {
   return {
     after: {
       fees: afterFees,
-      participant: afterParticipant
-        ? structuredClone(afterParticipant)
-        : null,
+      participant: afterParticipant ? structuredClone(afterParticipant) : null,
     },
     before: {
       fees: beforeFees,

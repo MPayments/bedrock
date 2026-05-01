@@ -1,5 +1,3 @@
-import type { PaymentRouteDraft } from "@bedrock/treasury/model";
-
 import type {
   DEAL_APPROVAL_STATUS_VALUES,
   DEAL_APPROVAL_TYPE_VALUES,
@@ -18,6 +16,7 @@ import type {
   DEAL_TRANSITION_BLOCKER_CODE_VALUES,
   DEAL_TYPE_VALUES,
 } from "./constants";
+import type { DealRouteVersionSnapshot } from "./route-version";
 
 export type DealType = (typeof DEAL_TYPE_VALUES)[number];
 export type DealStatus = (typeof DEAL_STATUS_VALUES)[number];
@@ -31,8 +30,7 @@ export type DealOperationalPositionKind =
   (typeof DEAL_OPERATIONAL_POSITION_KIND_VALUES)[number];
 export type DealOperationalPositionState =
   (typeof DEAL_OPERATIONAL_POSITION_STATE_VALUES)[number];
-export type DealParticipantRole =
-  (typeof DEAL_PARTICIPANT_ROLE_VALUES)[number];
+export type DealParticipantRole = (typeof DEAL_PARTICIPANT_ROLE_VALUES)[number];
 export type LegacyDealParticipantRole =
   (typeof DEAL_LEGACY_PARTICIPANT_ROLE_VALUES)[number];
 export type DealSectionId = (typeof DEAL_SECTION_ID_VALUES)[number];
@@ -239,4 +237,4 @@ export interface DealOperationalState {
   positions: DealOperationalPosition[];
 }
 
-export type DealPricingRouteSnapshot = PaymentRouteDraft;
+export type DealPricingRouteSnapshot = DealRouteVersionSnapshot;

@@ -5,6 +5,7 @@ import {
   computePricingFingerprint,
   type PricingFingerprintInput,
 } from "../src/quotes/domain/pricing-fingerprint";
+import { extractCrmPricingFingerprintSnapshot } from "../src/quotes/domain/pricing-trace";
 
 function baseInput(): PricingFingerprintInput {
   return {
@@ -59,12 +60,42 @@ describe("computePricingFingerprint", () => {
   });
 
   it.each([
-    { field: "fromAmountMinor", mutate: (i: PricingFingerprintInput) => ({ ...i, fromAmountMinor: 1_500_000n }) },
-    { field: "toAmountMinor", mutate: (i: PricingFingerprintInput) => ({ ...i, toAmountMinor: 15_000n }) },
-    { field: "fromCurrencyId", mutate: (i: PricingFingerprintInput) => ({ ...i, fromCurrencyId: "eur" }) },
-    { field: "toCurrencyId", mutate: (i: PricingFingerprintInput) => ({ ...i, toCurrencyId: "eur" }) },
-    { field: "pricingMode", mutate: (i: PricingFingerprintInput) => ({ ...i, pricingMode: "auto_cross" as const }) },
-    { field: "routeTemplateId", mutate: (i: PricingFingerprintInput) => ({ ...i, routeTemplateId: "route-2" }) },
+    {
+      field: "fromAmountMinor",
+      mutate: (i: PricingFingerprintInput) => ({
+        ...i,
+        fromAmountMinor: 1_500_000n,
+      }),
+    },
+    {
+      field: "toAmountMinor",
+      mutate: (i: PricingFingerprintInput) => ({
+        ...i,
+        toAmountMinor: 15_000n,
+      }),
+    },
+    {
+      field: "fromCurrencyId",
+      mutate: (i: PricingFingerprintInput) => ({ ...i, fromCurrencyId: "eur" }),
+    },
+    {
+      field: "toCurrencyId",
+      mutate: (i: PricingFingerprintInput) => ({ ...i, toCurrencyId: "eur" }),
+    },
+    {
+      field: "pricingMode",
+      mutate: (i: PricingFingerprintInput) => ({
+        ...i,
+        pricingMode: "auto_cross" as const,
+      }),
+    },
+    {
+      field: "routeTemplateId",
+      mutate: (i: PricingFingerprintInput) => ({
+        ...i,
+        routeTemplateId: "route-2",
+      }),
+    },
     {
       field: "commercialTerms.agreementFeeBps",
       mutate: (i: PricingFingerprintInput) => ({
@@ -83,7 +114,10 @@ describe("computePricingFingerprint", () => {
       field: "commercialTerms.fixedFeeAmountMinor",
       mutate: (i: PricingFingerprintInput) => ({
         ...i,
-        commercialTerms: { ...i.commercialTerms!, fixedFeeAmountMinor: 20_000n },
+        commercialTerms: {
+          ...i.commercialTerms!,
+          fixedFeeAmountMinor: 20_000n,
+        },
       }),
     },
     {
@@ -97,7 +131,10 @@ describe("computePricingFingerprint", () => {
       field: "commercialTerms.agreementVersionId",
       mutate: (i: PricingFingerprintInput) => ({
         ...i,
-        commercialTerms: { ...i.commercialTerms!, agreementVersionId: "agreement-v2" },
+        commercialTerms: {
+          ...i.commercialTerms!,
+          agreementVersionId: "agreement-v2",
+        },
       }),
     },
   ])("changes when $field changes", ({ mutate }) => {
@@ -129,5 +166,45 @@ describe("computePricingFingerprint", () => {
       "toAmountMinor",
       "toCurrencyId",
     ]);
+  });
+});
+
+describe("extractCrmPricingFingerprintSnapshot", () => {
+  it("returns client, execution, and pnl snapshots when complete", () => {
+    const clientSide = { sourceAmountMinor: "100" };
+    const executionSide = { source: "treasury_inventory" };
+    const pnl = { grossProfitMinor: "10" };
+
+    expect(
+      extractCrmPricingFingerprintSnapshot({
+        metadata: {
+          crmPricingSnapshot: {
+            clientSide,
+            executionSide,
+            pnl,
+          },
+        },
+      }),
+    ).toEqual({
+      clientSide,
+      executionSide,
+      pnl,
+    });
+  });
+
+  it.each([
+    {},
+    { metadata: null },
+    { metadata: { crmPricingSnapshot: null } },
+    {
+      metadata: {
+        crmPricingSnapshot: {
+          clientSide: {},
+          executionSide: {},
+        },
+      },
+    },
+  ])("returns null for malformed pricing trace %#", (pricingTrace) => {
+    expect(extractCrmPricingFingerprintSnapshot(pricingTrace)).toBeNull();
   });
 });

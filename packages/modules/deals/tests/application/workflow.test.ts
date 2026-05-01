@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import type { PaymentRouteDraft } from "@bedrock/treasury/contracts";
-
 import type { DealIntakeDraft } from "../../src/application/contracts/dto";
+import type { DealRouteVersionSnapshot } from "../../src/domain/route-version";
 import {
   buildDealExecutionPlan,
   buildEffectiveDealExecutionPlan,
@@ -55,12 +54,13 @@ describe("deal workflow", () => {
       type: "payment",
     });
 
-    expect(completeness.find((section) => section.sectionId === "moneyRequest"))
-      .toEqual({
-        blockingReasons: [],
-        complete: true,
-        sectionId: "moneyRequest",
-      });
+    expect(
+      completeness.find((section) => section.sectionId === "moneyRequest"),
+    ).toEqual({
+      blockingReasons: [],
+      complete: true,
+      sectionId: "moneyRequest",
+    });
   });
 
   it("uses the nearest transition blockers when deriving next action", () => {
@@ -242,7 +242,9 @@ describe("deal workflow", () => {
   });
 });
 
-function createPaymentIntake(override?: Partial<DealIntakeDraft>): DealIntakeDraft {
+function createPaymentIntake(
+  override?: Partial<DealIntakeDraft>,
+): DealIntakeDraft {
   return {
     common: {
       applicantCounterpartyId: "applicant-1",
@@ -278,7 +280,7 @@ function createPaymentIntake(override?: Partial<DealIntakeDraft>): DealIntakeDra
   };
 }
 
-function createFourHopRouteSnapshot(): PaymentRouteDraft {
+function createFourHopRouteSnapshot(): DealRouteVersionSnapshot {
   return {
     additionalFees: [],
     amountInMinor: "100000000",
@@ -538,11 +540,13 @@ describe("buildEffectiveDealExecutionPlan — step-derived leg state", () => {
     storedLegs: [],
   };
 
-  function createStoredLegs(snapshot: PaymentRouteDraft) {
-    return buildDealExecutionPlan(createPaymentIntake(), snapshot).map((leg) => ({
-      ...leg,
-      id: `plan-leg-${leg.idx}`,
-    }));
+  function createStoredLegs(snapshot: DealRouteVersionSnapshot) {
+    return buildDealExecutionPlan(createPaymentIntake(), snapshot).map(
+      (leg) => ({
+        ...leg,
+        id: `plan-leg-${leg.idx}`,
+      }),
+    );
   }
 
   function createPaymentStepRef(

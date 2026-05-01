@@ -1,6 +1,4 @@
-import type { AgreementsModule } from "@bedrock/agreements";
 import type { CalculationsModule } from "@bedrock/calculations";
-import type { CurrenciesService } from "@bedrock/currencies";
 import {
   DealNotFoundError,
   DealQuoteInactiveError,
@@ -8,10 +6,6 @@ import {
   type DealsModule,
 } from "@bedrock/deals";
 import { ValidationError } from "@bedrock/shared/core/errors";
-import {
-  calculateBpsAmountMinorHalfUp,
-  mulDivRoundHalfUp,
-} from "@bedrock/shared/money";
 import type { TreasuryModule } from "@bedrock/treasury";
 
 import { serializeQuoteDetails } from "../routes/internal/treasury-quote-dto";
@@ -30,76 +24,9 @@ type ExpiredQuoteRecord = Awaited<
 >[number];
 
 export interface DealQuoteWorkflowDeps {
-  agreements: Pick<AgreementsModule, "agreements">;
   calculations: Pick<CalculationsModule, "calculations">;
-  currencies: Pick<CurrenciesService, "findByCode" | "findById">;
   deals: Pick<DealsModule, "deals">;
   treasury: Pick<TreasuryModule, "quotes">;
-}
-
-function convertQuoteComponentToBaseMinorHalfUp(input: {
-  amountMinor: bigint;
-  quote: Awaited<
-    ReturnType<TreasuryModule["quotes"]["queries"]["getQuoteDetails"]>
-  >["quote"];
-}) {
-  // Standalone derived components are converted and rounded per component.
-  return mulDivRoundHalfUp(
-    input.amountMinor,
-    input.quote.rateNum,
-    input.quote.rateDen,
-  );
-}
-
-function resolveAdditionalExpensesInBaseMinor(input: {
-  amountMinor: bigint;
-  currencyCode: string;
-  quote: Awaited<
-    ReturnType<TreasuryModule["quotes"]["queries"]["getQuoteDetails"]>
-  >["quote"];
-}) {
-  if (input.amountMinor === 0n) {
-    return {
-      additionalExpensesAmountMinor: 0n,
-      additionalExpensesCurrencyId: null,
-      additionalExpensesInBaseMinor: 0n,
-      additionalExpensesRateDen: null,
-      additionalExpensesRateNum: null,
-      additionalExpensesRateSource: null,
-      calculationLineCurrencyId: null,
-    };
-  }
-
-  if (input.currencyCode === input.quote.toCurrency) {
-    return {
-      additionalExpensesAmountMinor: input.amountMinor,
-      additionalExpensesCurrencyId: input.quote.toCurrencyId,
-      additionalExpensesInBaseMinor: input.amountMinor,
-      additionalExpensesRateDen: null,
-      additionalExpensesRateNum: null,
-      additionalExpensesRateSource: null,
-      calculationLineCurrencyId: input.quote.toCurrencyId,
-    };
-  }
-
-  if (input.currencyCode === input.quote.fromCurrency) {
-    return {
-      additionalExpensesAmountMinor: input.amountMinor,
-      additionalExpensesCurrencyId: input.quote.fromCurrencyId,
-      additionalExpensesInBaseMinor: convertQuoteComponentToBaseMinorHalfUp({
-        amountMinor: input.amountMinor,
-        quote: input.quote,
-      }),
-      additionalExpensesRateDen: input.quote.rateDen.toString(),
-      additionalExpensesRateNum: input.quote.rateNum.toString(),
-      additionalExpensesRateSource: "fx_quote" as const,
-      calculationLineCurrencyId: input.quote.fromCurrencyId,
-    };
-  }
-
-  throw new ValidationError(
-    `Additional expenses currency ${input.currencyCode} is unsupported for quote ${input.quote.id}`,
-  );
 }
 
 async function requireCurrentAcceptedQuote(input: {
@@ -109,7 +36,9 @@ async function requireCurrentAcceptedQuote(input: {
   now: Date;
   quoteId: string;
 }) {
-  const workflow = await input.deals.deals.queries.findWorkflowById(input.dealId);
+  const workflow = await input.deals.deals.queries.findWorkflowById(
+    input.dealId,
+  );
 
   if (!workflow) {
     throw new DealNotFoundError(input.dealId);
@@ -191,200 +120,22 @@ export function createDealQuoteWorkflow(deps: DealQuoteWorkflowDeps) {
       }
 
       if (!quote.fromCurrency || !quote.toCurrency) {
-        throw new ValidationError(`Quote ${quote.id} is missing currency codes`);
+        throw new ValidationError(
+          `Quote ${quote.id} is missing currency codes`,
+        );
       }
 
-      const currencyCodes = new Set(
-        quoteDetails.financialLines.map((line) => line.currency),
-      );
-      if (quote.commercialTerms?.fixedFeeCurrency) {
-        currencyCodes.add(quote.commercialTerms.fixedFeeCurrency);
-      }
-      const currencies = await Promise.all(
-        Array.from(currencyCodes).map((code) => deps.currencies.findByCode(code)),
-      );
-      const currencyIdByCode = new Map(
-        currencies.map((currency) => [currency.code, currency.id]),
-      );
-
-      const quoteAdditionalExpensesByCurrency = quoteDetails.financialLines.reduce(
-        (totals, line) => {
-          if (
-            line.bucket !== "pass_through" ||
-            line.metadata?.embeddedInRoute === "true"
-          ) {
-            return totals;
-          }
-
-          totals.set(
-            line.currency,
-            (totals.get(line.currency) ?? 0n) + line.amountMinor,
-          );
-
-          return totals;
-        },
-        new Map<string, bigint>(),
-      );
-
-      for (const amountMinor of quoteAdditionalExpensesByCurrency.values()) {
-        if (amountMinor < 0n) {
-          throw new ValidationError(
-            `Quote ${quote.id} has negative pass_through total`,
-          );
-        }
-      }
-
-      const originalAmountMinor = quote.fromAmountMinor;
       const acceptedAgreementVersionId =
         workflow.acceptedQuote?.agreementVersionId ?? null;
-      const commercialTerms = quote.commercialTerms ?? {
-        agreementVersionId: acceptedAgreementVersionId,
-        agreementFeeBps: 0n,
-        quoteMarkupBps: 0n,
-        totalFeeBps: 0n,
-        fixedFeeAmountMinor: null,
-        fixedFeeCurrency: null,
-      };
 
-      if (
-        acceptedAgreementVersionId &&
-        commercialTerms.agreementVersionId &&
-        acceptedAgreementVersionId !== commercialTerms.agreementVersionId
-      ) {
-        throw new ValidationError(
-          `Accepted quote ${quote.id} agreementVersionId does not match commercial terms`,
-        );
-      }
-
-      const agreementVersionId =
-        acceptedAgreementVersionId ?? commercialTerms.agreementVersionId ?? null;
-      const agreementFeeAmountMinor = calculateBpsAmountMinorHalfUp(
-        originalAmountMinor,
-        commercialTerms.agreementFeeBps,
-      );
-      const quoteMarkupAmountMinor = calculateBpsAmountMinorHalfUp(
-        originalAmountMinor,
-        commercialTerms.quoteMarkupBps,
-      );
-      const totalFeeAmountMinor = agreementFeeAmountMinor + quoteMarkupAmountMinor;
-      const totalAmountMinor = originalAmountMinor + totalFeeAmountMinor;
-      const totalFeeAmountInBaseMinor = convertQuoteComponentToBaseMinorHalfUp({
-        amountMinor: totalFeeAmountMinor,
-        quote,
-      });
-      const totalInBaseMinor = quote.toAmountMinor;
-      const fixedFeeAmountMinor = commercialTerms.fixedFeeAmountMinor ?? 0n;
-      const fixedFeeCurrencyId =
-        commercialTerms.fixedFeeCurrency
-          ? (currencyIdByCode.get(commercialTerms.fixedFeeCurrency) ?? null)
-          : null;
-
-      const nonZeroAdditionalExpenses = Array.from(
-        quoteAdditionalExpensesByCurrency.entries(),
-      ).filter(([, amountMinor]) => amountMinor !== 0n);
-
-      if (nonZeroAdditionalExpenses.length > 1) {
-        throw new ValidationError(
-          "Additional expenses must use a single currency when creating a calculation from quote",
-        );
-      }
-
-      const additionalExpenses =
-        nonZeroAdditionalExpenses.length === 0
-          ? {
-              additionalExpensesAmountMinor: 0n,
-              additionalExpensesCurrencyId: null,
-              additionalExpensesInBaseMinor: 0n,
-              additionalExpensesRateDen: null,
-              additionalExpensesRateNum: null,
-              additionalExpensesRateSource: null,
-            }
-          : resolveAdditionalExpensesInBaseMinor({
-              amountMinor: nonZeroAdditionalExpenses[0]![1],
-              currencyCode: nonZeroAdditionalExpenses[0]![0],
-              quote,
-            });
-      const additionalExpensesAmountMinor =
-        additionalExpenses.additionalExpensesAmountMinor;
-      const additionalExpensesCurrencyId =
-        additionalExpenses.additionalExpensesCurrencyId;
-      const additionalExpensesInBaseMinor =
-        additionalExpenses.additionalExpensesInBaseMinor;
-      const totalWithExpensesInBaseMinor =
-        totalInBaseMinor +
-        totalFeeAmountInBaseMinor +
-        additionalExpensesInBaseMinor;
-
-      const financialLines = quoteDetails.financialLines
-        .filter((line) => line.amountMinor !== 0n)
-        .map((line) => {
-          const currencyId = currencyIdByCode.get(line.currency);
-          if (!currencyId) {
-            throw new ValidationError(`Currency ${line.currency} is not configured`);
-          }
-
-          return {
-            kind: line.bucket,
-            currencyId,
-            amountMinor: line.amountMinor.toString(),
-          };
-        });
-
-      const calculation = await deps.calculations.calculations.commands.create({
-        actorUserId: input.actorUserId,
-        additionalExpensesAmountMinor:
-          additionalExpensesAmountMinor.toString(),
-        additionalExpensesCurrencyId,
-        additionalExpensesInBaseMinor:
-          additionalExpensesInBaseMinor.toString(),
-        additionalExpensesRateDen: additionalExpenses.additionalExpensesRateDen,
-        additionalExpensesRateNum: additionalExpenses.additionalExpensesRateNum,
-        additionalExpensesRateSource:
-          additionalExpenses.additionalExpensesRateSource,
-        agreementFeeAmountMinor: agreementFeeAmountMinor.toString(),
-        agreementFeeBps: commercialTerms.agreementFeeBps.toString(),
-        agreementVersionId,
-        baseCurrencyId: quote.toCurrencyId,
-        calculationCurrencyId: quote.fromCurrencyId,
-        calculationTimestamp: quote.createdAt,
-        fixedFeeAmountMinor: fixedFeeAmountMinor.toString(),
-        fixedFeeCurrencyId,
-        financialLines,
-        fxQuoteId: quote.id,
-        idempotencyKey: input.idempotencyKey,
-        originalAmountMinor: originalAmountMinor.toString(),
-        pricingProvenance: {
-          source: "accepted_quote",
+      const calculation =
+        await deps.calculations.calculations.commands.createFromAcceptedQuote({
+          actorUserId: input.actorUserId,
           acceptedAgreementVersionId,
-          quoteCommercialTerms: {
-            agreementVersionId: commercialTerms.agreementVersionId,
-            agreementFeeBps: commercialTerms.agreementFeeBps.toString(),
-            quoteMarkupBps: commercialTerms.quoteMarkupBps.toString(),
-            totalFeeBps: commercialTerms.totalFeeBps.toString(),
-            fixedFeeAmountMinor:
-              commercialTerms.fixedFeeAmountMinor?.toString() ?? null,
-            fixedFeeCurrency: commercialTerms.fixedFeeCurrency ?? null,
-          },
-          quoteId: quote.id,
-        },
-        quoteMarkupAmountMinor: quoteMarkupAmountMinor.toString(),
-        quoteMarkupBps: commercialTerms.quoteMarkupBps.toString(),
-        quoteSnapshot: serializeQuoteDetails(quoteDetails),
-        referenceRateAsOf: null,
-        referenceRateDen: null,
-        referenceRateNum: null,
-        referenceRateSource: null,
-        rateDen: quote.rateDen.toString(),
-        rateNum: quote.rateNum.toString(),
-        rateSource: "fx_quote",
-        totalAmountMinor: totalAmountMinor.toString(),
-        totalFeeAmountInBaseMinor: totalFeeAmountInBaseMinor.toString(),
-        totalFeeAmountMinor: totalFeeAmountMinor.toString(),
-        totalFeeBps: commercialTerms.totalFeeBps.toString(),
-        totalInBaseMinor: totalInBaseMinor.toString(),
-        totalWithExpensesInBaseMinor:
-          totalWithExpensesInBaseMinor.toString(),
-      });
+          idempotencyKey: input.idempotencyKey,
+          quoteDetails,
+          quoteSnapshot: serializeQuoteDetails(quoteDetails),
+        });
 
       await deps.deals.deals.commands.linkCalculationFromAcceptedQuote({
         actorUserId: input.actorUserId,
@@ -397,7 +148,8 @@ export function createDealQuoteWorkflow(deps: DealQuoteWorkflowDeps) {
     },
 
     async expireQuotes(now: Date): Promise<ExpiredQuoteRecord[]> {
-      const expiredQuotes = await deps.treasury.quotes.commands.expireQuotes(now);
+      const expiredQuotes =
+        await deps.treasury.quotes.commands.expireQuotes(now);
 
       await Promise.all(
         expiredQuotes
@@ -419,7 +171,9 @@ export function createDealQuoteWorkflow(deps: DealQuoteWorkflowDeps) {
       return expiredQuotes;
     },
 
-    async markQuoteUsed(input: TreasuryMarkQuoteUsedInput): Promise<TreasuryQuoteRecord> {
+    async markQuoteUsed(
+      input: TreasuryMarkQuoteUsedInput,
+    ): Promise<TreasuryQuoteRecord> {
       const dealId = input.dealId ?? null;
 
       if (dealId) {

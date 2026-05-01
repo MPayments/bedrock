@@ -1,5 +1,4 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
-import { randomUUID } from "node:crypto";
 
 import {
   CalculationDetailsSchema,
@@ -41,10 +40,8 @@ import {
   FileAttachmentSchema,
   FileAttachmentVisibilitySchema,
 } from "@bedrock/files/contracts";
-import type { LedgerModule } from "@bedrock/ledger";
 import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
 import { ValidationError } from "@bedrock/shared/core/errors";
-import type { TreasuryModule } from "@bedrock/treasury";
 import {
   QuoteListItemSchema,
   QuotePreviewResponseSchema,
@@ -124,163 +121,6 @@ function serializeDealPricingQuoteResult(
       profitability: result.profitability,
     },
   };
-}
-
-function readRecord(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : null;
-}
-
-function extractInventoryReservation(input: {
-  pricingTrace: Record<string, unknown> | null | undefined;
-}): {
-  amountMinor: bigint;
-  positionId: string;
-} | null {
-  const pricingTrace = readRecord(input.pricingTrace);
-  const metadata = readRecord(pricingTrace?.metadata);
-  const snapshot = readRecord(metadata?.crmPricingSnapshot);
-  const executionSide = readRecord(snapshot?.executionSide);
-  const clientSide = readRecord(snapshot?.clientSide);
-
-  if (
-    executionSide?.source !== "treasury_inventory" ||
-    typeof executionSide.inventoryPositionId !== "string" ||
-    typeof clientSide?.beneficiaryAmountMinor !== "string"
-  ) {
-    return null;
-  }
-
-  return {
-    amountMinor: BigInt(clientSide.beneficiaryAmountMinor),
-    positionId: executionSide.inventoryPositionId,
-  };
-}
-
-async function reserveInventoryForAcceptedQuote(input: {
-  actorUserId: string;
-  ctx: AppContext;
-  dealId: string;
-  idempotencyKey: string;
-  ledgerModule: LedgerModule;
-  quoteId: string;
-  requestContext: ReturnType<typeof getRequestContext>;
-  treasuryModule: TreasuryModule;
-}) {
-  const quote = await input.treasuryModule.quotes.queries.findById(
-    input.quoteId,
-  );
-  const reservation = extractInventoryReservation({
-    pricingTrace: quote?.pricingTrace ?? null,
-  });
-
-  if (!reservation) {
-    return null;
-  }
-
-  const existing =
-    await input.treasuryModule.treasuryOrders.queries.findReservedAllocationByDealAndQuote(
-      {
-        dealId: input.dealId,
-        quoteId: input.quoteId,
-      },
-    );
-  if (existing) {
-    return existing;
-  }
-
-  const position =
-    await input.treasuryModule.treasuryOrders.queries.findInventoryPositionById(
-      { positionId: reservation.positionId },
-    );
-  if (!position) {
-    throw new ValidationError(
-      `Treasury inventory position ${reservation.positionId} is not available`,
-    );
-  }
-  const positionCurrency = await input.ctx.currenciesService.findById(
-    position.currencyId,
-  );
-  const currency = await input.ledgerModule.balances.queries.getBalance({
-    bookId: position.ownerBookId,
-    currency: positionCurrency.code,
-    subjectId: position.ownerRequisiteId,
-    subjectType: position.ledgerSubjectType,
-  });
-  const allocationId = randomUUID();
-  const ledgerHoldRef = `treasury_inventory_allocation:${allocationId}`;
-  await input.ledgerModule.balances.commands.reserve({
-    actorId: input.actorUserId,
-    amountMinor: reservation.amountMinor,
-    holdRef: ledgerHoldRef,
-    idempotencyKey: `${input.idempotencyKey}:inventory-balance-hold`,
-    reason: `Reserve treasury inventory for deal ${input.dealId}`,
-    requestContext: input.requestContext,
-    subject: {
-      bookId: currency.bookId,
-      currency: currency.currency,
-      subjectId: currency.subjectId,
-      subjectType: currency.subjectType,
-    },
-  });
-
-  return input.treasuryModule.treasuryOrders.commands.reserveInventoryAllocation(
-    {
-      amountMinor: reservation.amountMinor,
-      dealId: input.dealId,
-      id: allocationId,
-      positionId: reservation.positionId,
-      quoteId: input.quoteId,
-    },
-  );
-}
-
-async function releaseSupersededInventoryReservations(input: {
-  actorUserId: string;
-  ctx: AppContext;
-  dealId: string;
-  idempotencyKey: string;
-  ledgerModule: ReturnType<AppContext["createLedgerModule"]>;
-  quoteId: string;
-  requestContext: ReturnType<typeof getRequestContext>;
-  treasuryModule: AppContext["treasuryModule"];
-}) {
-  const allocations =
-    await input.treasuryModule.treasuryOrders.queries.listInventoryAllocations({
-      dealId: input.dealId,
-      limit: 100,
-      offset: 0,
-      state: "reserved",
-    });
-
-  for (const allocation of allocations.data) {
-    if (allocation.quoteId === input.quoteId) {
-      continue;
-    }
-
-    const currency = await input.ctx.currenciesService.findById(
-      allocation.currencyId,
-    );
-    await input.ledgerModule.balances.commands.release({
-      actorId: input.actorUserId,
-      holdRef: allocation.ledgerHoldRef,
-      idempotencyKey: `${input.idempotencyKey}:inventory-balance-release:${allocation.id}`,
-      reason: `Release superseded treasury inventory for deal ${input.dealId}`,
-      requestContext: input.requestContext,
-      subject: {
-        bookId: allocation.ownerBookId,
-        currency: currency.code,
-        subjectId: allocation.ownerRequisiteId,
-        subjectType: "organization_requisite",
-      },
-    });
-    await input.treasuryModule.treasuryOrders.commands.releaseInventoryAllocation(
-      {
-        allocationId: allocation.id,
-      },
-    );
-  }
 }
 
 export function dealsRoutes(ctx: AppContext) {
@@ -2284,43 +2124,11 @@ export function dealsRoutes(ctx: AppContext) {
       try {
         const { id, quoteId } = c.req.valid("param");
         const actorUserId = c.get("user")!.id;
-        const result = await ctx.persistence.runInTransaction(async (tx) => {
-          const dealsModule = ctx.createDealsModule(tx);
-          const treasuryModule = ctx.createTreasuryModule(tx);
-          const ledgerModule = ctx.createLedgerModule(tx);
-          const accepted = await dealsModule.deals.commands.acceptQuote({
-            actorUserId,
-            dealId: id,
-            quoteId,
-          });
-          const acceptedQuoteId = accepted.acceptedQuote?.quoteId ?? quoteId;
-          await releaseSupersededInventoryReservations({
-            actorUserId,
-            ctx,
-            dealId: id,
-            idempotencyKey: `accept:${id}:${quoteId}`,
-            ledgerModule,
-            quoteId: acceptedQuoteId,
-            requestContext: getRequestContext(c),
-            treasuryModule,
-          });
-          await reserveInventoryForAcceptedQuote({
-            actorUserId,
-            ctx,
-            dealId: id,
-            idempotencyKey: `accept:${id}:${quoteId}`,
-            ledgerModule,
-            quoteId: acceptedQuoteId,
-            requestContext: getRequestContext(c),
-            treasuryModule,
-          });
-          return accepted;
-        });
-
-        await ctx.dealCommercialWorkflow.autoMaterializeAfterQuoteAccept({
+        const result = await ctx.dealPricingCommitWorkflow.acceptQuote({
           actorUserId,
           dealId: id,
-          quoteId: result.acceptedQuote?.quoteId ?? quoteId,
+          quoteId,
+          requestContext: getRequestContext(c),
         });
 
         return jsonOk(c, result);
@@ -2770,71 +2578,13 @@ export function dealsRoutes(ctx: AppContext) {
         const result = await withRequiredIdempotency(
           c,
           async (idempotencyKey) => {
-            const quoteResult = await ctx.dealPricingWorkflow.createQuote({
-              ...body,
+            return ctx.dealPricingCommitWorkflow.commitRoutePricing({
+              actorUserId,
               dealId: id,
               idempotencyKey,
+              pricing: body,
+              requestContext: getRequestContext(c),
             });
-
-            await ctx.dealsModule.deals.commands.appendTimelineEvent({
-              actorUserId,
-              dealId: id,
-              payload: {
-                expiresAt: quoteResult.quote.expiresAt,
-                pricingMode: quoteResult.pricingMode,
-                quoteId: quoteResult.quote.id,
-              },
-              sourceRef: `quote:${quoteResult.quote.id}:created`,
-              type: "quote_created",
-              visibility: "internal",
-            });
-
-            await ctx.persistence.runInTransaction(async (tx) => {
-              const dealsModule = ctx.createDealsModule(tx);
-              const treasuryModule = ctx.createTreasuryModule(tx);
-              const ledgerModule = ctx.createLedgerModule(tx);
-              await dealsModule.deals.commands.acceptQuote({
-                actorUserId,
-                dealId: id,
-                quoteId: quoteResult.quote.id,
-              });
-              await releaseSupersededInventoryReservations({
-                actorUserId,
-                ctx,
-                dealId: id,
-                idempotencyKey,
-                ledgerModule,
-                quoteId: quoteResult.quote.id,
-                requestContext: getRequestContext(c),
-                treasuryModule,
-              });
-              await reserveInventoryForAcceptedQuote({
-                actorUserId,
-                ctx,
-                dealId: id,
-                idempotencyKey,
-                ledgerModule,
-                quoteId: quoteResult.quote.id,
-                requestContext: getRequestContext(c),
-                treasuryModule,
-              });
-            });
-
-            const calculation =
-              await ctx.dealQuoteWorkflow.createCalculationFromAcceptedQuote({
-                actorUserId,
-                dealId: id,
-                idempotencyKey: `${idempotencyKey}:calculation`,
-                quoteId: quoteResult.quote.id,
-              });
-
-            await ctx.dealCommercialWorkflow.autoMaterializeAfterQuoteAccept({
-              actorUserId,
-              dealId: id,
-              quoteId: quoteResult.quote.id,
-            });
-
-            return { quoteResult, calculationId: calculation.id };
           },
         );
 
