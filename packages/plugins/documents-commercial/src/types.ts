@@ -1,4 +1,5 @@
 export const COMMERCIAL_DOCUMENT_TYPES = [
+  "application",
   "invoice",
   "exchange",
   "acceptance",

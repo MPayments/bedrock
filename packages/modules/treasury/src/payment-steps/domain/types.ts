@@ -41,6 +41,7 @@ export const PAYMENT_STEP_ATTEMPT_OUTCOME_VALUES = [
 ] as const;
 
 export const PAYMENT_STEP_SETTLEMENT_EVIDENCE_PURPOSE_VALUES = [
+  "swift_mt103",
   "bank_confirmation",
   "settlement_confirmation",
   "counterparty_receipt",

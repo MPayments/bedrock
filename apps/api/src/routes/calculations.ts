@@ -16,8 +16,6 @@ import type { AuthVariables } from "../middleware/auth";
 import { withRequiredIdempotency } from "../middleware/idempotency";
 import { requirePermission } from "../middleware/permission";
 import {
-  generateCalculationPrintForm,
-  listCalculationPrintForms,
   PrintFormFormatQuerySchema,
   writeGeneratedDocumentResponse,
 } from "./internal/print-forms";
@@ -265,9 +263,9 @@ export function calculationsRoutes(ctx: AppContext) {
     .openapi(listPrintFormsRoute, async (c) => {
       try {
         const { id } = c.req.valid("param");
-        const result = await listCalculationPrintForms({
+        const result =
+          await ctx.documentGenerationWorkflow.listCalculationPrintForms({
           calculationId: id,
-          ctx,
         });
 
         return jsonOk(c, result);
@@ -279,9 +277,9 @@ export function calculationsRoutes(ctx: AppContext) {
       try {
         const { formId, id } = c.req.valid("param");
         const { format } = c.req.valid("query");
-        const result = await generateCalculationPrintForm({
+        const result =
+          await ctx.documentGenerationWorkflow.generateCalculationPrintForm({
           calculationId: id,
-          ctx,
           formId,
           format,
         });

@@ -71,9 +71,34 @@ function buildInvoicePrefill(
   };
 }
 
+function buildApplicationPrefill(
+  workbench: ApiCrmDealWorkbenchProjection,
+): Record<string, unknown> {
+  return {
+    calculationId: workbench.summary.calculationId,
+    counterpartyId:
+      workbench.context.applicant?.id ??
+      workbench.intake.common.applicantCounterpartyId ??
+      null,
+    customerId: workbench.context.customer?.customer.id ?? null,
+    dealId: workbench.summary.id,
+    organizationId: workbench.context.internalEntity?.id ?? null,
+    organizationRequisiteId:
+      workbench.context.internalEntityRequisite?.id ?? null,
+    occurredAt: new Date().toISOString().slice(0, 16),
+    quoteId: workbench.acceptedQuote?.quoteId ?? null,
+  };
+}
+
 function buildAcceptancePrefill(
   workbench: ApiCrmDealWorkbenchProjection,
 ): Record<string, unknown> {
+  const applicationDocumentId =
+    workbench.documentRequirements.find(
+      (requirement) =>
+        requirement.stage === "opening" &&
+        requirement.docType === "application",
+    )?.activeDocumentId ?? null;
   const principalInvoiceId =
     workbench.documentRequirements.find(
       (requirement) =>
@@ -83,6 +108,7 @@ function buildAcceptancePrefill(
     )?.activeDocumentId ?? null;
 
   return {
+    applicationDocumentId,
     counterpartyId:
       workbench.context.applicant?.id ??
       workbench.intake.common.applicantCounterpartyId ??
@@ -123,6 +149,8 @@ export function buildCrmDealDocumentInitialPayload(
   void options;
 
   switch (docType) {
+    case "application":
+      return buildApplicationPrefill(workbench);
     case "invoice":
       return buildInvoicePrefill(workbench, input?.invoicePurpose ?? null);
     case "acceptance":

@@ -2,7 +2,10 @@ import { randomUUID } from "node:crypto";
 
 import type { AgreementsModule } from "@bedrock/agreements";
 import type { AgreementDetails } from "@bedrock/agreements/contracts";
+import type { CalculationsModule } from "@bedrock/calculations";
 import type { CurrenciesService } from "@bedrock/currencies";
+import type { DealsModule } from "@bedrock/deals";
+import type { DocumentsService } from "@bedrock/documents";
 import {
   findPartyAddress,
   findPartyIdentifier,
@@ -62,6 +65,7 @@ import {
   CustomerContractNotFoundError,
   CustomerContractOrganizationNotFoundError,
 } from "./errors";
+import { createPrintFormApplication } from "./print-forms";
 
 export interface TemplateRendererPort {
   renderDocx(
@@ -93,7 +97,10 @@ export interface ObjectStoragePort {
 
 export interface DocumentGenerationWorkflowDeps {
   agreements: Pick<AgreementsModule, "agreements">;
+  calculations: Pick<CalculationsModule, "calculations">;
   currencies: Pick<CurrenciesService, "findById">;
+  deals: Pick<DealsModule, "deals">;
+  documents: Pick<DocumentsService, "get">;
   logger: Logger;
   objectStorage?: ObjectStoragePort;
   parties: Pick<PartiesModule, "counterparties" | "organizations" | "requisites">;
@@ -582,7 +589,7 @@ export function createDocumentGenerationWorkflow(
     return { fileName, mimeType, buffer };
   }
 
-  return {
+  const workflow = {
     async generate(input: GenerateDocumentInput): Promise<GeneratedDocument> {
       const validated = GenerateDocumentInputSchema.parse(input);
 
@@ -825,6 +832,19 @@ export function createDocumentGenerationWorkflow(
         locale,
       );
     },
+  };
+
+  return {
+    ...workflow,
+    ...createPrintFormApplication({
+      agreementsModule: deps.agreements,
+      calculationsModule: deps.calculations,
+      currenciesService: deps.currencies,
+      dealsModule: deps.deals,
+      documentsService: deps.documents,
+      documentGenerationWorkflow: workflow,
+      partiesModule: deps.parties,
+    }),
   };
 }
 

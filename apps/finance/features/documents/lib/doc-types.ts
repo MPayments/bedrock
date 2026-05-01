@@ -43,6 +43,7 @@ const TYPED_DOCUMENT_TYPE_SET = new Set(
 const CREATABLE_DOCUMENT_TYPE_SET = new Set(
   DOCUMENT_TYPES.filter((option) => option.creatable).map((option) => option.value),
 );
+const DEAL_SCOPED_ONLY_CREATE_TYPES = new Set(["application", "acceptance"]);
 const DOCUMENT_METADATA = {
   ...IFRS_DOCUMENT_METADATA,
   ...COMMERCIAL_DOCUMENT_METADATA,
@@ -119,6 +120,7 @@ export function getCreateDocumentTypeOptions(
   return DOCUMENT_TYPES.filter(
     (option) =>
       option.creatable &&
+      !DEAL_SCOPED_ONLY_CREATE_TYPES.has(option.value) &&
       isAllowedForRole(option, role),
   );
 }

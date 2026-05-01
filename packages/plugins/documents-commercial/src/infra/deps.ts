@@ -27,6 +27,7 @@ import type { QuoteSnapshot } from "../validation";
 import { QuoteSnapshotSchema } from "../validation";
 
 const INVOICE_DOC_TYPE = "invoice";
+const APPLICATION_DOC_TYPE = "application";
 const EXCHANGE_DOC_TYPE = "exchange";
 const ACCEPTANCE_DOC_TYPE = "acceptance";
 
@@ -164,7 +165,10 @@ export function createCommercialDocumentDeps(input: {
     },
     "findWorkflowById"
   >;
-  documentsReadModel?: Pick<DocumentsReadModel, "findBusinessLinkByDocumentId">;
+  documentsReadModel?: Pick<
+    DocumentsReadModel,
+    "findBusinessLinkByDocumentId" | "listDealTraceRowsByDealId"
+  >;
   treasuryQuotes: CommercialTreasuryQuotesPort;
   requisitesService: {
     resolveBindings(input: { requisiteIds: string[] }): Promise<
@@ -263,6 +267,22 @@ export function createCommercialDocumentDeps(input: {
           rethrowAsDocumentValidationError(error);
         }
       },
+      async findActiveDocumentIdByDealIdAndDocType({ dealId, docType }) {
+        if (!documentsReadModel) {
+          return null;
+        }
+
+        try {
+          return (
+            (await documentsReadModel.listDealTraceRowsByDealId(dealId)).find(
+              (row) =>
+                row.docType === docType && row.lifecycleStatus === "active",
+            )?.documentId ?? null
+          );
+        } catch (error) {
+          rethrowAsDocumentValidationError(error);
+        }
+      },
     },
     quoteSnapshot: {
       async loadQuoteSnapshot({ quoteRef }) {
@@ -341,12 +361,27 @@ export function createCommercialDocumentDeps(input: {
       },
     },
     documentRelations: {
+      loadApplication({ runtime, applicationDocumentId, forUpdate = false }) {
+        return loadDocumentByType({
+          runtime,
+          documentId: applicationDocumentId,
+          docType: APPLICATION_DOC_TYPE,
+          forUpdate,
+        });
+      },
       loadInvoice({ runtime, invoiceDocumentId, forUpdate = false }) {
         return loadDocumentByType({
           runtime,
           documentId: invoiceDocumentId,
           docType: INVOICE_DOC_TYPE,
           forUpdate,
+        });
+      },
+      async getApplicationAcceptanceChild({ runtime, applicationDocumentId }) {
+        return runtime.documents.findIncomingLinkedDocument({
+          toDocumentId: applicationDocumentId,
+          linkType: "parent",
+          fromDocType: ACCEPTANCE_DOC_TYPE,
         });
       },
       async getInvoiceExchangeChild({ runtime, invoiceDocumentId }) {
@@ -359,7 +394,7 @@ export function createCommercialDocumentDeps(input: {
       async getInvoiceAcceptanceChild({ runtime, invoiceDocumentId }) {
         return runtime.documents.findIncomingLinkedDocument({
           toDocumentId: invoiceDocumentId,
-          linkType: "parent",
+          linkType: "depends_on",
           fromDocType: ACCEPTANCE_DOC_TYPE,
         });
       },

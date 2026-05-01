@@ -51,6 +51,7 @@ import {
   QuoteSchema,
   PreviewQuoteInputSchema,
 } from "@bedrock/treasury/contracts";
+import { assertDealAllowsCommercialWrite } from "@bedrock/workflow-deal-commercial";
 import {
   CrmDealBoardProjectionSchema,
   CrmDealWorkbenchProjectionSchema,
@@ -79,20 +80,11 @@ import {
 } from "../middleware/idempotency";
 import { requirePermission } from "../middleware/permission";
 import {
-  buildDealTrace,
-  createDealScopedFormalDocument,
-  createDealScopedQuote,
-  previewDealScopedQuote,
-  triggerAutoMaterializeAfterAccept,
   DealScopedCreateDocumentInputSchema,
-  assertDealAllowsCommercialWrite,
   requireDeal,
 } from "./internal/deal-linked-resources";
 import { toDocumentDto } from "./internal/document-dto";
 import {
-  generateDealPrintForm,
-  listDealPrintForms,
-  listDocumentPrintForms,
   PrintFormFormatQuerySchema,
   writeGeneratedDocumentResponse,
 } from "./internal/print-forms";
@@ -2325,7 +2317,7 @@ export function dealsRoutes(ctx: AppContext) {
           return accepted;
         });
 
-        await triggerAutoMaterializeAfterAccept(ctx, {
+        await ctx.dealCommercialWorkflow.autoMaterializeAfterQuoteAccept({
           actorUserId,
           dealId: id,
           quoteId: result.acceptedQuote?.quoteId ?? quoteId,
@@ -2615,11 +2607,10 @@ export function dealsRoutes(ctx: AppContext) {
         const { id } = c.req.valid("param");
         const body = c.req.valid("json");
         const result = await withRequiredIdempotency(c, (idempotencyKey) =>
-          createDealScopedQuote({
-            body,
-            ctx,
+          ctx.dealCommercialWorkflow.createQuote({
             dealId: id,
             idempotencyKey,
+            quoteInput: body,
           }),
         );
 
@@ -2648,10 +2639,9 @@ export function dealsRoutes(ctx: AppContext) {
       try {
         const { id } = c.req.valid("param");
         const body = c.req.valid("json");
-        const result = await previewDealScopedQuote({
-          body,
-          ctx,
+        const result = await ctx.dealCommercialWorkflow.previewQuote({
           dealId: id,
+          quoteInput: body,
         });
 
         return jsonOk(c, serializeQuotePreview(result));
@@ -2838,7 +2828,7 @@ export function dealsRoutes(ctx: AppContext) {
                 quoteId: quoteResult.quote.id,
               });
 
-            await triggerAutoMaterializeAfterAccept(ctx, {
+            await ctx.dealCommercialWorkflow.autoMaterializeAfterQuoteAccept({
               actorUserId,
               dealId: id,
               quoteId: quoteResult.quote.id,
@@ -2867,7 +2857,9 @@ export function dealsRoutes(ctx: AppContext) {
     .openapi(listPrintFormsRoute, async (c) => {
       try {
         const { id } = c.req.valid("param");
-        const result = await listDealPrintForms({ ctx, dealId: id });
+        const result = await ctx.documentGenerationWorkflow.listDealPrintForms({
+          dealId: id,
+        });
 
         return jsonOk(c, result);
       } catch (error) {
@@ -2878,12 +2870,12 @@ export function dealsRoutes(ctx: AppContext) {
       try {
         const { formId, id } = c.req.valid("param");
         const { format } = c.req.valid("query");
-        const result = await generateDealPrintForm({
-          ctx,
-          dealId: id,
-          formId,
-          format,
-        });
+        const result =
+          await ctx.documentGenerationWorkflow.generateDealPrintForm({
+            dealId: id,
+            formId,
+            format,
+          });
 
         return writeGeneratedDocumentResponse(c, result);
       } catch (error) {
@@ -2919,12 +2911,12 @@ export function dealsRoutes(ctx: AppContext) {
         const rows = await Promise.all(
           result.data.map(async (document) => ({
             ...toDocumentDto(document),
-            printForms: await listDocumentPrintForms({
-              actorUserId: c.get("user")!.id,
-              ctx,
-              docType: document.document.docType,
-              documentId: document.document.id,
-            }),
+            printForms:
+              await ctx.documentGenerationWorkflow.listDocumentPrintForms({
+                actorUserId: c.get("user")!.id,
+                docType: document.document.docType,
+                documentId: document.document.id,
+              }),
           })),
         );
 
@@ -2938,14 +2930,14 @@ export function dealsRoutes(ctx: AppContext) {
         const { docType, id } = c.req.valid("param");
         const body = c.req.valid("json");
         const result = await withRequiredIdempotency(c, (idempotencyKey) =>
-          createDealScopedFormalDocument({
+          ctx.dealCommercialWorkflow.createFormalDocument({
             actorUserId: c.get("user")!.id,
-            body,
-            ctx,
             dealId: id,
             docType,
             idempotencyKey,
+            payload: body.input,
             requestContext: getRequestContext(c),
+            routeBodyDealId: body.dealId ?? null,
           }),
         );
 
@@ -3143,7 +3135,9 @@ export function dealsRoutes(ctx: AppContext) {
     .openapi(traceRoute, async (c) => {
       try {
         const { id } = c.req.valid("param");
-        const trace = await buildDealTrace(ctx, id);
+        const trace = await ctx.dealCommercialWorkflow.buildTrace({
+          dealId: id,
+        });
         return jsonOk(c, trace);
       } catch (error) {
         return handleRouteError(c, error);

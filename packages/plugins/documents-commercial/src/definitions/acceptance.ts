@@ -10,14 +10,16 @@ import { AcceptanceInputSchema } from "../validation";
 function getDefaultAcceptanceValues() {
   return {
     occurredAt: nowDateTimeLocal(),
+    applicationDocumentId: "",
     invoiceDocumentId: "",
+    settlementEvidenceFileAssetIds: [],
     memo: "",
   };
 }
 
 export const acceptanceDocumentDefinition = {
   docType: "acceptance",
-  label: "Акт",
+  label: "Акт / подтверждение исполнения",
   family: "commercial",
   docNoPrefix: "ACT",
   schema: AcceptanceInputSchema,
@@ -27,7 +29,7 @@ export const acceptanceDocumentDefinition = {
   listed: true,
   formDefinition: {
     docType: "acceptance",
-    label: "Акт",
+    label: "Акт / подтверждение исполнения",
     family: "commercial",
     schema: AcceptanceInputSchema,
     sections: [
@@ -38,16 +40,22 @@ export const acceptanceDocumentDefinition = {
           { kind: "datetime", name: "occurredAt", label: "Дата документа" },
           {
             kind: "document",
+            name: "applicationDocumentId",
+            label: "Поручение",
+            disabled: true,
+            docTypes: ["application"],
+          },
+          {
+            kind: "text",
             name: "invoiceDocumentId",
             label: "Счёт на оплату",
-            disabled: true,
-            docTypes: ["invoice"],
+            hidden: true,
           },
           { kind: "textarea", name: "memo", label: "Комментарий", rows: 3 },
         ],
         layout: {
           rows: [
-            { fields: ["occurredAt", "invoiceDocumentId"] },
+            { fields: ["occurredAt", "applicationDocumentId"] },
             { fields: ["memo"] },
           ],
         },
@@ -58,7 +66,13 @@ export const acceptanceDocumentDefinition = {
       return {
         ...getDefaultAcceptanceValues(),
         occurredAt: isoToDateTimeLocal(payload.occurredAt),
+        applicationDocumentId: readString(payload.applicationDocumentId),
         invoiceDocumentId: readString(payload.invoiceDocumentId),
+        settlementEvidenceFileAssetIds: Array.isArray(
+          payload.settlementEvidenceFileAssetIds,
+        )
+          ? payload.settlementEvidenceFileAssetIds
+          : [],
         memo: readString(payload.memo),
       };
     },

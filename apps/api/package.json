@@ -36,6 +36,7 @@
     "@bedrock/treasury": "workspace:*",
     "@bedrock/workflow-customer-portal": "workspace:*",
     "@bedrock/workflow-deal-attachment-ingestion": "workspace:*",
+    "@bedrock/workflow-deal-commercial": "workspace:*",
     "@bedrock/workflow-deal-execution": "workspace:*",
     "@bedrock/workflow-deal-projections": "workspace:*",
     "@bedrock/workflow-document-drafts": "workspace:*",

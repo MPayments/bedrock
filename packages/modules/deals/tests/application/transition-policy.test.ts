@@ -232,7 +232,7 @@ describe("deal transition policy", () => {
     expect(readiness.blockers.some((blocker) => blocker.code === "opening_document_missing")).toBe(true);
   });
 
-  it("allows preparing_documents -> awaiting_funds when the accepted quote is already used and the opening document is posted", () => {
+  it("allows preparing_documents -> awaiting_funds when the accepted quote is already used and opening documents are ready", () => {
     const input = createBaseInput();
     input.status = "preparing_documents";
     input.targetStatus = "awaiting_funds";
@@ -255,16 +255,27 @@ describe("deal transition policy", () => {
     input.calculationId = "calculation-1";
     input.documents = [
       {
-        approvalStatus: "approved",
-        createdAt: new Date("2026-04-01T10:00:00.000Z"),
-        docType: "invoice",
-        id: "doc-1",
-        lifecycleStatus: "active",
-        occurredAt: new Date("2026-04-01T10:00:00.000Z"),
-        postingStatus: "posted",
-        submissionStatus: "submitted",
-      },
-    ];
+      approvalStatus: "approved",
+      createdAt: new Date("2026-04-01T10:00:00.000Z"),
+      docType: "application",
+      id: "doc-1",
+      lifecycleStatus: "active",
+      occurredAt: new Date("2026-04-01T10:00:00.000Z"),
+      postingStatus: "not_required",
+      submissionStatus: "submitted",
+    },
+    {
+      approvalStatus: "approved",
+      createdAt: new Date("2026-04-01T10:05:00.000Z"),
+      docType: "invoice",
+      id: "doc-2",
+      invoicePurpose: "combined",
+      lifecycleStatus: "active",
+      occurredAt: new Date("2026-04-01T10:05:00.000Z"),
+      postingStatus: "posted",
+      submissionStatus: "submitted",
+    },
+  ];
     input.executionPlan = [
       createExecutionLeg(1, "collect", "pending"),
       {

@@ -1145,11 +1145,32 @@ describe("createDealProjectionsWorkflow", () => {
             {
               approvalStatus: "approved",
               createdAt: new Date("2026-04-01T10:00:00.000Z"),
-              docType: "acceptance",
+              docType: "application",
               id: "document-1",
               lifecycleStatus: "active",
               occurredAt: new Date("2026-04-01T10:00:00.000Z"),
+              postingStatus: "not_required",
+              submissionStatus: "submitted",
+            },
+            {
+              approvalStatus: "approved",
+              createdAt: new Date("2026-04-01T10:05:00.000Z"),
+              docType: "invoice",
+              id: "document-2",
+              invoicePurpose: "combined",
+              lifecycleStatus: "active",
+              occurredAt: new Date("2026-04-01T10:05:00.000Z"),
               postingStatus: "posted",
+              submissionStatus: "submitted",
+            },
+            {
+              approvalStatus: "approved",
+              createdAt: new Date("2026-04-01T10:10:00.000Z"),
+              docType: "acceptance",
+              id: "document-3",
+              lifecycleStatus: "active",
+              occurredAt: new Date("2026-04-01T10:10:00.000Z"),
+              postingStatus: "not_required",
               submissionStatus: "submitted",
             },
           ],
@@ -1199,9 +1220,16 @@ describe("createDealProjectionsWorkflow", () => {
       formalDocumentRequirements: [
         {
           createAllowed: false,
+          docType: "application",
+          openAllowed: true,
+          state: "ready",
+        },
+        {
+          createAllowed: false,
           docType: "invoice",
-          openAllowed: false,
-          state: "missing",
+          invoicePurpose: "combined",
+          openAllowed: true,
+          state: "ready",
         },
         {
           createAllowed: false,
@@ -1354,8 +1382,25 @@ describe("createDealProjectionsWorkflow", () => {
     const workflow = createWorkflow({
       workflow: {
         ...baseWorkflow,
+        acceptedQuote: {
+          acceptedAt: new Date("2026-04-01T09:00:00.000Z"),
+          acceptedByUserId: "user-2",
+          agreementVersionId: null,
+          dealId: "deal-1",
+          dealRevision: 1,
+          expiresAt: new Date("2026-04-01T12:00:00.000Z"),
+          id: "quote-acceptance-1",
+          quoteId: "quote-1",
+          quoteStatus: "active",
+          replacedByQuoteId: null,
+          revocationReason: null,
+          revokedAt: null,
+          usedAt: null,
+          usedDocumentId: null,
+        },
         summary: {
           ...baseWorkflow.summary,
+          calculationId: "calculation-1",
           status: "preparing_documents",
         },
       },
@@ -1368,6 +1413,12 @@ describe("createDealProjectionsWorkflow", () => {
       expect.arrayContaining([
         expect.objectContaining({
           createAllowed: true,
+          docType: "application",
+          openAllowed: false,
+          state: "missing",
+        }),
+        expect.objectContaining({
+          createAllowed: false,
           docType: "invoice",
           openAllowed: false,
           state: "missing",

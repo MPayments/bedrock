@@ -521,6 +521,14 @@ function createWorkflow(overrides?: {
       agreements: {
         queries: {
           findActiveByCustomerId: vi.fn(async () => agreement),
+          findVersionById: vi.fn(async () => null),
+        },
+      },
+    } as any,
+    calculations: {
+      calculations: {
+        queries: {
+          findById: vi.fn(async () => null),
         },
       },
     } as any,
@@ -569,6 +577,17 @@ function createWorkflow(overrides?: {
           }),
         },
       },
+    } as any,
+    deals: {
+      deals: {
+        queries: {
+          findById: vi.fn(async () => null),
+          findWorkflowById: vi.fn(async () => null),
+        },
+      },
+    } as any,
+    documents: {
+      get: vi.fn(async () => null),
     } as any,
     pdfConverter,
     templateRenderer,

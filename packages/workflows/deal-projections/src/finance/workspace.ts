@@ -324,6 +324,7 @@ export async function getFinanceDealWorkspaceProjection(
   });
   const formalDocumentRequirements = buildCrmDocumentRequirements(workflow, {
     feeBillingMode,
+    paymentSteps: paymentStepsResult.data,
   });
   const openingInvoiceRequirement =
     formalDocumentRequirements.find(

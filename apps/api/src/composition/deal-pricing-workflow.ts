@@ -38,8 +38,7 @@ import {
   type QuotePreviewRecord,
   type QuoteRecord,
 } from "@bedrock/treasury/contracts";
-
-import { extractAgreementCommercialDefaults } from "./commercial-pricing";
+import { extractAgreementCommercialDefaults } from "@bedrock/workflow-deal-commercial";
 
 type DealPricingContextRecord = Awaited<
   ReturnType<DealsModule["deals"]["queries"]["findPricingContextByDealId"]>

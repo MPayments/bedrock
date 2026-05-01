@@ -25,8 +25,10 @@ import { canonicalJson } from "@bedrock/shared/core/canon";
 
 import type { CommercialDocumentRuntime, CommercialModuleDeps } from "./types";
 import {
+  ApplicationPayloadSchema,
   InvoicePayloadSchema,
   QuoteSnapshotSchema,
+  type ApplicationPayload,
   type ExchangePayload,
   type InvoiceCurrentPayload,
   type InvoicePayload,
@@ -149,6 +151,36 @@ export async function loadInvoice(
   return invoice;
 }
 
+export async function loadApplication(
+  deps: Pick<CommercialModuleDeps, "documentRelations">,
+  runtime: CommercialDocumentRuntime,
+  applicationDocumentId: string,
+  forUpdate = false,
+): Promise<Document> {
+  const application = await deps.documentRelations.loadApplication({
+    runtime,
+    applicationDocumentId,
+    forUpdate,
+  });
+
+  if (!application) {
+    throw new DocumentValidationError("application document is missing");
+  }
+
+  return application;
+}
+
+export async function getApplicationAcceptanceChild(
+  deps: Pick<CommercialModuleDeps, "documentRelations">,
+  runtime: CommercialDocumentRuntime,
+  applicationDocumentId: string,
+): Promise<Document | null> {
+  return deps.documentRelations.getApplicationAcceptanceChild({
+    runtime,
+    applicationDocumentId,
+  });
+}
+
 export async function getInvoiceExchangeChild(
   deps: Pick<CommercialModuleDeps, "documentRelations">,
   runtime: CommercialDocumentRuntime,
@@ -191,6 +223,24 @@ export function requirePostedDocument(
   ) {
     throw new DocumentValidationError(
       `${document.docType} must be active and posted`,
+    );
+  }
+}
+
+export function requireReadyDocument(
+  document: Pick<
+    Document,
+    "approvalStatus" | "docType" | "lifecycleStatus" | "postingStatus" | "submissionStatus"
+  >,
+) {
+  if (
+    document.lifecycleStatus !== "active" ||
+    document.submissionStatus !== "submitted" ||
+    !["approved", "not_required"].includes(document.approvalStatus) ||
+    !["posted", "not_required"].includes(document.postingStatus)
+  ) {
+    throw new DocumentValidationError(
+      `${document.docType} must be active and ready`,
     );
   }
 }
@@ -887,6 +937,10 @@ export function buildExchangePostingPlan(input: {
 
 export function parseInvoicePayload(document: Document) {
   return parseDocumentPayload(InvoicePayloadSchema, document);
+}
+
+export function parseApplicationPayload(document: Document): ApplicationPayload {
+  return parseDocumentPayload(ApplicationPayloadSchema, document);
 }
 
 export async function invoiceRequiresExchange(

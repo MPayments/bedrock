@@ -48,6 +48,7 @@
         "@bedrock/treasury": "workspace:*",
         "@bedrock/workflow-customer-portal": "workspace:*",
         "@bedrock/workflow-deal-attachment-ingestion": "workspace:*",
+        "@bedrock/workflow-deal-commercial": "workspace:*",
         "@bedrock/workflow-deal-execution": "workspace:*",
         "@bedrock/workflow-deal-projections": "workspace:*",
         "@bedrock/workflow-document-drafts": "workspace:*",
@@ -956,6 +957,28 @@
         "vitest": "^4.1.4",
       },
     },
+    "packages/workflows/deal-commercial": {
+      "name": "@bedrock/workflow-deal-commercial",
+      "version": "0.0.0",
+      "dependencies": {
+        "@bedrock/agreements": "workspace:*",
+        "@bedrock/deals": "workspace:*",
+        "@bedrock/documents": "workspace:*",
+        "@bedrock/platform": "workspace:*",
+        "@bedrock/shared": "workspace:*",
+        "@bedrock/treasury": "workspace:*",
+        "@bedrock/workflow-deal-execution": "workspace:*",
+        "@bedrock/workflow-deal-projections": "workspace:*",
+        "@bedrock/workflow-document-drafts": "workspace:*",
+      },
+      "devDependencies": {
+        "@bedrock/typescript-config": "workspace:*",
+        "@types/node": "^24",
+        "eslint": "^10.2.0",
+        "typescript": "^6.0.2",
+        "vitest": "^4.1.4",
+      },
+    },
     "packages/workflows/deal-commission": {
       "name": "@bedrock/workflow-deal-commission",
       "version": "0.0.0",
@@ -1038,7 +1061,10 @@
       "version": "0.0.0",
       "dependencies": {
         "@bedrock/agreements": "workspace:*",
+        "@bedrock/calculations": "workspace:*",
         "@bedrock/currencies": "workspace:*",
+        "@bedrock/deals": "workspace:*",
+        "@bedrock/documents": "workspace:*",
         "@bedrock/parties": "workspace:*",
         "@bedrock/platform": "workspace:*",
         "@bedrock/shared": "workspace:*",
@@ -1318,6 +1344,8 @@
     "@bedrock/workflow-customer-portal": ["@bedrock/workflow-customer-portal@workspace:packages/workflows/customer-portal"],
 
     "@bedrock/workflow-deal-attachment-ingestion": ["@bedrock/workflow-deal-attachment-ingestion@workspace:packages/workflows/deal-attachment-ingestion"],
+
+    "@bedrock/workflow-deal-commercial": ["@bedrock/workflow-deal-commercial@workspace:packages/workflows/deal-commercial"],
 
     "@bedrock/workflow-deal-commission": ["@bedrock/workflow-deal-commission@workspace:packages/workflows/deal-commission"],
 
@@ -3271,6 +3299,8 @@
 
     "@bedrock/workflow-deal-attachment-ingestion/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
 
+    "@bedrock/workflow-deal-commercial/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
+
     "@bedrock/workflow-deal-commission/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
 
     "@bedrock/workflow-deal-execution/@types/node": ["@types/node@24.10.13", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-oH72nZRfDv9lADUBSo104Aq7gPHpQZc4BTx38r9xf9pg5LfP6EzSyH2n7qFmmxRQXh7YlUXODcYsg6PuTDSxGg=="],
@@ -3518,6 +3548,8 @@
     "@bedrock/workflow-customer-portal/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
 
     "@bedrock/workflow-deal-attachment-ingestion/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
+
+    "@bedrock/workflow-deal-commercial/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
 
     "@bedrock/workflow-deal-commission/@types/node/undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
 

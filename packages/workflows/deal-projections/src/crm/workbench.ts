@@ -191,6 +191,7 @@ export async function getCrmDealWorkbenchProjection(
     legalEntitiesResult,
     currentCalculation,
     internalEntityRequisite,
+    paymentStepsResult,
     quotesResult,
     quoteExecutionsResult,
   ] = await Promise.all([
@@ -231,6 +232,12 @@ export async function getCrmDealWorkbenchProjection(
           agreement.organizationRequisiteId,
         )
       : Promise.resolve(null),
+    deps.treasury.paymentSteps.queries.list({
+      dealId,
+      limit: 100,
+      offset: 0,
+      purpose: "deal_leg",
+    }),
     deps.treasury.quotes.queries.listQuotes({
       dealId,
       limit: MAX_QUERY_LIST_LIMIT,
@@ -272,6 +279,7 @@ export async function getCrmDealWorkbenchProjection(
   });
   const documentRequirements = buildCrmDocumentRequirements(workflow, {
     feeBillingMode,
+    paymentSteps: paymentStepsResult.data,
   });
 
   return {

@@ -24,7 +24,7 @@ import {
 import { dealIntakeHasConvertLeg } from "./workflow";
 
 const OPENING_DOCUMENT_TYPE_BY_DEAL_TYPE: Record<DealType, string> = {
-  payment: "invoice",
+  payment: "application",
   currency_exchange: "exchange",
   currency_transit: "invoice",
   exporter_settlement: "invoice",
@@ -369,6 +369,41 @@ function collectDocumentBlockers(input: {
   return blockers;
 }
 
+function listOpeningDocumentRequirements(input: {
+  dealType: DealType;
+  invoicePurposes?: string[];
+}): {
+  docType: string;
+  invoicePurpose?: string | null;
+}[] {
+  if (input.dealType === "payment") {
+    const invoicePurposes = input.invoicePurposes?.length
+      ? input.invoicePurposes
+      : ["combined"];
+
+    return [
+      {
+        docType: "application",
+      },
+      ...invoicePurposes.map((invoicePurpose) => ({
+        docType: "invoice",
+        invoicePurpose,
+      })),
+    ];
+  }
+
+  const openingDocType = OPENING_DOCUMENT_TYPE_BY_DEAL_TYPE[input.dealType];
+  const invoicePurposes =
+    openingDocType === "invoice"
+      ? (input.invoicePurposes?.length ? input.invoicePurposes : ["combined"])
+      : [null];
+
+  return invoicePurposes.map((invoicePurpose) => ({
+    docType: openingDocType,
+    invoicePurpose,
+  }));
+}
+
 function collectLegReadyBlockers(legs: DealWorkflowLeg[]): DealTransitionBlocker[] {
   const blockers: DealTransitionBlocker[] = [];
 
@@ -503,22 +538,17 @@ export function evaluateDealTransitionReadiness(input: {
   );
 
   if (requiresAwaitingFundsChecks) {
-    const openingDocType = OPENING_DOCUMENT_TYPE_BY_DEAL_TYPE[input.intake.type];
-    const invoicePurposes =
-      openingDocType === "invoice"
-        ? (input.openingInvoicePurposes?.length
-            ? input.openingInvoicePurposes
-            : ["combined"])
-        : [null];
-
     blockers.push(
-      ...invoicePurposes.flatMap((invoicePurpose) =>
+      ...listOpeningDocumentRequirements({
+        dealType: input.intake.type,
+        invoicePurposes: input.openingInvoicePurposes,
+      }).flatMap((requirement) =>
         collectDocumentBlockers({
           codeMissing: "opening_document_missing",
           codeNotReady: "opening_document_not_ready",
           documents: input.documents,
-          docType: openingDocType,
-          invoicePurpose,
+          docType: requirement.docType,
+          invoicePurpose: requirement.invoicePurpose,
           messagePrefix: "Opening",
         }),
       ),
