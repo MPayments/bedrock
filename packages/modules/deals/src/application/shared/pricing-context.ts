@@ -1,3 +1,7 @@
+import {
+  DealRouteVersionSnapshotSchema,
+  type DealRouteFee,
+} from "../../domain/route-version";
 import type {
   AttachDealPricingRouteInput,
   UpdateDealPricingContextInput,
@@ -9,10 +13,6 @@ import {
   type DealPricingContext,
   type DealPricingContextSnapshot,
 } from "../contracts/dto";
-import {
-  DealRouteVersionSnapshotSchema,
-  type DealRouteFee,
-} from "../../domain/route-version";
 
 function createDefaultDealPricingContext(): DealPricingContext {
   return DealPricingContextSchema.parse({

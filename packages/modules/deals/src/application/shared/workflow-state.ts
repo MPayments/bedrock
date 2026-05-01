@@ -1,11 +1,11 @@
 import { toMinorAmountString } from "@bedrock/shared/money";
 
+import type { DealRouteVersionSnapshot } from "../../domain/route-version";
 import {
   buildDealExecutionPlan,
   deriveDealNextAction,
   evaluateDealSectionCompleteness,
 } from "../../domain/workflow";
-import type { DealRouteVersionSnapshot } from "../../domain/route-version";
 import type {
   DealIntakeDraft,
   DealQuoteAcceptance,
