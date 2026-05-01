@@ -79,7 +79,11 @@ const DEFAULT_PAIR_MAPPINGS: PairMapping[] = [
   { base: "USD", quote: "RUB" },
   { base: "USD", quote: "CNY" },
   { base: "USD", quote: "TRY" },
+  { base: "USD", quote: "IDR" },
+  { base: "USD", quote: "KRW" },
   { base: "AED", quote: "RUB" },
+  { base: "RUB", quote: "KRW" },
+  { base: "RUB", quote: "IDR" },
 ];
 
 export function createXeRateSourceProvider(
