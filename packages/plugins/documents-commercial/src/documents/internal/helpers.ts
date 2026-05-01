@@ -258,7 +258,7 @@ function isProviderExpenseBucket(bucket: FinancialLine["bucket"]) {
 }
 
 function isFeeRevenueBucket(bucket: FinancialLine["bucket"]) {
-  return bucket === "fee_revenue";
+  return bucket === "fee_revenue" || bucket === "commercial_revenue";
 }
 
 function isFeeRevenueLine(line: FinancialLine) {

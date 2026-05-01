@@ -562,7 +562,7 @@ describe("commercial document helpers", () => {
     ]);
   });
 
-  it("posts split agency fee invoices from fee revenue lines only", async () => {
+  it("posts split agency fee invoices from commercial revenue lines only", async () => {
     const now = new Date("2026-03-03T10:00:00.000Z");
     const markQuoteUsed = vi.fn(async () => undefined);
     const runtime = {} as any;
@@ -577,7 +577,7 @@ describe("commercial document helpers", () => {
       dealFxContext: makeDealFxContext([
         {
           id: "fee-1",
-          bucket: "fee_revenue",
+          bucket: "commercial_revenue",
           currency: "USD",
           amountMinor: 150n,
           source: "rule",

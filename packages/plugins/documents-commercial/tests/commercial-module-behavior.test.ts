@@ -287,6 +287,58 @@ describe("commercial document modules", () => {
     });
   });
 
+  it("updates application drafts without changing enriched deal context", async () => {
+    const module = createApplicationDocumentModule(createDeps() as any);
+    const application = createReadyApplication();
+
+    const draft = await module.updateDraft?.(
+      { runtime: {} } as any,
+      application as any,
+      {
+        occurredAt: new Date("2026-03-04T09:00:00.000Z"),
+        dealId: "00000000-0000-4000-8000-000000000402",
+        quoteId: "00000000-0000-4000-8000-000000000010",
+        calculationId: "00000000-0000-4000-8000-000000000401",
+        customerId: "00000000-0000-4000-8000-000000000301",
+        counterpartyId: "00000000-0000-4000-8000-000000000302",
+        organizationId: "00000000-0000-4000-8000-000000000113",
+        organizationRequisiteId: "00000000-0000-4000-8000-000000000111",
+        memo: "updated memo",
+      },
+    );
+
+    expect(draft?.payload).toMatchObject({
+      occurredAt: "2026-03-04T09:00:00.000Z",
+      customerId: "00000000-0000-4000-8000-000000000301",
+      counterpartyId: "00000000-0000-4000-8000-000000000302",
+      organizationId: "00000000-0000-4000-8000-000000000113",
+      organizationRequisiteId: "00000000-0000-4000-8000-000000000111",
+      memo: "updated memo",
+    });
+  });
+
+  it("blocks application draft updates that alter enriched parties", async () => {
+    const module = createApplicationDocumentModule(createDeps() as any);
+
+    await expect(
+      module.updateDraft?.(
+        { runtime: {} } as any,
+        createReadyApplication() as any,
+        {
+          occurredAt: new Date("2026-03-04T09:00:00.000Z"),
+          dealId: "00000000-0000-4000-8000-000000000402",
+          quoteId: "00000000-0000-4000-8000-000000000010",
+          calculationId: "00000000-0000-4000-8000-000000000401",
+          customerId: "00000000-0000-4000-8000-000000000999",
+          counterpartyId: "00000000-0000-4000-8000-000000000302",
+          organizationId: "00000000-0000-4000-8000-000000000113",
+          organizationRequisiteId: "00000000-0000-4000-8000-000000000111",
+          memo: "updated memo",
+        },
+      ),
+    ).rejects.toThrow("application cannot change customerId");
+  });
+
   it("creates exchange drafts from linked deal FX context", async () => {
     const deps = createDeps();
     const invoice = createPostedInvoice();
@@ -499,6 +551,45 @@ describe("commercial document modules", () => {
         memo: "acceptance",
       },
     });
+  });
+
+  it("updates acceptance drafts without treating the current draft as duplicate", async () => {
+    const deps = createDeps();
+    deps.documentRelations.getApplicationAcceptanceChild = vi.fn(async () => ({
+      id: "00000000-0000-4000-8000-000000000501",
+    }));
+
+    const module = createAcceptanceDocumentModule(deps as any);
+    const draft = await module.updateDraft?.(
+      { runtime: {} } as any,
+      {
+        id: "00000000-0000-4000-8000-000000000501",
+        docType: "acceptance",
+        docNo: "ACT-1",
+        occurredAt: new Date("2026-03-05T10:00:00.000Z"),
+        payload: {
+          occurredAt: "2026-03-05T10:00:00.000Z",
+          applicationDocumentId: "00000000-0000-4000-8000-000000000101",
+          invoiceDocumentId: "00000000-0000-4000-8000-000000000201",
+          settlementEvidenceFileAssetIds: [SETTLEMENT_EVIDENCE_FILE_ASSET_ID],
+          memo: "acceptance",
+        },
+      } as any,
+      {
+        occurredAt: new Date("2026-03-06T10:00:00.000Z"),
+        applicationDocumentId: "00000000-0000-4000-8000-000000000101",
+        memo: "updated acceptance",
+      },
+    );
+
+    expect(draft?.payload).toMatchObject({
+      occurredAt: "2026-03-06T10:00:00.000Z",
+      applicationDocumentId: "00000000-0000-4000-8000-000000000101",
+      invoiceDocumentId: "00000000-0000-4000-8000-000000000201",
+      settlementEvidenceFileAssetIds: [SETTLEMENT_EVIDENCE_FILE_ASSET_ID],
+      memo: "updated acceptance",
+    });
+    expect(deps.documentRelations.getApplicationAcceptanceChild).not.toHaveBeenCalled();
   });
 
   it("blocks acceptance without final payout evidence", async () => {

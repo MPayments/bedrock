@@ -728,23 +728,43 @@ export function createDocumentGenerationWorkflow(
             : null,
       });
 
-      const assemblers = {
-        application: assembleApplicationData,
-        invoice: assembleInvoiceData,
-        acceptance: assembleAcceptanceData,
-      };
-
-      const data = assemblers[input.templateType](
-        input.deal,
-        input.calculation,
-        input.client,
-        input.contract,
-        input.organization,
-        input.organizationRequisite,
-        orgFiles,
-        date,
-        lang,
-      );
+      const data =
+        input.templateType === "invoice"
+          ? assembleInvoiceData(
+              input.deal,
+              input.calculation,
+              input.client,
+              input.contract,
+              input.organization,
+              input.organizationRequisite,
+              orgFiles,
+              date,
+              lang,
+              input.invoice ?? null,
+            )
+          : input.templateType === "application"
+            ? assembleApplicationData(
+                input.deal,
+                input.calculation,
+                input.client,
+                input.contract,
+                input.organization,
+                input.organizationRequisite,
+                orgFiles,
+                date,
+                lang,
+              )
+            : assembleAcceptanceData(
+                input.deal,
+                input.calculation,
+                input.client,
+                input.contract,
+                input.organization,
+                input.organizationRequisite,
+                orgFiles,
+                date,
+                lang,
+              );
 
       if (input.templateType === "invoice") {
         (data as Record<string, unknown>).qr = await buildInvoiceQrIfEligible(

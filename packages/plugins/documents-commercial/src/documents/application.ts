@@ -55,8 +55,30 @@ export function createApplicationDocumentModule(
           "application cannot change calculationId",
         );
       }
+      if (payload.customerId !== input.customerId) {
+        throw new DocumentValidationError("application cannot change customerId");
+      }
+      if (payload.counterpartyId !== input.counterpartyId) {
+        throw new DocumentValidationError(
+          "application cannot change counterpartyId",
+        );
+      }
+      if (payload.organizationId !== input.organizationId) {
+        throw new DocumentValidationError(
+          "application cannot change organizationId",
+        );
+      }
+      if (payload.organizationRequisiteId !== input.organizationRequisiteId) {
+        throw new DocumentValidationError(
+          "application cannot change organizationRequisiteId",
+        );
+      }
 
-      return this.createDraft!(_context, input);
+      return buildDocumentDraft(input, {
+        ...payload,
+        ...serializeOccurredAt(input),
+        memo: input.memo,
+      });
     },
     deriveSummary(document) {
       const payload = ApplicationPayloadSchema.parse(document.payload);

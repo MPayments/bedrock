@@ -114,15 +114,27 @@ export function createAcceptanceDocumentModule(
         memo: input.memo,
       });
     },
-    async updateDraft(context, document, input) {
+    async updateDraft(_context, document, input) {
       const payload = parseDocumentPayload(AcceptancePayloadSchema, document);
       if (payload.applicationDocumentId !== input.applicationDocumentId) {
         throw new DocumentValidationError(
           "acceptance cannot change applicationDocumentId",
         );
       }
+      if (
+        input.invoiceDocumentId &&
+        input.invoiceDocumentId !== payload.invoiceDocumentId
+      ) {
+        throw new DocumentValidationError(
+          "acceptance cannot change invoiceDocumentId",
+        );
+      }
 
-      return this.createDraft!(context, input);
+      return buildDocumentDraft(input, {
+        ...payload,
+        ...serializeOccurredAt(input),
+        memo: input.memo,
+      });
     },
     deriveSummary(document) {
       const payload = parseDocumentPayload(AcceptancePayloadSchema, document);
