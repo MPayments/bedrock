@@ -2329,6 +2329,30 @@ export function dealsRoutes(ctx: AppContext) {
       try {
         const { id } = c.req.valid("param");
         const body = c.req.valid("json");
+
+        if (body.status === "done") {
+          const result = await withRequiredIdempotency(
+            c,
+            async (idempotencyKey) => {
+              const deal = await requireDeal(ctx, id);
+              assertDealAllowsCommercialWrite(deal);
+
+              return ctx.dealExecutionWorkflow.closeDeal({
+                actorUserId: c.get("user")!.id,
+                comment: body.comment ?? null,
+                dealId: id,
+                idempotencyKey,
+              });
+            },
+          );
+
+          if (result instanceof Response) {
+            return result;
+          }
+
+          return jsonOk(c, result);
+        }
+
         const result = await ctx.dealsModule.deals.commands.transitionStatus({
           ...body,
           actorUserId: c.get("user")!.id,

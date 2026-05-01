@@ -591,7 +591,7 @@ const FinanceDealReconciliationSummarySchema = z.object({
   reconciledOperationCount: z.number().int().nonnegative(),
   requiredOperationCount: z.number().int().nonnegative(),
   resolvedExceptionCount: z.number().int().nonnegative(),
-  state: z.enum(["not_started", "pending", "clear", "blocked"]),
+  state: z.enum(["not_required", "not_started", "pending", "clear", "blocked"]),
 });
 
 const FinanceDealCloseReadinessSchema = z.object({

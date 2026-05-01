@@ -279,7 +279,7 @@ function createActiveAcceptanceDocument() {
 }
 
 describe("finance close readiness", () => {
-  it("moves terminal execution into awaiting_reconciliation until reconciliation is clear", () => {
+  it("treats reconciliation as not required while real reconciliation is deferred", () => {
     const workflow = createWorkflow({
       formalDocuments: [createActiveAcceptanceDocument()],
     });
@@ -304,15 +304,15 @@ describe("finance close readiness", () => {
       workflow,
     });
 
-    expect(readiness.reconciliationSummary.state).toBe("pending");
-    expect(readiness.closeReadiness.ready).toBe(false);
+    expect(readiness.reconciliationSummary.state).toBe("not_required");
+    expect(readiness.closeReadiness.ready).toBe(true);
     expect(stage).toEqual({
-      stage: "awaiting_reconciliation",
-      stageReason: "Ожидаем завершение сверки",
+      stage: "ready_to_close",
+      stageReason: "Сделка готова к закрытию",
     });
   });
 
-  it("marks payment deals ready to close only after payout, reconciliation, and closing documents are complete", () => {
+  it("marks payment deals ready to close after payout and closing documents are complete", () => {
     const workflow = createWorkflow({
       formalDocuments: [createActiveAcceptanceDocument()],
     });
@@ -349,7 +349,7 @@ describe("finance close readiness", () => {
         }),
       ]),
     );
-    expect(readiness.reconciliationSummary.state).toBe("clear");
+    expect(readiness.reconciliationSummary.state).toBe("not_required");
     expect(readiness.closeReadiness.ready).toBe(true);
     expect(stage.stage).toBe("ready_to_close");
   });

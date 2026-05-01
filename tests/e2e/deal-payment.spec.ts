@@ -11,23 +11,30 @@ import {
 } from "./deal-payment.fixture";
 
 const DEAL_LEG_DONE_LABEL = "Завершен";
-const FINANCE_INSTRUCTION_SETTLED_LABEL = "Исполнена";
+const DEAL_LEG_STATE_LABELS: Record<string, string> = {
+  blocked: "Заблокирован",
+  completed: "Завершен",
+  done: "Завершен",
+  in_progress: "В работе",
+  not_materialized: "Не создан",
+  pending: "Ожидает",
+  processing: "В обработке",
+  ready: "Подготовлен",
+  skipped: "Пропущен",
+};
 
 function buildFinanceDealUrl(
   dealId: string,
-  tab: "documents" | "execution" = "execution",
+  _tab: "documents" | "execution" = "execution",
 ) {
-  const query = tab === "execution" ? "" : `?tab=${tab}`;
-  return `${PAYMENT_DEAL_FINANCE_BASE_URL}/treasury/deals/${dealId}${query}`;
+  return `${PAYMENT_DEAL_FINANCE_BASE_URL}/treasury/deals/${dealId}`;
 }
 
 function buildFinanceDealTabUrlPattern(
   dealId: string,
-  tab: "documents" | "execution",
+  _tab: "documents" | "execution",
 ) {
-  const query =
-    tab === "execution" ? "(?:\\?.*)?$" : "\\?tab=documents(?:&.*)?$";
-  return new RegExp(`/treasury/deals/${dealId}${query}`, "i");
+  return new RegExp(`/treasury/deals/${dealId}(?:\\?.*)?$`, "i");
 }
 
 function extractTrailingUuid(url: string) {
@@ -59,18 +66,37 @@ async function moveDealStatus(
   );
 }
 
-async function readDealLegState(page: Page, idx: number) {
-  await expect(page.getByTestId(`deal-leg-state-badge-${idx}`)).toBeVisible({
-    timeout: 20_000,
-  });
-  const text = await page
-    .getByTestId(`deal-leg-state-badge-${idx}`)
-    .textContent();
-  return text?.trim() ?? "";
+async function readDealLegState(page: Page, dealId: string, idx: number) {
+  const response = await page.request.get(
+    `/v1/deals/${encodeURIComponent(dealId)}/crm-workbench`,
+  );
+
+  if (!response.ok()) {
+    throw new Error(`Could not read CRM workbench: ${response.status()}`);
+  }
+
+  const workbench = (await response.json()) as {
+    workflow: {
+      executionPlan: Array<{
+        idx: number;
+        state: string;
+      }>;
+    };
+  };
+  const leg = workbench.workflow.executionPlan.find(
+    (candidate) => candidate.idx === idx,
+  );
+
+  if (!leg) {
+    throw new Error(`Could not find CRM execution leg ${idx}`);
+  }
+
+  return DEAL_LEG_STATE_LABELS[leg.state] ?? leg.state;
 }
 
 async function waitForDealLegState(
   page: Page,
+  dealId: string,
   idx: number,
   expectedLabel: string,
 ) {
@@ -78,8 +104,8 @@ async function waitForDealLegState(
     .poll(
       async () => {
         await page.reload();
-        await openCrmExecutionTab(page, idx);
-        return readDealLegState(page, idx);
+        await openCrmExecutionTab(page);
+        return readDealLegState(page, dealId, idx);
       },
       {
         timeout: 30_000,
@@ -88,14 +114,14 @@ async function waitForDealLegState(
     .toBe(expectedLabel);
 }
 
-async function openCrmExecutionTab(page: Page, idx = 1) {
+async function openCrmExecutionTab(page: Page) {
   await page.getByTestId("deal-tab-execution").click();
-  await expect(page.getByTestId(`deal-leg-state-badge-${idx}`)).toBeVisible({
+  await expect(page.getByText("Исполнение и готовность")).toBeVisible({
     timeout: 20_000,
   });
 }
 
-async function waitForLegReadyOrBeyond(page: Page, idx: number) {
+async function waitForLegReadyOrBeyond(page: Page, dealId: string, idx: number) {
   // Leg state is now a projection over instruction state + doc posting. We
   // can't *drive* the leg forward manually — it advances when the upstream
   // instructions settle and the required doc lands. Just poll until we see
@@ -104,21 +130,21 @@ async function waitForLegReadyOrBeyond(page: Page, idx: number) {
     .poll(
       async () => {
         await page.reload();
-        await openCrmExecutionTab(page, idx);
-        return readDealLegState(page, idx);
+        await openCrmExecutionTab(page);
+        return readDealLegState(page, dealId, idx);
       },
       { timeout: 60_000 },
     )
     .toMatch(/Подготовлен|В работе|Завершен/);
 }
 
-async function waitForLegDone(page: Page, idx: number) {
+async function waitForLegDone(page: Page, dealId: string, idx: number) {
   await expect
     .poll(
       async () => {
         await page.reload();
-        await openCrmExecutionTab(page, idx);
-        return readDealLegState(page, idx);
+        await openCrmExecutionTab(page);
+        return readDealLegState(page, dealId, idx);
       },
       { timeout: 60_000 },
     )
@@ -128,18 +154,35 @@ async function waitForLegDone(page: Page, idx: number) {
 async function createAndPostFinanceDocument(
   page: Page,
   input: {
-    actionTestId: string;
+    actionTestId?: string;
     dealId: string;
-    docType: "acceptance" | "exchange" | "invoice";
+    docType: "acceptance" | "application" | "exchange" | "invoice";
+    invoicePurpose?: "agency_fee" | "combined" | "principal";
     invoiceDocumentId?: string;
     returnTab: "documents" | "execution";
     fillForm?: (page: Page) => Promise<void>;
   },
 ) {
-  await expect(page.getByTestId(input.actionTestId)).toBeVisible({
-    timeout: 20_000,
-  });
-  await page.getByTestId(input.actionTestId).click();
+  if (input.actionTestId) {
+    await expect(page.getByTestId(input.actionTestId)).toBeVisible({
+      timeout: 20_000,
+    });
+    await page.getByTestId(input.actionTestId).click();
+  } else {
+    const query = new URLSearchParams({
+      dealId: input.dealId,
+      returnTo: `/treasury/deals/${input.dealId}`,
+    });
+
+    if (input.invoicePurpose) {
+      query.set("invoicePurpose", input.invoicePurpose);
+    }
+
+    await page.goto(
+      `${PAYMENT_DEAL_FINANCE_BASE_URL}/documents/create/${input.docType}?${query}`,
+    );
+  }
+
   await page.waitForURL(
     new RegExp(`/documents/create/${input.docType}(?:\\?.*)?$`, "i"),
   );
@@ -186,6 +229,12 @@ async function createAndPostFinanceDocument(
   );
 
   if (returnUrlPattern.test(page.url())) {
+    if (!input.actionTestId) {
+      throw new Error(
+        `Document ${input.docType} creation returned to the deal before opening document details`,
+      );
+    }
+
     await expect(page.getByTestId(input.actionTestId)).toBeVisible({
       timeout: 20_000,
     });
@@ -201,8 +250,30 @@ async function createAndPostFinanceDocument(
   return documentId;
 }
 
+async function waitForFinanceDocumentHeader(
+  page: Page,
+  dealId: string,
+  expectedText: string | RegExp,
+) {
+  await expect
+    .poll(
+      async () => {
+        await page.goto(buildFinanceDealUrl(dealId, "documents"));
+        return (
+          (await page
+            .getByTestId("finance-deal-header-documents")
+            .textContent()) ?? ""
+        ).trim();
+      },
+      {
+        timeout: 90_000,
+      },
+    )
+    .toMatch(expectedText);
+}
+
 async function progressFinanceDocument(page: Page) {
-  const submitButton = page.getByTestId("finance-document-action-submit");
+  const submitButton = page.getByTestId("document-action-submit");
   if ((await submitButton.count()) > 0) {
     await submitButton.click();
     await expect(
@@ -212,7 +283,7 @@ async function progressFinanceDocument(page: Page) {
     });
   }
 
-  const approveButton = page.getByTestId("finance-document-action-approve");
+  const approveButton = page.getByTestId("document-action-approve");
   if ((await approveButton.count()) > 0) {
     await approveButton.click();
     await expect(
@@ -222,9 +293,23 @@ async function progressFinanceDocument(page: Page) {
     });
   }
 
-  const postButton = page.getByTestId("finance-document-action-post");
+  const postButton = page.getByTestId("document-action-post");
   if ((await postButton.count()) > 0) {
     await postButton.click();
+    await Promise.race([
+      page.waitForURL(/\/treasury\/deals\/[0-9a-f-]+(?:\?.*)?$/i, {
+        timeout: 20_000,
+      }),
+      expect(
+        page.getByTestId("finance-document-status-posting"),
+      ).toContainText(/Проведен|Не требуется/, {
+        timeout: 20_000,
+      }),
+    ]);
+  }
+
+  if (/\/treasury\/deals\/[0-9a-f-]+(?:\?.*)?$/i.test(page.url())) {
+    return;
   }
 
   await expect
@@ -244,139 +329,10 @@ async function progressFinanceDocument(page: Page) {
     .toMatch(/Проведен|Не требуется/);
 }
 
-async function collectFinanceOperationUrls(page: Page) {
-  return page
-    .locator(
-      "[data-testid^='finance-deal-operation-open-'], a[href*='/treasury/operations/']",
-    )
-    .evaluateAll((elements) => {
-      const hrefs = elements
-        .map((element) => element.getAttribute("href"))
-        .filter((value): value is string =>
-          Boolean(value && value.includes("/treasury/operations/")),
-        );
-
-      return Array.from(new Set(hrefs));
-    });
-}
-
-async function readFinanceOperationUrlsViaApi(page: Page, dealId: string) {
-  const response = await page.request.get(
-    `${PAYMENT_DEAL_FINANCE_BASE_URL}/v1/deals/${encodeURIComponent(dealId)}/finance-workspace`,
-    {
-      headers: {
-        "x-bedrock-app-audience": "finance",
-      },
-    },
-  );
-
-  if (!response.ok()) {
-    return [];
-  }
-
-  const payload = (await response.json()) as {
-    relatedResources?: {
-      operations?: Array<{
-        operationHref?: string;
-      }>;
-    };
-  };
-
-  return (payload.relatedResources?.operations ?? [])
-    .map((operation) => operation.operationHref ?? "")
-    .filter((href) => href.includes("/treasury/operations/"));
-}
-
-async function waitForFinanceOperationUrls(page: Page, dealId: string) {
-  for (let attempt = 0; attempt < 30; attempt += 1) {
-    await page.goto(buildFinanceDealUrl(dealId, "execution"));
-
-    const urls = [
-      ...(await collectFinanceOperationUrls(page)),
-      ...(await readFinanceOperationUrlsViaApi(page, dealId)),
-    ];
-
-    if (urls.length > 0) {
-      return Array.from(new Set(urls)).map((url) =>
-        url.startsWith("http") ? url : `${PAYMENT_DEAL_FINANCE_BASE_URL}${url}`,
-      );
-    }
-
-    await page.waitForTimeout(2_000);
-  }
-
-  throw new Error(
-    "Finance operations did not appear after requesting execution",
-  );
-}
-
-async function settleFinanceOperation(page: Page, url: string) {
-  await page.goto(url);
-  await expect(
-    page.getByTestId("finance-operation-instruction-status"),
-  ).toBeVisible({
-    timeout: 20_000,
-  });
-
-  if (
-    (
-      await page
-        .getByTestId("finance-operation-instruction-status")
-        .textContent()
-    )?.includes(FINANCE_INSTRUCTION_SETTLED_LABEL)
-  ) {
-    return;
-  }
-
-  const prepareButton = page.getByTestId("finance-operation-prepare");
-  if ((await prepareButton.count()) > 0) {
-    await prepareButton.click();
-    await expect(
-      page.getByTestId("finance-operation-instruction-status"),
-    ).toContainText("Подготовлена", {
-      timeout: 20_000,
-    });
-  }
-
-  const submitButton = page.getByTestId("finance-operation-submit");
-  if ((await submitButton.count()) > 0) {
-    await submitButton.click();
-    await expect(
-      page.getByTestId("finance-operation-instruction-status"),
-    ).toContainText("Отправлена", {
-      timeout: 20_000,
-    });
-  }
-
-  const settleButton = page.getByTestId("finance-operation-outcome-settled");
-  if ((await settleButton.count()) > 0) {
-    await settleButton.click();
-  }
-
-  await expect(
-    page.getByTestId("finance-operation-instruction-status"),
-  ).toContainText(FINANCE_INSTRUCTION_SETTLED_LABEL, {
-    timeout: 20_000,
-  });
-}
-
-async function readFinanceLegOperationUrl(page: Page, idx: number) {
-  const leg = page.getByTestId(`finance-deal-leg-${idx}`);
-  const href = await leg
-    .locator("a[href*='/treasury/operations/']")
-    .first()
-    .getAttribute("href");
-
-  if (!href) {
-    throw new Error(`Could not find an operation link for finance leg ${idx}`);
-  }
-
-  return href.startsWith("http")
-    ? href
-    : `${PAYMENT_DEAL_FINANCE_BASE_URL}${href}`;
-}
-
-async function runAndWaitForFinanceReconciliation(page: Page, dealId: string) {
+async function waitForFinanceReconciliationNotRequired(
+  page: Page,
+  dealId: string,
+) {
   await page.goto(buildFinanceDealUrl(dealId, "execution"));
 
   await expect
@@ -385,13 +341,6 @@ async function runAndWaitForFinanceReconciliation(page: Page, dealId: string) {
         await page.goto(buildFinanceDealUrl(dealId, "execution"));
 
         const rerunButton = page.getByTestId("finance-deal-run-reconciliation");
-        if (
-          (await rerunButton.count()) > 0 &&
-          (await rerunButton.isEnabled())
-        ) {
-          await rerunButton.click();
-          await page.waitForLoadState("networkidle");
-        }
 
         return {
           canRun:
@@ -410,8 +359,122 @@ async function runAndWaitForFinanceReconciliation(page: Page, dealId: string) {
       },
     )
     .toMatchObject({
-      state: "Сверка завершена",
+      canRun: false,
+      state: "Не требуется",
     });
+}
+
+async function readFinanceLegState(page: Page, idx: number) {
+  await expect(page.getByTestId(`finance-deal-leg-state-${idx}`)).toBeVisible({
+    timeout: 20_000,
+  });
+
+  return (
+    (await page.getByTestId(`finance-deal-leg-state-${idx}`).textContent()) ??
+    ""
+  ).trim();
+}
+
+async function selectFinanceLeg(page: Page, dealId: string, idx: number) {
+  await page.goto(buildFinanceDealUrl(dealId, "execution"));
+  await expect(page.getByTestId(`finance-deal-leg-${idx}`)).toBeVisible({
+    timeout: 20_000,
+  });
+  await page.getByTestId(`finance-deal-leg-${idx}`).click();
+}
+
+async function clickVisibleButtonByName(page: Page, name: string) {
+  const button = page.getByRole("button", { name }).first();
+
+  if ((await button.count()) === 0 || !(await button.isVisible())) {
+    return false;
+  }
+
+  await button.click();
+  return true;
+}
+
+async function clickButtonByName(page: Page, name: string) {
+  const button = page.getByRole("button", { name }).first();
+  await expect(button).toBeVisible({ timeout: 20_000 });
+  await button.click();
+}
+
+async function confirmSelectedFinanceStep(
+  page: Page,
+  input: { evidenceFile?: string },
+) {
+  const stepCard = page.locator("[data-testid^='finance-step-card-']").first();
+  const usesConfirmationDialog =
+    (await stepCard.count()) > 0 && (await stepCard.isVisible());
+
+  await clickButtonByName(page, "Подтвердить исполнение");
+
+  if (!usesConfirmationDialog) {
+    return;
+  }
+
+  const dialogSubmit = page
+    .locator("[data-testid^='finance-step-confirm-submit-']")
+    .first();
+
+  await expect(dialogSubmit).toBeVisible({ timeout: 20_000 });
+
+  const evidenceFile = page
+    .locator("[data-testid^='finance-step-confirm-file-']")
+    .first();
+
+  if (input.evidenceFile && (await evidenceFile.count()) > 0) {
+    await evidenceFile.setInputFiles(input.evidenceFile);
+  }
+
+  await expect(dialogSubmit).toBeEnabled({ timeout: 20_000 });
+  await dialogSubmit.click();
+}
+
+async function completeFinanceLeg(
+  page: Page,
+  input: {
+    dealId: string;
+    evidenceFile?: string;
+    idx: number;
+  },
+) {
+  await selectFinanceLeg(page, input.dealId, input.idx);
+
+  await clickVisibleButtonByName(page, "Направить в исполнение");
+
+  await expect
+    .poll(
+      async () => {
+        await selectFinanceLeg(page, input.dealId, input.idx);
+        return readFinanceLegState(page, input.idx);
+      },
+      {
+        timeout: 90_000,
+      },
+    )
+    .toMatch(/В работе|В обработке|Завершен/);
+
+  const stateBeforeConfirm = await readFinanceLegState(page, input.idx);
+
+  if (stateBeforeConfirm !== DEAL_LEG_DONE_LABEL) {
+    await confirmSelectedFinanceStep(page, {
+      evidenceFile: input.evidenceFile,
+    });
+  }
+
+  await expect
+    .poll(
+      async () => {
+        await selectFinanceLeg(page, input.dealId, input.idx);
+        return readFinanceLegState(page, input.idx);
+      },
+      {
+        timeout: 90_000,
+      },
+    )
+    .toBe(DEAL_LEG_DONE_LABEL);
 }
 
 test("runs the payment deal end-to-end through CRM and finance", async ({
@@ -424,7 +487,6 @@ test("runs the payment deal end-to-end through CRM and finance", async ({
   });
   const financePage = await financeContext.newPage();
   let dealId = "";
-  let openingInvoiceDocumentId = "";
 
   try {
     await test.step("open the CRM deal list", async () => {
@@ -479,9 +541,6 @@ test("runs the payment deal end-to-end through CRM and finance", async ({
       await pickListboxOption(page, paymentDealInput.sourceCurrencyLabel);
 
       await page
-        .getByTestId("deal-source-amount-input")
-        .fill(paymentDealInput.sourceAmount);
-      await page
         .getByTestId("deal-purpose-input")
         .fill(paymentDealInput.purpose);
       await page
@@ -535,76 +594,31 @@ test("runs the payment deal end-to-end through CRM and finance", async ({
       dealId = extractTrailingUuid(page.url());
 
       await page.getByTestId("deal-tab-pricing").click();
-      await expect(page.getByTestId("deal-request-quote-button")).toBeVisible();
+      await expect(
+        page.getByText('Нельзя запросить котировку для статуса "Черновик".'),
+      ).toBeVisible();
 
       await page.getByTestId("deal-tab-documents").click();
-      await expect(
-        page.getByTestId("deal-upload-attachment-button"),
-      ).toBeVisible();
-    });
-
-    await test.step("upload the invoice attachment", async () => {
-      await page.getByTestId("deal-upload-attachment-button").click();
-
-      const uploadDialog = page.getByRole("dialog", {
-        name: "Загрузить вложение",
-      });
-
-      await expect(uploadDialog).toBeVisible();
-      await page
-        .getByTestId("deal-attachment-file-input")
-        .setInputFiles(PAYMENT_DEAL_INVOICE_FILE);
-      await page
-        .getByTestId("deal-attachment-description-input")
-        .fill(paymentDealInput.invoiceUploadDescription);
-      await page.getByTestId("deal-attachment-purpose-select").click();
-      await pickListboxOption(page, "Инвойс");
-      await page.getByTestId("deal-attachment-submit").click();
-
-      await expect(uploadDialog).toBeHidden({ timeout: 15_000 });
-      await expect(page.getByText("invoice.pdf", { exact: true })).toBeVisible({
-        timeout: 15_000,
-      });
+      await expect(page.getByText("Требуемые документы")).toBeVisible();
     });
 
     await test.step("prepare CRM pricing and document-ready state", async () => {
       await moveDealStatus(page, "submitted", "Отправлена");
 
       await page.getByTestId("deal-tab-pricing").click();
-      await expect(page.getByTestId("deal-request-quote-button")).toBeEnabled({
+      const commitPricingButton = page.getByTestId(
+        "deal-commit-pricing-button-top",
+      );
+
+      await expect(commitPricingButton).toBeEnabled({ timeout: 20_000 });
+      await commitPricingButton.click();
+      await expect(commitPricingButton).toContainText("Зафиксировано", {
         timeout: 20_000,
       });
-      await page.getByTestId("deal-request-quote-button").click();
-
-      const quoteDialog = page.getByRole("dialog", {
-        name: "Запросить котировку",
-      });
-
-      await expect(quoteDialog).toBeVisible();
-      await page.getByTestId("deal-create-quote-confirm").click();
-      await expect(quoteDialog).toBeHidden({ timeout: 20_000 });
-
-      const acceptQuoteButton = page
-        .locator("[data-testid^='deal-accept-quote-button-']")
-        .first();
-
-      await expect(acceptQuoteButton).toBeVisible({ timeout: 20_000 });
-      await acceptQuoteButton.click();
-
-      await expect(page.getByText("Принята", { exact: true })).toBeVisible({
+      await expect(page.getByText("53 251.25 AED").first()).toBeVisible({
         timeout: 20_000,
       });
-
-      await page.getByTestId("deal-create-calculation-button").click();
-
-      const createCalculationDialog = page.getByRole("dialog", {
-        name: "Создать расчет",
-      });
-
-      await expect(createCalculationDialog).toBeVisible();
-      await page.getByTestId("deal-create-calculation-confirm").click();
-      await expect(createCalculationDialog).toBeHidden({ timeout: 20_000 });
-      await expect(page.getByText("Итого к списанию")).toBeVisible({
+      await expect(page.getByText("14 500.00 $")).toBeVisible({
         timeout: 20_000,
       });
 
@@ -615,34 +629,20 @@ test("runs the payment deal end-to-end through CRM and finance", async ({
       );
     });
 
-    await test.step("create and post the opening invoice in finance", async () => {
-      await financePage.goto(buildFinanceDealUrl(dealId, "documents"));
-      await expect(
-        financePage.getByTestId(
-          "finance-deal-formal-document-action-opening-invoice",
-        ),
-      ).toBeVisible({
-        timeout: 20_000,
+    await test.step("create and post the opening documents in finance", async () => {
+      await createAndPostFinanceDocument(financePage, {
+        dealId,
+        docType: "application",
+        returnTab: "documents",
+      });
+      await createAndPostFinanceDocument(financePage, {
+        dealId,
+        docType: "invoice",
+        returnTab: "documents",
       });
 
-      openingInvoiceDocumentId = await createAndPostFinanceDocument(
-        financePage,
-        {
-          actionTestId: "finance-deal-formal-document-action-opening-invoice",
-          dealId,
-          docType: "invoice",
-          returnTab: "documents",
-        },
-      );
-
       await financePage.goto(buildFinanceDealUrl(dealId, "documents"));
-      await expect(
-        financePage.getByTestId(
-          "finance-deal-formal-document-state-opening-invoice",
-        ),
-      ).toHaveText("Готов", {
-        timeout: 20_000,
-      });
+      await waitForFinanceDocumentHeader(financePage, dealId, /2 \/ 3/);
     });
 
     await test.step("advance the CRM deal to awaiting funds", async () => {
@@ -650,39 +650,19 @@ test("runs the payment deal end-to-end through CRM and finance", async ({
       await moveDealStatus(page, "awaiting_funds", "Ожидание средств");
     });
 
-    await test.step("request finance execution and settle treasury operations", async () => {
-      await financePage.goto(buildFinanceDealUrl(dealId, "execution"));
-      await expect(
-        financePage.getByTestId("finance-deal-request-execution"),
-      ).toBeVisible({
-        timeout: 20_000,
-      });
-      await financePage.getByTestId("finance-deal-request-execution").click();
-
-      const operationUrls = await waitForFinanceOperationUrls(
-        financePage,
+    await test.step("execute the collection and conversion finance steps", async () => {
+      await completeFinanceLeg(financePage, {
         dealId,
-      );
-
-      for (const operationUrl of operationUrls) {
-        await settleFinanceOperation(financePage, operationUrl);
-      }
-    });
-
-    await test.step("reconcile the settled treasury operations from finance", async () => {
-      await runAndWaitForFinanceReconciliation(financePage, dealId);
+        idx: 1,
+      });
+      await completeFinanceLeg(financePage, {
+        dealId,
+        idx: 2,
+      });
     });
 
     await test.step("create and post the exchange document for the FX leg", async () => {
-      await financePage.goto(buildFinanceDealUrl(dealId, "execution"));
-      const convertOperationUrl = await readFinanceLegOperationUrl(
-        financePage,
-        2,
-      );
-      const convertOperationId = extractTrailingUuid(convertOperationUrl);
-
       await createAndPostFinanceDocument(financePage, {
-        actionTestId: "finance-deal-exchange-document-action-2",
         dealId,
         docType: "exchange",
         fillForm: async (documentPage) => {
@@ -693,11 +673,10 @@ test("runs the payment deal end-to-end through CRM and finance", async ({
             const currentValue = (await executionRefField.inputValue()).trim();
 
             if (currentValue.length === 0) {
-              await executionRefField.fill(convertOperationId);
+              await executionRefField.fill(`conversion-${dealId}`);
             }
           }
         },
-        invoiceDocumentId: openingInvoiceDocumentId,
         returnTab: "execution",
       });
     });
@@ -708,46 +687,39 @@ test("runs the payment deal end-to-end through CRM and finance", async ({
 
       // Legs 1 (collect) + 2 (convert) should auto-advance to done once the
       // invoice is posted + convert instruction settles + exchange doc lands.
-      await waitForLegDone(page, 1);
-      await waitForDealLegState(page, 2, DEAL_LEG_DONE_LABEL);
+      await waitForLegDone(page, dealId, 1);
+      await waitForDealLegState(page, dealId, 2, DEAL_LEG_DONE_LABEL);
 
       // Leg 3 (payout) should be at least ready after the convert settles;
       // we then move the deal to awaiting_payment which lets the payout
       // instruction progress and eventually settle.
-      await waitForLegReadyOrBeyond(page, 3);
+      await waitForLegReadyOrBeyond(page, dealId, 3);
       await moveDealStatus(page, "awaiting_payment", "Ожидание оплаты");
 
-      await openCrmExecutionTab(page, 3);
-      await waitForLegDone(page, 3);
+      await completeFinanceLeg(financePage, {
+        dealId,
+        evidenceFile: PAYMENT_DEAL_INVOICE_FILE,
+        idx: 3,
+      });
+
+      await openCrmExecutionTab(page);
+      await waitForLegDone(page, dealId, 3);
       await moveDealStatus(page, "closing_documents", "Закрывающие документы");
     });
 
-    await test.step("create and post the closing acceptance document", async () => {
-      await financePage.goto(buildFinanceDealUrl(dealId, "documents"));
-      await expect(
-        financePage.getByTestId(
-          "finance-deal-formal-document-action-closing-acceptance",
-        ),
-      ).toBeVisible({
-        timeout: 20_000,
-      });
+    await test.step("verify reconciliation is not required for finance close", async () => {
+      await waitForFinanceReconciliationNotRequired(financePage, dealId);
+    });
 
+    await test.step("create and post the closing acceptance document", async () => {
       await createAndPostFinanceDocument(financePage, {
-        actionTestId: "finance-deal-formal-document-action-closing-acceptance",
         dealId,
         docType: "acceptance",
-        invoiceDocumentId: openingInvoiceDocumentId,
         returnTab: "documents",
       });
 
       await financePage.goto(buildFinanceDealUrl(dealId, "documents"));
-      await expect(
-        financePage.getByTestId(
-          "finance-deal-formal-document-state-closing-acceptance",
-        ),
-      ).toHaveText("Готов", {
-        timeout: 20_000,
-      });
+      await waitForFinanceDocumentHeader(financePage, dealId, /Готово/);
     });
 
     await test.step("close the deal in finance and verify CRM is done", async () => {

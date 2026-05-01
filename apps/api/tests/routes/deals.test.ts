@@ -2295,6 +2295,41 @@ describe("deals routes", () => {
     });
   });
 
+  it("routes status=done transitions through the close workflow", async () => {
+    const { app, dealExecutionWorkflow, dealsModule } = createTestApp();
+    dealsModule.deals.queries.findById.mockResolvedValue({
+      ...createDealDetail(),
+      status: "closing_documents" as const,
+    });
+    dealExecutionWorkflow.closeDeal.mockResolvedValue(
+      createWorkflowProjection(),
+    );
+
+    const response = await app.request(
+      "http://localhost/deals/00000000-0000-4000-8000-000000000010/status",
+      {
+        method: "PATCH",
+        headers: {
+          "content-type": "application/json",
+          "idempotency-key": "status-done-close-1",
+        },
+        body: JSON.stringify({
+          comment: "Execution complete",
+          status: "done",
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(dealExecutionWorkflow.closeDeal).toHaveBeenCalledWith({
+      actorUserId: "user-1",
+      comment: "Execution complete",
+      dealId: "00000000-0000-4000-8000-000000000010",
+      idempotencyKey: "status-done-close-1",
+    });
+    expect(dealsModule.deals.commands.transitionStatus).not.toHaveBeenCalled();
+  });
+
   it("passes the finance queue stage filter through to the projection workflow", async () => {
     const { app, dealProjectionsWorkflow } = createTestApp();
     dealProjectionsWorkflow.listFinanceDealQueues.mockResolvedValue(

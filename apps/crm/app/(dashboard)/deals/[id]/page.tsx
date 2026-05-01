@@ -1586,13 +1586,21 @@ export default function DealDetailPage() {
     async (status: DealStatus) => {
       try {
         setIsUpdatingStatus(true);
+        const idempotencyKey = createIdempotencyKey();
+        const isCloseTransition = status === "done";
 
-        const response = await fetch(`${API_BASE_URL}/deals/${dealId}/status`, {
-          body: JSON.stringify({ status }),
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          method: "PATCH",
-        });
+        const response = await fetch(
+          `${API_BASE_URL}/deals/${dealId}/${isCloseTransition ? "close" : "status"}`,
+          {
+            body: JSON.stringify(isCloseTransition ? {} : { status }),
+            credentials: "include",
+            headers: {
+              "Content-Type": "application/json",
+              "Idempotency-Key": idempotencyKey,
+            },
+            method: isCloseTransition ? "POST" : "PATCH",
+          },
+        );
 
         if (!response.ok) {
           throw new Error(
