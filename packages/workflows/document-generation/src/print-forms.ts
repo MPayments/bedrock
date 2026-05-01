@@ -728,6 +728,14 @@ async function buildDealDocumentPrintContext(input: {
   );
   const beneficiaryBankInstruction =
     workflow?.intake?.externalBeneficiary?.bankInstructionSnapshot ?? null;
+  const beneficiarySnapshot =
+    workflow?.intake?.externalBeneficiary?.beneficiarySnapshot ?? null;
+  const beneficiaryName =
+    beneficiarySnapshot?.legalName ??
+    beneficiarySnapshot?.displayName ??
+    beneficiaryBankInstruction?.beneficiaryName ??
+    null;
+  const paymentPurpose = workflow?.intake?.moneyRequest?.purpose ?? null;
   const fallbackCurrency =
     invoiceDocument?.currency ??
     document?.currency ??
@@ -815,6 +823,10 @@ async function buildDealDocumentPrintContext(input: {
       invoiceId: invoiceDocument?.id ?? null,
       invoiceNumber: invoiceDocument?.docNo ?? null,
       memo: readPayloadString(document?.payload, "memo"),
+      beneficiaryName,
+      beneficiaryAccount: beneficiaryBankInstruction?.accountNo ?? null,
+      iban: beneficiaryBankInstruction?.iban ?? null,
+      paymentPurpose,
       swiftCode:
         beneficiaryBankInstruction?.swift ??
         findRequisiteProviderIdentifier({

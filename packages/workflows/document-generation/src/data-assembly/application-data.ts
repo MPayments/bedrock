@@ -54,10 +54,14 @@ export function assembleApplicationData(
     deal.contractNumber,
     deal.contractId ?? deal.id,
   );
-  const dealInvoiceNumber = resolveDocumentNumber(
+  const dealInvoiceNumberRaw = resolveDocumentNumber(
     deal.invoiceNumber,
     deal.invoiceId ?? deal.id,
   );
+  const dealInvoiceNumber =
+    typeof dealInvoiceNumberRaw === "string"
+      ? dealInvoiceNumberRaw.toUpperCase()
+      : dealInvoiceNumberRaw;
 
   const raw: Record<string, unknown> = {
     applicationNumber,
@@ -75,6 +79,10 @@ export function assembleApplicationData(
     bankName: deal.bankName,
     swiftCode: deal.swiftCode,
     siwftCode: deal.swiftCode,
+    iban: deal.iban,
+    beneficiaryName: deal.beneficiaryName,
+    beneficiaryAccount: deal.beneficiaryAccount,
+    paymentPurpose: deal.paymentPurpose,
     currencyCode: paymentCurrency,
     originalAmount: formatCurrencyAmount(paymentAmount),
     totalAmount: formatCurrencyAmount(calculation.totalAmount as string | number),
@@ -158,6 +166,11 @@ export function assembleApplicationData(
   withLocalizedTemplateFields(raw, "agentDirectorName", {
     ru: formatDirector(getLocalizedValue(organization, "directorName", "ru") || "", "ru").genitive,
     en: getLocalizedValue(organization, "directorName", "en") || getLocalizedValue(organization, "directorName", "ru"),
+  }, lang);
+
+  withLocalizedTemplateFields(raw, "agentDirectorBasis", {
+    ru: declineBasisToGenitive(getLocalizedValue(organization, "directorBasis", "ru") || "", "ru"),
+    en: getLocalizedValue(organization, "directorBasis", "en") || getLocalizedValue(organization, "directorBasis", "ru"),
   }, lang);
 
   return prune(raw);
