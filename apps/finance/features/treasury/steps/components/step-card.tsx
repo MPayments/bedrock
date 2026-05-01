@@ -65,6 +65,7 @@ export interface StepCardProps {
   adminViewHref?: string;
   onChanged?: (step: FinanceDealPaymentStep) => void;
   title?: string;
+  kindLabel?: string;
   fromPartyKind?: PartyKindOrSnapshot | null;
   toPartyKind?: PartyKindOrSnapshot | null;
   fromPartyDisplayName?: string | null;
@@ -77,6 +78,7 @@ export function StepCard({
   disabled,
   fromPartyDisplayName = null,
   fromPartyKind = null,
+  kindLabel,
   onChanged,
   step,
   title,
@@ -157,7 +159,7 @@ export function StepCard({
               <div className="text-sm font-semibold">{title}</div>
             ) : null}
             <div className="text-muted-foreground text-xs">
-              {getStepKindLabel(step)} ·{" "}
+              {kindLabel ?? getStepKindLabel(step)} ·{" "}
               {STEP_PURPOSE_LABELS[step.purpose]}
             </div>
           </div>

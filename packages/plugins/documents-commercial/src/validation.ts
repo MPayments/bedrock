@@ -80,6 +80,12 @@ const quoteLegSnapshotSchema = z.object({
   executionCounterpartyId: uuidSchema.nullable(),
 });
 
+export const InvoicePurposeSchema = z.enum([
+  "combined",
+  "principal",
+  "agency_fee",
+]);
+
 export const QuoteSnapshotSchema = z.object({
   quoteId: uuidSchema,
   quoteRef: z.string().trim().min(1).max(255),
@@ -105,6 +111,9 @@ const invoiceBaseInputSchema = baseOccurredAtSchema.extend({
   organizationId: uuidSchema.optional(),
   organizationRequisiteId: uuidSchema,
   memo: memoSchema,
+  invoicePurpose: InvoicePurposeSchema.optional().default("combined"),
+  billingSetRef: z.string().trim().min(1).max(255).optional(),
+  quoteComponentIds: z.array(z.string().trim().min(1).max(255)).optional(),
 });
 
 const invoiceInputBaseSchema = invoiceBaseInputSchema.extend({
@@ -138,6 +147,9 @@ const invoiceBasePayloadSchema = baseOccurredAtSchema.extend({
   organizationId: uuidSchema.optional(),
   organizationRequisiteId: uuidSchema,
   memo: memoSchema,
+  invoicePurpose: InvoicePurposeSchema.default("combined"),
+  billingSetRef: z.string().trim().min(1).max(255).optional(),
+  quoteComponentIds: z.array(z.string().trim().min(1).max(255)).default([]),
 });
 
 export const InvoiceCurrentPayloadSchema = invoiceBasePayloadSchema.extend({
@@ -146,6 +158,19 @@ export const InvoiceCurrentPayloadSchema = invoiceBasePayloadSchema.extend({
   currency: currencyCodeSchema,
 });
 export const InvoicePayloadSchema = InvoiceCurrentPayloadSchema;
+
+export const ApplicationInputSchema = baseOccurredAtSchema.extend({
+  dealId: uuidSchema,
+  quoteId: uuidSchema,
+  calculationId: uuidSchema,
+  customerId: uuidSchema,
+  counterpartyId: uuidSchema,
+  organizationId: uuidSchema,
+  organizationRequisiteId: uuidSchema,
+  memo: memoSchema,
+});
+
+export const ApplicationPayloadSchema = ApplicationInputSchema;
 
 export const ExchangeInputSchema = baseOccurredAtSchema.extend({
   invoiceDocumentId: uuidSchema,
@@ -165,21 +190,27 @@ export const ExchangePayloadSchema = baseOccurredAtSchema.extend({
 });
 
 export const AcceptanceInputSchema = baseOccurredAtSchema.extend({
-  invoiceDocumentId: uuidSchema,
+  applicationDocumentId: uuidSchema,
+  invoiceDocumentId: uuidSchema.optional(),
+  settlementEvidenceFileAssetIds: z.array(uuidSchema).optional().default([]),
   memo: memoSchema,
 });
 
 export const AcceptancePayloadSchema = baseOccurredAtSchema.extend({
-  invoiceDocumentId: uuidSchema,
-  exchangeDocumentId: uuidSchema.optional(),
+  applicationDocumentId: uuidSchema,
+  invoiceDocumentId: uuidSchema.optional(),
+  settlementEvidenceFileAssetIds: z.array(uuidSchema).default([]),
   memo: memoSchema,
 });
 
 export type FinancialLinePayload = z.infer<typeof financialLinePayloadSchema>;
+export type InvoicePurpose = z.infer<typeof InvoicePurposeSchema>;
 export type QuoteSnapshot = z.infer<typeof QuoteSnapshotSchema>;
 export type InvoiceInput = z.infer<typeof InvoiceInputSchema>;
 export type InvoiceCurrentPayload = z.infer<typeof InvoiceCurrentPayloadSchema>;
 export type InvoicePayload = z.infer<typeof InvoicePayloadSchema>;
+export type ApplicationInput = z.infer<typeof ApplicationInputSchema>;
+export type ApplicationPayload = z.infer<typeof ApplicationPayloadSchema>;
 export type ExchangeInput = z.infer<typeof ExchangeInputSchema>;
 export type ExchangePayload = z.infer<typeof ExchangePayloadSchema>;
 export type AcceptanceInput = z.infer<typeof AcceptanceInputSchema>;

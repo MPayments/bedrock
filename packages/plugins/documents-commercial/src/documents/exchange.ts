@@ -16,8 +16,10 @@ import {
 } from "../validation";
 import {
   buildExchangePostingPlan,
+  filterFinancialLinesForInvoicePurpose,
   getExchangeAcceptance,
   getInvoiceExchangeChild,
+  getInvoicePurpose,
   loadInvoice,
   parseInvoicePayload,
   requirePostedDocument,
@@ -50,6 +52,12 @@ async function resolveExchangeDraftContext(
   }
 
   const invoicePayload = parseInvoicePayload(invoice);
+  if (getInvoicePurpose(invoicePayload) === "agency_fee") {
+    throw new DocumentValidationError(
+      "exchange must reference the principal invoice, not the agency fee invoice",
+    );
+  }
+
   const dealFxContext = await resolveInvoiceDealFxContext(deps, invoice.id);
 
   if (dealFxContext) {
@@ -87,7 +95,10 @@ async function resolveExchangeDraftContext(
     }
 
     return {
-      financialLines: dealFxContext.financialLines,
+      financialLines: filterFinancialLinesForInvoicePurpose({
+        lines: dealFxContext.financialLines,
+        purpose: getInvoicePurpose(invoicePayload),
+      }),
       invoice,
       invoicePayload,
       quoteSnapshot: dealFxContext.quoteSnapshot,
@@ -195,12 +206,18 @@ export function createExchangeDocumentModule(
         );
       }
     },
-    async buildPostingPlan(_context, document) {
+    async buildPostingPlan(context, document) {
       const payload = parseDocumentPayload(ExchangePayloadSchema, document);
       const binding = await resolveOrganizationBinding(
         deps,
         payload.organizationRequisiteId,
       );
+      const invoice = await loadInvoice(
+        deps,
+        context.runtime,
+        payload.invoiceDocumentId,
+      );
+      const invoicePayload = parseInvoicePayload(invoice);
       const dealFxContext = await resolveInvoiceDealFxContext(
         deps,
         payload.invoiceDocumentId,
@@ -209,7 +226,10 @@ export function createExchangeDocumentModule(
       return buildExchangePostingPlan({
         document,
         financialLines: dealFxContext?.hasConvertLeg
-          ? dealFxContext.financialLines
+          ? filterFinancialLinesForInvoicePurpose({
+              lines: dealFxContext.financialLines,
+              purpose: getInvoicePurpose(invoicePayload),
+            })
           : undefined,
         payload,
         bookId: binding.bookId,

@@ -13,6 +13,7 @@ import type {
 import {
   buildCrmDocumentRequirements,
   buildCrmEvidenceRequirements,
+  buildDealInvoiceBillingSplit,
   buildCrmWorkbenchActions,
   serializeCrmPricingQuote,
 } from "../shared/projection-builders";
@@ -186,12 +187,21 @@ export async function getCrmDealWorkbenchProjection(
   ]);
 
   const [
+    acceptedQuoteDetailsRecord,
     legalEntitiesResult,
     currentCalculation,
     internalEntityRequisite,
+    paymentStepsResult,
     quotesResult,
     quoteExecutionsResult,
   ] = await Promise.all([
+    workflow.acceptedQuote?.quoteId
+      ? deps.treasury.quotes.queries
+          .getQuoteDetails({
+            quoteRef: workflow.acceptedQuote.quoteId,
+          })
+          .catch(() => null)
+      : Promise.resolve(null),
     customerId
       ? (async () => {
           const result = await deps.parties.counterparties.queries.list({
@@ -222,6 +232,12 @@ export async function getCrmDealWorkbenchProjection(
           agreement.organizationRequisiteId,
         )
       : Promise.resolve(null),
+    deps.treasury.paymentSteps.queries.list({
+      dealId,
+      limit: 100,
+      offset: 0,
+      purpose: "deal_leg",
+    }),
     deps.treasury.quotes.queries.listQuotes({
       dealId,
       limit: MAX_QUERY_LIST_LIMIT,
@@ -252,7 +268,19 @@ export async function getCrmDealWorkbenchProjection(
     attachments,
     workflow,
   });
-  const documentRequirements = buildCrmDocumentRequirements(workflow);
+  const feeBillingMode =
+    pricingContext.commercialDraft.feeBillingMode ??
+    agreement?.currentVersion.feeBillingMode ??
+    "included_in_principal_invoice";
+  const billingSplit = buildDealInvoiceBillingSplit({
+    dealId,
+    feeBillingMode,
+    quoteDetails: acceptedQuoteDetailsRecord,
+  });
+  const documentRequirements = buildCrmDocumentRequirements(workflow, {
+    feeBillingMode,
+    paymentSteps: paymentStepsResult.data,
+  });
 
   return {
     acceptedQuote: workflow.acceptedQuote,
@@ -283,6 +311,7 @@ export async function getCrmDealWorkbenchProjection(
     operationalState: workflow.operationalState,
     participants: workflow.participants,
     pricing: {
+      billingSplit,
       calculationHistory: calculationsHistory,
       context: pricingContext,
       currentCalculation,

@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { extractAgreementCommercialDefaults } from "../../src/composition/commercial-pricing";
+import { extractAgreementCommercialDefaults } from "../src/commercial-pricing";
 
-function createAgreement(feeRules: Array<{
+function createAgreement(feeRules: {
+  currencyCode?: string | null;
   kind: "agent_fee" | "fixed_fee";
   value: string;
-  currencyCode?: string | null;
-}>) {
+}[]) {
   return {
     id: "agreement-1",
     customerId: "customer-1",

@@ -32,6 +32,7 @@ export interface DealTraceDocumentRow {
   documentId: string;
   dealId: string | null;
   docType: string;
+  invoicePurpose: string | null;
   occurredAt: Date;
   lifecycleStatus: string;
   submissionStatus: string;

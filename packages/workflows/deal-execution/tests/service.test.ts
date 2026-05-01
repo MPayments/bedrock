@@ -238,7 +238,15 @@ function createAcceptedQuoteDetails() {
       id: "quote-1",
       idempotencyKey: "quote-1",
       pricingMode: "auto_cross",
-      pricingTrace: {},
+      pricingTrace: {
+        metadata: {
+          crmPricingSnapshot: {
+            amounts: {
+              customerDebitMinor: "11000",
+            },
+          },
+        },
+      },
       rateDen: 100n,
       rateNum: 90n,
       status: "active",
@@ -685,7 +693,13 @@ describe("deal execution workflow", () => {
         item.quoteId,
       ]),
     ).toEqual([
-      ["collect", "quote_leg_from", "quote_leg_to", 1, null],
+      [
+        "collect",
+        "accepted_quote_customer_debit",
+        "accepted_quote_customer_debit",
+        1,
+        null,
+      ],
       ["convert", "quote_leg_from", "quote_leg_to", 2, "quote-1"],
       ["transit_hold", "quote_leg_from", "quote_leg_to", 3, null],
       ["payout", "quote_leg_from", "quote_leg_to", 4, "quote-1"],

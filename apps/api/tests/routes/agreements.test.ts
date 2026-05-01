@@ -221,6 +221,7 @@ describe("agreements routes", () => {
       organizationRequisiteId: detail.organizationRequisiteId,
       contractNumber: "AG-2026-001",
       contractDate: detail.currentVersion.contractDate,
+      feeBillingMode: "included_in_principal_invoice",
       feeRules: [
         {
           kind: "agent_fee",

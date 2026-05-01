@@ -39,7 +39,6 @@ import {
   useRouter,
   useSearchParams,
 } from "next/navigation";
-import type { LucideIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 
@@ -82,6 +81,7 @@ import {
   type ContractDialogInitialValues,
 } from "@/components/dashboard/NewContractDialog";
 import { useCrmBreadcrumbs } from "@/components/app/breadcrumbs-provider";
+import { WorkspaceTabLabel } from "@/components/app/workspace-tab-label";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -1062,31 +1062,31 @@ export default function CustomerDetailPage() {
           className="w-full justify-start overflow-x-auto"
         >
           <TabsTrigger className="flex-none" value="common">
-            <CustomerTabLabel icon={Info} label="Общее" />
+            <WorkspaceTabLabel icon={Info} label="Общее" />
           </TabsTrigger>
           <TabsTrigger className="flex-none" value="counterparties">
-            <CustomerTabLabel
+            <WorkspaceTabLabel
               count={workspace.counterparties.length}
               icon={Building2}
               label="Контрагенты"
             />
           </TabsTrigger>
           <TabsTrigger className="flex-none" value="requisites">
-            <CustomerTabLabel
+            <WorkspaceTabLabel
               count={requisitesTabCount}
               icon={Wallet}
               label="Реквизиты"
             />
           </TabsTrigger>
           <TabsTrigger className="flex-none" value="documents">
-            <CustomerTabLabel
+            <WorkspaceTabLabel
               count={documentsTabCount}
               icon={File}
               label="Документы"
             />
           </TabsTrigger>
           <TabsTrigger className="flex-none" value="agreements">
-            <CustomerTabLabel
+            <WorkspaceTabLabel
               count={agreementsTabCount}
               icon={FileText}
               label="Договоры"
@@ -1484,29 +1484,6 @@ function PendingCloseDialog(props: {
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
-  );
-}
-
-function CustomerTabLabel(props: {
-  count?: number;
-  icon: LucideIcon;
-  label: string;
-}) {
-  const { count, icon: Icon, label } = props;
-
-  return (
-    <>
-      <Icon className="h-4 w-4" />
-      <span>{label}</span>
-      {typeof count === "number" ? (
-        <Badge
-          variant="ghost"
-          className="h-5 min-w-5 px-1.5 text-[11px] rounded-sm"
-        >
-          {count}
-        </Badge>
-      ) : null}
-    </>
   );
 }
 

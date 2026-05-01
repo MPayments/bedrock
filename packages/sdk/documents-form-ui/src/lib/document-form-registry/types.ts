@@ -60,6 +60,11 @@ export type DocumentFormField =
       kind: "currency";
     })
   | (DocumentFormFieldBase & {
+      kind: "document";
+      disabled?: boolean;
+      docTypes?: string[];
+    })
+  | (DocumentFormFieldBase & {
       kind: "account";
       counterpartyField: string;
       currencyFieldName?: string;

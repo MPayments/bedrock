@@ -1,5 +1,6 @@
 export const FORMAL_DOCUMENT_LABELS: Record<string, string> = {
   acceptance: "Акт / подтверждение исполнения",
+  application: "Поручение",
   exchange: "Документ по обмену валюты",
   fx_execute: "Исполнение конвертации",
   fx_resolution: "Сверка по конвертации",

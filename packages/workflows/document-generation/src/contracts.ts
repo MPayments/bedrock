@@ -150,12 +150,14 @@ export const PRINT_FORM_DEFINITIONS = [
     title: "Acceptance / Акт",
   },
   {
+    docTypes: ["application"],
     formats: CLIENT_CONTRACT_FORMATS,
-    id: "deal.application",
+    id: "document.application-ru",
     languageMode: "single",
     languages: ["ru"],
-    ownerType: "deal",
+    ownerType: "document",
     requiredData: [
+      "document",
       "deal",
       "agreement",
       "counterparty",
@@ -165,7 +167,7 @@ export const PRINT_FORM_DEFINITIONS = [
       "signingAssets",
     ],
     templateType: "application",
-    title: "Заявка",
+    title: "Поручение",
   },
   {
     formats: CLIENT_CONTRACT_FORMATS,

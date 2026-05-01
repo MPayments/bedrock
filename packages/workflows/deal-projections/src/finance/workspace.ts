@@ -26,6 +26,7 @@ import type { DealProjectionsWorkflowDeps } from "../shared/deps";
 import {
   buildCrmDocumentRequirements,
   buildCrmEvidenceRequirements,
+  buildDealInvoiceBillingSplit,
   buildCrmWorkbenchActions,
   serializeCrmPricingQuote,
 } from "../shared/projection-builders";
@@ -62,6 +63,7 @@ function deriveLegStateFromStep(
 
 type FinanceWorkspaceDeps = Pick<
   DealProjectionsWorkflowDeps,
+  | "agreements"
   | "calculations"
   | "currencies"
   | "deals"
@@ -251,6 +253,7 @@ export async function getFinanceDealWorkspaceProjection(
   }
 
   const [
+    agreement,
     attachments,
     currentCalculation,
     paymentStepsResult,
@@ -258,6 +261,7 @@ export async function getFinanceDealWorkspaceProjection(
     quotesResult,
     pricingContext,
   ] = await Promise.all([
+    deps.agreements.agreements.queries.findById(workflow.summary.agreementId),
     deps.files.files.queries.listDealAttachments(dealId),
     workflow.summary.calculationId
       ? deps.calculations.calculations.queries.findById(
@@ -309,11 +313,25 @@ export async function getFinanceDealWorkspaceProjection(
     attachments,
     workflow,
   });
-  const formalDocumentRequirements = buildCrmDocumentRequirements(workflow);
+  const feeBillingMode =
+    pricingContext.commercialDraft.feeBillingMode ??
+    agreement?.currentVersion.feeBillingMode ??
+    "included_in_principal_invoice";
+  const billingSplit = buildDealInvoiceBillingSplit({
+    dealId,
+    feeBillingMode,
+    quoteDetails: acceptedQuoteDetailsRecord,
+  });
+  const formalDocumentRequirements = buildCrmDocumentRequirements(workflow, {
+    feeBillingMode,
+    paymentSteps: paymentStepsResult.data,
+  });
   const openingInvoiceRequirement =
     formalDocumentRequirements.find(
       (requirement) =>
-        requirement.stage === "opening" && requirement.docType === "invoice",
+        requirement.stage === "opening" &&
+        requirement.docType === "invoice" &&
+        requirement.invoicePurpose !== "agency_fee",
     ) ?? null;
   const activeExchangeDocument =
     workflow.relatedResources.formalDocuments.find(
@@ -451,9 +469,10 @@ export async function getFinanceDealWorkspaceProjection(
                     openingInvoiceRequirement.state === "ready" &&
                     Boolean(openingInvoiceRequirement.activeDocumentId) &&
                     Boolean(workflow.summary.calculationId) &&
-                    !activeExchangeDocument &&
-                    !isDealInTerminalStatus(workflow),
+                  !activeExchangeDocument &&
+                  !isDealInTerminalStatus(workflow),
                   docType: "exchange",
+                  invoicePurpose: null,
                   openAllowed: Boolean(activeExchangeDocument),
                 }
               : null,
@@ -465,6 +484,7 @@ export async function getFinanceDealWorkspaceProjection(
     operationalState: workflow.operationalState,
     pricing: {
       ...buildFinanceQuoteRequestContext(workflow),
+      billingSplit,
       quoteEligibility: isQuoteEligible(workflow),
       routeAttachment: financeRouteAttachment,
     },

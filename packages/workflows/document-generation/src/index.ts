@@ -46,6 +46,10 @@ export {
   type TemplateRendererPort,
   type TemplateManagerPort,
 } from "./service";
+export {
+  createPrintFormApplication,
+  type PrintFormApplicationDeps,
+} from "./print-forms";
 export { createEasyTemplateXAdapter } from "./adapters/easy-template-x.adapter";
 export { createLibreOfficeConvertAdapter } from "./adapters/libreoffice-convert.adapter";
 export type { DocumentFormat, DocumentLang } from "./data-assembly";

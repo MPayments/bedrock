@@ -3,6 +3,7 @@ import { z } from "zod";
 import { trimToNull } from "@bedrock/shared/core";
 
 import {
+  AgreementFeeBillingModeSchema,
   AgreementFeeRuleKindSchema,
   AgreementFeeRuleUnitSchema,
 } from "./zod";
@@ -68,6 +69,9 @@ export const CreateAgreementInputSchema = z
     organizationRequisiteId: z.uuid(),
     contractNumber: nullableText,
     contractDate: z.coerce.date().optional(),
+    feeBillingMode: AgreementFeeBillingModeSchema.optional().default(
+      "included_in_principal_invoice",
+    ),
     feeRules: z.array(CreateAgreementFeeRuleInputSchema).optional().default([]),
   })
   .superRefine((value, ctx) => {
@@ -93,6 +97,7 @@ export const UpdateAgreementInputSchema = z
   .object({
     contractNumber: nullableText.optional(),
     contractDate: z.coerce.date().nullable().optional(),
+    feeBillingMode: AgreementFeeBillingModeSchema.optional(),
     feeRules: z.array(CreateAgreementFeeRuleInputSchema).optional(),
   })
   .strict()

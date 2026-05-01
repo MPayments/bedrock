@@ -40,6 +40,14 @@ export function assembleApplicationData(
 
   const baseCurrency = (calculation.baseCurrencyCode as string) || "RUB";
   const baseCurrencySymbol = getCurrencySymbol(baseCurrency);
+  const paymentCurrency =
+    (calculation.paymentCurrencyCode as string | undefined) ??
+    (calculation.currencyCode as string) ??
+    "RUB";
+  const paymentAmount =
+    (calculation.paymentAmount as string | number | undefined) ??
+    (calculation.originalAmount as string | number | undefined) ??
+    "0";
   const applicationNumber = resolveDocumentNumber(deal.applicationNumber, deal.id);
   const contractNumber = resolveDocumentNumber(contract.contractNumber, contract.id);
   const dealContractNumber = resolveDocumentNumber(
@@ -64,9 +72,11 @@ export function assembleApplicationData(
     dealInvoiceNumber,
     dealInvoiceDate: deal.invoiceDate,
     account: deal.account,
+    bankName: deal.bankName,
     swiftCode: deal.swiftCode,
-    currencyCode: calculation.currencyCode,
-    originalAmount: formatCurrencyAmount(calculation.originalAmount as string | number),
+    siwftCode: deal.swiftCode,
+    currencyCode: paymentCurrency,
+    originalAmount: formatCurrencyAmount(paymentAmount),
     totalAmount: formatCurrencyAmount(calculation.totalAmount as string | number),
     agreementFeePercentage: calculation.agreementFeePercentage,
     agreementFeeAmount: formatCurrencyAmount(
@@ -86,6 +96,9 @@ export function assembleApplicationData(
       calculation.additionalExpensesInBase as string | number,
     ),
     totalWithExpensesInBase: formatCurrencyAmount(
+      calculation.totalWithExpensesInBase as string | number,
+    ),
+    totalWithExpensesInRub: formatCurrencyAmount(
       calculation.totalWithExpensesInBase as string | number,
     ),
     totalFeeAmountInBase: formatCurrencyAmount(

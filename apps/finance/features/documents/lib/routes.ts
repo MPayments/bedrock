@@ -5,6 +5,7 @@ import {
 
 type DocumentCreateRouteOptions = {
   dealId?: string;
+  invoicePurpose?: "combined" | "principal" | "agency_fee" | null;
   reconciliationExceptionId?: string;
   returnTo?: string;
 };
@@ -76,6 +77,10 @@ export function buildDocumentCreateHref(
 
   if (options?.dealId) {
     query.set("dealId", options.dealId);
+  }
+
+  if (options?.invoicePurpose) {
+    query.set("invoicePurpose", options.invoicePurpose);
   }
 
   if (options?.reconciliationExceptionId) {

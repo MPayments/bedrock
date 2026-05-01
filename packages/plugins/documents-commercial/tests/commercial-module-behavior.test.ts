@@ -3,8 +3,12 @@ import { describe, expect, it, vi } from "vitest";
 import { ACCOUNTING_SOURCE_ID } from "@bedrock/accounting/posting-contracts";
 
 import { createAcceptanceDocumentModule } from "../src/documents/acceptance";
+import { createApplicationDocumentModule } from "../src/documents/application";
 import { createExchangeDocumentModule } from "../src/documents/exchange";
 import { createInvoiceDocumentModule } from "../src/documents/invoice";
+
+const SETTLEMENT_EVIDENCE_FILE_ASSET_ID =
+  "00000000-0000-4000-8000-000000000701";
 
 function createQuoteSnapshot() {
   return {
@@ -48,11 +52,16 @@ function createDeps() {
     },
     documentBusinessLinks: {
       findDealIdByDocumentId: vi.fn(async () => null),
+      findActiveDocumentIdByDealIdAndDocType: vi.fn(async () => null),
     },
     documentRelations: {
+      loadApplication: vi.fn(async () => {
+        throw new Error("loadApplication not configured");
+      }),
       loadInvoice: vi.fn(async () => {
         throw new Error("loadInvoice not configured");
       }),
+      getApplicationAcceptanceChild: vi.fn(async () => null),
       getInvoiceExchangeChild: vi.fn(async () => null),
       getInvoiceAcceptanceChild: vi.fn(async () => null),
       getExchangeAcceptance: vi.fn(async () => null),
@@ -147,6 +156,31 @@ function createPostedInvoice() {
   };
 }
 
+function createReadyApplication() {
+  return {
+    id: "00000000-0000-4000-8000-000000000101",
+    docType: "application",
+    docNo: "APP-1",
+    payloadVersion: 1,
+    payload: {
+      occurredAt: "2026-03-03T09:00:00.000Z",
+      dealId: "00000000-0000-4000-8000-000000000402",
+      quoteId: "00000000-0000-4000-8000-000000000010",
+      calculationId: "00000000-0000-4000-8000-000000000401",
+      customerId: "00000000-0000-4000-8000-000000000301",
+      counterpartyId: "00000000-0000-4000-8000-000000000302",
+      organizationId: "00000000-0000-4000-8000-000000000113",
+      organizationRequisiteId: "00000000-0000-4000-8000-000000000111",
+      memo: "application",
+    },
+    occurredAt: new Date("2026-03-03T09:00:00.000Z"),
+    lifecycleStatus: "active",
+    submissionStatus: "submitted",
+    approvalStatus: "not_required",
+    postingStatus: "not_required",
+  };
+}
+
 describe("commercial document modules", () => {
   it("rejects invoice creation when invoice currency mismatches the selected requisite", async () => {
     const deps = createDeps();
@@ -228,6 +262,81 @@ describe("commercial document modules", () => {
       organizationRequisiteId: "00000000-0000-4000-8000-000000000111",
     });
     expect(draft?.payload).not.toHaveProperty("financialLines");
+  });
+
+  it("creates application draft payload from enriched deal input", async () => {
+    const module = createApplicationDocumentModule(createDeps() as any);
+
+    const draft = await module.createDraft?.({ runtime: {} } as any, {
+      occurredAt: new Date("2026-03-03T09:00:00.000Z"),
+      dealId: "00000000-0000-4000-8000-000000000402",
+      quoteId: "00000000-0000-4000-8000-000000000010",
+      calculationId: "00000000-0000-4000-8000-000000000401",
+      customerId: "00000000-0000-4000-8000-000000000301",
+      counterpartyId: "00000000-0000-4000-8000-000000000302",
+      organizationId: "00000000-0000-4000-8000-000000000113",
+      organizationRequisiteId: "00000000-0000-4000-8000-000000000111",
+      memo: "application",
+    });
+
+    expect(draft?.payload).toMatchObject({
+      calculationId: "00000000-0000-4000-8000-000000000401",
+      dealId: "00000000-0000-4000-8000-000000000402",
+      quoteId: "00000000-0000-4000-8000-000000000010",
+      organizationRequisiteId: "00000000-0000-4000-8000-000000000111",
+    });
+  });
+
+  it("updates application drafts without changing enriched deal context", async () => {
+    const module = createApplicationDocumentModule(createDeps() as any);
+    const application = createReadyApplication();
+
+    const draft = await module.updateDraft?.(
+      { runtime: {} } as any,
+      application as any,
+      {
+        occurredAt: new Date("2026-03-04T09:00:00.000Z"),
+        dealId: "00000000-0000-4000-8000-000000000402",
+        quoteId: "00000000-0000-4000-8000-000000000010",
+        calculationId: "00000000-0000-4000-8000-000000000401",
+        customerId: "00000000-0000-4000-8000-000000000301",
+        counterpartyId: "00000000-0000-4000-8000-000000000302",
+        organizationId: "00000000-0000-4000-8000-000000000113",
+        organizationRequisiteId: "00000000-0000-4000-8000-000000000111",
+        memo: "updated memo",
+      },
+    );
+
+    expect(draft?.payload).toMatchObject({
+      occurredAt: "2026-03-04T09:00:00.000Z",
+      customerId: "00000000-0000-4000-8000-000000000301",
+      counterpartyId: "00000000-0000-4000-8000-000000000302",
+      organizationId: "00000000-0000-4000-8000-000000000113",
+      organizationRequisiteId: "00000000-0000-4000-8000-000000000111",
+      memo: "updated memo",
+    });
+  });
+
+  it("blocks application draft updates that alter enriched parties", async () => {
+    const module = createApplicationDocumentModule(createDeps() as any);
+
+    await expect(
+      module.updateDraft?.(
+        { runtime: {} } as any,
+        createReadyApplication() as any,
+        {
+          occurredAt: new Date("2026-03-04T09:00:00.000Z"),
+          dealId: "00000000-0000-4000-8000-000000000402",
+          quoteId: "00000000-0000-4000-8000-000000000010",
+          calculationId: "00000000-0000-4000-8000-000000000401",
+          customerId: "00000000-0000-4000-8000-000000000999",
+          counterpartyId: "00000000-0000-4000-8000-000000000302",
+          organizationId: "00000000-0000-4000-8000-000000000113",
+          organizationRequisiteId: "00000000-0000-4000-8000-000000000111",
+          memo: "updated memo",
+        },
+      ),
+    ).rejects.toThrow("application cannot change customerId");
   });
 
   it("creates exchange drafts from linked deal FX context", async () => {
@@ -348,6 +457,8 @@ describe("commercial document modules", () => {
   it("allows acceptance without exchange when the linked invoice is funded from existing inventory", async () => {
     const deps = createDeps();
     const invoice = createPostedInvoice();
+    const application = createReadyApplication();
+    deps.documentRelations.loadApplication = vi.fn(async () => application);
     deps.documentRelations.loadInvoice = vi.fn(async () => invoice);
     deps.documentBusinessLinks.findDealIdByDocumentId = vi.fn(
       async () => "00000000-0000-4000-8000-000000000402",
@@ -363,14 +474,17 @@ describe("commercial document modules", () => {
       } as any,
       {
         occurredAt: new Date("2026-03-04T10:00:00.000Z"),
+        applicationDocumentId: application.id,
         invoiceDocumentId: invoice.id,
+        settlementEvidenceFileAssetIds: [SETTLEMENT_EVIDENCE_FILE_ASSET_ID],
         memo: "acceptance",
       },
     );
 
     expect(draft?.payload).toMatchObject({
-      exchangeDocumentId: undefined,
+      applicationDocumentId: "00000000-0000-4000-8000-000000000101",
       invoiceDocumentId: "00000000-0000-4000-8000-000000000201",
+      settlementEvidenceFileAssetIds: [SETTLEMENT_EVIDENCE_FILE_ASSET_ID],
     });
   });
 
@@ -406,8 +520,11 @@ describe("commercial document modules", () => {
     ]);
   });
 
-  it("requires a posted exchange before creating acceptance for exchange-mode invoices", async () => {
+  it("allows acceptance for FX-linked invoices without requiring an exchange document", async () => {
     const deps = createDeps();
+    deps.documentRelations.loadApplication = vi.fn(async () =>
+      createReadyApplication(),
+    );
     deps.documentRelations.loadInvoice = vi.fn(async () =>
       createPostedInvoice(),
     );
@@ -421,15 +538,82 @@ describe("commercial document modules", () => {
     await expect(
       module.createDraft?.({ db: {} } as any, {
         occurredAt: new Date("2026-03-05T10:00:00.000Z"),
+        applicationDocumentId: "00000000-0000-4000-8000-000000000101",
+        invoiceDocumentId: "00000000-0000-4000-8000-000000000201",
+        settlementEvidenceFileAssetIds: [SETTLEMENT_EVIDENCE_FILE_ASSET_ID],
+        memo: "acceptance",
+      }),
+    ).resolves.toMatchObject({
+      payload: {
+        applicationDocumentId: "00000000-0000-4000-8000-000000000101",
+        invoiceDocumentId: "00000000-0000-4000-8000-000000000201",
+        settlementEvidenceFileAssetIds: [SETTLEMENT_EVIDENCE_FILE_ASSET_ID],
+        memo: "acceptance",
+      },
+    });
+  });
+
+  it("updates acceptance drafts without treating the current draft as duplicate", async () => {
+    const deps = createDeps();
+    deps.documentRelations.getApplicationAcceptanceChild = vi.fn(async () => ({
+      id: "00000000-0000-4000-8000-000000000501",
+    }));
+
+    const module = createAcceptanceDocumentModule(deps as any);
+    const draft = await module.updateDraft?.(
+      { runtime: {} } as any,
+      {
+        id: "00000000-0000-4000-8000-000000000501",
+        docType: "acceptance",
+        docNo: "ACT-1",
+        occurredAt: new Date("2026-03-05T10:00:00.000Z"),
+        payload: {
+          occurredAt: "2026-03-05T10:00:00.000Z",
+          applicationDocumentId: "00000000-0000-4000-8000-000000000101",
+          invoiceDocumentId: "00000000-0000-4000-8000-000000000201",
+          settlementEvidenceFileAssetIds: [SETTLEMENT_EVIDENCE_FILE_ASSET_ID],
+          memo: "acceptance",
+        },
+      } as any,
+      {
+        occurredAt: new Date("2026-03-06T10:00:00.000Z"),
+        applicationDocumentId: "00000000-0000-4000-8000-000000000101",
+        memo: "updated acceptance",
+      },
+    );
+
+    expect(draft?.payload).toMatchObject({
+      occurredAt: "2026-03-06T10:00:00.000Z",
+      applicationDocumentId: "00000000-0000-4000-8000-000000000101",
+      invoiceDocumentId: "00000000-0000-4000-8000-000000000201",
+      settlementEvidenceFileAssetIds: [SETTLEMENT_EVIDENCE_FILE_ASSET_ID],
+      memo: "updated acceptance",
+    });
+    expect(deps.documentRelations.getApplicationAcceptanceChild).not.toHaveBeenCalled();
+  });
+
+  it("blocks acceptance without final payout evidence", async () => {
+    const deps = createDeps();
+    deps.documentRelations.loadApplication = vi.fn(async () =>
+      createReadyApplication(),
+    );
+    deps.documentRelations.loadInvoice = vi.fn(async () =>
+      createPostedInvoice(),
+    );
+
+    const module = createAcceptanceDocumentModule(deps as any);
+
+    await expect(
+      module.createDraft?.({ db: {} } as any, {
+        occurredAt: new Date("2026-03-05T10:00:00.000Z"),
+        applicationDocumentId: "00000000-0000-4000-8000-000000000101",
         invoiceDocumentId: "00000000-0000-4000-8000-000000000201",
         memo: "acceptance",
       }),
-    ).rejects.toThrow(
-      "acceptance requires a posted exchange for FX-linked invoices",
-    );
+    ).rejects.toThrow("acceptance requires final SWIFT/MT103 payout evidence");
   });
 
-  it("adds both invoice and exchange links for acceptance drafts with exchange dependency", async () => {
+  it("links acceptance parent to application and depends on the invoice", async () => {
     const module = createAcceptanceDocumentModule(createDeps() as any);
 
     await expect(
@@ -442,19 +626,19 @@ describe("commercial document modules", () => {
           occurredAt: new Date("2026-03-05T10:00:00.000Z"),
           payload: {
             occurredAt: "2026-03-05T10:00:00.000Z",
+            applicationDocumentId: "00000000-0000-4000-8000-000000000101",
             invoiceDocumentId: "00000000-0000-4000-8000-000000000201",
-            exchangeDocumentId: "00000000-0000-4000-8000-000000000401",
             memo: "acceptance",
           },
         } as any,
       ),
     ).resolves.toEqual([
       {
-        toDocumentId: "00000000-0000-4000-8000-000000000201",
+        toDocumentId: "00000000-0000-4000-8000-000000000101",
         linkType: "parent",
       },
       {
-        toDocumentId: "00000000-0000-4000-8000-000000000401",
+        toDocumentId: "00000000-0000-4000-8000-000000000201",
         linkType: "depends_on",
       },
     ]);

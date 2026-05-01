@@ -43,8 +43,9 @@ describe("document form options", () => {
     await expect(getDocumentFormOptions()).resolves.toEqual({
       counterparties: [{ id: "counterparty-1", label: "Contoso" }],
       customers: [{ id: "customer-1", label: "Acme Corp" }],
-      organizations: [],
       currencies: [{ id: "usd", code: "USD", label: "US Dollar" }],
+      documents: [],
+      organizations: [],
     });
   }, 15_000);
 });

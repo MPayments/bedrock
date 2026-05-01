@@ -173,8 +173,13 @@ export function compileDealExecutionRecipe(input: {
         case "collect":
           operationKind = "payin";
           if (isRouteDerived) {
-            amountRef = "quote_leg_from";
-            counterAmountRef = "quote_leg_to";
+            if (input.workflow.summary.type === "payment") {
+              amountRef = "accepted_quote_customer_debit";
+              counterAmountRef = "accepted_quote_customer_debit";
+            } else {
+              amountRef = "quote_leg_from";
+              counterAmountRef = "quote_leg_to";
+            }
           } else {
             amountRef =
               input.workflow.summary.type === "payment"

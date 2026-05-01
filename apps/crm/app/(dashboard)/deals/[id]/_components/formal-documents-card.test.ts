@@ -65,6 +65,8 @@ describe("FormalDocumentsCard", () => {
     expect(normalizedMarkup).toContain("Требуемые документы");
     expect(normalizedMarkup).toContain("Созданные документы");
     expect(normalizedMarkup).toContain("Акт / подтверждение исполнения");
+    expect(normalizedMarkup).toContain("DOCX");
+    expect(normalizedMarkup).toContain("PDF");
     expect(normalizedMarkup).toContain("Печатная форма");
     expect(normalizedMarkup).not.toContain(">acceptance<");
   });

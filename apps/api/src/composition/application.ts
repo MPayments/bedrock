@@ -47,6 +47,10 @@ import {
   type DealAttachmentIngestionWorkflow,
 } from "@bedrock/workflow-deal-attachment-ingestion";
 import {
+  createDealCommercialWorkflow,
+  type DealCommercialWorkflow,
+} from "@bedrock/workflow-deal-commercial";
+import {
   createDealExecutionWorkflow,
   type DealExecutionWorkflow,
 } from "@bedrock/workflow-deal-execution";
@@ -123,6 +127,7 @@ export interface ApiApplicationServices {
   createLedgerModule(tx: Transaction): LedgerModule;
   createTreasuryModule(tx: Transaction): TreasuryModule;
   dealAttachmentIngestionWorkflow: DealAttachmentIngestionWorkflow;
+  dealCommercialWorkflow: DealCommercialWorkflow;
   dealExecutionWorkflow: DealExecutionWorkflow;
   dealPricingWorkflow: DealPricingWorkflow;
   dealQuoteWorkflow: DealQuoteWorkflow;
@@ -605,7 +610,10 @@ export function createApplicationServices(
 
   const documentGenerationWorkflow = createDocumentGenerationWorkflow({
     agreements: agreementsModule,
+    calculations: calculationsModule,
     currencies: currenciesService,
+    deals: dealsModule,
+    documents: documentsService,
     parties: partiesModule,
     templateRenderer: templateAdapter,
     pdfConverter: createLibreOfficeConvertAdapter(),
@@ -627,6 +635,15 @@ export function createApplicationServices(
       logger,
     },
   );
+  const dealCommercialWorkflow = createDealCommercialWorkflow({
+    agreements: agreementsModule,
+    dealExecution: dealExecutionWorkflow,
+    deals: dealsModule,
+    documentDrafts: documentDraftWorkflow,
+    documentsReadModel,
+    logger,
+    treasury: treasuryModule,
+  });
 
   return {
     agreementsModule,
@@ -642,6 +659,7 @@ export function createApplicationServices(
     createLedgerModule: createLedgerModuleForTransaction,
     createTreasuryModule: createTreasuryModuleForTransaction,
     dealAttachmentIngestionWorkflow,
+    dealCommercialWorkflow,
     dealExecutionWorkflow,
     dealPricingWorkflow,
     dealQuoteWorkflow,

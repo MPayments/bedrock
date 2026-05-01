@@ -1,11 +1,5 @@
 import { formatFractionDecimal } from "@bedrock/shared/money";
 
-export interface CalculationCurrencyMetadata {
-  code: string;
-  id: string;
-  precision: number;
-}
-
 export function minorToDecimalString(
   amountMinor: bigint | string,
   precision: number,

@@ -30,6 +30,7 @@ import {
   DealPricingContextRevisionConflictError,
   DealTransitionBlockedError,
 } from "@bedrock/deals";
+import { ValidationError } from "@bedrock/shared/core/errors";
 
 import { dealsRoutes } from "../../src/routes/deals";
 
@@ -719,6 +720,18 @@ function createDealPricingQuoteResult() {
 }
 
 function createTestApp() {
+  const uploadedAttachment = {
+    createdAt: new Date("2026-04-29T10:00:00.000Z"),
+    description: null,
+    fileName: "invoice.pdf",
+    fileSize: 8,
+    id: "00000000-0000-4000-8000-000000000501",
+    mimeType: "application/pdf",
+    purpose: "invoice",
+    updatedAt: new Date("2026-04-29T10:00:00.000Z"),
+    uploadedBy: "user-1",
+    visibility: "internal",
+  };
   const dealsModule = createDealsModuleStub();
   const agreementsModule = {
     agreements: {
@@ -750,6 +763,12 @@ function createTestApp() {
     swapRouteTemplate: vi.fn(),
     updateContext: vi.fn(),
   };
+  const dealCommercialWorkflow = {
+    autoMaterializeAfterQuoteAccept: vi.fn(),
+    createFormalDocument: vi.fn(),
+    createQuote: vi.fn(),
+    previewQuote: vi.fn(),
+  };
   const dealExecutionWorkflow = {
     closeDeal: vi.fn(),
     createLegOperation: vi.fn(),
@@ -770,17 +789,25 @@ function createTestApp() {
     },
     treasuryOrders: {
       commands: {
+        releaseInventoryAllocation: vi.fn(),
         reserveInventoryAllocation: vi.fn(),
       },
       queries: {
         findInventoryPositionById: vi.fn(),
         findReservedAllocationByDealAndQuote: vi.fn(),
+        listInventoryAllocations: vi.fn(async () => ({
+          data: [],
+          limit: 100,
+          offset: 0,
+          total: 0,
+        })),
       },
     },
   };
   const ledgerModule = {
     balances: {
       commands: {
+        release: vi.fn(),
         reserve: vi.fn(),
       },
       queries: {
@@ -829,6 +856,22 @@ function createTestApp() {
   const documentsService = {
     get: vi.fn(),
   };
+  const filesModule = {
+    files: {
+      commands: {
+        deleteDealAttachment: vi.fn(),
+        uploadDealAttachment: vi.fn(async () => uploadedAttachment),
+      },
+      queries: {
+        getDealAttachmentDownloadUrl: vi.fn(),
+        listDealAttachments: vi.fn(async () => []),
+      },
+    },
+  };
+  const dealAttachmentIngestionWorkflow = {
+    enqueueIfEligible: vi.fn(),
+    reingest: vi.fn(),
+  };
   const documentDraftWorkflow = {
     createDraft: vi.fn(),
   };
@@ -862,9 +905,11 @@ function createTestApp() {
     "/deals",
     dealsRoutes({
       dealProjectionsWorkflow,
+      dealCommercialWorkflow,
       dealExecutionWorkflow,
       dealPricingWorkflow,
       dealQuoteWorkflow,
+      dealAttachmentIngestionWorkflow,
       dealsModule,
       agreementsModule,
       iamService,
@@ -874,6 +919,7 @@ function createTestApp() {
       currenciesService,
       reconciliationService,
       documentsService,
+      filesModule,
       documentDraftWorkflow,
       createDealsModule: vi.fn(() => dealsModule),
       createLedgerModule: vi.fn(() => ledgerModule),
@@ -885,6 +931,7 @@ function createTestApp() {
 
   return {
     app,
+    dealCommercialWorkflow,
     dealProjectionsWorkflow,
     dealExecutionWorkflow,
     dealPricingWorkflow,
@@ -900,6 +947,8 @@ function createTestApp() {
     currenciesService,
     reconciliationService,
     documentsService,
+    dealAttachmentIngestionWorkflow,
+    filesModule,
     documentDraftWorkflow,
     persistence,
   };
@@ -1059,40 +1108,8 @@ describe("deals routes", () => {
   });
 
   it("creates a deal quote with markup and fixed fee overrides", async () => {
-    const { app, agreementsModule, dealsModule, treasuryModule } =
-      createTestApp();
-
-    dealsModule.deals.queries.findById.mockResolvedValue({
-      ...createDealDetail(),
-      status: "submitted",
-    });
-    agreementsModule.agreements.queries.findById.mockResolvedValue({
-      id: "00000000-0000-4000-8000-000000000002",
-      customerId: "00000000-0000-4000-8000-000000000001",
-      organizationId: "00000000-0000-4000-8000-000000000020",
-      organizationRequisiteId: "00000000-0000-4000-8000-000000000021",
-      isActive: true,
-      createdAt: new Date("2026-03-30T00:00:00.000Z"),
-      updatedAt: new Date("2026-03-30T00:00:00.000Z"),
-      currentVersion: {
-        id: "00000000-0000-4000-8000-000000000099",
-        versionNumber: 1,
-        contractNumber: null,
-        contractDate: null,
-        createdAt: new Date("2026-03-30T00:00:00.000Z"),
-        updatedAt: new Date("2026-03-30T00:00:00.000Z"),
-        parties: [],
-        feeRules: [
-          {
-            id: "00000000-0000-4000-8000-000000000201",
-            kind: "agent_fee",
-            value: "125",
-            currencyCode: null,
-          },
-        ],
-      },
-    });
-    treasuryModule.quotes.commands.createQuote.mockResolvedValue({
+    const { app, dealCommercialWorkflow } = createTestApp();
+    dealCommercialWorkflow.createQuote.mockResolvedValue({
       id: "00000000-0000-4000-8000-000000000210",
       fromCurrencyId: "currency-rub",
       toCurrencyId: "currency-usd",
@@ -1146,49 +1163,22 @@ describe("deals routes", () => {
     );
 
     expect(response.status).toBe(201);
-    expect(treasuryModule.quotes.commands.createQuote).toHaveBeenCalledWith(
+    expect(dealCommercialWorkflow.createQuote).toHaveBeenCalledWith(
       expect.objectContaining({
-        commercialTerms: expect.objectContaining({
-          agreementVersionId: "00000000-0000-4000-8000-000000000099",
-          agreementFeeBps: "125",
-          quoteMarkupBps: "50",
-          fixedFeeAmount: "15.00",
-          fixedFeeCurrency: "USD",
-        }),
         dealId: "00000000-0000-4000-8000-000000000010",
         idempotencyKey: "quote-create-1",
+        quoteInput: expect.objectContaining({
+          fixedFeeAmount: "15.00",
+          fixedFeeCurrency: "USD",
+          quoteMarkupBps: 50,
+        }),
       }),
     );
   });
 
   it("previews a deal quote with commercial terms before creation", async () => {
-    const { app, agreementsModule, dealsModule, treasuryModule } =
-      createTestApp();
-
-    dealsModule.deals.queries.findById.mockResolvedValue({
-      ...createDealDetail(),
-      status: "submitted",
-    });
-    agreementsModule.agreements.queries.findById.mockResolvedValue({
-      id: "00000000-0000-4000-8000-000000000002",
-      customerId: "00000000-0000-4000-8000-000000000001",
-      organizationId: "00000000-0000-4000-8000-000000000020",
-      organizationRequisiteId: "00000000-0000-4000-8000-000000000021",
-      isActive: true,
-      createdAt: new Date("2026-03-30T00:00:00.000Z"),
-      updatedAt: new Date("2026-03-30T00:00:00.000Z"),
-      currentVersion: {
-        id: "00000000-0000-4000-8000-000000000099",
-        versionNumber: 1,
-        contractNumber: null,
-        contractDate: null,
-        createdAt: new Date("2026-03-30T00:00:00.000Z"),
-        updatedAt: new Date("2026-03-30T00:00:00.000Z"),
-        parties: [],
-        feeRules: [],
-      },
-    });
-    treasuryModule.quotes.queries.previewQuote.mockResolvedValue({
+    const { app, dealCommercialWorkflow } = createTestApp();
+    dealCommercialWorkflow.previewQuote.mockResolvedValue({
       fromCurrency: "RUB",
       toCurrency: "USD",
       fromAmountMinor: 100000n,
@@ -1234,10 +1224,12 @@ describe("deals routes", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(treasuryModule.quotes.queries.previewQuote).toHaveBeenCalledWith(
+    expect(dealCommercialWorkflow.previewQuote).toHaveBeenCalledWith(
       expect.objectContaining({
-        commercialTerms: expect.objectContaining({
-          quoteMarkupBps: "50",
+        dealId: "00000000-0000-4000-8000-000000000010",
+        quoteInput: expect.objectContaining({
+          asOf: new Date("2026-03-30T00:00:00.000Z"),
+          quoteMarkupBps: 50,
           fixedFeeAmount: "25.00",
           fixedFeeCurrency: "USD",
         }),
@@ -1416,7 +1408,7 @@ describe("deals routes", () => {
       dealsModule,
       dealPricingWorkflow,
       dealQuoteWorkflow,
-      dealExecutionWorkflow,
+      dealCommercialWorkflow,
     } = createTestApp();
     const quoteResult = createDealPricingQuoteResult();
     dealPricingWorkflow.createQuote.mockResolvedValue(quoteResult);
@@ -1427,7 +1419,9 @@ describe("deals routes", () => {
     dealQuoteWorkflow.createCalculationFromAcceptedQuote.mockResolvedValue({
       id: "00000000-0000-4000-8000-000000000701",
     });
-    dealExecutionWorkflow.requestExecution.mockResolvedValue({});
+    dealCommercialWorkflow.autoMaterializeAfterQuoteAccept.mockResolvedValue(
+      undefined,
+    );
 
     const response = await app.request(
       "http://localhost/deals/00000000-0000-4000-8000-000000000010/pricing/commit",
@@ -1448,11 +1442,12 @@ describe("deals routes", () => {
 
     expect(response.status).toBe(201);
     expect(dealsModule.deals.commands.acceptQuote).toHaveBeenCalled();
-    expect(dealExecutionWorkflow.requestExecution).toHaveBeenCalledWith({
+    expect(
+      dealCommercialWorkflow.autoMaterializeAfterQuoteAccept,
+    ).toHaveBeenCalledWith({
       actorUserId: "user-1",
-      comment: null,
       dealId: "00000000-0000-4000-8000-000000000010",
-      idempotencyKey: `auto-materialize:${quoteResult.quote.id}`,
+      quoteId: quoteResult.quote.id,
     });
   });
 
@@ -1487,12 +1482,14 @@ describe("deals routes", () => {
     });
   });
 
-  it("rejects deal-scoped formal document creation in draft", async () => {
-    const { app, dealsModule, documentDraftWorkflow } = createTestApp();
-    dealsModule.deals.queries.findById.mockResolvedValue({
-      ...createDealDetail(),
-      status: "draft",
-    });
+  it("maps formal document workflow validation errors", async () => {
+    const { app, dealCommercialWorkflow, documentDraftWorkflow } =
+      createTestApp();
+    dealCommercialWorkflow.createFormalDocument.mockRejectedValue(
+      new ValidationError(
+        "Deal 00000000-0000-4000-8000-000000000010 cannot create formal documents from status draft; formal documents are available from status preparing_documents onwards",
+      ),
+    );
 
     const response = await app.request(
       "http://localhost/deals/00000000-0000-4000-8000-000000000010/formal-documents/invoice",
@@ -1517,43 +1514,10 @@ describe("deals routes", () => {
     expect(documentDraftWorkflow.createDraft).not.toHaveBeenCalled();
   });
 
-  it("rejects deal-scoped formal document creation in submitted", async () => {
-    const { app, dealsModule, documentDraftWorkflow } = createTestApp();
-    dealsModule.deals.queries.findById.mockResolvedValue({
-      ...createDealDetail(),
-      status: "submitted",
-    });
-
-    const response = await app.request(
-      "http://localhost/deals/00000000-0000-4000-8000-000000000010/formal-documents/invoice",
-      {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "idempotency-key": "doc-create-submitted",
-        },
-        body: JSON.stringify({
-          input: {},
-        }),
-      },
-    );
-
-    expect(response.status).toBe(400);
-    await expect(response.json()).resolves.toMatchObject({
-      error: expect.stringContaining(
-        "cannot create formal documents from status submitted",
-      ),
-    });
-    expect(documentDraftWorkflow.createDraft).not.toHaveBeenCalled();
-  });
-
   it("creates a deal-scoped formal document in preparing_documents", async () => {
-    const { app, dealsModule, documentDraftWorkflow } = createTestApp();
-    dealsModule.deals.queries.findById.mockResolvedValue({
-      ...createDealDetail(),
-      status: "preparing_documents",
-    });
-    documentDraftWorkflow.createDraft.mockResolvedValue(
+    const { app, dealCommercialWorkflow, dealsModule, documentDraftWorkflow } =
+      createTestApp();
+    dealCommercialWorkflow.createFormalDocument.mockResolvedValue(
       createDocumentWithOperation(),
     );
 
@@ -1572,14 +1536,15 @@ describe("deals routes", () => {
     );
 
     expect(response.status).toBe(201);
-    expect(documentDraftWorkflow.createDraft).toHaveBeenCalledWith(
+    expect(dealCommercialWorkflow.createFormalDocument).toHaveBeenCalledWith(
       expect.objectContaining({
         actorUserId: "user-1",
-        createIdempotencyKey: "doc-create-preparing",
         dealId: "00000000-0000-4000-8000-000000000010",
         docType: "invoice",
+        idempotencyKey: "doc-create-preparing",
       }),
     );
+    expect(documentDraftWorkflow.createDraft).not.toHaveBeenCalled();
     expect(dealsModule.deals.commands.appendTimelineEvent).toHaveBeenCalledWith(
       expect.objectContaining({
         payload: {
@@ -1621,94 +1586,6 @@ describe("deals routes", () => {
     );
 
     expect(response.status).toBe(409);
-  });
-
-  it("normalizes decimal agreement fee bps before previewing a deal quote", async () => {
-    const { app, agreementsModule, dealsModule, treasuryModule } =
-      createTestApp();
-
-    dealsModule.deals.queries.findById.mockResolvedValue({
-      ...createDealDetail(),
-      status: "submitted",
-    });
-    agreementsModule.agreements.queries.findById.mockResolvedValue({
-      id: "00000000-0000-4000-8000-000000000002",
-      customerId: "00000000-0000-4000-8000-000000000001",
-      organizationId: "00000000-0000-4000-8000-000000000020",
-      organizationRequisiteId: "00000000-0000-4000-8000-000000000021",
-      isActive: true,
-      createdAt: new Date("2026-03-30T00:00:00.000Z"),
-      updatedAt: new Date("2026-03-30T00:00:00.000Z"),
-      currentVersion: {
-        id: "00000000-0000-4000-8000-000000000099",
-        versionNumber: 1,
-        contractNumber: null,
-        contractDate: null,
-        createdAt: new Date("2026-03-30T00:00:00.000Z"),
-        updatedAt: new Date("2026-03-30T00:00:00.000Z"),
-        parties: [],
-        feeRules: [
-          {
-            id: "00000000-0000-4000-8000-000000000201",
-            kind: "agent_fee",
-            value: "100.00000000",
-            currencyCode: null,
-          },
-        ],
-      },
-    });
-    treasuryModule.quotes.queries.previewQuote.mockResolvedValue({
-      fromCurrency: "RUB",
-      toCurrency: "USD",
-      fromAmountMinor: 100000n,
-      toAmountMinor: 1100n,
-      pricingMode: "auto_cross",
-      pricingTrace: {},
-      commercialTerms: {
-        agreementVersionId: "00000000-0000-4000-8000-000000000099",
-        agreementFeeBps: 100n,
-        quoteMarkupBps: 0n,
-        totalFeeBps: 100n,
-        fixedFeeAmountMinor: null,
-        fixedFeeCurrency: null,
-      },
-      dealDirection: null,
-      dealForm: null,
-      rateNum: 11n,
-      rateDen: 1000n,
-      expiresAt: new Date("2026-03-30T01:00:00.000Z"),
-      legs: [],
-      feeComponents: [],
-      financialLines: [],
-    });
-
-    const response = await app.request(
-      "http://localhost/deals/00000000-0000-4000-8000-000000000010/quotes/preview",
-      {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
-          mode: "auto_cross",
-          fromAmountMinor: "100000",
-          fromCurrency: "RUB",
-          toCurrency: "USD",
-          asOf: "2026-03-30T00:00:00.000Z",
-        }),
-      },
-    );
-
-    expect(response.status).toBe(200);
-    expect(treasuryModule.quotes.queries.previewQuote).toHaveBeenCalledWith(
-      expect.objectContaining({
-        commercialTerms: expect.objectContaining({
-          agreementVersionId: "00000000-0000-4000-8000-000000000099",
-          agreementFeeBps: "100",
-          quoteMarkupBps: "0",
-        }),
-      }),
-    );
   });
 
   it("delegates CRM deals list projections to the workflow", async () => {
@@ -1824,13 +1701,15 @@ describe("deals routes", () => {
   });
 
   it("accepts a quote for a deal and triggers auto-materialize", async () => {
-    const { app, dealsModule, dealExecutionWorkflow } = createTestApp();
+    const { app, dealCommercialWorkflow, dealsModule } = createTestApp();
     const projection = {
       acceptedQuote: { quoteId: "00000000-0000-4000-8000-000000000210" },
       summary: { id: "00000000-0000-4000-8000-000000000010" },
     };
     dealsModule.deals.commands.acceptQuote.mockResolvedValue(projection);
-    dealExecutionWorkflow.requestExecution.mockResolvedValue(projection);
+    dealCommercialWorkflow.autoMaterializeAfterQuoteAccept.mockResolvedValue(
+      undefined,
+    );
 
     const response = await app.request(
       "http://localhost/deals/00000000-0000-4000-8000-000000000010/quotes/00000000-0000-4000-8000-000000000210/accept",
@@ -1845,24 +1724,54 @@ describe("deals routes", () => {
       dealId: "00000000-0000-4000-8000-000000000010",
       quoteId: "00000000-0000-4000-8000-000000000210",
     });
-    expect(dealExecutionWorkflow.requestExecution).toHaveBeenCalledWith({
+    expect(
+      dealCommercialWorkflow.autoMaterializeAfterQuoteAccept,
+    ).toHaveBeenCalledWith({
       actorUserId: "user-1",
-      comment: null,
       dealId: "00000000-0000-4000-8000-000000000010",
-      idempotencyKey: "auto-materialize:00000000-0000-4000-8000-000000000210",
+      quoteId: "00000000-0000-4000-8000-000000000210",
     });
   });
 
-  it("appends a materialization_failed timeline event when auto-materialize throws", async () => {
-    const { app, dealsModule, dealExecutionWorkflow } = createTestApp();
+  it("releases superseded inventory reservations when accepting a new quote", async () => {
+    const {
+      app,
+      currenciesService,
+      dealsModule,
+      ledgerModule,
+      treasuryModule,
+    } = createTestApp();
     const projection = {
       acceptedQuote: { quoteId: "00000000-0000-4000-8000-000000000210" },
       summary: { id: "00000000-0000-4000-8000-000000000010" },
     };
+    const supersededAllocation = {
+      amountMinor: 1000n,
+      costAmountMinor: 900n,
+      consumedAt: null,
+      createdAt: new Date("2026-04-19T08:00:00.000Z"),
+      currencyId: "00000000-0000-4000-8000-000000000104",
+      dealId: "00000000-0000-4000-8000-000000000010",
+      id: "00000000-0000-4000-8000-000000000601",
+      ledgerHoldRef:
+        "treasury_inventory_allocation:00000000-0000-4000-8000-000000000601",
+      ownerBookId: "00000000-0000-4000-8000-000000000701",
+      ownerRequisiteId: "00000000-0000-4000-8000-000000000801",
+      positionId: "00000000-0000-4000-8000-000000000901",
+      quoteId: "00000000-0000-4000-8000-000000000209",
+      releasedAt: null,
+      reservedAt: new Date("2026-04-19T08:00:00.000Z"),
+      state: "reserved" as const,
+      updatedAt: new Date("2026-04-19T08:00:00.000Z"),
+    };
     dealsModule.deals.commands.acceptQuote.mockResolvedValue(projection);
-    dealExecutionWorkflow.requestExecution.mockRejectedValue(
-      new Error("intake not ready"),
-    );
+    treasuryModule.treasuryOrders.queries.listInventoryAllocations.mockResolvedValue({
+      data: [supersededAllocation],
+      limit: 100,
+      offset: 0,
+      total: 1,
+    });
+    currenciesService.findById.mockResolvedValue({ code: "USD" });
 
     const response = await app.request(
       "http://localhost/deals/00000000-0000-4000-8000-000000000010/quotes/00000000-0000-4000-8000-000000000210/accept",
@@ -1872,19 +1781,33 @@ describe("deals routes", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(dealsModule.deals.commands.appendTimelineEvent).toHaveBeenCalledWith(
-      expect.objectContaining({
-        actorUserId: "user-1",
-        dealId: "00000000-0000-4000-8000-000000000010",
-        payload: expect.objectContaining({
-          quoteId: "00000000-0000-4000-8000-000000000210",
-          reason: "intake not ready",
-        }),
-        sourceRef: "materialize:auto:00000000-0000-4000-8000-000000000210",
-        type: "materialization_failed",
-        visibility: "internal",
-      }),
-    );
+    expect(ledgerModule.balances.commands.release).toHaveBeenCalledWith({
+      actorId: "user-1",
+      holdRef:
+        "treasury_inventory_allocation:00000000-0000-4000-8000-000000000601",
+      idempotencyKey:
+        "accept:00000000-0000-4000-8000-000000000010:00000000-0000-4000-8000-000000000210:inventory-balance-release:00000000-0000-4000-8000-000000000601",
+      reason:
+        "Release superseded treasury inventory for deal 00000000-0000-4000-8000-000000000010",
+      requestContext: {
+        causationId: null,
+        correlationId: "corr-1",
+        idempotencyKey: null,
+        requestId: "req-1",
+        traceId: null,
+      },
+      subject: {
+        bookId: "00000000-0000-4000-8000-000000000701",
+        currency: "USD",
+        subjectId: "00000000-0000-4000-8000-000000000801",
+        subjectType: "organization_requisite",
+      },
+    });
+    expect(
+      treasuryModule.treasuryOrders.commands.releaseInventoryAllocation,
+    ).toHaveBeenCalledWith({
+      allocationId: "00000000-0000-4000-8000-000000000601",
+    });
   });
 
   it("updates the draft agreement on the workbench", async () => {
@@ -2662,6 +2585,85 @@ describe("deals routes", () => {
       dealId: "00000000-0000-4000-8000-000000000010",
       idx: 1,
       override: "blocked",
+    });
+  });
+
+  it("uploads deal attachments without recognition when disabled", async () => {
+    const {
+      app,
+      dealAttachmentIngestionWorkflow,
+      dealsModule,
+      filesModule,
+    } = createTestApp();
+    const deal = createDealDetail();
+    dealsModule.deals.queries.findById.mockResolvedValue(deal);
+    const formData = new FormData();
+    formData.set(
+      "file",
+      new File([Buffer.from("pdf-body")], "invoice.pdf", {
+        type: "application/pdf",
+      }),
+    );
+    formData.set("purpose", "invoice");
+    formData.set("visibility", "internal");
+    formData.set("useRecognition", "false");
+
+    const response = await app.request(
+      `http://localhost/deals/${deal.id}/attachments`,
+      {
+        body: formData,
+        method: "POST",
+      },
+    );
+
+    expect(response.status).toBe(201);
+    expect(
+      filesModule.files.commands.uploadDealAttachment,
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({
+        attachmentPurpose: "invoice",
+        attachmentVisibility: "internal",
+        fileName: "invoice.pdf",
+        ownerId: deal.id,
+      }),
+    );
+    expect(
+      dealAttachmentIngestionWorkflow.enqueueIfEligible,
+    ).not.toHaveBeenCalled();
+  });
+
+  it("uploads deal attachments and enqueues recognition by default", async () => {
+    const {
+      app,
+      dealAttachmentIngestionWorkflow,
+      dealsModule,
+    } = createTestApp();
+    const deal = createDealDetail();
+    dealsModule.deals.queries.findById.mockResolvedValue(deal);
+    const formData = new FormData();
+    formData.set(
+      "file",
+      new File([Buffer.from("pdf-body")], "invoice.pdf", {
+        type: "application/pdf",
+      }),
+    );
+    formData.set("purpose", "invoice");
+    formData.set("visibility", "internal");
+
+    const response = await app.request(
+      `http://localhost/deals/${deal.id}/attachments`,
+      {
+        body: formData,
+        method: "POST",
+      },
+    );
+
+    expect(response.status).toBe(201);
+    expect(
+      dealAttachmentIngestionWorkflow.enqueueIfEligible,
+    ).toHaveBeenCalledWith({
+      dealId: deal.id,
+      fileAssetId: "00000000-0000-4000-8000-000000000501",
     });
   });
 

@@ -101,6 +101,7 @@ export class UpdateAgreementCommand {
             validated.contractDate === undefined
               ? "__keep__"
               : validated.contractDate?.toISOString() ?? null,
+          feeBillingMode: validated.feeBillingMode ?? "__keep__",
           feeRules: validated.feeRules ?? "__keep__",
         },
         actorId: validated.actorUserId,
@@ -141,6 +142,8 @@ export class UpdateAgreementCommand {
               validated.contractDate === undefined
                 ? current.currentVersion.contractDate
                 : validated.contractDate,
+            feeBillingMode:
+              validated.feeBillingMode ?? current.currentVersion.feeBillingMode,
           });
 
           await tx.agreementStore.createAgreementParties(

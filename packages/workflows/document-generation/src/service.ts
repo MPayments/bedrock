@@ -2,7 +2,10 @@ import { randomUUID } from "node:crypto";
 
 import type { AgreementsModule } from "@bedrock/agreements";
 import type { AgreementDetails } from "@bedrock/agreements/contracts";
+import type { CalculationsModule } from "@bedrock/calculations";
 import type { CurrenciesService } from "@bedrock/currencies";
+import type { DealsModule } from "@bedrock/deals";
+import type { DocumentsService } from "@bedrock/documents";
 import {
   findPartyAddress,
   findPartyIdentifier,
@@ -62,6 +65,7 @@ import {
   CustomerContractNotFoundError,
   CustomerContractOrganizationNotFoundError,
 } from "./errors";
+import { createPrintFormApplication } from "./print-forms";
 import { buildInvoiceQrIfEligible } from "./qr";
 
 export interface TemplateRendererPort {
@@ -94,7 +98,10 @@ export interface ObjectStoragePort {
 
 export interface DocumentGenerationWorkflowDeps {
   agreements: Pick<AgreementsModule, "agreements">;
+  calculations: Pick<CalculationsModule, "calculations">;
   currencies: Pick<CurrenciesService, "findById">;
+  deals: Pick<DealsModule, "deals">;
+  documents: Pick<DocumentsService, "get">;
   logger: Logger;
   objectStorage?: ObjectStoragePort;
   parties: Pick<PartiesModule, "counterparties" | "organizations" | "requisites">;
@@ -583,7 +590,7 @@ export function createDocumentGenerationWorkflow(
     return { fileName, mimeType, buffer };
   }
 
-  return {
+  const workflow = {
     async generate(input: GenerateDocumentInput): Promise<GeneratedDocument> {
       const validated = GenerateDocumentInputSchema.parse(input);
 
@@ -696,6 +703,7 @@ export function createDocumentGenerationWorkflow(
       calculation: Record<string, unknown>;
       client: Record<string, unknown>;
       contract: Record<string, unknown>;
+      invoice?: Record<string, unknown> | null;
       organization: Record<string, unknown>;
       organizationRequisite: Record<string, unknown>;
       date?: Date;
@@ -720,23 +728,43 @@ export function createDocumentGenerationWorkflow(
             : null,
       });
 
-      const assemblers = {
-        application: assembleApplicationData,
-        invoice: assembleInvoiceData,
-        acceptance: assembleAcceptanceData,
-      };
-
-      const data = assemblers[input.templateType](
-        input.deal,
-        input.calculation,
-        input.client,
-        input.contract,
-        input.organization,
-        input.organizationRequisite,
-        orgFiles,
-        date,
-        lang,
-      );
+      const data =
+        input.templateType === "invoice"
+          ? assembleInvoiceData(
+              input.deal,
+              input.calculation,
+              input.client,
+              input.contract,
+              input.organization,
+              input.organizationRequisite,
+              orgFiles,
+              date,
+              lang,
+              input.invoice ?? null,
+            )
+          : input.templateType === "application"
+            ? assembleApplicationData(
+                input.deal,
+                input.calculation,
+                input.client,
+                input.contract,
+                input.organization,
+                input.organizationRequisite,
+                orgFiles,
+                date,
+                lang,
+              )
+            : assembleAcceptanceData(
+                input.deal,
+                input.calculation,
+                input.client,
+                input.contract,
+                input.organization,
+                input.organizationRequisite,
+                orgFiles,
+                date,
+                lang,
+              );
 
       if (input.templateType === "invoice") {
         (data as Record<string, unknown>).qr = await buildInvoiceQrIfEligible(
@@ -744,6 +772,7 @@ export function createDocumentGenerationWorkflow(
             lang,
             deal: input.deal,
             calculation: input.calculation,
+            invoice: input.invoice ?? null,
             organization: input.organization,
             organizationRequisite: input.organizationRequisite,
           },
@@ -839,6 +868,19 @@ export function createDocumentGenerationWorkflow(
         locale,
       );
     },
+  };
+
+  return {
+    ...workflow,
+    ...createPrintFormApplication({
+      agreementsModule: deps.agreements,
+      calculationsModule: deps.calculations,
+      currenciesService: deps.currencies,
+      dealsModule: deps.deals,
+      documentsService: deps.documents,
+      documentGenerationWorkflow: workflow,
+      partiesModule: deps.parties,
+    }),
   };
 }
 

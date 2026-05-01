@@ -60,7 +60,7 @@ export default async function DashboardPage() {
             session.role === "admin"
               ? staleSources > 0
                 ? `Просроченных источников: ${formatCount(staleSources)}`
-                : "Все treasury FX-источники актуальны в пределах TTL."
+                : "Все казначейские FX-источники актуальны в пределах TTL."
               : "Административные разделы доступны по роли.",
           href: session.role === "admin" ? "/treasury" : undefined,
         },

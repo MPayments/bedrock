@@ -9,8 +9,14 @@ import {
 
 describe("commercial module registry", () => {
   const deps = {
+    documentBusinessLinks: {
+      findActiveDocumentIdByDealIdAndDocType: vi.fn(),
+      findDealIdByDocumentId: vi.fn(),
+    },
     documentRelations: {
+      loadApplication: vi.fn(),
       loadInvoice: vi.fn(),
+      getApplicationAcceptanceChild: vi.fn(),
       getInvoiceExchangeChild: vi.fn(),
       getInvoiceAcceptanceChild: vi.fn(),
       getExchangeAcceptance: vi.fn(),
@@ -35,13 +41,18 @@ describe("commercial module registry", () => {
     );
   });
 
-  it("exposes the expected posting model for invoice, exchange, and acceptance", () => {
+  it("exposes the expected posting model for commercial documents", () => {
     const modules = createCommercialDocumentModules(deps as any);
 
+    const application = modules.find(
+      (module) => module.docType === "application",
+    );
     const invoice = modules.find((module) => module.docType === "invoice");
     const exchange = modules.find((module) => module.docType === "exchange");
     const acceptance = modules.find((module) => module.docType === "acceptance");
 
+    expect(application?.postingRequired).toBe(false);
+    expect(application?.allowDirectPostFromDraft).toBe(false);
     expect(invoice?.accountingSourceIds).toEqual([
       ACCOUNTING_SOURCE_ID.INVOICE_DIRECT,
       ACCOUNTING_SOURCE_ID.INVOICE_INVENTORY_FINALIZE,

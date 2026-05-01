@@ -113,11 +113,20 @@ vi.mock("@/features/treasury/deals/components/upload-attachment-dialog", () => (
 }));
 
 vi.mock("@/features/treasury/steps/components/step-card", () => ({
-  StepCard: ({ step, title }: { step: { id: string }; title?: string }) =>
+  StepCard: ({
+    kindLabel,
+    step,
+    title,
+  }: {
+    kindLabel?: string;
+    step: { id: string };
+    title?: string;
+  }) =>
     createElement(
       "div",
       { "data-testid": `finance-step-card-${step.id}` },
       title,
+      kindLabel,
     ),
 }));
 
@@ -443,6 +452,109 @@ describe("treasury deal workbench", () => {
       'data-testid="finance-step-card-22222222-2222-4222-8222-222222222222"',
     );
     expect(markup).not.toContain('data-testid="finance-deal-leg-editor-1"');
+  });
+
+  it("uses the plan leg label for deal-origin step cards", async () => {
+    (
+      globalThis as typeof globalThis & {
+        React: typeof React;
+      }
+    ).React = React;
+
+    const { FinanceDealWorkbench } = await import(
+      "@/features/treasury/deals/components/workbench"
+    );
+
+    const deal = createDeal();
+    deal.executionPlan[0] = {
+      ...deal.executionPlan[0]!,
+      kind: "transit_hold",
+      runtimeState: "ready",
+    };
+    deal.executionSteps = [
+      {
+        artifacts: [],
+        attempts: [],
+        amendments: [],
+        completedAt: null,
+        createdAt: "2026-04-02T08:07:00.000Z",
+        currentRoute: {
+          fromAmountMinor: "734500",
+          fromCurrencyId: "0f9d972c-b95b-4544-95d8-8ccdc7496ed8",
+          fromParty: {
+            id: "11111111-1111-4111-8111-111111111111",
+            requisiteId: null,
+          },
+          rate: null,
+          toAmountMinor: "734500",
+          toCurrencyId: "0f9d972c-b95b-4544-95d8-8ccdc7496ed8",
+          toParty: {
+            id: "33333333-3333-4333-8333-333333333333",
+            requisiteId: null,
+          },
+        },
+        dealId: deal.summary.id,
+        failureReason: null,
+        fromAmountMinor: "734500",
+        fromCurrencyId: "0f9d972c-b95b-4544-95d8-8ccdc7496ed8",
+        fromParty: {
+          id: "11111111-1111-4111-8111-111111111111",
+          requisiteId: null,
+        },
+        id: "22222222-2222-4222-8222-222222222222",
+        kind: "intercompany_funding",
+        origin: {
+          dealId: deal.summary.id,
+          planLegId: "714fb6eb-a1bd-429e-9628-e97d0f2efa0b",
+          routeSnapshotLegId: null,
+          sequence: 1,
+          treasuryOrderId: null,
+          type: "deal_execution_leg",
+        },
+        plannedRoute: {
+          fromAmountMinor: "734500",
+          fromCurrencyId: "0f9d972c-b95b-4544-95d8-8ccdc7496ed8",
+          fromParty: {
+            id: "11111111-1111-4111-8111-111111111111",
+            requisiteId: null,
+          },
+          rate: null,
+          toAmountMinor: "734500",
+          toCurrencyId: "0f9d972c-b95b-4544-95d8-8ccdc7496ed8",
+          toParty: {
+            id: "33333333-3333-4333-8333-333333333333",
+            requisiteId: null,
+          },
+        },
+        postingDocumentRefs: [],
+        purpose: "deal_leg",
+        quoteId: null,
+        rate: null,
+        returns: [],
+        scheduledAt: null,
+        sourceRef:
+          "deal:614fb6eb-a1bd-429e-9628-e97d0f2efa0b:plan-leg:714fb6eb-a1bd-429e-9628-e97d0f2efa0b:intercompany_funding:1",
+        state: "pending",
+        submittedAt: null,
+        toAmountMinor: "734500",
+        toCurrencyId: "0f9d972c-b95b-4544-95d8-8ccdc7496ed8",
+        toParty: {
+          id: "33333333-3333-4333-8333-333333333333",
+          requisiteId: null,
+        },
+        treasuryBatchId: null,
+        updatedAt: "2026-04-02T08:07:00.000Z",
+      },
+    ];
+
+    const markup = renderToStaticMarkup(
+      createElement(FinanceDealWorkbench, {
+        deal,
+      }),
+    );
+
+    expect(markup).toContain("Шаг 1 · Транзитное удержание");
+    expect(markup).not.toContain("Межкомпанейское фондирование");
   });
 
   it("renders the deal context, leg editor, and sidebar timeline together", async () => {

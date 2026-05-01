@@ -9,7 +9,7 @@ export const LEG_KIND_REQUIRED_DOC_TYPE: Record<DealLegKind, string | null> = {
 };
 
 export const OPENING_DOCUMENT_TYPE_BY_DEAL_TYPE: Record<DealType, string> = {
-  payment: "invoice",
+  payment: "application",
   currency_exchange: "exchange",
   currency_transit: "invoice",
   exporter_settlement: "invoice",

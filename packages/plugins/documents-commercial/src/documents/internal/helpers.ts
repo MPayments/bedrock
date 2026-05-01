@@ -25,34 +25,18 @@ import { canonicalJson } from "@bedrock/shared/core/canon";
 
 import type { CommercialDocumentRuntime, CommercialModuleDeps } from "./types";
 import {
+  ApplicationPayloadSchema,
   InvoicePayloadSchema,
   QuoteSnapshotSchema,
+  type ApplicationPayload,
   type ExchangePayload,
   type InvoiceCurrentPayload,
   type InvoicePayload,
+  type InvoicePurpose,
   type QuoteSnapshot,
 } from "../../validation";
 
-function resolveDealFundingStrategy(
-  dealFxContext: NonNullable<
-    Awaited<ReturnType<typeof resolveInvoiceDealFxContext>>
-  >,
-) {
-  if (!dealFxContext.hasConvertLeg) {
-    return null;
-  }
-
-  if (
-    dealFxContext.fundingResolution.state !== "resolved" ||
-    !dealFxContext.fundingResolution.strategy
-  ) {
-    throw new DocumentValidationError(
-      "linked FX deal does not have a resolved funding strategy",
-    );
-  }
-
-  return dealFxContext.fundingResolution.strategy;
-}
+const CUSTOMER_FEE_INVOICE_TITLE = "Счет на агентское вознаграждение";
 
 export function buildQuoteSnapshotHash(snapshot: Omit<QuoteSnapshot, "snapshotHash">) {
   return createHash("sha256").update(canonicalJson(snapshot)).digest("hex");
@@ -93,6 +77,23 @@ export function getInvoiceCurrency(payload: InvoicePayload) {
   return payload.currency;
 }
 
+export function getInvoicePurpose(payload: InvoicePayload): InvoicePurpose {
+  return payload.invoicePurpose ?? "combined";
+}
+
+export function getInvoiceTitleByPurpose(payload: InvoicePayload) {
+  return getInvoicePurpose(payload) === "agency_fee"
+    ? CUSTOMER_FEE_INVOICE_TITLE
+    : "Счёт на оплату";
+}
+
+function buildQuoteBillingSetRef(input: {
+  dealId: string;
+  quoteId: string;
+}) {
+  return `billing_set:${input.dealId}:${input.quoteId}`;
+}
+
 export async function resolveOrganizationBinding(
   deps: CommercialModuleDeps,
   organizationRequisiteId: string,
@@ -127,6 +128,36 @@ export async function loadInvoice(
   }
 
   return invoice;
+}
+
+export async function loadApplication(
+  deps: Pick<CommercialModuleDeps, "documentRelations">,
+  runtime: CommercialDocumentRuntime,
+  applicationDocumentId: string,
+  forUpdate = false,
+): Promise<Document> {
+  const application = await deps.documentRelations.loadApplication({
+    runtime,
+    applicationDocumentId,
+    forUpdate,
+  });
+
+  if (!application) {
+    throw new DocumentValidationError("application document is missing");
+  }
+
+  return application;
+}
+
+export async function getApplicationAcceptanceChild(
+  deps: Pick<CommercialModuleDeps, "documentRelations">,
+  runtime: CommercialDocumentRuntime,
+  applicationDocumentId: string,
+): Promise<Document | null> {
+  return deps.documentRelations.getApplicationAcceptanceChild({
+    runtime,
+    applicationDocumentId,
+  });
 }
 
 export async function getInvoiceExchangeChild(
@@ -175,22 +206,135 @@ export function requirePostedDocument(
   }
 }
 
+export function requireReadyDocument(
+  document: Pick<
+    Document,
+    "approvalStatus" | "docType" | "lifecycleStatus" | "postingStatus" | "submissionStatus"
+  >,
+) {
+  if (
+    document.lifecycleStatus !== "active" ||
+    document.submissionStatus !== "submitted" ||
+    !["approved", "not_required"].includes(document.approvalStatus) ||
+    !["posted", "not_required"].includes(document.postingStatus)
+  ) {
+    throw new DocumentValidationError(
+      `${document.docType} must be active and ready`,
+    );
+  }
+}
+
 export async function markQuoteUsedForInvoice(input: {
   runtime: CommercialDocumentRuntime;
   deps: Pick<CommercialModuleDeps, "quoteUsage">;
   quoteId: string;
   invoiceDocumentId: string;
+  dealId?: string;
+  billingSetRef?: string;
   at: Date;
 }): Promise<void> {
+  const splitBillingRef =
+    input.billingSetRef ??
+    (input.dealId
+      ? buildQuoteBillingSetRef({
+          dealId: input.dealId,
+          quoteId: input.quoteId,
+        })
+      : null);
+
   await input.deps.quoteUsage.markQuoteUsedForInvoice({
     runtime: input.runtime,
     quoteId: input.quoteId,
-    invoiceDocumentId: input.invoiceDocumentId,
+    usedByRef: splitBillingRef ?? `invoice:${input.invoiceDocumentId}`,
+    usedDocumentId: splitBillingRef ? null : input.invoiceDocumentId,
     at: input.at,
   });
 }
 
 type FinancialLinePostingPhase = "direct" | "reserve" | "finalize";
+
+function isProviderExpenseBucket(bucket: FinancialLine["bucket"]) {
+  return bucket === "provider_fee_expense" || bucket === "execution_expense";
+}
+
+function isFeeRevenueBucket(bucket: FinancialLine["bucket"]) {
+  return bucket === "fee_revenue" || bucket === "commercial_revenue";
+}
+
+function isFeeRevenueLine(line: FinancialLine) {
+  return isFeeRevenueBucket(line.bucket);
+}
+
+export function filterFinancialLinesForInvoicePurpose(input: {
+  lines: FinancialLine[];
+  purpose: InvoicePurpose;
+}) {
+  if (input.purpose === "agency_fee") {
+    return input.lines.filter(isFeeRevenueLine);
+  }
+
+  if (input.purpose === "principal") {
+    return input.lines.filter((line) => !isFeeRevenueLine(line));
+  }
+
+  return input.lines;
+}
+
+export function calculateDealLinkedInvoiceExpectedAmount(input: {
+  dealFxContext: NonNullable<Awaited<ReturnType<typeof resolveInvoiceDealFxContext>>>;
+  purpose: InvoicePurpose;
+}) {
+  const { calculationCurrency, totalAmountMinor } = input.dealFxContext;
+
+  if (!calculationCurrency) {
+    throw new DocumentValidationError(
+      "linked FX deal does not have a resolved calculation currency",
+    );
+  }
+
+  if (!totalAmountMinor) {
+    throw new DocumentValidationError(
+      "linked FX deal does not have a resolved invoice total amount",
+    );
+  }
+
+  if (input.purpose === "combined") {
+    return {
+      amountMinor: BigInt(totalAmountMinor),
+      currency: calculationCurrency,
+    };
+  }
+
+  const feeRevenueLines = input.dealFxContext.financialLines.filter(
+    isFeeRevenueLine,
+  );
+  const feeCurrencies = new Set(feeRevenueLines.map((line) => line.currency));
+
+  if (feeCurrencies.size > 1 || (feeCurrencies.size === 1 && !feeCurrencies.has(calculationCurrency))) {
+    throw new DocumentValidationError(
+      "Split fee invoice requires all fee revenue lines to use the principal invoice currency",
+    );
+  }
+
+  const feeRevenueMinor = feeRevenueLines.reduce(
+    (total, line) => total + line.amountMinor,
+    0n,
+  );
+
+  if (feeRevenueMinor <= 0n) {
+    throw new DocumentValidationError(
+      "Split fee invoice requires positive fee revenue lines",
+    );
+  }
+
+  return {
+    amountMinor:
+      input.purpose === "agency_fee"
+        ? feeRevenueMinor
+        : BigInt(totalAmountMinor) - feeRevenueMinor,
+    currency: calculationCurrency,
+  };
+}
 
 function templateForLine(
   line: FinancialLine,
@@ -199,7 +343,7 @@ function templateForLine(
   templateKey: string;
   amountMinor: bigint;
 } | null {
-  if (line.bucket === "provider_fee_expense") {
+  if (isProviderExpenseBucket(line.bucket)) {
     return {
       templateKey:
         line.amountMinor > 0n
@@ -325,13 +469,11 @@ export function buildFinancialLineRequests(input: {
 
   input.lines.forEach((rawLine, index) => {
     const line = normalizeFinancialLine(rawLine);
-    if (line.bucket === "provider_fee_expense" && !input.includeProviderLines) {
+    const providerExpense = isProviderExpenseBucket(line.bucket);
+    if (providerExpense && !input.includeProviderLines) {
       return;
     }
-    if (
-      line.bucket !== "provider_fee_expense" &&
-      !input.includeCustomerLines
-    ) {
+    if (!providerExpense && !input.includeCustomerLines) {
       return;
     }
 
@@ -351,7 +493,7 @@ export function buildFinancialLineRequests(input: {
           customerId: input.customerId,
           orderId: input.orderId,
           feeBucket: line.bucket,
-          ...(line.bucket === "provider_fee_expense"
+          ...(providerExpense
             ? {
                 counterpartyId: input.counterpartyId,
               }
@@ -445,22 +587,39 @@ export async function buildDealLinkedInvoicePostingPlan(input: {
   }
 
   const quoteSnapshot = input.dealFxContext.quoteSnapshot;
-  const chainId = `invoice:${input.document.id}`;
+  const purpose = getInvoicePurpose(input.payload);
+  const chainId =
+    purpose === "combined"
+      ? `invoice:${input.document.id}`
+      : input.payload.billingSetRef ??
+        buildQuoteBillingSetRef({
+          dealId: input.dealFxContext.dealId,
+          quoteId: quoteSnapshot.quoteId,
+        });
+  const financialLines = filterFinancialLinesForInvoicePurpose({
+    lines: input.dealFxContext.financialLines.map((line) =>
+      normalizeFinancialLine(line),
+    ),
+    purpose,
+  });
   await markQuoteUsedForInvoice({
     runtime: input.context.runtime,
     deps: input.deps,
     quoteId: quoteSnapshot.quoteId,
     invoiceDocumentId: input.document.id,
+    ...(purpose === "combined"
+      ? {}
+      : {
+          billingSetRef: input.payload.billingSetRef,
+          dealId: input.dealFxContext.dealId,
+        }),
     at: input.context.now,
   });
 
-  return buildDocumentPostingPlan({
-    operationCode: OPERATION_CODE.COMMERCIAL_INVOICE_RESERVE,
-    payload: {
-      ...input.payload,
-      memo: input.payload.memo ?? null,
-    },
-    requests: [
+  const requests: DocumentPostingPlanRequest[] = [];
+
+  if (purpose !== "agency_fee") {
+    requests.push(
       buildDocumentPostingRequest(input.document, {
         templateKey: POSTING_TEMPLATE_KEY.PAYMENT_FX_PRINCIPAL,
         bookId: input.bookId,
@@ -476,22 +635,32 @@ export async function buildDealLinkedInvoicePostingPlan(input: {
         },
         memo: input.payload.memo ?? null,
       }),
-      ...buildFinancialLineRequests({
-        document: input.document,
-        bookId: input.bookId,
-        customerId: input.payload.customerId,
-        orderId: input.document.id,
-        counterpartyId: input.payload.counterpartyId,
-        quoteRef: quoteSnapshot.quoteRef,
-        chainId,
-        lines: input.dealFxContext.financialLines.map((line) =>
-          normalizeFinancialLine(line),
-        ),
-        includeCustomerLines: true,
-        includeProviderLines: false,
-        postingPhase: "reserve",
-      }),
-    ],
+    );
+  }
+
+  requests.push(
+    ...buildFinancialLineRequests({
+      document: input.document,
+      bookId: input.bookId,
+      customerId: input.payload.customerId,
+      orderId: input.document.id,
+      counterpartyId: input.payload.counterpartyId,
+      quoteRef: quoteSnapshot.quoteRef,
+      chainId,
+      lines: financialLines,
+      includeCustomerLines: true,
+      includeProviderLines: false,
+      postingPhase: purpose === "agency_fee" ? "direct" : "reserve",
+    }),
+  );
+
+  return buildDocumentPostingPlan({
+    operationCode: OPERATION_CODE.COMMERCIAL_INVOICE_RESERVE,
+    payload: {
+      ...input.payload,
+      memo: input.payload.memo ?? null,
+    },
+    requests,
   });
 }
 
@@ -516,22 +685,39 @@ export async function buildInventoryFundedInvoicePostingPlan(input: {
   }
 
   const quoteSnapshot = input.dealFxContext.quoteSnapshot;
-  const chainId = `invoice:${input.document.id}`;
+  const purpose = getInvoicePurpose(input.payload);
+  const chainId =
+    purpose === "combined"
+      ? `invoice:${input.document.id}`
+      : input.payload.billingSetRef ??
+        buildQuoteBillingSetRef({
+          dealId: input.dealFxContext.dealId,
+          quoteId: quoteSnapshot.quoteId,
+        });
+  const financialLines = filterFinancialLinesForInvoicePurpose({
+    lines: input.dealFxContext.financialLines.map((line) =>
+      normalizeFinancialLine(line),
+    ),
+    purpose,
+  });
   await markQuoteUsedForInvoice({
     runtime: input.context.runtime,
     deps: input.deps,
     quoteId: quoteSnapshot.quoteId,
     invoiceDocumentId: input.document.id,
+    ...(purpose === "combined"
+      ? {}
+      : {
+          billingSetRef: input.payload.billingSetRef,
+          dealId: input.dealFxContext.dealId,
+        }),
     at: input.context.now,
   });
 
-  return buildDocumentPostingPlan({
-    operationCode: OPERATION_CODE.COMMERCIAL_INVOICE_INVENTORY_FINALIZE,
-    payload: {
-      ...input.payload,
-      memo: input.payload.memo ?? null,
-    },
-    requests: [
+  const requests: DocumentPostingPlanRequest[] = [];
+
+  if (purpose !== "agency_fee") {
+    requests.push(
       buildDocumentPostingRequest(input.document, {
         templateKey: POSTING_TEMPLATE_KEY.PAYMENT_FX_PRINCIPAL,
         bookId: input.bookId,
@@ -555,9 +741,7 @@ export async function buildInventoryFundedInvoicePostingPlan(input: {
         counterpartyId: input.payload.counterpartyId,
         quoteRef: quoteSnapshot.quoteRef,
         chainId,
-        lines: input.dealFxContext.financialLines.map((line) =>
-          normalizeFinancialLine(line),
-        ),
+        lines: financialLines,
         includeCustomerLines: true,
         includeProviderLines: false,
         postingPhase: "reserve",
@@ -585,14 +769,37 @@ export async function buildInventoryFundedInvoicePostingPlan(input: {
         counterpartyId: input.payload.counterpartyId,
         quoteRef: quoteSnapshot.quoteRef,
         chainId,
-        lines: input.dealFxContext.financialLines.map((line) =>
-          normalizeFinancialLine(line),
-        ),
+        lines: financialLines,
         includeCustomerLines: true,
         includeProviderLines: true,
         postingPhase: "finalize",
       }),
-    ],
+    );
+  } else {
+    requests.push(
+      ...buildFinancialLineRequests({
+        document: input.document,
+        bookId: input.bookId,
+        customerId: input.payload.customerId,
+        orderId: input.document.id,
+        counterpartyId: input.payload.counterpartyId,
+        quoteRef: quoteSnapshot.quoteRef,
+        chainId,
+        lines: financialLines,
+        includeCustomerLines: true,
+        includeProviderLines: false,
+        postingPhase: "direct",
+      }),
+    );
+  }
+
+  return buildDocumentPostingPlan({
+    operationCode: OPERATION_CODE.COMMERCIAL_INVOICE_INVENTORY_FINALIZE,
+    payload: {
+      ...input.payload,
+      memo: input.payload.memo ?? null,
+    },
+    requests,
   });
 }
 
@@ -704,18 +911,6 @@ export function parseInvoicePayload(document: Document) {
   return parseDocumentPayload(InvoicePayloadSchema, document);
 }
 
-export async function invoiceRequiresExchange(
-  deps: Pick<
-    CommercialModuleDeps,
-    "dealFx" | "documentBusinessLinks"
-  >,
-  invoice: Document,
-) {
-  const dealFxContext = await resolveInvoiceDealFxContext(deps, invoice.id);
-
-  if (dealFxContext) {
-    return resolveDealFundingStrategy(dealFxContext) === "external_fx";
-  }
-
-  return false;
+export function parseApplicationPayload(document: Document): ApplicationPayload {
+  return parseDocumentPayload(ApplicationPayloadSchema, document);
 }

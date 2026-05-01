@@ -528,6 +528,52 @@ describe("materializeCompiledOperation", () => {
     expect(call?.toAmountMinor).toBe(10000n);
   });
 
+  it("materializes payment collect from customer debit, not route cost", async () => {
+    const paymentStepsCommands = createPaymentStepsCommands();
+    const treasuryModule = createTreasuryModule({ paymentStepsCommands });
+
+    await materializeCompiledOperation({
+      acceptedQuote: {
+        feeComponents: [],
+        financialLines: [],
+        legs: [],
+        pricingTrace: {},
+        quote: {
+          fromCurrencyId: "cur-rub",
+          id: "quote-1",
+          pricingTrace: {
+            metadata: {
+              crmPricingSnapshot: {
+                amounts: {
+                  customerDebitMinor: "1509000000",
+                },
+              },
+            },
+          },
+        },
+      } as any,
+      agreementOrganizationId: null,
+      compiled: compiled({
+        amountRef: "accepted_quote_customer_debit",
+        counterAmountRef: "accepted_quote_customer_debit",
+      }),
+      currencies: createCurrencies() as any,
+      currencyCodeById: new Map(),
+      customerId: "customer-1",
+      dealStore: createDealStore(),
+      internalEntityOrganizationId: "org-1",
+      routeAttachment: null,
+      treasuryModule: treasuryModule as any,
+      workflow: createWorkflow(),
+    });
+
+    const call = paymentStepsCommands.create.mock.calls[0]?.[0];
+    expect(call?.fromCurrencyId).toBe("cur-rub");
+    expect(call?.toCurrencyId).toBe("cur-rub");
+    expect(call?.fromAmountMinor).toBe(1509000000n);
+    expect(call?.toAmountMinor).toBe(1509000000n);
+  });
+
   it("materializes cross-currency payouts with quote metadata and rate", async () => {
     const paymentStepsCommands = createPaymentStepsCommands();
     const treasuryModule = createTreasuryModule({ paymentStepsCommands });

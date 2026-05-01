@@ -28,9 +28,11 @@ export {
   type ListAgreementsQuery,
 } from "./application/contracts/queries";
 export {
+  AgreementFeeBillingModeSchema,
   AgreementFeeRuleKindSchema,
   AgreementFeeRuleUnitSchema,
   AgreementPartyRoleSchema,
+  type AgreementFeeBillingMode,
   type AgreementFeeRuleKind,
   type AgreementFeeRuleUnit,
   type AgreementPartyRole,

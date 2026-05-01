@@ -521,6 +521,14 @@ function createWorkflow(overrides?: {
       agreements: {
         queries: {
           findActiveByCustomerId: vi.fn(async () => agreement),
+          findVersionById: vi.fn(async () => null),
+        },
+      },
+    } as any,
+    calculations: {
+      calculations: {
+        queries: {
+          findById: vi.fn(async () => null),
         },
       },
     } as any,
@@ -569,6 +577,17 @@ function createWorkflow(overrides?: {
           }),
         },
       },
+    } as any,
+    deals: {
+      deals: {
+        queries: {
+          findById: vi.fn(async () => null),
+          findWorkflowById: vi.fn(async () => null),
+        },
+      },
+    } as any,
+    documents: {
+      get: vi.fn(async () => null),
     } as any,
     pdfConverter,
     templateRenderer,
@@ -973,6 +992,34 @@ describe("document generation workflow", () => {
     expect(payload).toBeDefined();
     expect(payload?.qr).toBeDefined();
     expect((payload?.qr as { _type: string })._type).toBe("image");
+  });
+
+  it("generateDealDocument() renders invoice totals from explicit invoice data", async () => {
+    const { templateRenderer, workflow } = createWorkflow();
+
+    await workflow.generateDealDocument({
+      templateType: "invoice",
+      deal: { id: "22222222-3333-4444-8555-666666666666" },
+      calculation: {
+        currencyCode: "USD",
+        totalAmount: "1000.00",
+      },
+      client: {},
+      contract: {},
+      invoice: {
+        amount: "12.34",
+        currencyCode: "USD",
+      },
+      organization: { id: IDS.organization },
+      organizationRequisite: {},
+    });
+
+    const payload = (templateRenderer.renderDocx.mock.calls as unknown[][])[0]?.[
+      1
+    ] as Record<string, unknown> | undefined;
+    expect(payload).toBeDefined();
+    expect(payload?.totalWithExpensesInBase).toBe("12.34");
+    expect(payload?.baseCurrencyCode).toBe("USD");
   });
 
   it("generateDealDocument() does not inject qr for non-invoice templates", async () => {

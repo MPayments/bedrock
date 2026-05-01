@@ -318,6 +318,13 @@ describe("payment routes", () => {
     expect(calculation.costPriceInMinor).toBe("10000");
     expect(calculation.benchmarkPrincipalInMinor).toBe("9900");
     expect(calculation.embeddedExecutionCostMinor).toBe("100");
+    expect(calculation.executionCostLines).toEqual([
+      expect.objectContaining({
+        id: "fee-fx-spread",
+        kind: "fx_spread",
+        percentage: "1",
+      }),
+    ]);
     expect(calculation.internalFeeTotals).toEqual([]);
     expect(calculation.feeTotals).toEqual([
       {

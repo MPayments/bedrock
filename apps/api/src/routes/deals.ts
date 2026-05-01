@@ -41,14 +41,17 @@ import {
   FileAttachmentSchema,
   FileAttachmentVisibilitySchema,
 } from "@bedrock/files/contracts";
+import type { LedgerModule } from "@bedrock/ledger";
 import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
 import { ValidationError } from "@bedrock/shared/core/errors";
+import type { TreasuryModule } from "@bedrock/treasury";
 import {
   QuoteListItemSchema,
   QuotePreviewResponseSchema,
   QuoteSchema,
   PreviewQuoteInputSchema,
 } from "@bedrock/treasury/contracts";
+import { assertDealAllowsCommercialWrite } from "@bedrock/workflow-deal-commercial";
 import {
   CrmDealBoardProjectionSchema,
   CrmDealWorkbenchProjectionSchema,
@@ -77,20 +80,11 @@ import {
 } from "../middleware/idempotency";
 import { requirePermission } from "../middleware/permission";
 import {
-  buildDealTrace,
-  createDealScopedFormalDocument,
-  createDealScopedQuote,
-  previewDealScopedQuote,
-  triggerAutoMaterializeAfterAccept,
   DealScopedCreateDocumentInputSchema,
-  assertDealAllowsCommercialWrite,
   requireDeal,
 } from "./internal/deal-linked-resources";
 import { toDocumentDto } from "./internal/document-dto";
 import {
-  generateDealPrintForm,
-  listDealPrintForms,
-  listDocumentPrintForms,
   PrintFormFormatQuerySchema,
   writeGeneratedDocumentResponse,
 } from "./internal/print-forms";
@@ -169,10 +163,10 @@ async function reserveInventoryForAcceptedQuote(input: {
   ctx: AppContext;
   dealId: string;
   idempotencyKey: string;
-  ledgerModule: ReturnType<AppContext["createLedgerModule"]>;
+  ledgerModule: LedgerModule;
   quoteId: string;
   requestContext: ReturnType<typeof getRequestContext>;
-  treasuryModule: AppContext["treasuryModule"];
+  treasuryModule: TreasuryModule;
 }) {
   const quote = await input.treasuryModule.quotes.queries.findById(
     input.quoteId,
@@ -240,6 +234,53 @@ async function reserveInventoryForAcceptedQuote(input: {
       quoteId: input.quoteId,
     },
   );
+}
+
+async function releaseSupersededInventoryReservations(input: {
+  actorUserId: string;
+  ctx: AppContext;
+  dealId: string;
+  idempotencyKey: string;
+  ledgerModule: ReturnType<AppContext["createLedgerModule"]>;
+  quoteId: string;
+  requestContext: ReturnType<typeof getRequestContext>;
+  treasuryModule: AppContext["treasuryModule"];
+}) {
+  const allocations =
+    await input.treasuryModule.treasuryOrders.queries.listInventoryAllocations({
+      dealId: input.dealId,
+      limit: 100,
+      offset: 0,
+      state: "reserved",
+    });
+
+  for (const allocation of allocations.data) {
+    if (allocation.quoteId === input.quoteId) {
+      continue;
+    }
+
+    const currency = await input.ctx.currenciesService.findById(
+      allocation.currencyId,
+    );
+    await input.ledgerModule.balances.commands.release({
+      actorId: input.actorUserId,
+      holdRef: allocation.ledgerHoldRef,
+      idempotencyKey: `${input.idempotencyKey}:inventory-balance-release:${allocation.id}`,
+      reason: `Release superseded treasury inventory for deal ${input.dealId}`,
+      requestContext: input.requestContext,
+      subject: {
+        bookId: allocation.ownerBookId,
+        currency: currency.code,
+        subjectId: allocation.ownerRequisiteId,
+        subjectType: "organization_requisite",
+      },
+    });
+    await input.treasuryModule.treasuryOrders.commands.releaseInventoryAllocation(
+      {
+        allocationId: allocation.id,
+      },
+    );
+  }
 }
 
 export function dealsRoutes(ctx: AppContext) {
@@ -333,6 +374,12 @@ export function dealsRoutes(ctx: AppContext) {
   });
   const DealAttachmentPurposeInputSchema = z.object({
     purpose: FileAttachmentPurposeSchema,
+  });
+  const DealAttachmentRecognitionInputSchema = z.object({
+    useRecognition: z
+      .enum(["false", "true"])
+      .optional()
+      .transform((value) => value !== "false"),
   });
 
   async function getFinanceWorkspaceOrThrow(dealId: string) {
@@ -2240,25 +2287,37 @@ export function dealsRoutes(ctx: AppContext) {
         const result = await ctx.persistence.runInTransaction(async (tx) => {
           const dealsModule = ctx.createDealsModule(tx);
           const treasuryModule = ctx.createTreasuryModule(tx);
+          const ledgerModule = ctx.createLedgerModule(tx);
           const accepted = await dealsModule.deals.commands.acceptQuote({
             actorUserId,
             dealId: id,
             quoteId,
+          });
+          const acceptedQuoteId = accepted.acceptedQuote?.quoteId ?? quoteId;
+          await releaseSupersededInventoryReservations({
+            actorUserId,
+            ctx,
+            dealId: id,
+            idempotencyKey: `accept:${id}:${quoteId}`,
+            ledgerModule,
+            quoteId: acceptedQuoteId,
+            requestContext: getRequestContext(c),
+            treasuryModule,
           });
           await reserveInventoryForAcceptedQuote({
             actorUserId,
             ctx,
             dealId: id,
             idempotencyKey: `accept:${id}:${quoteId}`,
-            ledgerModule: ctx.createLedgerModule(tx),
-            quoteId: accepted.acceptedQuote?.quoteId ?? quoteId,
+            ledgerModule,
+            quoteId: acceptedQuoteId,
             requestContext: getRequestContext(c),
             treasuryModule,
           });
           return accepted;
         });
 
-        await triggerAutoMaterializeAfterAccept(ctx, {
+        await ctx.dealCommercialWorkflow.autoMaterializeAfterQuoteAccept({
           actorUserId,
           dealId: id,
           quoteId: result.acceptedQuote?.quoteId ?? quoteId,
@@ -2548,11 +2607,10 @@ export function dealsRoutes(ctx: AppContext) {
         const { id } = c.req.valid("param");
         const body = c.req.valid("json");
         const result = await withRequiredIdempotency(c, (idempotencyKey) =>
-          createDealScopedQuote({
-            body,
-            ctx,
+          ctx.dealCommercialWorkflow.createQuote({
             dealId: id,
             idempotencyKey,
+            quoteInput: body,
           }),
         );
 
@@ -2581,10 +2639,9 @@ export function dealsRoutes(ctx: AppContext) {
       try {
         const { id } = c.req.valid("param");
         const body = c.req.valid("json");
-        const result = await previewDealScopedQuote({
-          body,
-          ctx,
+        const result = await ctx.dealCommercialWorkflow.previewQuote({
           dealId: id,
+          quoteInput: body,
         });
 
         return jsonOk(c, serializeQuotePreview(result));
@@ -2735,17 +2792,28 @@ export function dealsRoutes(ctx: AppContext) {
             await ctx.persistence.runInTransaction(async (tx) => {
               const dealsModule = ctx.createDealsModule(tx);
               const treasuryModule = ctx.createTreasuryModule(tx);
+              const ledgerModule = ctx.createLedgerModule(tx);
               await dealsModule.deals.commands.acceptQuote({
                 actorUserId,
                 dealId: id,
                 quoteId: quoteResult.quote.id,
+              });
+              await releaseSupersededInventoryReservations({
+                actorUserId,
+                ctx,
+                dealId: id,
+                idempotencyKey,
+                ledgerModule,
+                quoteId: quoteResult.quote.id,
+                requestContext: getRequestContext(c),
+                treasuryModule,
               });
               await reserveInventoryForAcceptedQuote({
                 actorUserId,
                 ctx,
                 dealId: id,
                 idempotencyKey,
-                ledgerModule: ctx.createLedgerModule(tx),
+                ledgerModule,
                 quoteId: quoteResult.quote.id,
                 requestContext: getRequestContext(c),
                 treasuryModule,
@@ -2760,7 +2828,7 @@ export function dealsRoutes(ctx: AppContext) {
                 quoteId: quoteResult.quote.id,
               });
 
-            await triggerAutoMaterializeAfterAccept(ctx, {
+            await ctx.dealCommercialWorkflow.autoMaterializeAfterQuoteAccept({
               actorUserId,
               dealId: id,
               quoteId: quoteResult.quote.id,
@@ -2789,7 +2857,9 @@ export function dealsRoutes(ctx: AppContext) {
     .openapi(listPrintFormsRoute, async (c) => {
       try {
         const { id } = c.req.valid("param");
-        const result = await listDealPrintForms({ ctx, dealId: id });
+        const result = await ctx.documentGenerationWorkflow.listDealPrintForms({
+          dealId: id,
+        });
 
         return jsonOk(c, result);
       } catch (error) {
@@ -2800,12 +2870,12 @@ export function dealsRoutes(ctx: AppContext) {
       try {
         const { formId, id } = c.req.valid("param");
         const { format } = c.req.valid("query");
-        const result = await generateDealPrintForm({
-          ctx,
-          dealId: id,
-          formId,
-          format,
-        });
+        const result =
+          await ctx.documentGenerationWorkflow.generateDealPrintForm({
+            dealId: id,
+            formId,
+            format,
+          });
 
         return writeGeneratedDocumentResponse(c, result);
       } catch (error) {
@@ -2841,12 +2911,12 @@ export function dealsRoutes(ctx: AppContext) {
         const rows = await Promise.all(
           result.data.map(async (document) => ({
             ...toDocumentDto(document),
-            printForms: await listDocumentPrintForms({
-              actorUserId: c.get("user")!.id,
-              ctx,
-              docType: document.document.docType,
-              documentId: document.document.id,
-            }),
+            printForms:
+              await ctx.documentGenerationWorkflow.listDocumentPrintForms({
+                actorUserId: c.get("user")!.id,
+                docType: document.document.docType,
+                documentId: document.document.id,
+              }),
           })),
         );
 
@@ -2860,14 +2930,14 @@ export function dealsRoutes(ctx: AppContext) {
         const { docType, id } = c.req.valid("param");
         const body = c.req.valid("json");
         const result = await withRequiredIdempotency(c, (idempotencyKey) =>
-          createDealScopedFormalDocument({
+          ctx.dealCommercialWorkflow.createFormalDocument({
             actorUserId: c.get("user")!.id,
-            body,
-            ctx,
             dealId: id,
             docType,
             idempotencyKey,
+            payload: body.input,
             requestContext: getRequestContext(c),
+            routeBodyDealId: body.dealId ?? null,
           }),
         );
 
@@ -2924,6 +2994,13 @@ export function dealsRoutes(ctx: AppContext) {
             purpose:
               typeof body.purpose === "string" ? body.purpose : undefined,
           });
+        const attachmentRecognitionResult =
+          DealAttachmentRecognitionInputSchema.safeParse({
+            useRecognition:
+              typeof body.useRecognition === "string"
+                ? body.useRecognition
+                : undefined,
+          });
 
         if (!attachmentVisibilityResult.success) {
           return c.json(
@@ -2936,6 +3013,12 @@ export function dealsRoutes(ctx: AppContext) {
         if (!attachmentPurposeResult.success) {
           return c.json(
             { error: "Attachment purpose must be invoice, contract, or other" },
+            400 as const,
+          );
+        }
+        if (!attachmentRecognitionResult.success) {
+          return c.json(
+            { error: "useRecognition must be true or false" },
             400 as const,
           );
         }
@@ -2955,17 +3038,19 @@ export function dealsRoutes(ctx: AppContext) {
             uploadedBy: c.get("user")!.id,
           });
 
-        try {
-          await ctx.dealAttachmentIngestionWorkflow.enqueueIfEligible({
-            dealId: id,
-            fileAssetId: attachment.id,
-          });
-        } catch (error) {
-          ctx.logger.warn("Failed to enqueue deal attachment ingestion", {
-            attachmentId: attachment.id,
-            dealId: id,
-            error: error instanceof Error ? error.message : String(error),
-          });
+        if (attachmentRecognitionResult.data.useRecognition) {
+          try {
+            await ctx.dealAttachmentIngestionWorkflow.enqueueIfEligible({
+              dealId: id,
+              fileAssetId: attachment.id,
+            });
+          } catch (error) {
+            ctx.logger.warn("Failed to enqueue deal attachment ingestion", {
+              attachmentId: attachment.id,
+              dealId: id,
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
         }
 
         await ctx.dealsModule.deals.commands.appendTimelineEvent({
@@ -3050,7 +3135,9 @@ export function dealsRoutes(ctx: AppContext) {
     .openapi(traceRoute, async (c) => {
       try {
         const { id } = c.req.valid("param");
-        const trace = await buildDealTrace(ctx, id);
+        const trace = await ctx.dealCommercialWorkflow.buildTrace({
+          dealId: id,
+        });
         return jsonOk(c, trace);
       } catch (error) {
         return handleRouteError(c, error);

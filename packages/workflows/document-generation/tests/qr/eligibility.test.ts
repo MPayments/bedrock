@@ -21,7 +21,8 @@ const logger = {
 const VALID_INPUT = {
   lang: "ru" as const,
   deal: { memo: "Оплата по счёту", invoiceNumber: "42" },
-  calculation: { currencyCode: "RUB", totalAmount: "1000" },
+  calculation: { currencyCode: "USD", totalAmount: "999999" },
+  invoice: { amount: "1000.25", currencyCode: "RUB" },
   organization: { inn: "7707083893", kpp: "770701001", name: "ООО Ромашка" },
   organizationRequisite: {
     bic: "044525225",
@@ -45,6 +46,14 @@ describe("buildInvoiceQrIfEligible", () => {
     expect(result.format).toBe("image/png");
   });
 
+  it("uses invoice amount and currency instead of calculation totals", async () => {
+    await buildInvoiceQrIfEligible(VALID_INPUT, { logger });
+
+    expect(renderMock).toHaveBeenCalledWith(
+      expect.stringContaining("Sum=100025"),
+    );
+  });
+
   it("falls back when lang=en", async () => {
     const result = await buildInvoiceQrIfEligible(
       { ...VALID_INPUT, lang: "en" },
@@ -58,7 +67,19 @@ describe("buildInvoiceQrIfEligible", () => {
     const result = await buildInvoiceQrIfEligible(
       {
         ...VALID_INPUT,
-        calculation: { ...VALID_INPUT.calculation, currencyCode: "USD" },
+        invoice: { ...VALID_INPUT.invoice, currencyCode: "USD" },
+      },
+      { logger },
+    );
+    expect(renderMock).not.toHaveBeenCalled();
+    expect(result).toBe(TRANSPARENT_QR_FALLBACK);
+  });
+
+  it("falls back when explicit invoice data is missing", async () => {
+    const result = await buildInvoiceQrIfEligible(
+      {
+        ...VALID_INPUT,
+        invoice: null,
       },
       { logger },
     );

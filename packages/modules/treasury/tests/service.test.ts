@@ -11,6 +11,7 @@ import {
   createNoopFeesService,
 } from "./helpers";
 import { NotFoundError, QuoteExpiredError } from "../src/errors";
+import { computePricingFingerprint } from "../src/quotes/domain/pricing-fingerprint";
 
 const QUOTE_ID = "550e8400-e29b-41d4-a716-446655440010";
 
@@ -313,6 +314,139 @@ describe("createTreasuryTestService", () => {
                 settlementMode: "in_ledger",
             }),
         ]);
+    });
+
+    it("uses the stable CRM pricing subset for persisted quote fingerprints", async () => {
+        const insertedQuoteRows: any[] = [];
+        const createdQuote = makeQuote();
+        const txInsert = vi.fn((table: unknown) => {
+            if (table === schema.fxQuotes) {
+                return {
+                    values: vi.fn((row: any) => {
+                        insertedQuoteRows.push(row);
+                        return {
+                            onConflictDoNothing: vi.fn(() => ({
+                                returning: vi.fn(async () => [createdQuote]),
+                            })),
+                        };
+                    }),
+                };
+            }
+            if (table === schema.fxQuoteLegs) {
+                return {
+                    values: vi.fn(async () => undefined),
+                };
+            }
+            throw new Error("unexpected insert table");
+        });
+        const txDelete = vi.fn((table: unknown) => {
+            if (table === schema.fxQuoteFeeComponents) {
+                return deleteWhere();
+            }
+            if (table === schema.fxQuoteFinancialLines) {
+                return deleteWhere();
+            }
+
+            throw new Error("unexpected delete table");
+        });
+        const db = {
+            select: vi.fn(),
+            transaction: vi.fn(async (fn: any) => fn({ insert: txInsert, delete: txDelete })),
+        } as any;
+        const crmPricingSnapshot = {
+            clientSide: {
+                beneficiaryAmountMinor: "100000",
+                clientPrincipalMinor: "1000000",
+                clientRate: { rateDen: "1000000", rateNum: "100000" },
+                commercialFeeMinor: "0",
+                customerTotalMinor: "1000000",
+                discountMinor: "0",
+                passThroughMinor: "0",
+                pricingMode: "client_rate",
+            },
+            executionSide: {
+                executionCostLines: [],
+                executionRate: null,
+                routeCostMinor: "900000",
+                routeFundingMinor: "100000",
+                source: "route_execution",
+            },
+            pnl: {
+                costMinor: "900000",
+                grossProfitMinor: "100000",
+                profitPercentOnCost: "11.11",
+                revenueMinor: "100000",
+            },
+        };
+        const enrichedCrmPricingSnapshot = {
+            ...crmPricingSnapshot,
+            amounts: { customerDebitMinor: "1000000" },
+            benchmarks: { pricingBase: "route_benchmark" },
+            formulaTrace: { sections: [] },
+            profitability: { profitMinor: "100000" },
+        };
+        const service = createTreasuryTestService({
+            persistence: createPersistenceContext(db),
+            feesService: createNoopFeesService(),
+            currenciesService: createMockCurrenciesService(),
+        });
+
+        await service.quotes.quote({
+            mode: "explicit_route",
+            idempotencyKey: "idem-route-1",
+            fromCurrency: "RUB",
+            toCurrency: "AED",
+            fromAmountMinor: 1_000_000n,
+            dealDirection: "cash_to_usdt",
+            dealForm: "conversion",
+            asOf: new Date("2026-02-14T00:00:00Z"),
+            pricingTrace: {
+                version: "v1",
+                mode: "explicit_route",
+                metadata: {
+                    crmPricingSnapshot: enrichedCrmPricingSnapshot,
+                },
+            },
+            legs: [
+                {
+                    fromCurrency: "RUB",
+                    toCurrency: "AED",
+                    rateNum: 1n,
+                    rateDen: 10n,
+                    sourceKind: "manual",
+                    sourceRef: "desk",
+                },
+            ],
+        });
+
+        const fingerprintInput = {
+            commercialTerms: {
+                agreementFeeBps: 0n,
+                agreementVersionId: null,
+                fixedFeeAmountMinor: null,
+                fixedFeeCurrency: null,
+                quoteMarkupBps: 0n,
+            },
+            fromAmountMinor: 1_000_000n,
+            fromCurrencyId: "cur-rub",
+            pricingMode: "explicit_route" as const,
+            routeTemplateId: null,
+            toAmountMinor: 100_000n,
+            toCurrencyId: "cur-aed",
+        };
+
+        expect(insertedQuoteRows[0].pricingFingerprint).toBe(
+            computePricingFingerprint({
+                ...fingerprintInput,
+                clientPricing: crmPricingSnapshot,
+            }),
+        );
+        expect(insertedQuoteRows[0].pricingFingerprint).not.toBe(
+            computePricingFingerprint({
+                ...fingerprintInput,
+                clientPricing: enrichedCrmPricingSnapshot,
+            }),
+        );
     });
 
     it("rejects explicit route with broken leg continuity", async () => {

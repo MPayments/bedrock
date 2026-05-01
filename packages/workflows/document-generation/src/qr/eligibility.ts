@@ -15,6 +15,7 @@ export interface BuildInvoiceQrInput {
   lang: "ru" | "en";
   deal: Record<string, unknown>;
   calculation: Record<string, unknown>;
+  invoice?: Record<string, unknown> | null;
   organization: Record<string, unknown>;
   organizationRequisite: Record<string, unknown>;
 }
@@ -43,7 +44,7 @@ export async function buildInvoiceQrIfEligible(
     return TRANSPARENT_QR_FALLBACK;
   }
 
-  const currencyCode = asString(input.calculation.currencyCode);
+  const currencyCode = asString(input.invoice?.currencyCode);
   if (currencyCode !== "RUB") {
     return TRANSPARENT_QR_FALLBACK;
   }
@@ -78,7 +79,7 @@ export async function buildInvoiceQrIfEligible(
     correspAcc: corrAccount,
     payeeINN: inn,
     kpp: asString(input.organization.kpp) ?? undefined,
-    sum: asString(input.calculation.totalAmount) ?? undefined,
+    sum: asString(input.invoice?.amount) ?? undefined,
     purpose: asString(input.deal.memo) ?? undefined,
     docNo: asString(input.deal.invoiceNumber) ?? undefined,
   };

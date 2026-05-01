@@ -24,7 +24,7 @@ import {
 import { dealIntakeHasConvertLeg } from "./workflow";
 
 const OPENING_DOCUMENT_TYPE_BY_DEAL_TYPE: Record<DealType, string> = {
-  payment: "invoice",
+  payment: "application",
   currency_exchange: "exchange",
   currency_transit: "invoice",
   exporter_settlement: "invoice",
@@ -321,6 +321,7 @@ function collectDocumentBlockers(input: {
   codeNotReady: DealTransitionBlocker["code"];
   documents: DealRelatedFormalDocument[];
   docType: string | null;
+  invoicePurpose?: string | null;
   messagePrefix: string;
 }): DealTransitionBlocker[] {
   if (!input.docType) {
@@ -328,9 +329,18 @@ function collectDocumentBlockers(input: {
   }
 
   const blockers: DealTransitionBlocker[] = [];
-  const matchingDocuments = input.documents.filter(
-    (document) => document.docType === input.docType,
-  );
+  const matchingDocuments = input.documents.filter((document) => {
+    const documentInvoicePurpose =
+      document.docType === "invoice"
+        ? (document.invoicePurpose ?? "combined")
+        : (document.invoicePurpose ?? null);
+
+    return (
+      document.docType === input.docType &&
+      (input.invoicePurpose === undefined ||
+        documentInvoicePurpose === input.invoicePurpose)
+    );
+  });
 
   if (matchingDocuments.length === 0) {
     blockers.push({
@@ -338,6 +348,7 @@ function collectDocumentBlockers(input: {
       message: `${input.messagePrefix} document is required: ${input.docType}`,
       meta: {
         docType: input.docType,
+        ...(input.invoicePurpose ? { invoicePurpose: input.invoicePurpose } : {}),
       },
     });
 
@@ -350,11 +361,47 @@ function collectDocumentBlockers(input: {
       message: `${input.messagePrefix} document is not ready: ${input.docType}`,
       meta: {
         docType: input.docType,
+        ...(input.invoicePurpose ? { invoicePurpose: input.invoicePurpose } : {}),
       },
     });
   }
 
   return blockers;
+}
+
+function listOpeningDocumentRequirements(input: {
+  dealType: DealType;
+  invoicePurposes?: string[];
+}): {
+  docType: string;
+  invoicePurpose?: string | null;
+}[] {
+  if (input.dealType === "payment") {
+    const invoicePurposes = input.invoicePurposes?.length
+      ? input.invoicePurposes
+      : ["combined"];
+
+    return [
+      {
+        docType: "application",
+      },
+      ...invoicePurposes.map((invoicePurpose) => ({
+        docType: "invoice",
+        invoicePurpose,
+      })),
+    ];
+  }
+
+  const openingDocType = OPENING_DOCUMENT_TYPE_BY_DEAL_TYPE[input.dealType];
+  const invoicePurposes =
+    openingDocType === "invoice"
+      ? (input.invoicePurposes?.length ? input.invoicePurposes : ["combined"])
+      : [null];
+
+  return invoicePurposes.map((invoicePurpose) => ({
+    docType: openingDocType,
+    invoicePurpose,
+  }));
 }
 
 function collectLegReadyBlockers(legs: DealWorkflowLeg[]): DealTransitionBlocker[] {
@@ -428,6 +475,7 @@ export function evaluateDealTransitionReadiness(input: {
   intake: TransitionPolicyIntake;
   now: Date;
   operationalState: DealOperationalState;
+  openingInvoicePurposes?: string[];
   participants: DealWorkflowParticipant[];
   status: DealStatus;
   targetStatus: DealStatus;
@@ -491,13 +539,19 @@ export function evaluateDealTransitionReadiness(input: {
 
   if (requiresAwaitingFundsChecks) {
     blockers.push(
-      ...collectDocumentBlockers({
-        codeMissing: "opening_document_missing",
-        codeNotReady: "opening_document_not_ready",
-        documents: input.documents,
-        docType: OPENING_DOCUMENT_TYPE_BY_DEAL_TYPE[input.intake.type],
-        messagePrefix: "Opening",
-      }),
+      ...listOpeningDocumentRequirements({
+        dealType: input.intake.type,
+        invoicePurposes: input.openingInvoicePurposes,
+      }).flatMap((requirement) =>
+        collectDocumentBlockers({
+          codeMissing: "opening_document_missing",
+          codeNotReady: "opening_document_not_ready",
+          documents: input.documents,
+          docType: requirement.docType,
+          invoicePurpose: requirement.invoicePurpose,
+          messagePrefix: "Opening",
+        }),
+      ),
     );
   }
 
@@ -581,12 +635,14 @@ export function listDealTransitionReadiness(input: {
   intake: TransitionPolicyIntake;
   now: Date;
   operationalState: DealOperationalState;
+  openingInvoicePurposes?: string[];
   participants: DealWorkflowParticipant[];
   status: DealStatus;
 }): DealTransitionReadiness[] {
   return DEAL_STATUS_TRANSITIONS[input.status].map((targetStatus) =>
     evaluateDealTransitionReadiness({
       ...input,
+      openingInvoicePurposes: input.openingInvoicePurposes,
       targetStatus,
     }),
   );

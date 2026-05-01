@@ -32,6 +32,7 @@ export interface CreateQuoteExecutionProps {
 }
 
 const SUBMITTABLE_STATES: QuoteExecutionState[] = ["pending", "failed"];
+const AMENDABLE_STATES: QuoteExecutionState[] = ["draft", "pending", "failed"];
 
 function cloneDate(value: Date): Date {
   return new Date(value.getTime());
@@ -260,6 +261,28 @@ export class QuoteExecution extends AggregateRoot<string> {
         state: "processing",
         submittedAt: input.submittedAt,
         updatedAt: input.submittedAt,
+      }),
+    );
+  }
+
+  amendExecutionParties(input: {
+    executionParties: QuoteExecutionParties;
+    updatedAt: Date;
+  }): QuoteExecution {
+    invariant(
+      AMENDABLE_STATES.includes(this.snapshot.state),
+      "Quote execution parties cannot be amended",
+      {
+        code: "treasury.quote_execution.amend_not_allowed",
+        meta: { executionId: this.id, state: this.snapshot.state },
+      },
+    );
+
+    return new QuoteExecution(
+      normalizeSnapshot({
+        ...this.snapshot,
+        executionParties: cloneParties(input.executionParties),
+        updatedAt: input.updatedAt,
       }),
     );
   }

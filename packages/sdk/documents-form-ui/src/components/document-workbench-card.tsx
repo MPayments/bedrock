@@ -97,8 +97,8 @@ export function DocumentWorkbenchCard({
             ) : null}
           </div>
         </CardHeader>
-        <CardContent className="space-y-6 py-6">
-          <DocumentTypedFormForm className="space-y-6">
+        <CardContent>
+          <DocumentTypedFormForm>
             <DocumentTypedFormSections />
             <DocumentTypedFormFormError />
           </DocumentTypedFormForm>

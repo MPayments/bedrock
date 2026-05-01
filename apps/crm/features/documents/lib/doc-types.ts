@@ -1,6 +1,11 @@
 import { COMMERCIAL_DOCUMENT_METADATA } from "@bedrock/plugin-documents-commercial/contracts";
 
-const CRM_DOC_TYPES = ["invoice", "acceptance", "exchange"] as const;
+const CRM_DOC_TYPES = [
+  "application",
+  "invoice",
+  "acceptance",
+  "exchange",
+] as const;
 export type CrmDocType = (typeof CRM_DOC_TYPES)[number];
 
 export function isCrmDocType(value: string): value is CrmDocType {

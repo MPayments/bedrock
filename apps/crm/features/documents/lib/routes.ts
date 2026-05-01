@@ -1,8 +1,16 @@
 export function buildCrmDealDocumentCreateHref(
   dealId: string,
   docType: string,
+  options?: {
+    invoicePurpose?: "combined" | "principal" | "agency_fee" | null;
+  },
 ): string {
-  return `/deals/${encodeURIComponent(dealId)}/documents/create?docType=${encodeURIComponent(docType)}`;
+  const query = new URLSearchParams({ docType });
+  if (options?.invoicePurpose) {
+    query.set("invoicePurpose", options.invoicePurpose);
+  }
+
+  return `/deals/${encodeURIComponent(dealId)}/documents/create?${query.toString()}`;
 }
 
 export function buildCrmDealDocumentDetailsHref(

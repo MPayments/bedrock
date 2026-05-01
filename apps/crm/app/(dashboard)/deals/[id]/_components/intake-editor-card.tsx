@@ -1,19 +1,28 @@
-import { Save, RotateCcw } from "lucide-react";
+import { RotateCcw, Save } from "lucide-react";
 
 import { Button } from "@bedrock/sdk-ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@bedrock/sdk-ui/components/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@bedrock/sdk-ui/components/card";
+import { Spinner } from "@bedrock/sdk-ui/components/spinner";
 
-import { DEAL_SECTION_LABELS } from "./constants";
-import type { ApiDealSectionCompleteness } from "./types";
 import {
   createDealIntakeFormContext,
   DealIntakeCommonSection,
+  DealIntakeCustomerNoteField,
   DealIntakeExternalBeneficiarySection,
   DealIntakeIncomingReceiptSection,
   DealIntakeMoneyRequestSection,
+  DealIntakePurposeField,
   DealIntakeSettlementDestinationSection,
 } from "../../_components/deal-intake-form";
+import { AttachmentListSection } from "./attachments-card";
+import { DEAL_SECTION_LABELS } from "./constants";
 import type { IntakeEditorCardProps } from "./intake-editor-card.types";
+import type { ApiDealSectionCompleteness } from "./types";
 
 type IntakeCardSectionId = ApiDealSectionCompleteness["sectionId"];
 
@@ -68,14 +77,22 @@ function IncompleteSectionChips({
 
 export function IntakeEditorCard({
   applicantRequisites,
+  attachments,
+  attachmentIngestions,
   currencyOptions,
   intake,
   isDirty,
   isSaving,
   counterparties,
+  deletingAttachmentId,
+  reingestingAttachmentId,
   onChange,
   onReset,
   onSave,
+  onAttachmentDelete,
+  onAttachmentDownload,
+  onAttachmentReingest,
+  onAttachmentUpload,
   readOnly,
   sectionCompleteness,
 }: IntakeEditorCardProps) {
@@ -104,25 +121,16 @@ export function IntakeEditorCard({
           />
         </CardHeader>
         <CardContent className="space-y-6">
-          <DealIntakeCommonSection context={context} />
-          <DealIntakeMoneyRequestSection context={context} />
+          <div className="grid gap-6 xl:grid-cols-2">
+            <DealIntakeCommonSection context={context} hideCustomerNote />
+            <DealIntakeMoneyRequestSection context={context} hidePurpose />
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <DealIntakePurposeField context={context} />
+            <DealIntakeCustomerNoteField context={context} />
+          </div>
         </CardContent>
       </Card>
-
-      {shouldRenderBasisCard ? (
-        <Card>
-          <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <CardTitle>{INTAKE_CARD_DEFINITIONS.basis.title}</CardTitle>
-            <IncompleteSectionChips
-              sectionCompleteness={sectionCompleteness}
-              sectionIds={INTAKE_CARD_DEFINITIONS.basis.sectionIds}
-            />
-          </CardHeader>
-          <CardContent>
-            <DealIntakeIncomingReceiptSection context={context} />
-          </CardContent>
-        </Card>
-      ) : null}
 
       {shouldRenderExecutionCard ? (
         <Card>
@@ -140,23 +148,47 @@ export function IntakeEditorCard({
         </Card>
       ) : null}
 
-      <div className="flex flex-wrap justify-end gap-2 border-t pt-4">
-        <Button
-          disabled={readOnly || !isDirty || isSaving}
-          onClick={onReset}
-          variant="outline"
-        >
-          <RotateCcw className="mr-2 h-4 w-4" />
-          Сбросить
-        </Button>
-        <Button
-          disabled={readOnly || !isDirty || isSaving}
-          onClick={onSave}
-        >
-          <Save className="mr-2 h-4 w-4" />
-          {isSaving ? "Сохранение..." : "Сохранить анкету"}
-        </Button>
-      </div>
+      {shouldRenderBasisCard ? (
+        <Card>
+          <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <CardTitle>{INTAKE_CARD_DEFINITIONS.basis.title}</CardTitle>
+            <IncompleteSectionChips
+              sectionCompleteness={sectionCompleteness}
+              sectionIds={INTAKE_CARD_DEFINITIONS.basis.sectionIds}
+            />
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <DealIntakeIncomingReceiptSection context={context} />
+            <AttachmentListSection
+              attachmentIngestions={attachmentIngestions}
+              attachments={attachments}
+              deletingAttachmentId={deletingAttachmentId}
+              onDelete={onAttachmentDelete}
+              onDownload={onAttachmentDownload}
+              onReingest={onAttachmentReingest}
+              onUpload={onAttachmentUpload}
+              reingestingAttachmentId={reingestingAttachmentId}
+            />
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {isDirty && !readOnly ? (
+        <div className="sticky bottom-0 z-20 flex flex-wrap justify-end gap-2 border-t bg-background/95 px-4 py-3 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur">
+          <Button disabled={isSaving} onClick={onReset} variant="outline">
+            <RotateCcw className="mr-2 h-4 w-4" />
+            Отменить изменения
+          </Button>
+          <Button disabled={isSaving} onClick={onSave}>
+            {isSaving ? (
+              <Spinner data-icon="inline-start" />
+            ) : (
+              <Save className="mr-2 h-4 w-4" />
+            )}
+            {isSaving ? "Сохранение..." : "Сохранить изменения"}
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -270,7 +270,7 @@ describe("DealPricingTab", () => {
     expect(normalizedMarkup).toContain(
       "FX-исполнение по этой котировке уже истекло в казначействе",
     );
-    expect(normalizedMarkup).toContain("Зафиксировать новый курс");
+    expect(normalizedMarkup).toContain("Зафиксировать новые условия");
     expect(normalizedMarkup).toContain("Копировать расчёт");
     expect(normalizedMarkup).toContain("Скачать PDF");
     expect(normalizedMarkup).toContain("Курс зафиксирован до");

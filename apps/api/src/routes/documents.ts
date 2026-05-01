@@ -12,6 +12,7 @@ import {
   isSystemOnlyDocumentType,
 } from "@bedrock/documents/model";
 import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
+import { ValidationError } from "@bedrock/shared/core/errors";
 
 import * as authModule from "../auth";
 import { handleRouteError } from "../common/errors";
@@ -28,8 +29,6 @@ import {
   toDocumentDto,
 } from "./internal/document-dto";
 import {
-  generateDocumentPrintForm,
-  listDocumentPrintForms,
   PrintFormFormatQuerySchema,
   writeGeneratedDocumentResponse,
 } from "./internal/print-forms";
@@ -416,6 +415,16 @@ export function documentsRoutes(ctx: AppContext) {
           role: c.get("user")?.role,
         });
         const body = CreateDocumentInputSchema.parse(await c.req.json());
+        if (docType === "application") {
+          throw new ValidationError(
+            "application documents must be created through the deal-scoped endpoint",
+          );
+        }
+        if (docType === "acceptance") {
+          throw new ValidationError(
+            "acceptance documents must be created through the deal-scoped endpoint",
+          );
+        }
         const result = await ctx.documentDraftWorkflow.createDraft({
           docType,
           createIdempotencyKey: body.createIdempotencyKey,
@@ -472,12 +481,12 @@ export function documentsRoutes(ctx: AppContext) {
       try {
         const user = c.get("user")!;
         const { docType, id } = c.req.param();
-        const result = await listDocumentPrintForms({
-          actorUserId: user.id,
-          ctx,
-          docType,
-          documentId: id,
-        });
+        const result =
+          await ctx.documentGenerationWorkflow.listDocumentPrintForms({
+            actorUserId: user.id,
+            docType,
+            documentId: id,
+          });
 
         return c.json(result, 200);
       } catch (error) {
@@ -496,14 +505,14 @@ export function documentsRoutes(ctx: AppContext) {
         const { format } = PrintFormFormatQuerySchema.parse(
           queryObjectFromUrl(c.req.url),
         );
-        const result = await generateDocumentPrintForm({
-          actorUserId: user.id,
-          ctx,
-          docType,
-          documentId: id,
-          formId,
-          format,
-        });
+        const result =
+          await ctx.documentGenerationWorkflow.generateDocumentPrintForm({
+            actorUserId: user.id,
+            docType,
+            documentId: id,
+            formId,
+            format,
+          });
 
         return writeGeneratedDocumentResponse(c, result);
       } catch (error) {
@@ -525,12 +534,12 @@ export function documentsRoutes(ctx: AppContext) {
           c.get("audience"),
         );
         const result = await ctx.documentsService.get(docType, id, user.id);
-        const printForms = await listDocumentPrintForms({
-          actorUserId: user.id,
-          ctx,
-          docType,
-          documentId: id,
-        });
+        const printForms =
+          await ctx.documentGenerationWorkflow.listDocumentPrintForms({
+            actorUserId: user.id,
+            docType,
+            documentId: id,
+          });
 
         return c.json(
           {
@@ -594,12 +603,12 @@ export function documentsRoutes(ctx: AppContext) {
             }),
             {
               ledgerOperations,
-              printForms: await listDocumentPrintForms({
-                actorUserId: user.id,
-                ctx,
-                docType,
-                documentId: id,
-              }),
+              printForms:
+                await ctx.documentGenerationWorkflow.listDocumentPrintForms({
+                  actorUserId: user.id,
+                  docType,
+                  documentId: id,
+                }),
             },
           ),
         );

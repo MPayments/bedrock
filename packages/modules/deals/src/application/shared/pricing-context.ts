@@ -22,6 +22,7 @@ function createDefaultDealPricingContext(): DealPricingContext {
       executionSource: { type: "route_execution" },
       fixedFeeAmount: null,
       fixedFeeCurrency: null,
+      feeBillingMode: null,
       quoteMarkupBps: null,
     },
     fundingAdjustments: [],
@@ -224,19 +225,33 @@ export function applyDealPricingContextPatch(input: {
   const next = cloneDealPricingContext(input.context);
 
   if (input.patch.commercialDraft) {
+    const draftPatch = input.patch.commercialDraft;
     next.commercialDraft = DealPricingCommercialDraftSchema.parse({
       ...next.commercialDraft,
-      ...input.patch.commercialDraft,
+      ...draftPatch,
       fixedFeeAmount: normalizeOptionalDecimalString(
-        input.patch.commercialDraft.fixedFeeAmount,
+        draftPatch.fixedFeeAmount === undefined
+          ? next.commercialDraft.fixedFeeAmount
+          : draftPatch.fixedFeeAmount,
       ),
+      fixedFeeCurrency:
+        draftPatch.fixedFeeCurrency === undefined
+          ? next.commercialDraft.fixedFeeCurrency
+          : draftPatch.fixedFeeCurrency,
+      feeBillingMode:
+        draftPatch.feeBillingMode === undefined
+          ? next.commercialDraft.feeBillingMode
+          : draftPatch.feeBillingMode,
       clientPricing:
-        input.patch.commercialDraft.clientPricing ??
-        next.commercialDraft.clientPricing,
+        draftPatch.clientPricing === undefined
+          ? next.commercialDraft.clientPricing
+          : draftPatch.clientPricing,
       executionSource:
-        input.patch.commercialDraft.executionSource ??
-        next.commercialDraft.executionSource,
-      quoteMarkupBps: input.patch.commercialDraft.quoteMarkupBps ?? null,
+        draftPatch.executionSource ?? next.commercialDraft.executionSource,
+      quoteMarkupBps:
+        draftPatch.quoteMarkupBps === undefined
+          ? next.commercialDraft.quoteMarkupBps
+          : draftPatch.quoteMarkupBps,
     });
   }
 

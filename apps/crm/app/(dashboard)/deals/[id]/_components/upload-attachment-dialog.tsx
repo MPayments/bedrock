@@ -1,4 +1,5 @@
 import { Button } from "@bedrock/sdk-ui/components/button";
+import { Checkbox } from "@bedrock/sdk-ui/components/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -28,12 +29,14 @@ type UploadAttachmentDialogProps = {
   uploadFile: File | null;
   uploadDescription: string;
   uploadPurpose: "invoice" | "contract" | "other";
+  useRecognition: boolean;
   uploadVisibility: "customer_safe" | "internal";
   isUploading: boolean;
   onOpenChange: (open: boolean) => void;
   onFileChange: (file: File | null) => void;
   onDescriptionChange: (value: string) => void;
   onPurposeChange: (value: "invoice" | "contract" | "other") => void;
+  onUseRecognitionChange: (value: boolean) => void;
   onVisibilityChange: (value: "customer_safe" | "internal") => void;
   onCancel: () => void;
   onSubmit: () => void;
@@ -44,18 +47,22 @@ export function UploadAttachmentDialog({
   uploadFile,
   uploadDescription,
   uploadPurpose,
+  useRecognition,
   uploadVisibility,
   isUploading,
   onOpenChange,
   onFileChange,
   onDescriptionChange,
   onPurposeChange,
+  onUseRecognitionChange,
   onVisibilityChange,
   onCancel,
   onSubmit,
 }: UploadAttachmentDialogProps) {
   const uploadPurposeLabel = ATTACHMENT_PURPOSE_LABELS[uploadPurpose];
   const uploadVisibilityLabel = ATTACHMENT_VISIBILITY_LABELS[uploadVisibility];
+  const canUseRecognition =
+    uploadPurpose === "invoice" || uploadPurpose === "contract";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -105,6 +112,9 @@ export function UploadAttachmentDialog({
                   value === "other"
                 ) {
                   onPurposeChange(value);
+                  if (value === "other") {
+                    onUseRecognitionChange(false);
+                  }
                 }
               }}
             >
@@ -125,6 +135,28 @@ export function UploadAttachmentDialog({
                 </SelectItem>
               </SelectContent>
             </Select>
+          </div>
+          <div className="flex items-start gap-3 rounded-lg border p-3">
+            <Checkbox
+              id="deal-attachment-use-recognition"
+              checked={canUseRecognition && useRecognition}
+              disabled={!canUseRecognition}
+              onCheckedChange={(checked) =>
+                onUseRecognitionChange(Boolean(checked))
+              }
+            />
+            <div className="grid gap-1">
+              <Label
+                className="text-sm font-medium"
+                htmlFor="deal-attachment-use-recognition"
+              >
+                Распознать данные из файла
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Для инвойсов и договоров система попробует заполнить поля
+                сделки.
+              </p>
+            </div>
           </div>
           <div className="grid gap-2">
             <Label>Видимость</Label>

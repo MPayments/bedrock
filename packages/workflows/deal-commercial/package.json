@@ -1,0 +1,42 @@
+{
+  "name": "@bedrock/workflow-deal-commercial",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc --watch -p tsconfig.json",
+    "check-types": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint \"src/**/*.ts\" \"tests/**/*.test.ts\" --no-error-on-unmatched-pattern --max-warnings 0",
+    "test": "vitest run --config vitest.config.ts",
+    "test:watch": "vitest --config vitest.config.ts"
+  },
+  "dependencies": {
+    "@bedrock/agreements": "workspace:*",
+    "@bedrock/deals": "workspace:*",
+    "@bedrock/documents": "workspace:*",
+    "@bedrock/platform": "workspace:*",
+    "@bedrock/shared": "workspace:*",
+    "@bedrock/treasury": "workspace:*",
+    "@bedrock/workflow-deal-execution": "workspace:*",
+    "@bedrock/workflow-deal-projections": "workspace:*",
+    "@bedrock/workflow-document-drafts": "workspace:*"
+  },
+  "devDependencies": {
+    "@bedrock/typescript-config": "workspace:*",
+    "@types/node": "^24",
+    "eslint": "^10.2.0",
+    "typescript": "^6.0.2",
+    "vitest": "^4.1.4"
+  },
+  "bedrock": {
+    "kind": "workflow",
+    "tags": [
+      "workflow",
+      "deal-commercial"
+    ]
+  }
+}

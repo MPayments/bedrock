@@ -25,6 +25,11 @@ export function toDocumentDto(input: DocumentWithOperationId) {
     id: document.id,
     docType: document.docType,
     docNo: document.docNo,
+    invoicePurpose:
+      document.docType === "invoice" &&
+      typeof document.payload.invoicePurpose === "string"
+        ? document.payload.invoicePurpose
+        : null,
     payloadVersion: document.payloadVersion,
     payload: toJsonSafe(document.payload),
     title: document.title,

@@ -190,6 +190,7 @@ export interface DealRelatedFormalDocument {
   createdAt: Date | null;
   docType: string;
   id: string;
+  invoicePurpose?: string | null;
   lifecycleStatus: string | null;
   occurredAt: Date | null;
   postingStatus: string | null;

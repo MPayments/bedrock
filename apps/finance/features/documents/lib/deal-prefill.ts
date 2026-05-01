@@ -39,7 +39,21 @@ function getOpeningInvoiceDocumentId(
   return (
     deal.formalDocumentRequirements.find(
       (requirement) =>
-        requirement.stage === "opening" && requirement.docType === "invoice",
+        requirement.stage === "opening" &&
+        requirement.docType === "invoice" &&
+        requirement.invoicePurpose !== "agency_fee",
+    )?.activeDocumentId ?? null
+  );
+}
+
+function getApplicationDocumentId(
+  deal: Pick<FinanceDealWorkbench, "formalDocumentRequirements">,
+) {
+  return (
+    deal.formalDocumentRequirements.find(
+      (requirement) =>
+        requirement.stage === "opening" &&
+        requirement.docType === "application",
     )?.activeDocumentId ?? null
   );
 }
@@ -134,16 +148,43 @@ export function buildDealScopedDocumentInitialPayload(input: {
   deal: Pick<
     FinanceDealWorkbench,
     | "calculationHistory"
+    | "acceptedQuote"
     | "formalDocumentRequirements"
+    | "pricing"
     | "relatedResources"
     | "summary"
     | "workflow"
   >;
   docType: string;
+  invoicePurpose?: "combined" | "principal" | "agency_fee" | null;
   organizationRequisites?: Pick<SerializedRequisite, "currencyId" | "id" | "isDefault">[];
   reconciliationExceptionId?: string | null;
 }): Record<string, unknown> | undefined {
   switch (input.docType) {
+    case "application": {
+      const customerId =
+        getWorkflowParticipant(input.deal, "customer")?.customerId ?? null;
+      const counterpartyId =
+        getWorkflowParticipant(input.deal, "applicant")?.counterpartyId ??
+        input.deal.workflow?.intake.common.applicantCounterpartyId ??
+        null;
+      const organizationId =
+        input.agreement?.organizationId ??
+        getWorkflowParticipant(input.deal, "internal_entity")?.organizationId ??
+        null;
+      const calculation = getSelectedCalculation(input.deal);
+
+      return compactPayload({
+        calculationId: calculation?.calculationId ?? input.deal.summary.calculationId,
+        counterpartyId,
+        customerId,
+        dealId: input.deal.summary.id,
+        organizationId,
+        organizationRequisiteId: input.agreement?.organizationRequisiteId ?? null,
+        quoteId: input.deal.acceptedQuote?.quoteId ?? null,
+      });
+    }
+
     case "invoice": {
       const customerId =
         getWorkflowParticipant(input.deal, "customer")?.customerId ?? null;
@@ -156,11 +197,19 @@ export function buildDealScopedDocumentInitialPayload(input: {
         getWorkflowParticipant(input.deal, "internal_entity")?.organizationId ??
         null;
       const calculation = getSelectedCalculation(input.deal);
+      const billingSplit = input.deal.pricing?.billingSplit ?? null;
+      const splitAmount =
+        input.invoicePurpose === "agency_fee"
+          ? billingSplit?.agencyFee
+          : input.invoicePurpose === "principal"
+            ? billingSplit?.principal
+            : billingSplit?.principal;
       const currency =
-        getCalculationCurrencyCode(input.deal, input.options);
+        splitAmount?.currency ?? getCalculationCurrencyCode(input.deal, input.options);
+      const amountMinor = splitAmount?.amountMinor ?? calculation?.totalAmountMinor ?? null;
       const amount =
-        calculation && currency
-          ? minorToAmountString(calculation.totalAmountMinor, {
+        amountMinor && currency
+          ? minorToAmountString(amountMinor, {
               currency,
             })
           : null;
@@ -175,12 +224,20 @@ export function buildDealScopedDocumentInitialPayload(input: {
         counterpartyId,
         currency,
         customerId,
+        invoicePurpose: input.invoicePurpose ?? null,
+        billingSetRef: billingSplit?.billingSetRef ?? null,
         organizationId,
         organizationRequisiteId,
       });
     }
 
-    case "acceptance":
+    case "acceptance": {
+      return compactPayload({
+        applicationDocumentId: getApplicationDocumentId(input.deal),
+        invoiceDocumentId: getOpeningInvoiceDocumentId(input.deal),
+      });
+    }
+
     case "exchange": {
       return compactPayload({
         invoiceDocumentId: getOpeningInvoiceDocumentId(input.deal),

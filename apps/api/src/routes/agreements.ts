@@ -19,8 +19,6 @@ import type { AuthVariables } from "../middleware/auth";
 import { withRequiredIdempotency } from "../middleware/idempotency";
 import { requirePermission } from "../middleware/permission";
 import {
-  generateAgreementVersionPrintForm,
-  listAgreementVersionPrintForms,
   PrintFormFormatQuerySchema,
   writeGeneratedDocumentResponse,
 } from "./internal/print-forms";
@@ -408,9 +406,9 @@ export function agreementsRoutes(ctx: AppContext) {
     .openapi(listPrintFormsRoute, async (c) => {
       try {
         const { id, versionId } = c.req.valid("param");
-        const result = await listAgreementVersionPrintForms({
+        const result =
+          await ctx.documentGenerationWorkflow.listAgreementVersionPrintForms({
           agreementId: id,
-          ctx,
           versionId,
         });
         return jsonOk(c, result);
@@ -422,9 +420,9 @@ export function agreementsRoutes(ctx: AppContext) {
       try {
         const { formId, id, versionId } = c.req.valid("param");
         const { format } = c.req.valid("query");
-        const result = await generateAgreementVersionPrintForm({
+        const result =
+          await ctx.documentGenerationWorkflow.generateAgreementVersionPrintForm({
           agreementId: id,
-          ctx,
           formId,
           format,
           versionId,

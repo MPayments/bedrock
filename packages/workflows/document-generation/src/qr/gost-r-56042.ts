@@ -54,21 +54,41 @@ function normalizeSumToKopecks(sum: string | number): string {
     if (sum < 0) {
       throw new Error("Gost56042: sum must be non-negative");
     }
-    return Math.round(sum * 100).toString();
+    return normalizeSumToKopecks(sum.toString());
   }
 
-  const trimmed = sum.trim();
+  const trimmed = sum.trim().replace(",", ".");
   if (trimmed === "") {
     throw new Error("Gost56042: sum is empty string");
   }
-  const numeric = Number(trimmed.replace(",", "."));
-  if (!Number.isFinite(numeric)) {
-    throw new Error(`Gost56042: sum is not a number: ${sum}`);
-  }
-  if (numeric < 0) {
+
+  if (trimmed.startsWith("-")) {
     throw new Error("Gost56042: sum must be non-negative");
   }
-  return Math.round(numeric * 100).toString();
+
+  const parts = trimmed.split(".");
+  const [wholeRaw = "", fractionRaw = ""] = parts;
+  if (
+    parts.length > 2 ||
+    wholeRaw.length === 0 ||
+    !DIGITS_RE.test(wholeRaw) ||
+    (fractionRaw.length > 0 && !DIGITS_RE.test(fractionRaw))
+  ) {
+    throw new Error(`Gost56042: sum is not a number: ${sum}`);
+  }
+
+  const excessFraction = fractionRaw.slice(2);
+  if (/[1-9]/.test(excessFraction)) {
+    throw new Error(
+      `Gost56042: sum must not have more than 2 fractional digits: ${sum}`,
+    );
+  }
+
+  const whole = wholeRaw.replace(/^0+(?=\d)/, "") || "0";
+  const fraction = fractionRaw.slice(0, 2).padEnd(2, "0");
+  const kopecks = `${whole}${fraction}`.replace(/^0+(?=\d)/, "") || "0";
+
+  return BigInt(kopecks).toString();
 }
 
 function assertDigits(value: string, length: number, field: string): void {

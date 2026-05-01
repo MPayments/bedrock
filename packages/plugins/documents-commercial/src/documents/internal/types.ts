@@ -38,7 +38,8 @@ export interface CommercialQuoteUsagePort {
   markQuoteUsedForInvoice(input: {
     runtime: CommercialDocumentRuntime;
     quoteId: string;
-    invoiceDocumentId: string;
+    usedByRef: string;
+    usedDocumentId: string | null;
     at: Date;
   }): Promise<void>;
 }
@@ -55,11 +56,20 @@ export interface CommercialPartyReferencesPort {
 }
 
 export interface CommercialDocumentRelationsPort {
+  loadApplication(input: {
+    runtime: CommercialDocumentRuntime;
+    applicationDocumentId: string;
+    forUpdate?: boolean;
+  }): Promise<Document>;
   loadInvoice(input: {
     runtime: CommercialDocumentRuntime;
     invoiceDocumentId: string;
     forUpdate?: boolean;
   }): Promise<Document>;
+  getApplicationAcceptanceChild(input: {
+    runtime: CommercialDocumentRuntime;
+    applicationDocumentId: string;
+  }): Promise<Document | null>;
   getInvoiceExchangeChild(input: {
     runtime: CommercialDocumentRuntime;
     invoiceDocumentId: string;
@@ -76,6 +86,10 @@ export interface CommercialDocumentRelationsPort {
 
 export interface CommercialDocumentBusinessLinksPort {
   findDealIdByDocumentId(documentId: string): Promise<string | null>;
+  findActiveDocumentIdByDealIdAndDocType(input: {
+    dealId: string;
+    docType: string;
+  }): Promise<string | null>;
 }
 
 export interface CommercialDealFxContext {

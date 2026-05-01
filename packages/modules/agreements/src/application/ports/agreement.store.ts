@@ -23,6 +23,7 @@ export interface CreateAgreementVersionInput {
   versionNumber: number;
   contractNumber: string | null;
   contractDate: Date | null;
+  feeBillingMode: "included_in_principal_invoice" | "separate_fee_invoice";
 }
 
 export interface StoredAgreementVersion {
@@ -31,6 +32,7 @@ export interface StoredAgreementVersion {
   versionNumber: number;
   contractNumber: string | null;
   contractDate: Date | null;
+  feeBillingMode: "included_in_principal_invoice" | "separate_fee_invoice";
   createdAt: Date;
   updatedAt: Date;
 }

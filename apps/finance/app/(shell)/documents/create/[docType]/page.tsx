@@ -74,6 +74,12 @@ export default async function DocumentCreateByTypePage({
 
   const rawDealId = getFirstSearchParamValue(rawSearchParams.dealId);
   const dealId = rawDealId && isUuid(rawDealId) ? rawDealId : null;
+  if (docType === "application" && !dealId) {
+    notFound();
+  }
+  if (docType === "acceptance" && !dealId) {
+    notFound();
+  }
   const rawReconciliationExceptionId = getFirstSearchParamValue(
     rawSearchParams.reconciliationExceptionId,
   );
@@ -84,9 +90,18 @@ export default async function DocumentCreateByTypePage({
   const requestedReturnTo = normalizeInternalReturnToPath(
     getFirstSearchParamValue(rawSearchParams.returnTo),
   );
+  const rawInvoicePurpose = getFirstSearchParamValue(rawSearchParams.invoicePurpose);
+  const invoicePurpose =
+    rawInvoicePurpose === "combined" ||
+    rawInvoicePurpose === "principal" ||
+    rawInvoicePurpose === "agency_fee"
+      ? rawInvoicePurpose
+      : null;
 
   const [options, deal] = await Promise.all([
-    getDocumentFormOptions().catch(() => createEmptyDocumentFormOptions()),
+    getDocumentFormOptions({ dealId }).catch(() =>
+      createEmptyDocumentFormOptions(),
+    ),
     dealId ? getFinanceDealWorkbenchById(dealId) : Promise.resolve(null),
   ]);
 
@@ -108,7 +123,9 @@ export default async function DocumentCreateByTypePage({
     redirect(successHref ?? buildDealDocumentsTabHref(dealId));
   }
   const agreement =
-    deal && docType === "invoice" && deal.workflow?.summary.agreementId
+    deal &&
+    (docType === "invoice" || docType === "application") &&
+    deal.workflow?.summary.agreementId
       ? await getAgreementContextById(deal.workflow.summary.agreementId).catch(
           () => null,
         )
@@ -125,6 +142,7 @@ export default async function DocumentCreateByTypePage({
         agreement,
         deal,
         docType,
+        invoicePurpose,
         options,
         organizationRequisites,
         reconciliationExceptionId,

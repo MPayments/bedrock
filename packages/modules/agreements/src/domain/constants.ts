@@ -9,6 +9,13 @@ export const AGREEMENT_FEE_RULE_UNIT_VALUES = ["bps", "money"] as const;
 export type AgreementFeeRuleUnit =
   (typeof AGREEMENT_FEE_RULE_UNIT_VALUES)[number];
 
+export const AGREEMENT_FEE_BILLING_MODE_VALUES = [
+  "included_in_principal_invoice",
+  "separate_fee_invoice",
+] as const;
+export type AgreementFeeBillingMode =
+  (typeof AGREEMENT_FEE_BILLING_MODE_VALUES)[number];
+
 export const AGREEMENT_PARTY_ROLE_VALUES = [
   "customer",
   "organization",

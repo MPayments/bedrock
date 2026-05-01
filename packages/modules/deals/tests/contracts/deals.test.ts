@@ -63,6 +63,11 @@ describe("deals contracts", () => {
 
     expect(parsed).toEqual({
       commercialDraft: {
+        clientPricing: null,
+        executionSource: {
+          type: "route_execution",
+        },
+        feeBillingMode: null,
         fixedFeeAmount: null,
         fixedFeeCurrency: null,
         quoteMarkupBps: null,

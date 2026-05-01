@@ -10,6 +10,7 @@ import type {
   DealStatus,
   CurrencyCode,
 } from "@/lib/hooks/useDealsTable";
+import { DEAL_STATUS_DISPLAY } from "@/lib/deal-status-display";
 import { formatCurrency, formatDate } from "@/lib/utils/currency";
 
 export const CURRENCY_OPTIONS: Option[] = [
@@ -21,19 +22,7 @@ export const CURRENCY_OPTIONS: Option[] = [
   { value: "AED", label: "AED" },
 ];
 
-const STATUS_DISPLAY: Record<DealStatus, { label: string; colorClass: string }> = {
-  draft: { label: "Черновик", colorClass: "bg-slate-100 text-slate-800" },
-  submitted: { label: "Отправлена", colorClass: "bg-sky-100 text-sky-800" },
-  rejected: { label: "Отклонена", colorClass: "bg-rose-100 text-rose-800" },
-  preparing_documents: { label: "Подготовка документов", colorClass: "bg-gray-100 text-gray-800" },
-  awaiting_funds: { label: "Ожидание средств", colorClass: "bg-blue-100 text-blue-800" },
-  awaiting_payment: { label: "Ожидание оплаты", colorClass: "bg-yellow-100 text-yellow-800" },
-  closing_documents: { label: "Закрывающие документы", colorClass: "bg-orange-100 text-orange-800" },
-  done: { label: "Завершена", colorClass: "bg-green-100 text-green-800" },
-  cancelled: { label: "Отменена", colorClass: "bg-red-100 text-red-800" },
-};
-
-export const STATUS_OPTIONS: Option[] = Object.entries(STATUS_DISPLAY).map(
+export const STATUS_OPTIONS: Option[] = Object.entries(DEAL_STATUS_DISPLAY).map(
   ([value, { label }]) => ({ value, label }),
 );
 
@@ -156,7 +145,7 @@ export function createDealsColumns(): ColumnDef<DealsRow, unknown>[] {
       enableSorting: false,
       cell: ({ getValue }) => {
         const status = getValue<DealStatus>();
-        const display = STATUS_DISPLAY[status];
+        const display = DEAL_STATUS_DISPLAY[status];
         return (
           <span
             className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${display.colorClass}`}

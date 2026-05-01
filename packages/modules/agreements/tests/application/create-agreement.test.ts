@@ -134,6 +134,7 @@ describe("create agreement handler", () => {
       versionNumber: 1,
       contractNumber: "AG-12",
       contractDate: new Date("2026-03-30"),
+      feeBillingMode: "included_in_principal_invoice",
     });
     expect(harness.agreementStore.createAgreementParties).toHaveBeenCalledWith([
       {

@@ -63,6 +63,11 @@ const EVIDENCE_PURPOSE_OPTIONS: ReadonlyArray<{
   hint: string;
 }> = [
   {
+    value: "swift_mt103",
+    label: "SWIFT/MT103",
+    hint: "Финальное банковское подтверждение выплаты бенефициару",
+  },
+  {
     value: "settlement_confirmation",
     label: "Подтверждение расчётов",
     hint: "Подтверждает исполнение (выписка/ответ банка)",

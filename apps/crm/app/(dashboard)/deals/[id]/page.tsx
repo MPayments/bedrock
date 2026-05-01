@@ -5,6 +5,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import {
@@ -15,6 +16,7 @@ import {
 } from "next/navigation";
 
 import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
+import { toast } from "@bedrock/sdk-ui/components/sonner";
 
 import { formatDealBreadcrumbLabel } from "@/components/app/breadcrumbs";
 import { useCrmBreadcrumbs } from "@/components/app/breadcrumbs-provider";
@@ -78,7 +80,6 @@ import type {
   ApiRequisiteProvider,
   CalculationHistoryView,
   CalculationView,
-  DealLegManualOverride,
   DealStatus,
 } from "./_components/types";
 
@@ -100,6 +101,77 @@ type DealPageData = {
   workflow: ApiDealWorkflowProjection;
   currencyOptions: ApiCurrencyOption[];
 };
+
+const ATTACHMENT_INGESTION_POLL_INTERVAL_MS = 2_000;
+
+type LoadDealOptions = {
+  silent?: boolean;
+};
+
+type AttachmentIngestion =
+  ApiCrmDealWorkbenchProjection["workflow"]["attachmentIngestions"][number];
+
+type AttachmentIngestionStatus = AttachmentIngestion["status"];
+
+function isActiveAttachmentIngestionStatus(
+  status: AttachmentIngestionStatus,
+) {
+  return status === "pending" || status === "processing";
+}
+
+function isTerminalAttachmentIngestionStatus(
+  status: AttachmentIngestionStatus,
+) {
+  return status === "processed" || status === "failed";
+}
+
+function hasActiveAttachmentIngestion(data: DealPageData | null) {
+  return (
+    data?.workflow.attachmentIngestions.some(
+      (ingestion) => isActiveAttachmentIngestionStatus(ingestion.status),
+    ) ?? false
+  );
+}
+
+function getAttachmentIngestionToast(input: {
+  fileName: string;
+  ingestion: AttachmentIngestion;
+}) {
+  if (input.ingestion.status === "processed") {
+    if (input.ingestion.appliedFields.length > 0) {
+      return {
+        description: `Данные из файла «${input.fileName}» учтены в анкете.`,
+        kind: "success" as const,
+        title: "Распознавание завершено",
+      };
+    }
+
+    return {
+      description: `Файл «${input.fileName}» распознан, новых данных для анкеты нет.`,
+      kind: "info" as const,
+      title: "Распознавание завершено",
+    };
+  }
+
+  if (
+    input.ingestion.errorCode === "extractor_unconfigured" ||
+    input.ingestion.errorCode === "storage_unconfigured"
+  ) {
+    return {
+      description: `Файл «${input.fileName}» сохранён, но автораспознавание сейчас недоступно.`,
+      kind: "error" as const,
+      title: "Распознавание недоступно",
+    };
+  }
+
+  return {
+    description:
+      input.ingestion.errorMessage ??
+      `Не удалось распознать файл «${input.fileName}».`,
+    kind: "error" as const,
+    title: "Ошибка распознавания",
+  };
+}
 
 type DealAgreementOption = {
   currentVersion: {
@@ -788,7 +860,6 @@ export default function DealDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
-  const [isUpdatingLegKey, setIsUpdatingLegKey] = useState<string | null>(null);
   const [isEditingComment, setIsEditingComment] = useState(false);
   const [commentValue, setCommentValue] = useState("");
   const [isSavingComment, setIsSavingComment] = useState(false);
@@ -812,6 +883,8 @@ export default function DealDetailPage() {
   const [uploadPurpose, setUploadPurpose] = useState<
     "invoice" | "contract" | "other"
   >("other");
+  const [useAttachmentRecognition, setUseAttachmentRecognition] =
+    useState(false);
   const [uploadVisibility, setUploadVisibility] = useState<
     "customer_safe" | "internal"
   >("internal");
@@ -819,6 +892,11 @@ export default function DealDetailPage() {
   const [reingestingAttachmentId, setReingestingAttachmentId] = useState<
     string | null
   >(null);
+  const isPollingAttachmentIngestionRef = useRef(false);
+  const hasObservedAttachmentIngestionsRef = useRef(false);
+  const ingestionStatusByAttachmentIdRef = useRef<
+    Map<string, AttachmentIngestionStatus>
+  >(new Map());
   const [deletingAttachmentId, setDeletingAttachmentId] = useState<
     string | null
   >(null);
@@ -992,14 +1070,18 @@ export default function DealDetailPage() {
     [pathname, router, searchParams],
   );
 
-  const loadDeal = useCallback(async () => {
+  const loadDeal = useCallback(async (options: LoadDealOptions = {}) => {
     if (!dealId) {
       return;
     }
 
+    const isSilent = options.silent === true;
+
     try {
-      setLoading(true);
-      setError(null);
+      if (!isSilent) {
+        setLoading(true);
+        setError(null);
+      }
 
       const workbench = await fetchJson<ApiCrmDealWorkbenchProjection>(
         `${API_BASE_URL}/deals/${dealId}/crm-workbench`,
@@ -1097,19 +1179,97 @@ export default function DealDetailPage() {
       setBaselineIntake(workbench.intake);
     } catch (nextError) {
       console.error("Deal detail load error:", nextError);
-      setError(
-        nextError instanceof Error
-          ? nextError.message
-          : "Не удалось загрузить сделку",
-      );
+      if (!isSilent) {
+        setError(
+          nextError instanceof Error
+            ? nextError.message
+            : "Не удалось загрузить сделку",
+        );
+      }
     } finally {
-      setLoading(false);
+      if (!isSilent) {
+        setLoading(false);
+      }
     }
   }, [dealId]);
 
   useEffect(() => {
     void loadDeal();
   }, [loadDeal]);
+
+  useEffect(() => {
+    if (!data) {
+      return;
+    }
+
+    const previousStatuses = ingestionStatusByAttachmentIdRef.current;
+    const nextStatuses = new Map<string, AttachmentIngestionStatus>();
+    const attachmentsById = new Map(
+      data.attachments.map((attachment) => [attachment.id, attachment]),
+    );
+
+    for (const ingestion of data.workflow.attachmentIngestions) {
+      const previousStatus = previousStatuses.get(ingestion.fileAssetId);
+
+      nextStatuses.set(ingestion.fileAssetId, ingestion.status);
+
+      if (
+        !hasObservedAttachmentIngestionsRef.current ||
+        !previousStatus ||
+        !isActiveAttachmentIngestionStatus(previousStatus) ||
+        !isTerminalAttachmentIngestionStatus(ingestion.status)
+      ) {
+        continue;
+      }
+
+      const attachment = attachmentsById.get(ingestion.fileAssetId);
+      const resultToast = getAttachmentIngestionToast({
+        fileName: attachment?.fileName ?? "файл",
+        ingestion,
+      });
+
+      if (resultToast.kind === "success") {
+        toast.success(resultToast.title, {
+          description: resultToast.description,
+        });
+      } else if (resultToast.kind === "info") {
+        toast.info(resultToast.title, {
+          description: resultToast.description,
+        });
+      } else {
+        toast.error(resultToast.title, {
+          description: resultToast.description,
+        });
+      }
+    }
+
+    ingestionStatusByAttachmentIdRef.current = nextStatuses;
+    hasObservedAttachmentIngestionsRef.current = true;
+  }, [data]);
+
+  useEffect(() => {
+    if (!hasActiveAttachmentIngestion(data)) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      if (document.visibilityState !== "visible") {
+        return;
+      }
+      if (isPollingAttachmentIngestionRef.current) {
+        return;
+      }
+
+      isPollingAttachmentIngestionRef.current = true;
+      void loadDeal({ silent: true }).finally(() => {
+        isPollingAttachmentIngestionRef.current = false;
+      });
+    }, ATTACHMENT_INGESTION_POLL_INTERVAL_MS);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [data, loadDeal]);
 
   useEffect(() => {
     const applicantCounterpartyId = draftIntake?.common.applicantCounterpartyId;
@@ -1483,46 +1643,6 @@ export default function DealDetailPage() {
     [data?.workflow.transitionReadiness, showError],
   );
 
-  const handleLegOverride = useCallback(
-    async (idx: number, override: DealLegManualOverride) => {
-      try {
-        setIsUpdatingLegKey(String(idx));
-
-        const response = await fetch(
-          `${API_BASE_URL}/deals/${dealId}/legs/${idx}/override`,
-          {
-            body: JSON.stringify({ override }),
-            credentials: "include",
-            headers: { "Content-Type": "application/json" },
-            method: "POST",
-          },
-        );
-
-        if (!response.ok) {
-          throw new Error(
-            await parseErrorMessage(
-              response,
-              `Ошибка обновления этапа исполнения: ${response.status}`,
-            ),
-          );
-        }
-
-        await loadDeal();
-      } catch (nextError) {
-        console.error("Deal leg override error:", nextError);
-        showError(
-          "Ошибка обновления этапа исполнения",
-          nextError instanceof Error
-            ? nextError.message
-            : "Не удалось обновить этап исполнения",
-        );
-      } finally {
-        setIsUpdatingLegKey(null);
-      }
-    },
-    [dealId, loadDeal, showError],
-  );
-
   const handleEditComment = useCallback(() => {
     setCommentValue(data?.deal.comment ?? "");
     setIsEditingComment(true);
@@ -1720,6 +1840,7 @@ export default function DealDetailPage() {
       }
       formData.append("purpose", uploadPurpose);
       formData.append("visibility", uploadVisibility);
+      formData.append("useRecognition", String(useAttachmentRecognition));
 
       const response = await fetch(
         `${API_BASE_URL}/deals/${dealId}/attachments`,
@@ -1743,6 +1864,7 @@ export default function DealDetailPage() {
       setUploadDescription("");
       setUploadFile(null);
       setUploadPurpose("other");
+      setUseAttachmentRecognition(false);
       setUploadVisibility("internal");
       await loadDeal();
     } catch (nextError) {
@@ -1763,6 +1885,7 @@ export default function DealDetailPage() {
     uploadDescription,
     uploadFile,
     uploadPurpose,
+    useAttachmentRecognition,
     uploadVisibility,
   ]);
 
@@ -1819,11 +1942,13 @@ export default function DealDetailPage() {
     const hasInvoiceAttachment = data?.attachments.some(
       (attachment) => attachment.purpose === "invoice",
     );
-    setUploadPurpose(
+    const nextPurpose =
       data?.deal.type === "payment" && !hasInvoiceAttachment
         ? "invoice"
-        : "other",
-    );
+        : "other";
+
+    setUploadPurpose(nextPurpose);
+    setUseAttachmentRecognition(nextPurpose !== "other");
     setUploadVisibility("internal");
     setIsUploadDialogOpen(true);
   }, [data]);
@@ -1888,12 +2013,14 @@ export default function DealDetailPage() {
         (position) => position.state === "blocked",
       ).length;
 
+    const intakeBadgeCount = incompleteSectionCount + missingEvidenceCount;
+
     return {
-      documents: missingEvidenceCount + missingDocumentCount,
+      documents: missingDocumentCount,
       execution: blockedLegCount + blockedPositionCount,
       intake:
-        incompleteSectionCount > 0
-          ? incompleteSectionCount
+        intakeBadgeCount > 0
+          ? intakeBadgeCount
           : isIntakeDirty
             ? "●"
             : null,
@@ -1960,15 +2087,23 @@ export default function DealDetailPage() {
               draftIntake ? (
                 <DealIntakeTab
                   applicantRequisites={applicantRequisites}
+                  attachments={data.attachments}
+                  attachmentIngestions={data.workflow.attachmentIngestions}
                   currencyOptions={data.currencyOptions}
                   intake={draftIntake}
                   isDirty={isIntakeDirty}
                   isSaving={isSavingIntake}
                   counterparties={data.customer.counterparties}
+                  deletingAttachmentId={deletingAttachmentId}
                   onChange={setDraftIntake}
                   onReset={handleResetIntake}
                   onSave={handleSaveIntake}
+                  onAttachmentDelete={handleAttachmentDelete}
+                  onAttachmentDownload={handleAttachmentDownload}
+                  onAttachmentReingest={handleAttachmentReingest}
+                  onAttachmentUpload={handleOpenAttachmentDialog}
                   readOnly={!data.workbench.editability.intake}
+                  reingestingAttachmentId={reingestingAttachmentId}
                   sectionCompleteness={data.workflow.sectionCompleteness}
                 />
               ) : null
@@ -2005,27 +2140,14 @@ export default function DealDetailPage() {
             }
             documents={
               <DealDocumentsTab
-                attachments={data.attachments}
-                attachmentIngestions={data.workflow.attachmentIngestions}
-                beneficiaryDraft={data.workbench.beneficiaryDraft}
                 dealId={dealId}
-                deletingAttachmentId={deletingAttachmentId}
                 documentRequirements={data.workbench.documentRequirements}
-                evidenceRequirements={data.workbench.evidenceRequirements}
                 formalDocuments={data.formalDocuments}
-                onAttachmentDelete={handleAttachmentDelete}
-                onAttachmentDownload={handleAttachmentDownload}
-                onAttachmentReingest={handleAttachmentReingest}
-                onAttachmentUpload={handleOpenAttachmentDialog}
-                reingestingAttachmentId={reingestingAttachmentId}
               />
             }
             execution={
               <DealExecutionTab
                 executionPlan={data.workflow.executionPlan}
-                isUpdatingLegKey={isUpdatingLegKey}
-                onBlockedTransitionClick={handleBlockedTransitionClick}
-                onOverrideLeg={handleLegOverride}
                 operationalState={data.workflow.operationalState}
                 sectionCompleteness={data.workflow.sectionCompleteness}
                 transitionReadiness={data.workflow.transitionReadiness}
@@ -2135,6 +2257,7 @@ export default function DealDetailPage() {
         uploadFile={uploadFile}
         uploadDescription={uploadDescription}
         uploadPurpose={uploadPurpose}
+        useRecognition={useAttachmentRecognition}
         uploadVisibility={uploadVisibility}
         isUploading={isUploadingAttachment}
         onOpenChange={(open) => {
@@ -2143,18 +2266,21 @@ export default function DealDetailPage() {
             setUploadDescription("");
             setUploadFile(null);
             setUploadPurpose("other");
+            setUseAttachmentRecognition(false);
             setUploadVisibility("internal");
           }
         }}
         onFileChange={setUploadFile}
         onDescriptionChange={setUploadDescription}
         onPurposeChange={setUploadPurpose}
+        onUseRecognitionChange={setUseAttachmentRecognition}
         onVisibilityChange={setUploadVisibility}
         onCancel={() => {
           setIsUploadDialogOpen(false);
           setUploadDescription("");
           setUploadFile(null);
           setUploadPurpose("other");
+          setUseAttachmentRecognition(false);
           setUploadVisibility("internal");
         }}
         onSubmit={handleAttachmentUpload}

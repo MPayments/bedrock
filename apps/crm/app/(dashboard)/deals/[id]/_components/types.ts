@@ -424,6 +424,9 @@ export type ApiAgreementDetails = {
   currentVersion: {
     contractDate: string | null;
     contractNumber: string | null;
+    feeBillingMode:
+      | "included_in_principal_invoice"
+      | "separate_fee_invoice";
     feeRules: ApiAgreementFeeRule[];
     id: string;
     versionNumber: number;
@@ -538,6 +541,7 @@ export type ApiFormalDocument = {
   currency: string | null;
   docType: string;
   id: string;
+  invoicePurpose?: "combined" | "principal" | "agency_fee" | null;
   lifecycleStatus: string;
   postingStatus: string;
   printForms: PrintFormDescriptor[];
@@ -740,6 +744,10 @@ export type ApiDealPricingCommercialDraft = {
     | { inventoryPositionId: string; type: "treasury_inventory" };
   fixedFeeAmount: string | null;
   fixedFeeCurrency: string | null;
+  feeBillingMode?:
+    | "included_in_principal_invoice"
+    | "separate_fee_invoice"
+    | null;
   quoteMarkupBps: number | null;
 };
 
@@ -833,6 +841,7 @@ export type ApiPaymentRouteCalculation = {
     location: "additional" | "leg";
     outputImpactCurrencyId: string;
     outputImpactMinor: string;
+    percentage?: string;
     routeInputImpactMinor: string;
     treatment: "execution_spread" | "flow_deduction" | "separate_expense";
   }>;
@@ -1039,6 +1048,7 @@ export type ApiCrmDealWorkbenchProjection = {
     blockingReasons: string[];
     createAllowed: boolean;
     docType: string;
+    invoicePurpose?: "combined" | "principal" | "agency_fee" | null;
     openAllowed: boolean;
     stage: "opening" | "closing";
     state: "in_progress" | "missing" | "not_required" | "ready";
@@ -1060,6 +1070,21 @@ export type ApiCrmDealWorkbenchProjection = {
   operationalState: ApiDealOperationalState;
   participants: ApiDealWorkflowParticipant[];
   pricing: {
+    billingSplit: {
+      agencyFee: {
+        amountMinor: string;
+        currency: string;
+        invoicePurpose: "agency_fee";
+      } | null;
+      billingSetRef: string | null;
+      blockedReason: string | null;
+      mode: "included_in_principal_invoice" | "separate_fee_invoice";
+      principal: {
+        amountMinor: string;
+        currency: string;
+        invoicePurpose: "combined" | "principal";
+      } | null;
+    } | null;
     calculationHistory: ApiDealCalculationHistoryItem[];
     context: ApiDealPricingContext;
     currentCalculation: ApiCalculationDetails | null;

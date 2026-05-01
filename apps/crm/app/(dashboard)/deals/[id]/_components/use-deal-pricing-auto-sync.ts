@@ -94,6 +94,7 @@ function cloneCommercialDraft(context: ApiDealPricingContext) {
     },
     fixedFeeAmount: context.commercialDraft.fixedFeeAmount ?? null,
     fixedFeeCurrency: context.commercialDraft.fixedFeeCurrency ?? null,
+    feeBillingMode: context.commercialDraft.feeBillingMode ?? null,
     quoteMarkupBps: context.commercialDraft.quoteMarkupBps ?? null,
   };
 }

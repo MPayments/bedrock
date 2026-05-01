@@ -1,40 +1,24 @@
 import { FORMAL_DOCUMENT_LABELS } from "@bedrock/deals/labels";
 
+import {
+  DEAL_STATUS_COLORS,
+  DEAL_STATUS_LABELS,
+} from "@/lib/deal-status-display";
+
 import type {
   ApiDealTimelineEvent,
   DealLegKind,
   DealLegState,
   DealOperationalPositionKind,
-  DealOperationalPositionState,
   DealStatus,
   DealType,
 } from "./types";
 
 export { FORMAL_DOCUMENT_LABELS };
 
-export const STATUS_LABELS: Record<DealStatus, string> = {
-  awaiting_funds: "Ожидание средств",
-  awaiting_payment: "Ожидание оплаты",
-  cancelled: "Отменена",
-  closing_documents: "Закрывающие документы",
-  done: "Завершена",
-  draft: "Черновик",
-  preparing_documents: "Подготовка документов",
-  rejected: "Отклонена",
-  submitted: "Отправлена",
-};
+export const STATUS_LABELS: Record<DealStatus, string> = DEAL_STATUS_LABELS;
 
-export const STATUS_COLORS: Record<DealStatus, string> = {
-  awaiting_funds: "bg-orange-100 text-orange-800",
-  awaiting_payment: "bg-yellow-100 text-yellow-800",
-  cancelled: "bg-red-100 text-red-800",
-  closing_documents: "bg-cyan-100 text-cyan-800",
-  done: "bg-emerald-100 text-emerald-800",
-  draft: "bg-slate-100 text-slate-800",
-  preparing_documents: "bg-amber-100 text-amber-800",
-  rejected: "bg-rose-100 text-rose-800",
-  submitted: "bg-sky-100 text-sky-800",
-};
+export const STATUS_COLORS: Record<DealStatus, string> = DEAL_STATUS_COLORS;
 
 export const DEAL_TYPE_LABELS: Record<DealType, string> = {
   currency_exchange: "Обмен валюты",
@@ -91,30 +75,6 @@ const DEAL_OPERATIONAL_POSITION_LABELS: Record<
   downstream_payable: "Исходящая кредиторка",
   spread_revenue: "Доход от спреда",
   suspense: "Суспенс",
-};
-
-export const DEAL_OPERATIONAL_POSITION_STATE_LABELS: Record<
-  DealOperationalPositionState,
-  string
-> = {
-  blocked: "Заблокирована",
-  done: "Закрыта",
-  in_progress: "В работе",
-  not_applicable: "Не применяется",
-  pending: "Ожидает",
-  ready: "Готова",
-};
-
-export const DEAL_OPERATIONAL_POSITION_STATE_COLORS: Record<
-  DealOperationalPositionState,
-  string
-> = {
-  blocked: "bg-red-100 text-red-800",
-  done: "bg-emerald-100 text-emerald-800",
-  in_progress: "bg-blue-100 text-blue-800",
-  not_applicable: "bg-zinc-100 text-zinc-700",
-  pending: "bg-slate-100 text-slate-800",
-  ready: "bg-amber-100 text-amber-800",
 };
 
 export const DEAL_SECTION_LABELS: Record<string, string> = {
@@ -220,11 +180,12 @@ export const ATTACHMENT_VISIBILITY_LABELS: Record<
 
 export const ATTACHMENT_INGESTION_STATUS_LABELS = {
   applied: "Данные учтены",
-  failed: "Не удалось обработать",
+  failed: "Ошибка распознавания",
+  not_started: "Распознавание не запускалось",
   pending: "Ожидает распознавания",
-  processing: "Распознается",
+  processing: "Распознаётся",
   processed_without_changes: "Распознано, без изменений",
-  unavailable: "Обработка недоступна",
+  unavailable: "Распознавание недоступно",
 } as const;
 
 const WARNING_DEAL_WORKFLOW_MESSAGES = new Set<string>([

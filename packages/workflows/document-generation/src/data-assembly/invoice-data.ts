@@ -20,12 +20,19 @@ export function assembleInvoiceData(
   orgFiles: PartialOrgFiles,
   date: Date,
   lang: DocumentLang,
+  invoice?: Record<string, unknown> | null,
 ): Record<string, unknown> {
   const formattedDate = formatDateByLang(date, lang);
 
-  const baseCurrency = (calculation.currencyCode as string) || "RUB";
+  const baseCurrency =
+    (invoice?.currencyCode as string | undefined) ??
+    (invoice?.currency as string | undefined) ??
+    (calculation.currencyCode as string) ??
+    "RUB";
   const baseCurrencySymbol = getCurrencySymbol(baseCurrency);
-  const totalInBase = calculation.totalAmount as string | number;
+  const totalInBase =
+    (invoice?.amount as string | number | undefined) ??
+    (calculation.totalAmount as string | number);
   const invoiceNumber = resolveDocumentNumber(deal.invoiceNumber, deal.id);
   const contractNumber = resolveDocumentNumber(contract.contractNumber, contract.id);
   const dealContractNumber = resolveDocumentNumber(

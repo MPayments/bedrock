@@ -67,7 +67,6 @@ export function DealHeader({
               <Button
                 data-testid="deal-change-status-button"
                 variant="default"
-                size="sm"
               />
             }
           >

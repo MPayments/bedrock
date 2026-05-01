@@ -24,6 +24,7 @@ import type { ReconciliationService } from "@bedrock/reconciliation";
 import type { TreasuryModule } from "@bedrock/treasury";
 import type { CustomerPortalWorkflow } from "@bedrock/workflow-customer-portal";
 import type { DealAttachmentIngestionWorkflow } from "@bedrock/workflow-deal-attachment-ingestion";
+import type { DealCommercialWorkflow } from "@bedrock/workflow-deal-commercial";
 import type { DealExecutionWorkflow } from "@bedrock/workflow-deal-execution";
 import type { DealProjectionsWorkflow } from "@bedrock/workflow-deal-projections";
 import type { DocumentDraftWorkflow } from "@bedrock/workflow-document-drafts";
@@ -125,6 +126,7 @@ export interface AppContext {
   createTreasuryModule(tx: Transaction): TreasuryModule;
   reconciliationService: ReconciliationService;
   dealAttachmentIngestionWorkflow: DealAttachmentIngestionWorkflow;
+  dealCommercialWorkflow: DealCommercialWorkflow;
   dealExecutionWorkflow: DealExecutionWorkflow;
   dealPricingWorkflow: DealPricingWorkflow;
   dealQuoteWorkflow: DealQuoteWorkflow;
@@ -171,6 +173,7 @@ export function createAppContext(env: Env): AppContext {
     reconciliationService: applicationServices.reconciliationService,
     dealAttachmentIngestionWorkflow:
       applicationServices.dealAttachmentIngestionWorkflow,
+    dealCommercialWorkflow: applicationServices.dealCommercialWorkflow,
     dealExecutionWorkflow: applicationServices.dealExecutionWorkflow,
     dealPricingWorkflow: applicationServices.dealPricingWorkflow,
     dealQuoteWorkflow: applicationServices.dealQuoteWorkflow,

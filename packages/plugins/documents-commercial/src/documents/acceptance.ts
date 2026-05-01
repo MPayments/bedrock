@@ -14,13 +14,70 @@ import {
   type AcceptanceInput,
 } from "../validation";
 import {
-  getInvoiceAcceptanceChild,
-  getInvoiceExchangeChild,
-  invoiceRequiresExchange,
+  getApplicationAcceptanceChild,
+  getInvoicePurpose,
+  loadApplication,
   loadInvoice,
+  parseApplicationPayload,
+  parseInvoicePayload,
   requirePostedDocument,
+  requireReadyDocument,
 } from "./internal/helpers";
 import type { CommercialModuleDeps } from "./internal/types";
+
+async function resolveAcceptanceDraftContext(
+  deps: CommercialModuleDeps,
+  context: Parameters<DocumentModule<AcceptanceInput, AcceptanceInput>["createDraft"]>[0],
+  input: AcceptanceInput,
+) {
+  const application = await loadApplication(
+    deps,
+    context.runtime,
+    input.applicationDocumentId,
+    true,
+  );
+  requireReadyDocument(application);
+
+  if (
+    await getApplicationAcceptanceChild(deps, context.runtime, application.id)
+  ) {
+    throw new DocumentValidationError(
+      "acceptance already exists for this application",
+    );
+  }
+
+  const applicationPayload = parseApplicationPayload(application);
+  const invoiceDocumentId = input.invoiceDocumentId;
+  const settlementEvidenceFileAssetIds =
+    input.settlementEvidenceFileAssetIds ?? [];
+  if (settlementEvidenceFileAssetIds.length === 0) {
+    throw new DocumentValidationError(
+      "acceptance requires final SWIFT/MT103 payout evidence",
+    );
+  }
+
+  if (invoiceDocumentId) {
+    const invoice = await loadInvoice(
+      deps,
+      context.runtime,
+      invoiceDocumentId,
+      true,
+    );
+    requirePostedDocument(invoice);
+    if (getInvoicePurpose(parseInvoicePayload(invoice)) === "agency_fee") {
+      throw new DocumentValidationError(
+        "acceptance must reference the principal invoice, not the agency fee invoice",
+      );
+    }
+  }
+
+  return {
+    application,
+    applicationPayload,
+    invoiceDocumentId,
+    settlementEvidenceFileAssetIds,
+  };
+}
 
 export function createAcceptanceDocumentModule(
   deps: CommercialModuleDeps,
@@ -38,94 +95,78 @@ export function createAcceptanceDocumentModule(
     allowDirectPostFromDraft: false,
     approvalRequired: () => false,
     async createDraft(context, input) {
-      const invoice = await loadInvoice(
-        deps,
-        context.runtime,
-        input.invoiceDocumentId,
-        true,
-      );
-      requirePostedDocument(invoice);
-      if (await getInvoiceAcceptanceChild(deps, context.runtime, invoice.id)) {
-        throw new DocumentValidationError(
-          "acceptance already exists for this invoice",
-        );
-      }
-
-      const requiresExchange = await invoiceRequiresExchange(deps, invoice);
-      const exchange = await getInvoiceExchangeChild(
-        deps,
-        context.runtime,
-        invoice.id,
-      );
-      if (requiresExchange) {
-        if (!exchange) {
-          throw new DocumentValidationError(
-            "acceptance requires a posted exchange for FX-linked invoices",
-          );
-        }
-        requirePostedDocument(exchange);
-      }
+      const {
+        applicationPayload,
+        invoiceDocumentId,
+        settlementEvidenceFileAssetIds,
+      } =
+        await resolveAcceptanceDraftContext(deps, context, input);
 
       return buildDocumentDraft(input, {
         ...serializeOccurredAt(input),
-        exchangeDocumentId: exchange?.id,
-        invoiceDocumentId: input.invoiceDocumentId,
+        applicationDocumentId: input.applicationDocumentId,
+        invoiceDocumentId,
+        settlementEvidenceFileAssetIds,
+        counterpartyId: applicationPayload.counterpartyId,
+        customerId: applicationPayload.customerId,
+        organizationId: applicationPayload.organizationId,
+        organizationRequisiteId: applicationPayload.organizationRequisiteId,
         memo: input.memo,
       });
     },
-    async updateDraft(context, document, input) {
+    async updateDraft(_context, document, input) {
       const payload = parseDocumentPayload(AcceptancePayloadSchema, document);
-      if (payload.invoiceDocumentId !== input.invoiceDocumentId) {
+      if (payload.applicationDocumentId !== input.applicationDocumentId) {
+        throw new DocumentValidationError(
+          "acceptance cannot change applicationDocumentId",
+        );
+      }
+      if (
+        input.invoiceDocumentId &&
+        input.invoiceDocumentId !== payload.invoiceDocumentId
+      ) {
         throw new DocumentValidationError(
           "acceptance cannot change invoiceDocumentId",
         );
       }
 
-      return this.createDraft!(context, input);
+      return buildDocumentDraft(input, {
+        ...payload,
+        ...serializeOccurredAt(input),
+        memo: input.memo,
+      });
     },
     deriveSummary(document) {
       const payload = parseDocumentPayload(AcceptancePayloadSchema, document);
 
       return {
-        title: "Акт",
+        title: "Акт / подтверждение исполнения",
         memo: payload.memo ?? null,
+        counterpartyId:
+          typeof document.payload.counterpartyId === "string"
+            ? document.payload.counterpartyId
+            : undefined,
+        customerId:
+          typeof document.payload.customerId === "string"
+            ? document.payload.customerId
+            : undefined,
+        organizationRequisiteId:
+          typeof document.payload.organizationRequisiteId === "string"
+            ? document.payload.organizationRequisiteId
+            : undefined,
         searchText: [
           document.docNo,
           document.docType,
+          payload.applicationDocumentId,
           payload.invoiceDocumentId,
-          payload.exchangeDocumentId,
+          ...payload.settlementEvidenceFileAssetIds,
         ]
           .filter(Boolean)
           .join(" "),
       };
     },
     async canCreate(context, input) {
-      const invoice = await loadInvoice(
-        deps,
-        context.runtime,
-        input.invoiceDocumentId,
-        true,
-      );
-      requirePostedDocument(invoice);
-      if (await getInvoiceAcceptanceChild(deps, context.runtime, invoice.id)) {
-        throw new DocumentValidationError(
-          "acceptance already exists for this invoice",
-        );
-      }
-
-      if (await invoiceRequiresExchange(deps, invoice)) {
-        const exchange = await getInvoiceExchangeChild(
-          deps,
-          context.runtime,
-          invoice.id,
-        );
-        if (!exchange) {
-          throw new DocumentValidationError(
-            "acceptance requires a posted exchange for FX-linked invoices",
-          );
-        }
-        requirePostedDocument(exchange);
-      }
+      await resolveAcceptanceDraftContext(deps, context, input);
     },
     async canEdit() {},
     async canSubmit() {},
@@ -140,13 +181,13 @@ export function createAcceptanceDocumentModule(
         linkType: "parent" | "depends_on";
       }[] = [
         {
-          toDocumentId: payload.invoiceDocumentId,
+          toDocumentId: payload.applicationDocumentId,
           linkType: "parent" as const,
         },
       ];
-      if (payload.exchangeDocumentId) {
+      if (payload.invoiceDocumentId) {
         links.push({
-          toDocumentId: payload.exchangeDocumentId,
+          toDocumentId: payload.invoiceDocumentId,
           linkType: "depends_on" as const,
         });
       }

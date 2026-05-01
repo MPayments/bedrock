@@ -25,6 +25,35 @@ import type {
   QuotesCommandUnitOfWork,
 } from "../ports";
 
+function readRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function extractCrmPricingFingerprintSnapshot(
+  pricingTrace: Record<string, unknown>,
+) {
+  const metadata = readRecord(pricingTrace.metadata);
+  const snapshot = readRecord(metadata?.crmPricingSnapshot);
+  if (!snapshot) {
+    return null;
+  }
+
+  const clientSide = readRecord(snapshot.clientSide);
+  const executionSide = readRecord(snapshot.executionSide);
+  const pnl = readRecord(snapshot.pnl);
+  if (!clientSide || !executionSide || !pnl) {
+    return null;
+  }
+
+  return {
+    clientSide,
+    executionSide,
+    pnl,
+  };
+}
+
 export class CreateQuoteCommand {
   constructor(
     private readonly runtime: ModuleRuntime,
@@ -63,14 +92,9 @@ export class CreateQuoteCommand {
 
       const fromCurrencyId = currencyIdByCode.get(pricingSnapshot.fromCurrency)!;
       const toCurrencyId = currencyIdByCode.get(pricingSnapshot.toCurrency)!;
-      const crmPricingSnapshot =
-        pricingSnapshot.pricingTrace.metadata &&
-        typeof pricingSnapshot.pricingTrace.metadata === "object" &&
-        !Array.isArray(pricingSnapshot.pricingTrace.metadata)
-          ? (
-              pricingSnapshot.pricingTrace.metadata as Record<string, unknown>
-            ).crmPricingSnapshot
-          : null;
+      const crmPricingSnapshot = extractCrmPricingFingerprintSnapshot(
+        pricingSnapshot.pricingTrace,
+      );
       const pricingFingerprint = computePricingFingerprint({
         clientPricing: crmPricingSnapshot,
         commercialTerms: pricingSnapshot.commercialTerms

@@ -91,6 +91,9 @@ const CustomerAgreementUpsertInputSchema = z.object({
   agentFee: z.string().optional(),
   contractDate: z.string().optional(),
   contractNumber: z.string().optional(),
+  feeBillingMode: z
+    .enum(["included_in_principal_invoice", "separate_fee_invoice"])
+    .optional(),
   fixedFee: z.string().optional(),
   organizationId: z.string().uuid(),
   organizationRequisiteId: z.string().uuid(),

@@ -5,7 +5,7 @@ import {
 } from "@bedrock/deals/contracts";
 import type { DealWorkflowProjection } from "@bedrock/deals/contracts";
 import { minorToAmountString } from "@bedrock/shared/money";
-import type { QuoteListItem } from "@bedrock/treasury/contracts";
+import type { PaymentStep, QuoteListItem } from "@bedrock/treasury/contracts";
 
 import type { DealAttachmentRecord, TreasuryQuoteRecord } from "./deps";
 import {
@@ -18,9 +18,16 @@ import {
 import { getDateTimeValue, toDateOrNull } from "./utils";
 import { isDealInTerminalStatus, isQuoteEligible } from "./workflow-helpers";
 
+export { buildDealInvoiceBillingSplit } from "../documents/invoice-billing";
+
 const EXTERNAL_EVIDENCE_REQUIRED_MESSAGE =
   "Загрузите подтверждающие документы по сделке";
 const PAYMENT_INVOICE_REQUIRED_MESSAGE = "Инвойс по сделке не загружен";
+const FINAL_PAYOUT_EVIDENCE_PURPOSES = new Set([
+  "swift_mt103",
+  "settlement_confirmation",
+  "bank_confirmation",
+]);
 
 export function buildPortalQuoteSummary(workflow: DealWorkflowProjection) {
   if (workflow.acceptedQuote) {
@@ -174,12 +181,69 @@ export function buildCrmEvidenceRequirements(input: {
   ];
 }
 
-export function buildCrmDocumentRequirements(workflow: DealWorkflowProjection) {
+type FeeBillingMode =
+  | "included_in_principal_invoice"
+  | "separate_fee_invoice";
+type InvoicePurpose = "combined" | "principal" | "agency_fee";
+
+function resolveOpeningInvoicePurposes(mode: FeeBillingMode | null | undefined) {
+  return mode === "separate_fee_invoice"
+    ? (["principal", "agency_fee"] as InvoicePurpose[])
+    : (["combined"] as InvoicePurpose[]);
+}
+
+function isPaymentFinalPayoutStep(input: {
+  step: PaymentStep;
+  workflow: DealWorkflowProjection;
+}) {
+  if (input.step.kind !== "payout" || input.step.state !== "completed") {
+    return false;
+  }
+
+  const payoutLegs = input.workflow.executionPlan
+    .filter((leg) => leg.kind === "payout")
+    .sort((left, right) => right.idx - left.idx);
+  const finalPayoutLeg = payoutLegs[0] ?? null;
+
+  if (!finalPayoutLeg) {
+    return false;
+  }
+
+  return (
+    (finalPayoutLeg.id !== null &&
+      input.step.origin.planLegId === finalPayoutLeg.id) ||
+    input.step.origin.sequence === finalPayoutLeg.idx
+  );
+}
+
+function hasFinalPayoutEvidence(input: {
+  paymentSteps?: PaymentStep[];
+  workflow: DealWorkflowProjection;
+}) {
+  return Boolean(
+    input.paymentSteps?.some(
+      (step) =>
+        isPaymentFinalPayoutStep({ step, workflow: input.workflow }) &&
+        step.artifacts.some((artifact) =>
+          FINAL_PAYOUT_EVIDENCE_PURPOSES.has(artifact.purpose),
+        ),
+    ),
+  );
+}
+
+export function buildCrmDocumentRequirements(
+  workflow: DealWorkflowProjection,
+  options: {
+    feeBillingMode?: FeeBillingMode | null;
+    paymentSteps?: PaymentStep[];
+  } = {},
+) {
   const requirements: {
     activeDocumentId: string | null;
     blockingReasons: string[];
     createAllowed: boolean;
     docType: string;
+    invoicePurpose: InvoicePurpose | null;
     openAllowed: boolean;
     stage: "opening" | "closing";
     state: "in_progress" | "missing" | "not_required" | "ready";
@@ -193,17 +257,69 @@ export function buildCrmDocumentRequirements(workflow: DealWorkflowProjection) {
     status: workflow.summary.status,
     type: workflow.summary.type,
   });
+  const finalPayoutEvidenceReady =
+    workflow.summary.type === "payment"
+      ? hasFinalPayoutEvidence({
+          paymentSteps: options.paymentSteps,
+          workflow,
+        })
+      : true;
+  const hasCurrentAcceptedQuote =
+    Boolean(workflow.acceptedQuote) && !workflow.acceptedQuote?.revokedAt;
 
-  for (const [stage, docType] of [
-    ["opening", openingDocType] as const,
-    ["closing", closingDocType] as const,
-  ]) {
+  const entries: {
+    docType: string | null;
+    invoicePurpose: InvoicePurpose | null;
+    stage: "opening" | "closing";
+  }[] =
+    workflow.summary.type === "payment"
+      ? [
+          { docType: "application", invoicePurpose: null, stage: "opening" },
+          ...resolveOpeningInvoicePurposes(options.feeBillingMode).map(
+            (invoicePurpose) => ({
+              docType: "invoice",
+              invoicePurpose,
+              stage: "opening" as const,
+            }),
+          ),
+          {
+            docType: closingDocType,
+            invoicePurpose: null,
+            stage: "closing",
+          },
+        ]
+      : [
+          ...(openingDocType === "invoice"
+            ? resolveOpeningInvoicePurposes(options.feeBillingMode).map(
+                (invoicePurpose) => ({
+                  docType: openingDocType,
+                  invoicePurpose,
+                  stage: "opening" as const,
+                }),
+              )
+            : [
+                {
+                  docType: openingDocType,
+                  invoicePurpose: null,
+                  stage: "opening" as const,
+                },
+              ]),
+          {
+            docType: closingDocType,
+            invoicePurpose: null,
+            stage: "closing" as const,
+          },
+        ];
+  const readyByKey = new Map<string, boolean>();
+
+  for (const { docType, invoicePurpose, stage } of entries) {
     if (!docType) {
       continue;
     }
 
     const document = findRelatedFormalDocument({
       docType,
+      invoicePurpose: docType === "invoice" ? invoicePurpose : undefined,
       documents: workflow.relatedResources.formalDocuments,
     });
     const ready = document
@@ -214,6 +330,28 @@ export function buildCrmDocumentRequirements(workflow: DealWorkflowProjection) {
           submissionStatus: document.submissionStatus,
         })
       : false;
+    readyByKey.set(`${docType}:${invoicePurpose ?? "default"}`, ready);
+
+    const applicationReady = readyByKey.get("application:default") === true;
+    const principalInvoiceReady =
+      readyByKey.get("invoice:combined") === true ||
+      readyByKey.get("invoice:principal") === true;
+    const paymentCreateAllowed =
+      workflow.summary.type !== "payment"
+        ? createAllowed
+        : docType === "application"
+          ? createAllowed &&
+            hasCurrentAcceptedQuote &&
+            Boolean(workflow.summary.calculationId)
+          : docType === "invoice"
+            ? createAllowed && applicationReady
+            : docType === "acceptance"
+              ? createAllowed &&
+                workflow.summary.status === "closing_documents" &&
+                applicationReady &&
+                principalInvoiceReady &&
+                finalPayoutEvidenceReady
+              : createAllowed;
 
     requirements.push({
       activeDocumentId: document?.id ?? null,
@@ -222,8 +360,9 @@ export function buildCrmDocumentRequirements(workflow: DealWorkflowProjection) {
           ? []
           : ["Формальный документ еще не готов к использованию"]
         : ["Формальный документ еще не создан"],
-      createAllowed: !document && createAllowed,
+      createAllowed: !document && paymentCreateAllowed,
       docType,
+      invoicePurpose: docType === "invoice" ? invoicePurpose : null,
       openAllowed: Boolean(document?.id),
       stage,
       state: !document ? "missing" : ready ? "ready" : "in_progress",

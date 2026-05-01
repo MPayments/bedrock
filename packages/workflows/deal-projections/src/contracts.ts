@@ -142,7 +142,22 @@ export type CrmDealCustomerContext = z.infer<
   typeof CrmDealCustomerContextSchema
 >;
 
+const InvoiceBillingAmountSchema = z.object({
+  amountMinor: z.string(),
+  currency: z.string(),
+  invoicePurpose: z.enum(["combined", "principal", "agency_fee"]),
+});
+
+const DealInvoiceBillingSplitSchema = z.object({
+  agencyFee: InvoiceBillingAmountSchema.nullable(),
+  billingSetRef: z.string().nullable(),
+  mode: z.enum(["included_in_principal_invoice", "separate_fee_invoice"]),
+  principal: InvoiceBillingAmountSchema.nullable(),
+  blockedReason: z.string().nullable(),
+});
+
 export const DealPricingSummarySchema = z.object({
+  billingSplit: DealInvoiceBillingSplitSchema.nullable(),
   calculationHistory: z.array(DealCalculationHistoryItemSchema),
   context: DealPricingContextSchema,
   currentCalculation: CalculationDetailsSchema.nullable(),
@@ -237,6 +252,7 @@ export const CrmDealDocumentRequirementSchema = z.object({
   blockingReasons: z.array(z.string()),
   createAllowed: z.boolean(),
   docType: z.string(),
+  invoicePurpose: z.enum(["combined", "principal", "agency_fee"]).nullable(),
   openAllowed: z.boolean(),
   stage: z.enum(["opening", "closing"]),
   state: CrmDealDocumentRequirementStateSchema,
@@ -616,6 +632,7 @@ export const FinanceDealExecutionLegDocumentActionSchema = z.object({
   activeDocumentId: z.uuid().nullable(),
   createAllowed: z.boolean(),
   docType: z.string(),
+  invoicePurpose: z.enum(["combined", "principal", "agency_fee"]).nullable(),
   openAllowed: z.boolean(),
 });
 
@@ -899,6 +916,7 @@ export const FinanceDealFormalDocumentRequirementSchema = z.object({
   blockingReasons: z.array(z.string()),
   createAllowed: z.boolean(),
   docType: z.string(),
+  invoicePurpose: z.enum(["combined", "principal", "agency_fee"]).nullable(),
   openAllowed: z.boolean(),
   stage: z.enum(["opening", "closing"]),
   state: FinanceDealFormalDocumentRequirementStateSchema,
@@ -974,6 +992,7 @@ export const FinanceDealPricingContextSchema = z.object({
   quoteAmount: z.string().nullable(),
   quoteAmountSide: FinanceDealQuoteAmountSideSchema,
   quoteEligibility: z.boolean(),
+  billingSplit: DealInvoiceBillingSplitSchema.nullable(),
   routeAttachment: FinanceDealRouteAttachmentSchema.nullable(),
   sourceCurrencyId: z.uuid().nullable(),
   targetCurrencyId: z.uuid().nullable(),

@@ -7,6 +7,7 @@ import {
   buildExchangePostingPlan,
   buildFinancialLineRequests,
   buildQuoteSnapshotHash,
+  calculateDealLinkedInvoiceExpectedAmount,
   loadQuoteSnapshot,
   markQuoteUsedForInvoice,
 } from "../src/documents/internal/helpers";
@@ -46,6 +47,31 @@ function makeQuoteSnapshot(financialLines: any[]) {
   return {
     ...snapshot,
     snapshotHash: buildQuoteSnapshotHash(snapshot),
+  };
+}
+
+function makeDealFxContext(financialLines: any[], totalAmountMinor = "10165") {
+  return {
+    calculationCurrency: "USD",
+    calculationId: "calc-1",
+    dealId: "deal-1",
+    dealType: "payment",
+    financialLines,
+    fundingResolution: {
+      availableMinor: null,
+      fundingOrganizationId: "org-1",
+      fundingRequisiteId: null,
+      reasonCode: "inventory_insufficient",
+      requiredAmountMinor: "9200",
+      state: "resolved" as const,
+      strategy: "external_fx" as const,
+      targetCurrency: "EUR",
+      targetCurrencyId: "currency-eur",
+    },
+    hasConvertLeg: true,
+    originalAmountMinor: "10000",
+    quoteSnapshot: makeQuoteSnapshot([]),
+    totalAmountMinor,
   };
 }
 
@@ -125,6 +151,13 @@ describe("commercial document helpers", () => {
           source: "manual",
         },
         {
+          id: "execution-positive",
+          bucket: "execution_expense",
+          currency: "USD",
+          amountMinor: 35n,
+          source: "manual",
+        },
+        {
           id: "pass-through-positive",
           bucket: "pass_through",
           currency: "USD",
@@ -166,6 +199,10 @@ describe("commercial document helpers", () => {
         templateKey:
           POSTING_TEMPLATE_KEY.PAYMENT_FX_PROVIDER_FEE_EXPENSE_REVERSAL,
         amountMinor: 10n,
+      },
+      {
+        templateKey: POSTING_TEMPLATE_KEY.PAYMENT_FX_PROVIDER_FEE_EXPENSE,
+        amountMinor: 35n,
       },
       {
         templateKey: POSTING_TEMPLATE_KEY.PAYMENT_FX_FEE_RESERVE,
@@ -230,6 +267,13 @@ describe("commercial document helpers", () => {
         amountMinor: 30n,
         source: "manual" as const,
       },
+      {
+        id: "execution-positive",
+        bucket: "execution_expense" as const,
+        currency: "USD",
+        amountMinor: 35n,
+        source: "manual" as const,
+      },
     ];
 
     const customerOnly = buildFinancialLineRequests({
@@ -269,10 +313,11 @@ describe("commercial document helpers", () => {
     expect(customerOnly[0]?.templateKey).toBe(
       POSTING_TEMPLATE_KEY.PAYMENT_FX_FEE_INCOME,
     );
-    expect(providerOnly).toHaveLength(1);
-    expect(providerOnly[0]?.templateKey).toBe(
+    expect(providerOnly).toHaveLength(2);
+    expect(providerOnly.map((request) => request.templateKey)).toEqual([
       POSTING_TEMPLATE_KEY.PAYMENT_FX_PROVIDER_FEE_EXPENSE,
-    );
+      POSTING_TEMPLATE_KEY.PAYMENT_FX_PROVIDER_FEE_EXPENSE,
+    ]);
   });
 
   it("delegates quote snapshot loading through the injected port", async () => {
@@ -421,7 +466,8 @@ describe("commercial document helpers", () => {
     expect(markQuoteUsed).toHaveBeenCalledWith({
       runtime,
       quoteId: "00000000-0000-4000-8000-000000000010",
-      invoiceDocumentId: "invoice-1",
+      usedByRef: "invoice:invoice-1",
+      usedDocumentId: "invoice-1",
       at: now,
     });
 
@@ -431,6 +477,181 @@ describe("commercial document helpers", () => {
       POSTING_TEMPLATE_KEY.PAYMENT_FX_FEE_RESERVE_REVERSAL,
       POSTING_TEMPLATE_KEY.PAYMENT_FX_FEE_RESERVE,
     ]);
+  });
+
+  it("reserves split principal invoices without fee revenue lines", async () => {
+    const now = new Date("2026-03-03T10:00:00.000Z");
+    const markQuoteUsed = vi.fn(async () => undefined);
+    const runtime = {} as any;
+
+    const plan = await buildDealLinkedInvoicePostingPlan({
+      deps: {
+        quoteUsage: {
+          markQuoteUsedForInvoice: markQuoteUsed,
+        },
+      } as any,
+      context: { runtime, now } as any,
+      dealFxContext: makeDealFxContext([
+        {
+          id: "fee-1",
+          bucket: "fee_revenue",
+          currency: "USD",
+          amountMinor: 150n,
+          source: "rule",
+          settlementMode: "in_ledger",
+        },
+        {
+          id: "spread-1",
+          bucket: "spread_revenue",
+          currency: "USD",
+          amountMinor: -25n,
+          source: "rule",
+          settlementMode: "in_ledger",
+        },
+        {
+          id: "pass-through-1",
+          bucket: "pass_through",
+          currency: "USD",
+          amountMinor: 40n,
+          source: "rule",
+          settlementMode: "in_ledger",
+        },
+        {
+          id: "provider-1",
+          bucket: "provider_fee_expense",
+          currency: "USD",
+          amountMinor: 30n,
+          source: "rule",
+          settlementMode: "in_ledger",
+        },
+      ]) as any,
+      document: {
+        id: "principal-invoice-1",
+        occurredAt: now,
+      } as any,
+      bookId: "book-1",
+      payload: {
+        occurredAt: now,
+        customerId: "customer-1",
+        counterpartyId: "counterparty-1",
+        organizationRequisiteId: "org-req-1",
+        amount: "100.15",
+        amountMinor: "10015",
+        currency: "USD",
+        invoicePurpose: "principal",
+        billingSetRef:
+          "billing_set:deal-1:00000000-0000-4000-8000-000000000010",
+        financialLines: [],
+      } as any,
+    });
+
+    expect(markQuoteUsed).toHaveBeenCalledWith({
+      runtime,
+      quoteId: "00000000-0000-4000-8000-000000000010",
+      usedByRef: "billing_set:deal-1:00000000-0000-4000-8000-000000000010",
+      usedDocumentId: null,
+      at: now,
+    });
+    expect(plan.requests.map((request) => request.refs.componentId)).not.toContain(
+      "fee-1",
+    );
+    expect(plan.requests.map((request) => request.templateKey)).toEqual([
+      POSTING_TEMPLATE_KEY.PAYMENT_FX_PRINCIPAL,
+      POSTING_TEMPLATE_KEY.PAYMENT_FX_FEE_RESERVE_REVERSAL,
+      POSTING_TEMPLATE_KEY.PAYMENT_FX_FEE_RESERVE,
+    ]);
+  });
+
+  it("posts split agency fee invoices from commercial revenue lines only", async () => {
+    const now = new Date("2026-03-03T10:00:00.000Z");
+    const markQuoteUsed = vi.fn(async () => undefined);
+    const runtime = {} as any;
+
+    const plan = await buildDealLinkedInvoicePostingPlan({
+      deps: {
+        quoteUsage: {
+          markQuoteUsedForInvoice: markQuoteUsed,
+        },
+      } as any,
+      context: { runtime, now } as any,
+      dealFxContext: makeDealFxContext([
+        {
+          id: "fee-1",
+          bucket: "commercial_revenue",
+          currency: "USD",
+          amountMinor: 150n,
+          source: "rule",
+          settlementMode: "in_ledger",
+        },
+        {
+          id: "spread-1",
+          bucket: "spread_revenue",
+          currency: "USD",
+          amountMinor: -25n,
+          source: "rule",
+          settlementMode: "in_ledger",
+        },
+        {
+          id: "pass-through-1",
+          bucket: "pass_through",
+          currency: "USD",
+          amountMinor: 40n,
+          source: "rule",
+          settlementMode: "in_ledger",
+        },
+      ]) as any,
+      document: {
+        id: "agency-fee-invoice-1",
+        occurredAt: now,
+      } as any,
+      bookId: "book-1",
+      payload: {
+        occurredAt: now,
+        customerId: "customer-1",
+        counterpartyId: "counterparty-1",
+        organizationRequisiteId: "org-req-1",
+        amount: "1.50",
+        amountMinor: "150",
+        currency: "USD",
+        invoicePurpose: "agency_fee",
+        billingSetRef:
+          "billing_set:deal-1:00000000-0000-4000-8000-000000000010",
+        financialLines: [],
+      } as any,
+    });
+
+    expect(plan.requests).toHaveLength(1);
+    expect(plan.requests[0]?.templateKey).toBe(
+      POSTING_TEMPLATE_KEY.PAYMENT_FX_FEE_INCOME,
+    );
+    expect(plan.requests[0]?.amountMinor).toBe(150n);
+    expect(plan.requests[0]?.refs.componentId).toBe("fee-1");
+  });
+
+  it("blocks split agency fee invoices across multiple fee currencies", () => {
+    expect(() =>
+      calculateDealLinkedInvoiceExpectedAmount({
+        dealFxContext: makeDealFxContext([
+          {
+            id: "fee-usd",
+            bucket: "fee_revenue",
+            currency: "USD",
+            amountMinor: 150n,
+            source: "rule",
+            settlementMode: "in_ledger",
+          },
+          {
+            id: "fee-eur",
+            bucket: "fee_revenue",
+            currency: "EUR",
+            amountMinor: 100n,
+            source: "rule",
+            settlementMode: "in_ledger",
+          },
+        ]) as any,
+        purpose: "agency_fee",
+      }),
+    ).toThrow(/principal invoice currency/);
   });
 
   it("finalizes reserved customer lines on exchange posting", () => {
