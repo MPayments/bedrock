@@ -130,6 +130,18 @@ function addUniqueBlocker(blockers: string[], blocker: string) {
   }
 }
 
+function isDealReconciliationRequired(_workflow: DealWorkflowProjection) {
+  return false;
+}
+
+function isReconciliationSatisfied(summary: FinanceDealReconciliationSummary) {
+  return (
+    summary.state === "clear" ||
+    summary.state === "not_required" ||
+    summary.state === "not_started"
+  );
+}
+
 function findStepForPlanLeg(
   steps: ReadonlyMap<string, PaymentStep>,
   leg: DealWorkflowProjection["executionPlan"][number],
@@ -192,6 +204,23 @@ function buildReconciliationState(input: {
   reconciliationSummary: FinanceDealReconciliationSummary;
   requiredStepIds: string[];
 } {
+  if (!isDealReconciliationRequired(input.workflow)) {
+    return {
+      reconciliationExceptions: [],
+      reconciliationSummary: {
+        ignoredExceptionCount: 0,
+        lastActivityAt: null,
+        openExceptionCount: 0,
+        pendingOperationCount: 0,
+        reconciledOperationCount: 0,
+        requiredOperationCount: 0,
+        resolvedExceptionCount: 0,
+        state: "not_required",
+      },
+      requiredStepIds: [],
+    };
+  }
+
   const requiredStepIds = Array.from(
     new Set(
       input.workflow.executionPlan
@@ -334,9 +363,8 @@ function createCriteria(input: {
   criteria.push(
     createCriterion(
       "reconciliation_clear",
-      "Сверка завершена без открытых исключений",
-      input.reconciliationSummary.state === "clear" ||
-        input.reconciliationSummary.state === "not_started",
+      "Сверка не требуется или завершена",
+      isReconciliationSatisfied(input.reconciliationSummary),
     ),
   );
 
@@ -648,7 +676,7 @@ export function deriveFinanceDealStage(input: {
 
   if (
     allLinkedStepsTerminal &&
-    input.reconciliationSummary.state !== "clear"
+    !isReconciliationSatisfied(input.reconciliationSummary)
   ) {
     return {
       stage: "awaiting_reconciliation",

@@ -20,7 +20,7 @@ import {
 import type { TreasuryModule } from "@bedrock/treasury";
 
 export function createApiCalculationsModule(input: {
-  currencies: Pick<CurrenciesService, "findById">;
+  currencies: Pick<CurrenciesService, "findByCode" | "findById">;
   db: Database;
   generateUuid?: CalculationsModuleDeps["generateUuid"];
   idempotency: IdempotencyPort;
@@ -39,6 +39,9 @@ export function createApiCalculationsModule(input: {
     references: {
       async assertCurrencyExists(id: string) {
         await input.currencies.findById(id);
+      },
+      async findCurrencyByCode(code: string) {
+        return input.currencies.findByCode(code);
       },
       async findFxQuoteById(id: string) {
         return input.treasuryQuotes.findById(id);

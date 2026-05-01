@@ -90,6 +90,10 @@ import { createApiAgreementsModule } from "./agreements-module";
 import { createApiCalculationsModule } from "./calculations-module";
 import type { ApiCoreServices } from "./core";
 import {
+  createDealPricingCommitWorkflow,
+  type DealPricingCommitWorkflow,
+} from "./deal-pricing-commit-workflow";
+import {
   createDealPricingWorkflow,
   type DealPricingWorkflow,
 } from "./deal-pricing-workflow";
@@ -129,6 +133,7 @@ export interface ApiApplicationServices {
   dealAttachmentIngestionWorkflow: DealAttachmentIngestionWorkflow;
   dealCommercialWorkflow: DealCommercialWorkflow;
   dealExecutionWorkflow: DealExecutionWorkflow;
+  dealPricingCommitWorkflow: DealPricingCommitWorkflow;
   dealPricingWorkflow: DealPricingWorkflow;
   dealQuoteWorkflow: DealQuoteWorkflow;
   dealProjectionsWorkflow: DealProjectionsWorkflow;
@@ -295,9 +300,7 @@ export function createApplicationServices(
     persistence: createPersistenceContext(db),
   });
   const dealQuoteWorkflow = createDealQuoteWorkflow({
-    agreements: agreementsModule,
     calculations: calculationsModule,
-    currencies: currenciesService,
     deals: dealsModule,
     treasury: treasuryModule,
   });
@@ -644,6 +647,17 @@ export function createApplicationServices(
     logger,
     treasury: treasuryModule,
   });
+  const dealPricingCommitWorkflow = createDealPricingCommitWorkflow({
+    currencies: currenciesService,
+    createDealsModule: createDealsModuleForTransaction,
+    createLedgerModule: createLedgerModuleForTransaction,
+    createTreasuryModule: createTreasuryModuleForTransaction,
+    dealCommercialWorkflow,
+    dealPricingWorkflow,
+    dealQuoteWorkflow,
+    dealsModule,
+    persistence: createPersistenceContext(db),
+  });
 
   return {
     agreementsModule,
@@ -661,6 +675,7 @@ export function createApplicationServices(
     dealAttachmentIngestionWorkflow,
     dealCommercialWorkflow,
     dealExecutionWorkflow,
+    dealPricingCommitWorkflow,
     dealPricingWorkflow,
     dealQuoteWorkflow,
     dealProjectionsWorkflow,

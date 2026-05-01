@@ -106,6 +106,19 @@ export interface CreateDrizzleAccountingModuleInput {
   generateUuid?: AccountingModuleDeps["generateUuid"];
 }
 
+export function bindAssertInternalLedgerOrganization(
+  organizationsQueries: DrizzleAccountingPartiesReadRuntime["organizationsQueries"],
+) {
+  return (organizationId: string) =>
+    organizationsQueries.assertInternalLedgerOrganization(organizationId);
+}
+
+export function bindListBooksByOwnerId(
+  booksQueries: DrizzleAccountingLedgerReadRuntime["booksQueries"],
+) {
+  return (organizationId: string) => booksQueries.listByOwnerId(organizationId);
+}
+
 export function createDrizzleAccountingModule(
   input: CreateDrizzleAccountingModuleInput,
 ): AccountingModule {
@@ -161,10 +174,12 @@ export function createDrizzleAccountingModule(
     reportsReads,
     closePackageSnapshotPort: createAccountingClosePackageSnapshotPort({
       repository: new DrizzlePeriodRepository(input.db),
-      assertInternalLedgerOrganization:
-        partiesReadRuntime.organizationsQueries
-          .assertInternalLedgerOrganization,
-      listBooksByOwnerId: ledgerReadRuntime.booksQueries.listByOwnerId,
+      assertInternalLedgerOrganization: bindAssertInternalLedgerOrganization(
+        partiesReadRuntime.organizationsQueries,
+      ),
+      listBooksByOwnerId: bindListBooksByOwnerId(
+        ledgerReadRuntime.booksQueries,
+      ),
       reportQueries: reportsReads,
       documentsReadModel: input.documentsReadModel,
     }),

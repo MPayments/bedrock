@@ -1,15 +1,11 @@
 import { z } from "zod";
 
 import { trimToNull } from "@bedrock/shared/core";
-import {
-  PaymentRouteDraftSchema,
-  PaymentRouteFeeSchema,
-} from "@bedrock/treasury/contracts";
 
 import {
   DealAmendmentKindSchema,
-  EXECUTION_AMENDMENT_REASONS,
   COMMERCIAL_AMENDMENT_REASONS,
+  EXECUTION_AMENDMENT_REASONS,
 } from "./amendment-reasons";
 import {
   DealAttachmentIngestionNormalizedPayloadSchema,
@@ -24,6 +20,10 @@ import {
   DealTimelineEventTypeSchema,
   DealTypeSchema,
 } from "./zod";
+import {
+  DealRouteFeeSchema,
+  DealRouteVersionSnapshotSchema,
+} from "../../domain/route-version";
 
 const nullableText = z
   .string()
@@ -131,7 +131,9 @@ export const ReplaceDealIntakeInputSchema = z.object({
   intake: DealIntakeDraftSchema,
 });
 
-export type ReplaceDealIntakeInput = z.infer<typeof ReplaceDealIntakeInputSchema>;
+export type ReplaceDealIntakeInput = z.infer<
+  typeof ReplaceDealIntakeInputSchema
+>;
 
 export const UpdateDealAgreementInputSchema = z.object({
   agreementId: z.uuid(),
@@ -151,10 +153,12 @@ export const UpdateDealCommentInputSchema = z.object({
   comment: nullableText,
 });
 
-export type UpdateDealCommentInput = z.infer<typeof UpdateDealCommentInputSchema>;
+export type UpdateDealCommentInput = z.infer<
+  typeof UpdateDealCommentInputSchema
+>;
 
 export const AttachDealPricingRouteInputSchema = z.object({
-  snapshot: PaymentRouteDraftSchema,
+  snapshot: DealRouteVersionSnapshotSchema,
   templateId: z.uuid(),
   templateName: z.string().trim().min(1),
 });
@@ -296,7 +300,10 @@ export const AppendDealTimelineEventInputSchema = z.object({
   payload: z.record(z.string(), z.unknown()).optional().default({}),
   sourceRef: nullableShortText,
   type: DealTimelineEventTypeSchema,
-  visibility: z.enum(["customer_safe", "internal"]).optional().default("internal"),
+  visibility: z
+    .enum(["customer_safe", "internal"])
+    .optional()
+    .default("internal"),
 });
 
 export type AppendDealTimelineEventInput = z.infer<
@@ -335,7 +342,7 @@ export const AmendDealLegBodyInputSchema = z
     changes: z
       .object({
         executionCounterpartyId: z.uuid().nullable().optional(),
-        fees: z.array(PaymentRouteFeeSchema).optional(),
+        fees: z.array(DealRouteFeeSchema).optional(),
         requisiteId: z.uuid().nullable().optional(),
       })
       .refine(

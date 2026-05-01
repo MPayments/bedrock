@@ -6,7 +6,13 @@ export interface CalculationFxQuoteReference {
   toCurrencyId: string;
 }
 
+export interface CalculationCurrencyReference {
+  code: string;
+  id: string;
+}
+
 export interface CalculationReferencesPort {
   assertCurrencyExists(id: string): Promise<void>;
+  findCurrencyByCode(code: string): Promise<CalculationCurrencyReference>;
   findFxQuoteById(id: string): Promise<CalculationFxQuoteReference | null>;
 }

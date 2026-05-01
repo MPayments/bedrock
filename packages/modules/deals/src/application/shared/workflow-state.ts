@@ -1,6 +1,6 @@
 import { toMinorAmountString } from "@bedrock/shared/money";
-import type { PaymentRouteDraft } from "@bedrock/treasury/contracts";
 
+import type { DealRouteVersionSnapshot } from "../../domain/route-version";
 import {
   buildDealExecutionPlan,
   deriveDealNextAction,
@@ -86,7 +86,7 @@ export function buildDealLegRows(input: {
   existingLegs?: DealWorkflowLeg[];
   generateUuid: () => string;
   intake: DealIntakeDraft;
-  routeSnapshot?: PaymentRouteDraft | null;
+  routeSnapshot?: DealRouteVersionSnapshot | null;
 }): CreateDealLegStoredInput[] {
   const existingLegs = input.existingLegs ?? [];
   const existingBySnapshotLegId = new Map<string, DealWorkflowLeg>();
@@ -178,7 +178,8 @@ export function buildDealParticipantRows(input: {
 
   if (input.intake.externalBeneficiary.beneficiaryCounterpartyId) {
     participants.push({
-      counterpartyId: input.intake.externalBeneficiary.beneficiaryCounterpartyId,
+      counterpartyId:
+        input.intake.externalBeneficiary.beneficiaryCounterpartyId,
       customerId: null,
       dealId: input.dealId,
       id: input.generateUuid(),

@@ -16,6 +16,8 @@ type ReconciliationSummary = FinanceDealWorkbench["reconciliationSummary"];
 
 function getReconciliationStateLabel(value: ReconciliationSummary["state"]) {
   switch (value) {
+    case "not_required":
+      return "Не требуется";
     case "clear":
       return "Сверено";
     case "blocked":
@@ -39,6 +41,7 @@ function getReconciliationStateVariant(
       return "destructive";
     case "pending":
       return "secondary";
+    case "not_required":
     case "not_started":
     default:
       return "outline";

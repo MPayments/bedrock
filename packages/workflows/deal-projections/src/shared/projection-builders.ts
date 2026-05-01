@@ -135,7 +135,21 @@ export function buildCrmEvidenceRequirements(input: {
   workflow: DealWorkflowProjection;
 }) {
   if (input.workflow.summary.type === "payment") {
-    const hasInvoice = hasAttachmentPurpose(input.attachments, "invoice");
+    const invoiceDocument = findRelatedFormalDocument({
+      docType: "invoice",
+      documents: input.workflow.relatedResources.formalDocuments,
+    });
+    const hasReadyInvoiceDocument = invoiceDocument
+      ? isFormalDocumentReady({
+          approvalStatus: invoiceDocument.approvalStatus,
+          lifecycleStatus: invoiceDocument.lifecycleStatus,
+          postingStatus: invoiceDocument.postingStatus,
+          submissionStatus: invoiceDocument.submissionStatus,
+        })
+      : false;
+    const hasInvoice =
+      hasAttachmentPurpose(input.attachments, "invoice") ||
+      hasReadyInvoiceDocument;
     const hasContract = hasAttachmentPurpose(input.attachments, "contract");
 
     return [

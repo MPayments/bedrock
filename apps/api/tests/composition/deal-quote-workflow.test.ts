@@ -81,6 +81,9 @@ function createWorkflow(overrides?: {
         create: vi.fn(async () => ({
           id: "calculation-1",
         })),
+        createFromAcceptedQuote: vi.fn(async () => ({
+          id: "calculation-1",
+        })),
       },
     },
   };
@@ -126,27 +129,35 @@ function createWorkflow(overrides?: {
           ]),
         markQuoteUsed:
           overrides?.markQuoteUsed ??
-          vi.fn(async (input: { dealId?: string | null; quoteId: string; usedByRef: string; usedDocumentId?: string | null; at: Date }) => ({
-            createdAt: new Date("2026-04-01T09:00:00.000Z"),
-            dealDirection: null,
-            dealForm: null,
-            dealId: input.dealId ?? "deal-1",
-            expiresAt: new Date("2099-04-01T11:00:00.000Z"),
-            fromAmountMinor: 10000n,
-            fromCurrencyId: "cur-usd",
-            id: input.quoteId,
-            idempotencyKey: "quote-1",
-            pricingMode: "auto_cross",
-            pricingTrace: {},
-            rateDen: 10n,
-            rateNum: 9n,
-            status: "used",
-            toAmountMinor: 9000n,
-            toCurrencyId: "cur-eur",
-            usedAt: input.at,
-            usedByRef: input.usedByRef,
-            usedDocumentId: input.usedDocumentId ?? null,
-          })),
+          vi.fn(
+            async (input: {
+              dealId?: string | null;
+              quoteId: string;
+              usedByRef: string;
+              usedDocumentId?: string | null;
+              at: Date;
+            }) => ({
+              createdAt: new Date("2026-04-01T09:00:00.000Z"),
+              dealDirection: null,
+              dealForm: null,
+              dealId: input.dealId ?? "deal-1",
+              expiresAt: new Date("2099-04-01T11:00:00.000Z"),
+              fromAmountMinor: 10000n,
+              fromCurrencyId: "cur-usd",
+              id: input.quoteId,
+              idempotencyKey: "quote-1",
+              pricingMode: "auto_cross",
+              pricingTrace: {},
+              rateDen: 10n,
+              rateNum: 9n,
+              status: "used",
+              toAmountMinor: 9000n,
+              toCurrencyId: "cur-eur",
+              usedAt: input.at,
+              usedByRef: input.usedByRef,
+              usedDocumentId: input.usedDocumentId ?? null,
+            }),
+          ),
       },
       queries: {
         getQuoteDetails:
@@ -212,9 +223,7 @@ function createWorkflow(overrides?: {
     deals,
     treasury,
     workflow: createDealQuoteWorkflow({
-      agreements: agreements as any,
       calculations: calculations as any,
-      currencies: currencies as any,
       deals: deals as any,
       treasury: treasury as any,
     }),
@@ -448,315 +457,33 @@ describe("deal quote workflow", () => {
       quoteId: "quote-1",
     });
 
-    expect(calculations.calculations.commands.create).toHaveBeenCalledWith(
+    expect(
+      calculations.calculations.commands.createFromAcceptedQuote,
+    ).toHaveBeenCalledWith(
       expect.objectContaining({
+        acceptedAgreementVersionId: "agreement-version-1",
         actorUserId: "user-1",
-        baseCurrencyId: "cur-eur",
-        calculationCurrencyId: "cur-usd",
-        fxQuoteId: "quote-1",
         idempotencyKey: "idem-1",
-        rateSource: "fx_quote",
+        quoteDetails: expect.objectContaining({
+          quote: expect.objectContaining({
+            id: "quote-1",
+          }),
+        }),
+        quoteSnapshot: expect.objectContaining({
+          quote: expect.objectContaining({
+            id: "quote-1",
+          }),
+        }),
       }),
     );
-    expect(deals.deals.commands.linkCalculationFromAcceptedQuote).toHaveBeenCalledWith(
-      {
-        actorUserId: "user-1",
-        calculationId: "calculation-1",
-        dealId: "deal-1",
-        quoteId: "quote-1",
-      },
-    );
+    expect(
+      deals.deals.commands.linkCalculationFromAcceptedQuote,
+    ).toHaveBeenCalledWith({
+      actorUserId: "user-1",
+      calculationId: "calculation-1",
+      dealId: "deal-1",
+      quoteId: "quote-1",
+    });
     expect(calculation).toEqual({ id: "calculation-1" });
-  });
-
-  it("uses accepted quote commercial terms when creating a calculation", async () => {
-    const { calculations, workflow } = createWorkflow();
-
-    await workflow.createCalculationFromAcceptedQuote({
-      actorUserId: "user-1",
-      dealId: "deal-1",
-      idempotencyKey: "idem-1",
-      quoteId: "quote-1",
-    });
-
-    expect(calculations.calculations.commands.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        agreementFeeAmountMinor: "100",
-        agreementFeeBps: "100",
-        additionalExpensesAmountMinor: "50",
-        additionalExpensesCurrencyId: "cur-eur",
-        additionalExpensesInBaseMinor: "50",
-        fixedFeeAmountMinor: "50",
-        fixedFeeCurrencyId: "cur-eur",
-        quoteMarkupAmountMinor: "0",
-        quoteMarkupBps: "0",
-        totalFeeAmountInBaseMinor: "90",
-        totalFeeAmountMinor: "100",
-        totalFeeBps: "100",
-        totalAmountMinor: "10100",
-        totalWithExpensesInBaseMinor: "9140",
-      }),
-    );
-  });
-
-  it("falls back to zeroed commercial totals when the accepted quote has no commercial terms", async () => {
-    const getQuoteDetails = vi.fn(async () => ({
-      feeComponents: [],
-      financialLines: [
-        {
-          amountMinor: 50n,
-          bucket: "pass_through",
-          currency: "EUR",
-          source: "rule",
-        },
-      ],
-      legs: [],
-      pricingTrace: {},
-      quote: {
-        commercialTerms: null,
-        createdAt: new Date("2026-04-01T10:00:00.000Z"),
-        dealDirection: null,
-        dealForm: null,
-        dealId: "deal-1",
-        expiresAt: new Date("2099-04-01T11:00:00.000Z"),
-        fromAmountMinor: 10000n,
-        fromCurrency: "USD",
-        fromCurrencyId: "cur-usd",
-        id: "quote-1",
-        idempotencyKey: "quote-1",
-        pricingMode: "auto_cross",
-        pricingTrace: {},
-        rateDen: 10n,
-        rateNum: 9n,
-        status: "active",
-        toAmountMinor: 9000n,
-        toCurrency: "EUR",
-        toCurrencyId: "cur-eur",
-        usedAt: null,
-        usedByRef: null,
-        usedDocumentId: null,
-      },
-    }));
-    const { calculations, workflow } = createWorkflow({ getQuoteDetails });
-
-    await workflow.createCalculationFromAcceptedQuote({
-      actorUserId: "user-1",
-      dealId: "deal-1",
-      idempotencyKey: "idem-1",
-      quoteId: "quote-1",
-    });
-
-    expect(calculations.calculations.commands.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        additionalExpensesAmountMinor: "50",
-        additionalExpensesCurrencyId: "cur-eur",
-        additionalExpensesInBaseMinor: "50",
-        agreementFeeAmountMinor: "0",
-        agreementFeeBps: "0",
-        fixedFeeAmountMinor: "0",
-        fixedFeeCurrencyId: null,
-        quoteMarkupAmountMinor: "0",
-        quoteMarkupBps: "0",
-        totalFeeAmountInBaseMinor: "0",
-        totalFeeAmountMinor: "0",
-        totalFeeBps: "0",
-        totalAmountMinor: "10000",
-        totalWithExpensesInBaseMinor: "9050",
-      }),
-    );
-  });
-
-  it("rounds fee bps instead of truncating when the fee amount lands between bps", async () => {
-    const getQuoteDetails = vi.fn(async () => ({
-      feeComponents: [],
-      financialLines: [],
-      legs: [],
-      pricingTrace: {},
-      quote: {
-        commercialTerms: {
-          agreementVersionId: "agreement-version-1",
-          agreementFeeBps: 100n,
-          quoteMarkupBps: 0n,
-          totalFeeBps: 100n,
-          fixedFeeAmountMinor: null,
-          fixedFeeCurrency: null,
-        },
-        createdAt: new Date("2026-04-01T10:00:00.000Z"),
-        dealDirection: null,
-        dealForm: null,
-        dealId: "deal-1",
-        expiresAt: new Date("2099-04-01T11:00:00.000Z"),
-        fromAmountMinor: 255133760n,
-        fromCurrency: "RUB",
-        fromCurrencyId: "cur-rub",
-        id: "quote-1",
-        idempotencyKey: "quote-1",
-        pricingMode: "auto_cross",
-        pricingTrace: {},
-        rateDen: 1000000n,
-        rateNum: 12542n,
-        status: "active",
-        toAmountMinor: 3200000n,
-        toCurrency: "USD",
-        toCurrencyId: "cur-usd",
-        usedAt: null,
-        usedByRef: null,
-        usedDocumentId: null,
-      },
-    }));
-    const { calculations, workflow } = createWorkflow({ getQuoteDetails });
-
-    await workflow.createCalculationFromAcceptedQuote({
-      actorUserId: "user-1",
-      dealId: "deal-1",
-      idempotencyKey: "idem-1",
-      quoteId: "quote-1",
-    });
-
-    expect(calculations.calculations.commands.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        agreementFeeAmountMinor: "2551338",
-        totalFeeAmountInBaseMinor: "31999",
-        totalFeeAmountMinor: "2551338",
-        totalFeeBps: "100",
-        totalAmountMinor: "257685098",
-      }),
-    );
-  });
-
-  it("rounds percentage fees and converted components with half-up minor-unit policy", async () => {
-    const getQuoteDetails = vi.fn(async () => ({
-      feeComponents: [],
-      financialLines: [
-        {
-          amountMinor: 1n,
-          bucket: "pass_through",
-          currency: "USD",
-          source: "manual",
-        },
-      ],
-      legs: [],
-      pricingTrace: {},
-      quote: {
-        commercialTerms: {
-          agreementVersionId: "agreement-version-1",
-          agreementFeeBps: 100n,
-          quoteMarkupBps: 0n,
-          totalFeeBps: 100n,
-          fixedFeeAmountMinor: 1n,
-          fixedFeeCurrency: "USD",
-        },
-        createdAt: new Date("2026-04-01T10:00:00.000Z"),
-        dealDirection: null,
-        dealForm: null,
-        dealId: "deal-1",
-        expiresAt: new Date("2099-04-01T11:00:00.000Z"),
-        fromAmountMinor: 50n,
-        fromCurrency: "USD",
-        fromCurrencyId: "cur-usd",
-        id: "quote-1",
-        idempotencyKey: "quote-1",
-        pricingMode: "auto_cross",
-        pricingTrace: {},
-        rateDen: 2n,
-        rateNum: 1n,
-        status: "active",
-        toAmountMinor: 25n,
-        toCurrency: "EUR",
-        toCurrencyId: "cur-eur",
-        usedAt: null,
-        usedByRef: null,
-        usedDocumentId: null,
-      },
-    }));
-    const { calculations, workflow } = createWorkflow({ getQuoteDetails });
-
-    await workflow.createCalculationFromAcceptedQuote({
-      actorUserId: "user-1",
-      dealId: "deal-1",
-      idempotencyKey: "idem-1",
-      quoteId: "quote-1",
-    });
-
-    expect(calculations.calculations.commands.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        additionalExpensesAmountMinor: "1",
-        additionalExpensesCurrencyId: "cur-usd",
-        additionalExpensesInBaseMinor: "1",
-        agreementFeeAmountMinor: "1",
-        fixedFeeAmountMinor: "1",
-        fixedFeeCurrencyId: "cur-usd",
-        totalFeeAmountInBaseMinor: "1",
-        totalFeeAmountMinor: "1",
-        totalAmountMinor: "51",
-        totalWithExpensesInBaseMinor: "27",
-      }),
-    );
-  });
-
-  it("ignores route-embedded pass-through lines when deriving calculation expenses", async () => {
-    const getQuoteDetails = vi.fn(async () => ({
-      feeComponents: [],
-      financialLines: [
-        {
-          amountMinor: 200n,
-          bucket: "pass_through",
-          currency: "USD",
-          metadata: {
-            embeddedInRoute: "true",
-          },
-          source: "manual",
-        },
-        {
-          amountMinor: 50n,
-          bucket: "pass_through",
-          currency: "USD",
-          source: "manual",
-        },
-      ],
-      legs: [],
-      pricingTrace: {},
-      quote: {
-        commercialTerms: null,
-        createdAt: new Date("2026-04-01T10:00:00.000Z"),
-        dealDirection: null,
-        dealForm: null,
-        dealId: "deal-1",
-        expiresAt: new Date("2099-04-01T11:00:00.000Z"),
-        fromAmountMinor: 10000n,
-        fromCurrency: "USD",
-        fromCurrencyId: "cur-usd",
-        id: "quote-1",
-        idempotencyKey: "quote-1",
-        pricingMode: "explicit_route",
-        pricingTrace: {},
-        rateDen: 10n,
-        rateNum: 9n,
-        status: "active",
-        toAmountMinor: 9000n,
-        toCurrency: "EUR",
-        toCurrencyId: "cur-eur",
-        usedAt: null,
-        usedByRef: null,
-        usedDocumentId: null,
-      },
-    }));
-    const { calculations, workflow } = createWorkflow({ getQuoteDetails });
-
-    await workflow.createCalculationFromAcceptedQuote({
-      actorUserId: "user-1",
-      dealId: "deal-1",
-      idempotencyKey: "idem-1",
-      quoteId: "quote-1",
-    });
-
-    expect(calculations.calculations.commands.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        additionalExpensesAmountMinor: "50",
-        additionalExpensesCurrencyId: "cur-usd",
-        additionalExpensesInBaseMinor: "45",
-        totalWithExpensesInBaseMinor: "9045",
-      }),
-    );
   });
 });

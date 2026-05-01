@@ -6,6 +6,7 @@ import type { CurrenciesService } from "@bedrock/currencies";
 import { createCurrenciesQueries } from "@bedrock/currencies/queries";
 import {
   createDealsModule,
+  type DealRouteVersionSnapshot,
   DealTypeNotSupportedError,
   type DealsModule,
   type DealsModuleDeps,
@@ -15,7 +16,10 @@ import {
   DrizzleDealsUnitOfWork,
 } from "@bedrock/deals/adapters/drizzle";
 import { createDrizzleDocumentsReadModel } from "@bedrock/documents/read-model";
-import { DrizzleCounterpartyReads, DrizzleCustomerReads } from "@bedrock/parties/adapters/drizzle";
+import {
+  DrizzleCounterpartyReads,
+  DrizzleCustomerReads,
+} from "@bedrock/parties/adapters/drizzle";
 import { createPartiesQueries } from "@bedrock/parties/queries";
 import type { IdempotencyPort } from "@bedrock/platform/idempotency";
 import type { Logger } from "@bedrock/platform/observability/logger";
@@ -25,7 +29,6 @@ import {
   type PersistenceContext,
 } from "@bedrock/platform/persistence";
 import type {
-  PaymentRouteDraft,
   QuoteDetailsRecord,
   TreasuryInventoryPosition,
 } from "@bedrock/treasury/contracts";
@@ -42,9 +45,7 @@ function createDealFundingAssessmentPort(input: {
     }): Promise<{ data: TreasuryInventoryPosition[] }>;
   };
   quoteReads: {
-    getQuoteDetails(input: {
-      quoteRef: string;
-    }): Promise<QuoteDetailsRecord>;
+    getQuoteDetails(input: { quoteRef: string }): Promise<QuoteDetailsRecord>;
   };
 }) {
   return {
@@ -126,14 +127,13 @@ function createDealFundingAssessmentPort(input: {
       const requiredAmountMinor = quoteDetails.quote.toAmountMinor;
       const targetCurrencyId = quoteDetails.quote.toCurrencyId;
       const targetCurrency = quoteDetails.quote.toCurrency ?? null;
-      const inventory =
-        await input.inventoryPositions.listInventoryPositions({
-          currencyId: targetCurrencyId,
-          limit: 100,
-          offset: 0,
-          ownerPartyId: inputParams.internalEntityOrganizationId,
-          state: "open",
-        });
+      const inventory = await input.inventoryPositions.listInventoryPositions({
+        currencyId: targetCurrencyId,
+        limit: 100,
+        offset: 0,
+        ownerPartyId: inputParams.internalEntityOrganizationId,
+        state: "open",
+      });
       const positions = inventory.data;
       const coveringPosition =
         positions.find(
@@ -189,7 +189,7 @@ export function createApiDealsModule(input: {
   persistence?: PersistenceContext;
   paymentRouteTemplates?: {
     findById(id: string): Promise<{
-      draft: PaymentRouteDraft;
+      draft: DealRouteVersionSnapshot;
       id: string;
       name: string;
     } | null>;
@@ -207,9 +207,7 @@ export function createApiDealsModule(input: {
       usedAt: Date | null;
       usedDocumentId: string | null;
     } | null>;
-    getQuoteDetails(input: {
-      quoteRef: string;
-    }): Promise<QuoteDetailsRecord>;
+    getQuoteDetails(input: { quoteRef: string }): Promise<QuoteDetailsRecord>;
   };
 }): DealsModule {
   const customerReads = new DrizzleCustomerReads(input.db);

@@ -14,3 +14,4 @@ export {
   type DealsModule,
   type DealsModuleDeps,
 } from "./module";
+export { type DealRouteVersionSnapshot } from "./domain/route-version";

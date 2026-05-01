@@ -36,6 +36,7 @@ import type { RequisiteAccountingWorkflow } from "@bedrock/workflow-requisite-ac
 
 import { createApplicationServices } from "./composition/application";
 import { createCoreServices } from "./composition/core";
+import type { DealPricingCommitWorkflow } from "./composition/deal-pricing-commit-workflow";
 import type { DealPricingWorkflow } from "./composition/deal-pricing-workflow";
 import type { DealQuoteWorkflow } from "./composition/deal-quote-workflow";
 import type { ApiPartiesReadRuntime } from "./composition/parties-module";
@@ -128,6 +129,7 @@ export interface AppContext {
   dealAttachmentIngestionWorkflow: DealAttachmentIngestionWorkflow;
   dealCommercialWorkflow: DealCommercialWorkflow;
   dealExecutionWorkflow: DealExecutionWorkflow;
+  dealPricingCommitWorkflow: DealPricingCommitWorkflow;
   dealPricingWorkflow: DealPricingWorkflow;
   dealQuoteWorkflow: DealQuoteWorkflow;
   dealProjectionsWorkflow: DealProjectionsWorkflow;
@@ -175,6 +177,7 @@ export function createAppContext(env: Env): AppContext {
       applicationServices.dealAttachmentIngestionWorkflow,
     dealCommercialWorkflow: applicationServices.dealCommercialWorkflow,
     dealExecutionWorkflow: applicationServices.dealExecutionWorkflow,
+    dealPricingCommitWorkflow: applicationServices.dealPricingCommitWorkflow,
     dealPricingWorkflow: applicationServices.dealPricingWorkflow,
     dealQuoteWorkflow: applicationServices.dealQuoteWorkflow,
     dealProjectionsWorkflow: applicationServices.dealProjectionsWorkflow,

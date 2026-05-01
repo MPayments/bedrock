@@ -1,5 +1,3 @@
-import type { PaymentRouteDraft } from "@bedrock/treasury/model";
-
 import {
   DEAL_REQUIRED_SECTION_IDS_BY_TYPE,
   type DEAL_LEG_KIND_VALUES,
@@ -16,14 +14,16 @@ import type {
   DealTimelineEvent,
   DealWorkflowLeg,
 } from "./model";
+import type { DealRouteVersionSnapshot } from "./route-version";
 
-const NEXT_PROGRESS_STATUS_BY_STATUS: Partial<Record<DealStatus, DealStatus>> = {
-  awaiting_funds: "awaiting_payment",
-  awaiting_payment: "closing_documents",
-  closing_documents: "done",
-  preparing_documents: "awaiting_funds",
-  submitted: "preparing_documents",
-};
+const NEXT_PROGRESS_STATUS_BY_STATUS: Partial<Record<DealStatus, DealStatus>> =
+  {
+    awaiting_funds: "awaiting_payment",
+    awaiting_payment: "closing_documents",
+    closing_documents: "done",
+    preparing_documents: "awaiting_funds",
+    submitted: "preparing_documents",
+  };
 
 function hasText(value: string | null | undefined): boolean {
   return Boolean(value && value.trim().length > 0);
@@ -33,15 +33,20 @@ function hasMoneyAmount(value: string | null | undefined): boolean {
   return Boolean(value && value.trim().length > 0);
 }
 
-function hasBankInstruction(input: DealIntakeDraft["externalBeneficiary"]["bankInstructionSnapshot"] | DealIntakeDraft["settlementDestination"]["bankInstructionSnapshot"] | null): boolean {
+function hasBankInstruction(
+  input:
+    | DealIntakeDraft["externalBeneficiary"]["bankInstructionSnapshot"]
+    | DealIntakeDraft["settlementDestination"]["bankInstructionSnapshot"]
+    | null,
+): boolean {
   if (!input) {
     return false;
   }
 
   return Boolean(
     hasText(input.beneficiaryName) &&
-      (hasText(input.accountNo) || hasText(input.iban)) &&
-      (hasText(input.swift) || hasText(input.bic)),
+    (hasText(input.accountNo) || hasText(input.iban)) &&
+    (hasText(input.swift) || hasText(input.bic)),
   );
 }
 
@@ -61,9 +66,9 @@ function hasCounterpartySnapshot(
 export function dealIntakeHasConvertLeg(intake: DealIntakeDraft): boolean {
   return Boolean(
     intake.moneyRequest.targetCurrencyId &&
-      intake.moneyRequest.sourceCurrencyId &&
-      intake.moneyRequest.targetCurrencyId !==
-        intake.moneyRequest.sourceCurrencyId,
+    intake.moneyRequest.sourceCurrencyId &&
+    intake.moneyRequest.targetCurrencyId !==
+      intake.moneyRequest.sourceCurrencyId,
   );
 }
 
@@ -85,7 +90,10 @@ function isAcceptedQuoteCurrentAndExecutable(input: {
     return false;
   }
 
-  if (acceptance.expiresAt && acceptance.expiresAt.getTime() <= input.now.getTime()) {
+  if (
+    acceptance.expiresAt &&
+    acceptance.expiresAt.getTime() <= input.now.getTime()
+  ) {
     return false;
   }
 
@@ -124,10 +132,7 @@ export function evaluateDealSectionCompleteness(
   if (!intake.moneyRequest.sourceCurrencyId) {
     moneyRequestBlockingReasons.push("Source currency is required");
   }
-  if (
-    intake.type === "currency_exchange" &&
-    !dealIntakeHasConvertLeg(intake)
-  ) {
+  if (intake.type === "currency_exchange" && !dealIntakeHasConvertLeg(intake)) {
     moneyRequestBlockingReasons.push(
       "Exchange deals require a different target currency",
     );
@@ -185,7 +190,9 @@ export function evaluateDealSectionCompleteness(
     intake.settlementDestination.mode === "applicant_requisite" &&
     !intake.settlementDestination.requisiteId
   ) {
-    settlementDestinationBlockingReasons.push("Applicant requisite is required");
+    settlementDestinationBlockingReasons.push(
+      "Applicant requisite is required",
+    );
   } else if (
     intake.settlementDestination.mode === "manual" &&
     !hasBankInstruction(intake.settlementDestination.bankInstructionSnapshot)
@@ -238,8 +245,8 @@ function createLeg(
 
 function mapRouteLegToDealLeg(
   idx: number,
-  routeLeg: PaymentRouteDraft["legs"][number],
-  participants: PaymentRouteDraft["participants"],
+  routeLeg: DealRouteVersionSnapshot["legs"][number],
+  participants: DealRouteVersionSnapshot["participants"],
   routeLegIndex: number,
 ): DealWorkflowLeg {
   const fromParticipant = participants[routeLegIndex] ?? null;
@@ -297,7 +304,7 @@ function buildCanonicalDealExecutionPlan(
 
 function buildRouteDerivedDealExecutionPlan(
   _intake: DealIntakeDraft,
-  routeSnapshot: PaymentRouteDraft,
+  routeSnapshot: DealRouteVersionSnapshot,
 ): DealWorkflowLeg[] {
   return routeSnapshot.legs.map((routeLeg, offset) =>
     mapRouteLegToDealLeg(
@@ -311,7 +318,7 @@ function buildRouteDerivedDealExecutionPlan(
 
 export function buildDealExecutionPlan(
   intake: DealIntakeDraft,
-  routeSnapshot: PaymentRouteDraft | null = null,
+  routeSnapshot: DealRouteVersionSnapshot | null = null,
 ): DealWorkflowLeg[] {
   if (routeSnapshot && routeSnapshot.legs.length > 0) {
     return buildRouteDerivedDealExecutionPlan(intake, routeSnapshot);
@@ -335,9 +342,11 @@ function hasPostedTransferDocument(
 ): boolean {
   return documents.some(
     (document) =>
-      ["transfer_intra", "transfer_intercompany", "transfer_resolution"].includes(
-        document.docType,
-      ) &&
+      [
+        "transfer_intra",
+        "transfer_intercompany",
+        "transfer_resolution",
+      ].includes(document.docType) &&
       document.lifecycleStatus === "active" &&
       document.postingStatus === "posted",
   );
@@ -414,7 +423,7 @@ export function buildEffectiveDealExecutionPlan(input: {
   intake: DealIntakeDraft;
   now: Date;
   paymentSteps?: DealLegPaymentStepRef[];
-  routeSnapshot: PaymentRouteDraft | null;
+  routeSnapshot: DealRouteVersionSnapshot | null;
   storedLegs: DealWorkflowLeg[];
 }): DealWorkflowLeg[] {
   const basePlan = buildDealExecutionPlan(input.intake, input.routeSnapshot);
@@ -552,9 +561,10 @@ export function deriveDealNextAction(input: {
 
   if (
     relevantBlockers.some((blocker) =>
-      ["operational_position_incomplete", "operational_position_blocked"].includes(
-        blocker.code,
-      ),
+      [
+        "operational_position_incomplete",
+        "operational_position_blocked",
+      ].includes(blocker.code),
     )
   ) {
     return "Resolve operational state";
@@ -595,9 +605,11 @@ export function deriveDealNextAction(input: {
 
   if (
     relevantBlockers.some((blocker) =>
-      ["execution_leg_blocked", "execution_leg_not_ready", "execution_leg_not_done"].includes(
-        blocker.code,
-      ),
+      [
+        "execution_leg_blocked",
+        "execution_leg_not_ready",
+        "execution_leg_not_done",
+      ].includes(blocker.code),
     )
   ) {
     return "Update execution leg state";

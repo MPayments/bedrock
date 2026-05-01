@@ -1,7 +1,13 @@
 import type { DealWorkflowProjection } from "@bedrock/deals/contracts";
 import type { Counterparty, Customer } from "@bedrock/parties/contracts";
+import type { ReconciliationOperationLinkDto } from "@bedrock/reconciliation/contracts";
 import { MAX_QUERY_LIST_LIMIT } from "@bedrock/shared/core";
+import type {
+  PaymentStep,
+  QuoteExecution,
+} from "@bedrock/treasury/contracts";
 
+import { deriveFinanceDealReadiness } from "../close-readiness";
 import type {
   CrmDealCustomerContext,
   CrmDealWorkbenchProjection,
@@ -121,6 +127,29 @@ function buildCrmWorkbenchEditability(workflow: DealWorkflowProjection) {
   };
 }
 
+function replaceDoneTransitionReadiness(input: {
+  closeReadiness: ReturnType<typeof deriveFinanceDealReadiness>["closeReadiness"];
+  workflow: DealWorkflowProjection;
+}): DealWorkflowProjection["transitionReadiness"] {
+  return input.workflow.transitionReadiness.map((readiness) => {
+    if (readiness.targetStatus !== "done") {
+      return readiness;
+    }
+
+    return {
+      allowed: input.closeReadiness.ready,
+      blockers: input.closeReadiness.blockers.map((message) => ({
+        code: "execution_leg_not_done",
+        message,
+        meta: {
+          source: "finance_close_readiness",
+        },
+      })),
+      targetStatus: "done",
+    };
+  });
+}
+
 function toCrmDealCustomerContext(
   customer: Customer,
   counterparties: Counterparty[],
@@ -138,6 +167,7 @@ type CrmWorkbenchDeps = Pick<
   | "deals"
   | "files"
   | "parties"
+  | "reconciliation"
   | "treasury"
 >;
 
@@ -257,6 +287,52 @@ export async function getCrmDealWorkbenchProjection(
         internalEntityRequisite.providerId,
       )
     : null;
+  const paymentStepByPlanLegId = new Map<string, PaymentStep>();
+  for (const step of paymentStepsResult.data) {
+    if (
+      step.origin.type === "deal_execution_leg" &&
+      step.origin.planLegId !== null
+    ) {
+      paymentStepByPlanLegId.set(step.origin.planLegId, step);
+    }
+  }
+  const quoteExecutionByPlanLegId = new Map<string, QuoteExecution>();
+  for (const execution of quoteExecutionsResult.data) {
+    if (
+      execution.origin.type === "deal_execution_leg" &&
+      execution.origin.planLegId !== null
+    ) {
+      quoteExecutionByPlanLegId.set(execution.origin.planLegId, execution);
+    }
+  }
+  const reconciliationLinks =
+    paymentStepsResult.data.length > 0
+      ? await deps.reconciliation.links.listOperationLinks({
+          operationIds: paymentStepsResult.data.map((step) => step.id),
+        })
+      : [];
+  const reconciliationLinksByStepId = new Map(
+    reconciliationLinks.map(
+      (link): readonly [string, ReconciliationOperationLinkDto] => [
+        link.operationId,
+        link,
+      ],
+    ),
+  );
+  const { closeReadiness } = deriveFinanceDealReadiness({
+    paymentStepByPlanLegId,
+    quoteExecutionByPlanLegId,
+    reconciliationLinksByStepId,
+    workflow,
+  });
+  const transitionReadiness = replaceDoneTransitionReadiness({
+    closeReadiness,
+    workflow,
+  });
+  const workflowWithCloseReadiness = {
+    ...workflow,
+    transitionReadiness,
+  };
 
   const actions = buildCrmWorkbenchActions(workflow);
   const editability = buildCrmWorkbenchEditability(workflow);
@@ -341,7 +417,7 @@ export async function getCrmDealWorkbenchProjection(
         null,
     },
     timeline: workflow.timeline,
-    transitionReadiness: workflow.transitionReadiness,
-    workflow,
+    transitionReadiness,
+    workflow: workflowWithCloseReadiness,
   };
 }

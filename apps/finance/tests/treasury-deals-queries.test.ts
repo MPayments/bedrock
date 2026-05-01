@@ -162,7 +162,7 @@ function createFinanceWorkspacePayload(): SerializedDates<FinanceDealWorkspace> 
       reconciledOperationCount: 0,
       requiredOperationCount: 0,
       resolvedExceptionCount: 0,
-      state: "not_started",
+      state: "not_required",
     },
     relatedResources: {
       attachments: [

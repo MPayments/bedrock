@@ -12,6 +12,7 @@ import {
   createQuoteCommercialTerms,
 } from "../../domain/commercial-terms";
 import { computePricingFingerprint } from "../../domain/pricing-fingerprint";
+import { extractCrmPricingFingerprintSnapshot } from "../../domain/pricing-trace";
 import { Quote } from "../../domain/quote";
 import { QuotePricingPlan } from "../../domain/quote-pricing-plan";
 import { QuoteRoute } from "../../domain/quote-route";
@@ -24,35 +25,6 @@ import type {
   QuotesCommandTx,
   QuotesCommandUnitOfWork,
 } from "../ports";
-
-function readRecord(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : null;
-}
-
-function extractCrmPricingFingerprintSnapshot(
-  pricingTrace: Record<string, unknown>,
-) {
-  const metadata = readRecord(pricingTrace.metadata);
-  const snapshot = readRecord(metadata?.crmPricingSnapshot);
-  if (!snapshot) {
-    return null;
-  }
-
-  const clientSide = readRecord(snapshot.clientSide);
-  const executionSide = readRecord(snapshot.executionSide);
-  const pnl = readRecord(snapshot.pnl);
-  if (!clientSide || !executionSide || !pnl) {
-    return null;
-  }
-
-  return {
-    clientSide,
-    executionSide,
-    pnl,
-  };
-}
 
 export class CreateQuoteCommand {
   constructor(
@@ -77,7 +49,10 @@ export class CreateQuoteCommand {
       const currencyCodes = [
         pricingSnapshot.fromCurrency,
         pricingSnapshot.toCurrency,
-        ...pricingSnapshot.legs.flatMap((leg) => [leg.fromCurrency, leg.toCurrency]),
+        ...pricingSnapshot.legs.flatMap((leg) => [
+          leg.fromCurrency,
+          leg.toCurrency,
+        ]),
         ...pricingSnapshot.feeComponents.map((component) => component.currency),
         ...pricingSnapshot.financialLines.map((line) => line.currency),
       ];
@@ -90,7 +65,9 @@ export class CreateQuoteCommand {
         }),
       );
 
-      const fromCurrencyId = currencyIdByCode.get(pricingSnapshot.fromCurrency)!;
+      const fromCurrencyId = currencyIdByCode.get(
+        pricingSnapshot.fromCurrency,
+      )!;
       const toCurrencyId = currencyIdByCode.get(pricingSnapshot.toCurrency)!;
       const crmPricingSnapshot = extractCrmPricingFingerprintSnapshot(
         pricingSnapshot.pricingTrace,
@@ -148,49 +125,47 @@ export class CreateQuoteCommand {
           })),
         );
 
-        await tx.quoteFeeComponents.replaceQuoteFeeComponents(
-          {
+        await tx.quoteFeeComponents.replaceQuoteFeeComponents({
+          quoteId: created.id,
+          components: pricingSnapshot.feeComponents.map((component, index) => ({
             quoteId: created.id,
-            components: pricingSnapshot.feeComponents.map((component, index) => ({
-              quoteId: created.id,
-              idx: index + 1,
-              ruleId: component.ruleId ?? null,
-              kind: component.kind,
-              currencyId: currencyIdByCode.get(component.currency)!,
-              amountMinor: component.amountMinor,
-              source: component.source,
-              settlementMode: component.settlementMode ?? "in_ledger",
-              memo: component.memo ?? null,
-              metadata: component.metadata ?? null,
-            })),
-          },
-        );
+            idx: index + 1,
+            ruleId: component.ruleId ?? null,
+            kind: component.kind,
+            currencyId: currencyIdByCode.get(component.currency)!,
+            amountMinor: component.amountMinor,
+            source: component.source,
+            settlementMode: component.settlementMode ?? "in_ledger",
+            memo: component.memo ?? null,
+            metadata: component.metadata ?? null,
+          })),
+        });
 
         const financialLineCurrencyIds = new Map<string, string>();
         await Promise.all(
-          [...new Set(pricingSnapshot.financialLines.map((line) => line.currency))].map(
-            async (code) => {
-              const currency = await this.currencies.findByCode(code);
-              financialLineCurrencyIds.set(currency.code, currency.id);
-            },
-          ),
+          [
+            ...new Set(
+              pricingSnapshot.financialLines.map((line) => line.currency),
+            ),
+          ].map(async (code) => {
+            const currency = await this.currencies.findByCode(code);
+            financialLineCurrencyIds.set(currency.code, currency.id);
+          }),
         );
-        await tx.quoteFinancialLines.replaceQuoteFinancialLines(
-          {
+        await tx.quoteFinancialLines.replaceQuoteFinancialLines({
+          quoteId: created.id,
+          financialLines: pricingSnapshot.financialLines.map((line, index) => ({
             quoteId: created.id,
-            financialLines: pricingSnapshot.financialLines.map((line, index) => ({
-              quoteId: created.id,
-              idx: index + 1,
-              bucket: line.bucket,
-              currencyId: financialLineCurrencyIds.get(line.currency)!,
-              amountMinor: line.amountMinor,
-              source: line.source,
-              settlementMode: line.settlementMode ?? "in_ledger",
-              memo: line.memo ?? null,
-              metadata: line.metadata ?? null,
-            })),
-          },
-        );
+            idx: index + 1,
+            bucket: line.bucket,
+            currencyId: financialLineCurrencyIds.get(line.currency)!,
+            amountMinor: line.amountMinor,
+            source: line.source,
+            settlementMode: line.settlementMode ?? "in_ledger",
+            memo: line.memo ?? null,
+            metadata: line.metadata ?? null,
+          })),
+        });
 
         this.runtime.log.info("Treasury quote created", {
           quoteId: created.id,
@@ -213,12 +188,12 @@ export class CreateQuoteCommand {
         );
       }
 
-        await this.assertIdempotentReplayMatches(
-          validated.idempotencyKey,
-          validated.dealId ?? null,
-          pricingPlan,
-          racedExisting,
-          tx,
+      await this.assertIdempotentReplayMatches(
+        validated.idempotencyKey,
+        validated.dealId ?? null,
+        pricingPlan,
+        racedExisting,
+        tx,
       );
 
       return enrichPairCurrencyRecord(this.currencies, racedExisting);
@@ -249,7 +224,8 @@ export class CreateQuoteCommand {
         at: validated.asOf,
       });
       const commercialTerms = createQuoteCommercialTerms({
-        agreementVersionId: validated.commercialTerms?.agreementVersionId ?? null,
+        agreementVersionId:
+          validated.commercialTerms?.agreementVersionId ?? null,
         agreementFeeBps:
           validated.commercialTerms?.agreementFeeBps !== undefined
             ? BigInt(validated.commercialTerms.agreementFeeBps)
@@ -278,7 +254,8 @@ export class CreateQuoteCommand {
       });
     }
 
-    const sourceAmountMinor = this.resolveExplicitRouteSourceAmountMinor(validated);
+    const sourceAmountMinor =
+      this.resolveExplicitRouteSourceAmountMinor(validated);
     const feeComponents = await this.fees.calculateQuoteFeeComponents({
       fromCurrency: validated.fromCurrency,
       toCurrency: validated.toCurrency,
@@ -377,9 +354,7 @@ export class CreateQuoteCommand {
       tx.quoteFinancialLines.listQuoteFinancialLines(existingQuote.id),
     ]);
     const legCurrencyIds = [
-      ...new Set(
-        legs.flatMap((leg) => [leg.fromCurrencyId, leg.toCurrencyId]),
-      ),
+      ...new Set(legs.flatMap((leg) => [leg.fromCurrencyId, leg.toCurrencyId])),
     ];
     const legCurrencyCodeById = new Map<string, string>();
     await Promise.all(
@@ -432,9 +407,7 @@ export class CreateQuoteCommand {
             legCurrencyCodeById.get(leg.fromCurrencyId) ??
             "",
           toCurrency:
-            leg.toCurrency ??
-            legCurrencyCodeById.get(leg.toCurrencyId) ??
-            "",
+            leg.toCurrency ?? legCurrencyCodeById.get(leg.toCurrencyId) ?? "",
           fromAmountMinor: leg.fromAmountMinor,
           toAmountMinor: leg.toAmountMinor,
           rateNum: leg.rateNum,

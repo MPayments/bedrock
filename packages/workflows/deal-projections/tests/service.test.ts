@@ -841,6 +841,115 @@ describe("createDealProjectionsWorkflow", () => {
     ]);
   });
 
+  it("treats a ready formal invoice as payment invoice evidence in CRM", async () => {
+    const workflowState = createBaseWorkflow();
+    const workflow = createWorkflow({
+      attachments: [],
+      workflow: {
+        ...workflowState,
+        relatedResources: {
+          ...workflowState.relatedResources,
+          formalDocuments: [
+            {
+              approvalStatus: "approved",
+              createdAt: new Date("2026-04-01T10:05:00.000Z"),
+              docType: "invoice",
+              id: "document-invoice",
+              invoicePurpose: "combined",
+              lifecycleStatus: "active",
+              occurredAt: new Date("2026-04-01T10:05:00.000Z"),
+              postingStatus: "posted",
+              submissionStatus: "submitted",
+            },
+          ],
+        },
+      },
+    });
+
+    const projection = await workflow.getCrmDealWorkbenchProjection("deal-1");
+
+    expect(projection).not.toBeNull();
+    expect(projection?.evidenceRequirements).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          blockingReasons: [],
+          code: "invoice",
+          state: "provided",
+        }),
+      ]),
+    );
+  });
+
+  it("uses finance close readiness for the CRM done transition", async () => {
+    const workflowState = createBaseWorkflow();
+    const workflow = createWorkflow({
+      paymentSteps: [
+        {
+          dealId: "deal-1",
+          fromAmountMinor: 10000000n,
+          fromCurrencyId: "currency-rub",
+          id: "operation-1",
+          kind: "payout",
+          planLegId: "leg-1",
+          sequence: 1,
+          state: "completed",
+          toCurrencyId: "currency-rub",
+        },
+      ],
+      workflow: {
+        ...workflowState,
+        executionPlan: [
+          {
+            fromCurrencyId: null,
+            id: "leg-1",
+            idx: 1,
+            kind: "payout",
+            operationRefs: [
+              {
+                kind: "payout",
+                operationId: "operation-1",
+                sourceRef: "deal:deal-1:leg:1:payout:1",
+              },
+            ],
+            routeSnapshotLegId: null,
+            state: "ready",
+            toCurrencyId: null,
+          },
+        ],
+        summary: {
+          ...workflowState.summary,
+          calculationId: "calculation-1",
+          status: "closing_documents",
+        },
+        transitionReadiness: [
+          {
+            allowed: true,
+            blockers: [],
+            targetStatus: "done",
+          },
+        ],
+      },
+    });
+
+    const projection = await workflow.getCrmDealWorkbenchProjection("deal-1");
+    const topLevelDone = projection?.transitionReadiness.find(
+      (item) => item.targetStatus === "done",
+    );
+    const workflowDone = projection?.workflow.transitionReadiness.find(
+      (item) => item.targetStatus === "done",
+    );
+
+    expect(topLevelDone).toMatchObject({
+      allowed: false,
+      blockers: [
+        expect.objectContaining({
+          message: "Закрывающие документы готовы",
+        }),
+      ],
+    });
+    expect(workflowDone).toEqual(topLevelDone);
+  });
+
   it("builds CRM board projections when quote expiry timestamps arrive as strings", async () => {
     const workflow = createWorkflow({
       workflow: {
@@ -1289,37 +1398,29 @@ describe("createDealProjectionsWorkflow", () => {
       },
       reconciliationSummary: {
         ignoredExceptionCount: 0,
-        lastActivityAt: new Date("2026-04-01T11:00:00.000Z"),
-        openExceptionCount: 1,
+        lastActivityAt: null,
+        openExceptionCount: 0,
         pendingOperationCount: 0,
-        reconciledOperationCount: 1,
-        requiredOperationCount: 1,
+        reconciledOperationCount: 0,
+        requiredOperationCount: 0,
         resolvedExceptionCount: 0,
-        state: "blocked",
+        state: "not_required",
       },
       closeReadiness: {
-        blockers: expect.arrayContaining([
-          "Есть открытые исключения сверки",
-        ]),
         criteria: expect.arrayContaining([
           expect.objectContaining({
             code: "reconciliation_clear",
-            satisfied: false,
+            satisfied: true,
           }),
           expect.objectContaining({
             code: "payment_payout_settled",
             satisfied: true,
           }),
         ]),
-        ready: false,
+        ready: true,
       },
       relatedResources: {
-        reconciliationExceptions: [
-          expect.objectContaining({
-            id: "exception-1",
-            operationId: "operation-1",
-          }),
-        ],
+        reconciliationExceptions: [],
       },
     });
   });

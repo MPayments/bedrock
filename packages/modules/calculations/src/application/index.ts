@@ -2,6 +2,7 @@ import type { ModuleRuntime } from "@bedrock/shared/core";
 
 import { ArchiveCalculationCommand } from "./commands/archive-calculation";
 import { CreateCalculationCommand } from "./commands/create-calculation";
+import { CreateCalculationFromAcceptedQuoteCommand } from "./commands/create-from-accepted-quote";
 import type { CalculationReads } from "./ports/calculation.reads";
 import type { CalculationsCommandUnitOfWork } from "./ports/calculations.uow";
 import type { CalculationReferencesPort } from "./ports/references.port";
@@ -25,6 +26,11 @@ export function createCalculationsService(deps: CalculationsServiceDeps) {
     deps.runtime,
     deps.commandUow,
   );
+  const createCalculationFromAcceptedQuote =
+    new CreateCalculationFromAcceptedQuoteCommand(
+      createCalculation,
+      deps.references,
+    );
   const findCalculationById = new FindCalculationByIdQuery(deps.reads);
   const listCalculations = new ListCalculationsQuery(deps.reads);
 
@@ -32,6 +38,9 @@ export function createCalculationsService(deps: CalculationsServiceDeps) {
     commands: {
       archive: archiveCalculation.execute.bind(archiveCalculation),
       create: createCalculation.execute.bind(createCalculation),
+      createFromAcceptedQuote: createCalculationFromAcceptedQuote.execute.bind(
+        createCalculationFromAcceptedQuote,
+      ),
     },
     queries: {
       findById: findCalculationById.execute.bind(findCalculationById),

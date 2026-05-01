@@ -795,6 +795,7 @@ export type FinanceDealQuoteExecution = z.infer<
 >;
 
 export const FinanceDealReconciliationStateSchema = z.enum([
+  "not_required",
   "not_started",
   "pending",
   "clear",
