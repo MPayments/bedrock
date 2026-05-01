@@ -99,7 +99,8 @@ function createTestApp() {
     findById: vi.fn(),
   };
   const documentGenerationWorkflow = {
-    generateCalculation: vi.fn(),
+    generateCalculationPrintForm: vi.fn(),
+    listCalculationPrintForms: vi.fn(),
   };
   const app = new OpenAPIHono();
 
@@ -331,30 +332,9 @@ describe("calculations routes", () => {
   });
 
   it("exports calculation print form using canonical document data", async () => {
-    const { app, calculationsModule, currenciesService, documentGenerationWorkflow } =
-      createTestApp();
+    const { app, documentGenerationWorkflow } = createTestApp();
     const detail = createCalculationDetail();
-    calculationsModule.calculations.queries.findById.mockResolvedValue(detail);
-    currenciesService.findById.mockImplementation(async (id: string) => {
-      if (id === detail.currentSnapshot.calculationCurrencyId) {
-        return {
-          code: "USD",
-          id,
-          precision: 2,
-        };
-      }
-
-      if (id === detail.currentSnapshot.baseCurrencyId) {
-        return {
-          code: "RUB",
-          id,
-          precision: 2,
-        };
-      }
-
-      throw new Error(`Unexpected currency id ${id}`);
-    });
-    documentGenerationWorkflow.generateCalculation.mockResolvedValue({
+    documentGenerationWorkflow.generateCalculationPrintForm.mockResolvedValue({
       fileName: "calculation.pdf",
       mimeType: "application/pdf",
       buffer: Buffer.from("pdf"),
@@ -365,34 +345,12 @@ describe("calculations routes", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(documentGenerationWorkflow.generateCalculation).toHaveBeenCalledWith({
-      calculationData: {
-        additionalExpenses: "0.00",
-        additionalExpensesInBase: "0.00",
-        agreementFeeAmount: "1.25",
-        agreementFeePercentage: "1.25",
-        baseCurrencyCode: "RUB",
-        calculationTimestamp:
-          detail.currentSnapshot.calculationTimestamp.toISOString(),
-        currencyCode: "USD",
-        finalRate: "0.81",
-        fixedFeeAmount: "0.00",
-        fixedFeeCurrencyCode: null,
-        id: detail.id,
-        originalAmount: "100.00",
-        quoteMarkupAmount: "0.00",
-        quoteMarkupPercentage: "0.00",
-        rate: "0.81",
-        rateSource: "manual",
-        totalFeeAmount: "1.25",
-        totalFeeAmountInBase: "1.00",
-        totalFeePercentage: "1.25",
-        totalAmount: "101.25",
-        totalInBase: "81.00",
-        totalWithExpensesInBase: "81.00",
-      },
+    expect(
+      documentGenerationWorkflow.generateCalculationPrintForm,
+    ).toHaveBeenCalledWith({
+      calculationId: detail.id,
       format: "pdf",
-      lang: "ru",
+      formId: "calculation.calculation-ru",
     });
   });
 });
