@@ -89,6 +89,8 @@ export function OrganizationCanonicalEditor({
     useState<PartyProfileBundleInput | null>(null);
   const [generalDraft, setGeneralDraft] =
     useState<OrganizationGeneralFormValues | null>(null);
+  const [legalDraft, setLegalDraft] =
+    useState<PartyProfileBundleInput | null>(null);
   const [loading, setLoading] = useState(true);
   const [savingGeneral, setSavingGeneral] = useState(false);
   const [savingLegal, setSavingLegal] = useState(false);
@@ -124,10 +126,19 @@ export function OrganizationCanonicalEditor({
 
         if (!cancelled) {
           const nextGeneralValues = toGeneralFormValues(payload);
+          const nextPartyProfile = payload.partyProfile
+            ? toPartyProfileBundleInput(payload.partyProfile, {
+                fullName: payload.fullName,
+                shortName: payload.shortName,
+                countryCode: payload.country,
+              })
+            : null;
           setOrganization(payload);
           setOverriddenPartyProfile(null);
           setGeneralDraft(nextGeneralValues);
+          setLegalDraft(nextPartyProfile);
           onGeneralValuesChange?.(nextGeneralValues);
+          onPartyProfileChange?.(nextPartyProfile);
           setGeneralDirty(false);
           setLegalDirty(false);
         }
@@ -151,7 +162,7 @@ export function OrganizationCanonicalEditor({
     return () => {
       cancelled = true;
     };
-  }, [onGeneralValuesChange, organizationId]);
+  }, [onGeneralValuesChange, onPartyProfileChange, organizationId]);
 
   const partyProfileSeed = useMemo(
     () =>
@@ -183,6 +194,7 @@ export function OrganizationCanonicalEditor({
 
     const next = applyPartyProfilePatch(base, partyProfileOverride.patch);
     setOverriddenPartyProfile(next);
+    setLegalDraft(next);
     onPartyProfileChange?.(next);
     setLegalDirty(true);
     // Triggered by nonce change; dependencies intentionally narrow.
@@ -253,6 +265,7 @@ export function OrganizationCanonicalEditor({
 
         if (organization.kind === "legal_entity") {
           const existingBundle =
+            legalDraft ??
             overriddenPartyProfile ??
             (organization.partyProfile
               ? toPartyProfileBundleInput(
@@ -330,6 +343,7 @@ export function OrganizationCanonicalEditor({
     setOrganization(result.data);
     setOverriddenPartyProfile(null);
     setGeneralDraft(nextGeneralValues);
+    setLegalDraft(nextPartyProfile);
     onGeneralValuesChange?.(nextGeneralValues);
     onPartyProfileChange?.(nextPartyProfile);
     setGeneralDirty(false);
@@ -387,6 +401,7 @@ export function OrganizationCanonicalEditor({
     setOrganization(result.data);
     setOverriddenPartyProfile(null);
     setGeneralDraft(nextGeneralValues);
+    setLegalDraft(nextPartyProfile);
     onGeneralValuesChange?.(nextGeneralValues);
     onPartyProfileChange?.(nextPartyProfile);
     setLegalDirty(false);
@@ -411,7 +426,9 @@ export function OrganizationCanonicalEditor({
 
     if (legalDirty && organization) {
       const bundle =
-        overriddenPartyProfile ?? resolveBasePartyProfileBundle(organization);
+        legalDraft ??
+        overriddenPartyProfile ??
+        resolveBasePartyProfileBundle(organization);
       if (bundle) {
         await saveLegal(bundle);
       }
@@ -429,6 +446,7 @@ export function OrganizationCanonicalEditor({
     setError(null);
     setOverriddenPartyProfile(null);
     setGeneralDraft(nextGeneralValues);
+    setLegalDraft(nextPartyProfile);
     onGeneralValuesChange?.(nextGeneralValues);
     onPartyProfileChange?.(nextPartyProfile);
     setGeneralDirty(false);
@@ -489,9 +507,10 @@ export function OrganizationCanonicalEditor({
           submitting={savingLegal}
           error={error}
           onDirtyChange={setLegalDirty}
-          onChange={(bundle) => {
-            setOverriddenPartyProfile(bundle);
+          onChange={(bundle, dirty) => {
+            setLegalDraft(bundle);
             onPartyProfileChange?.(bundle);
+            setLegalDirty(dirty);
           }}
           showActions={false}
           showLocalizedTextModeSwitcher={false}
