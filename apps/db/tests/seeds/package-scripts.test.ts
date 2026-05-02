@@ -19,6 +19,7 @@ describe("seed package scripts", () => {
 
     for (const pkg of [appPackage, rootPackage]) {
       expect(pkg.scripts).toHaveProperty("db:seed:required");
+      expect(pkg.scripts).toHaveProperty("db:seed:managed-parties");
       expect(pkg.scripts).toHaveProperty("db:seed:local");
       expect(pkg.scripts).toHaveProperty("db:seed:all");
       expect(pkg.scripts).not.toHaveProperty("db:seed");

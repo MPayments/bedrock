@@ -11,6 +11,7 @@
     "db:seed:required": "bun run --filter=db db:seed:required",
     "db:seed:local": "bun run --filter=db db:seed:local",
     "db:seed:all": "bun run --filter=db db:seed:all",
+    "db:seed:managed-parties": "bun run --filter=db db:seed:managed-parties",
     "db:seed:accounting": "bun run --filter=db db:seed:accounting",
     "db:seed:agreements": "bun run --filter=db db:seed:agreements",
     "db:bootstrap:accounting": "bun run --filter=db db:bootstrap:accounting",

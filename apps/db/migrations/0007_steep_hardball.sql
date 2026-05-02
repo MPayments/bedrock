@@ -157,6 +157,26 @@ ALTER TABLE "reconciliation_matches" DROP CONSTRAINT IF EXISTS "reconciliation_m
 DROP INDEX "file_links_generated_deal_variant_uq";--> statement-breakpoint
 DROP INDEX "file_links_generated_counterparty_variant_uq";--> statement-breakpoint
 ALTER TABLE "file_links" ALTER COLUMN "link_kind" SET DATA TYPE text;--> statement-breakpoint
+UPDATE "file_links"
+SET
+  "link_kind" = 'deal_attachment',
+  "attachment_purpose" = CASE
+    WHEN "link_kind" = 'deal_invoice' THEN 'invoice'::"public"."file_attachment_purpose"
+    WHEN "link_kind" = 'deal_acceptance' THEN 'contract'::"public"."file_attachment_purpose"
+    ELSE 'other'::"public"."file_attachment_purpose"
+  END,
+  "attachment_visibility" = 'customer_safe'::"public"."file_attachment_visibility",
+  "generated_format" = null,
+  "generated_lang" = null
+WHERE "link_kind" IN ('deal_application', 'deal_invoice', 'deal_acceptance');--> statement-breakpoint
+UPDATE "file_links"
+SET
+  "link_kind" = 'legal_entity_attachment',
+  "attachment_purpose" = 'contract'::"public"."file_attachment_purpose",
+  "attachment_visibility" = 'internal'::"public"."file_attachment_visibility",
+  "generated_format" = null,
+  "generated_lang" = null
+WHERE "link_kind" = 'legal_entity_contract';--> statement-breakpoint
 DROP TYPE "public"."file_link_kind";--> statement-breakpoint
 CREATE TYPE "public"."file_link_kind" AS ENUM('deal_attachment', 'legal_entity_attachment', 'agreement_signed_contract', 'payment_step_evidence');--> statement-breakpoint
 ALTER TABLE "file_links" ALTER COLUMN "link_kind" SET DATA TYPE "public"."file_link_kind" USING "link_kind"::"public"."file_link_kind";--> statement-breakpoint
@@ -219,6 +239,9 @@ CREATE INDEX "treasury_orders_created_at_idx" ON "treasury_orders" USING btree (
 ALTER TABLE "deal_legs" ADD CONSTRAINT "deal_legs_from_currency_id_currencies_id_fk" FOREIGN KEY ("from_currency_id") REFERENCES "public"."currencies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "deal_legs" ADD CONSTRAINT "deal_legs_to_currency_id_currencies_id_fk" FOREIGN KEY ("to_currency_id") REFERENCES "public"."currencies"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "file_links" ADD CONSTRAINT "file_links_agreement_version_id_agreement_versions_id_fk" FOREIGN KEY ("agreement_version_id") REFERENCES "public"."agreement_versions"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+UPDATE "reconciliation_matches"
+SET "matched_treasury_operation_id" = null
+WHERE "matched_treasury_operation_id" IS NOT NULL;--> statement-breakpoint
 ALTER TABLE "reconciliation_matches" ADD CONSTRAINT "reconciliation_matches_matched_treasury_operation_id_payment_steps_id_fk" FOREIGN KEY ("matched_treasury_operation_id") REFERENCES "public"."payment_steps"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "deal_legs_deal_route_leg_idx" ON "deal_legs" USING btree ("deal_id","route_snapshot_leg_id");--> statement-breakpoint
 CREATE INDEX "file_links_agreement_version_idx" ON "file_links" USING btree ("agreement_version_id");--> statement-breakpoint

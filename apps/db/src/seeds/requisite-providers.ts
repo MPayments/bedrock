@@ -6,8 +6,26 @@ import { REQUISITE_PROVIDERS } from "./fixtures";
 
 export { REQUISITE_PROVIDER_IDS } from "./fixtures";
 
-export async function seedRequisiteProviders(db: Database | Transaction) {
-  for (const provider of REQUISITE_PROVIDERS) {
+export interface SeedRequisiteProvidersOptions {
+  providerIds?: readonly string[];
+}
+
+function selectProviders(options: SeedRequisiteProvidersOptions) {
+  if (!options.providerIds) {
+    return REQUISITE_PROVIDERS;
+  }
+
+  const allowed = new Set(options.providerIds);
+  return REQUISITE_PROVIDERS.filter((provider) => allowed.has(provider.id));
+}
+
+export async function seedRequisiteProviders(
+  db: Database | Transaction,
+  options: SeedRequisiteProvidersOptions = {},
+) {
+  const targetProviders = selectProviders(options);
+
+  for (const provider of targetProviders) {
     await db
       .insert(schema.requisiteProviders)
       .values({
@@ -105,6 +123,6 @@ export async function seedRequisiteProviders(db: Database | Transaction) {
   }
 
   console.log(
-    `[seed:requisite-providers] Seeded ${REQUISITE_PROVIDERS.length} requisite providers`,
+    `[seed:requisite-providers] Seeded ${targetProviders.length} requisite providers`,
   );
 }
