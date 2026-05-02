@@ -100,6 +100,16 @@ function resolveBootstrapAdminIds(input: { email: string; id?: string | null }) 
   };
 }
 
+async function hasExistingAdminUser(db: Database): Promise<boolean> {
+  const [admin] = await db
+    .select({ id: schema.user.id })
+    .from(schema.user)
+    .where(eq(schema.user.role, "admin"))
+    .limit(1);
+
+  return Boolean(admin);
+}
+
 async function seedUserRecords(
   db: Database,
   hashPassword: HashPasswordFn,
@@ -290,6 +300,13 @@ export async function seedBootstrapAdminFromEnv(
 
   if (!email || !password) {
     if (isProductionLikeSeedEnv(env)) {
+      if (await hasExistingAdminUser(db)) {
+        console.warn(
+          "[seed:required] Bootstrap admin env is not set; existing admin user found, skipping bootstrap admin.",
+        );
+        return;
+      }
+
       throw new Error(
         [
           "Bootstrap admin seed requires env credentials in production.",

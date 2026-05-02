@@ -128,12 +128,30 @@ describe("seedUsers", () => {
   });
 
   it("requires bootstrap admin env in production", async () => {
-    const { db } = createDbStub([]);
+    const { db } = createDbStub([[]]);
 
     await expect(
       seedBootstrapAdminFromEnv(db as never, vi.fn(async () => "hashed"), {
         NODE_ENV: "production",
       }),
     ).rejects.toThrow(/BEDROCK_BOOTSTRAP_ADMIN_EMAIL/);
+  });
+
+  it("skips bootstrap admin env in production when an admin already exists", async () => {
+    const { db, inserts } = createDbStub([[{ id: USER_IDS.ADMIN }]]);
+    const hashPassword = vi.fn(async () => "hashed");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+    await seedBootstrapAdminFromEnv(db as never, hashPassword, {
+      NODE_ENV: "production",
+    });
+
+    expect(warn).toHaveBeenCalledWith(
+      "[seed:required] Bootstrap admin env is not set; existing admin user found, skipping bootstrap admin.",
+    );
+    expect(hashPassword).not.toHaveBeenCalled();
+    expect(inserts).toEqual([]);
+
+    warn.mockRestore();
   });
 });
