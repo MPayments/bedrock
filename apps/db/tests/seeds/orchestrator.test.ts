@@ -20,6 +20,7 @@ function createHarness() {
     seedCounterparties: fn("local:counterparties"),
     seedCurrencies: fn("required:currencies"),
     seedDealPayment: fn("local:deal-payment"),
+    seedRequiredManagedParties: fn("required:managed-parties"),
     seedOrganizations: fn("local:organizations"),
     seedPaymentRoutes: fn("local:payment-routes"),
     seedRequisiteProviders: fn("local:requisite-providers"),
@@ -52,6 +53,7 @@ describe("seed orchestrator", () => {
       "required:accounting",
       "required:currencies",
       "required:bic-directory",
+      "required:managed-parties",
       "required:bootstrap-admin",
     ]);
     expect(deps.seedUsers).not.toHaveBeenCalled();
@@ -85,6 +87,7 @@ describe("seed orchestrator", () => {
       "required:accounting",
       "required:currencies",
       "required:bic-directory",
+      "required:managed-parties",
       "required:bootstrap-admin",
       "local:users",
       "local:organizations",

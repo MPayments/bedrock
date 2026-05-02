@@ -12,16 +12,36 @@ import { schema } from "../schema-registry";
 import { seedCounterparties } from "./counterparties";
 import { seedCurrencies } from "./currencies";
 import { REQUISITES, type SeedRequisiteFixture } from "./fixtures";
-import { ORGANIZATION_IDS, seedOrganizations } from "./organizations";
+import { seedOrganizations } from "./organizations";
 import { seedRequisiteProviders } from "./requisite-providers";
 
 export { REQUISITE_IDS } from "./fixtures";
 
 type DbLike = Database | Transaction;
 
+export interface SeedRequisitesOptions {
+  organizationIds?: readonly string[];
+  providerIds?: readonly string[];
+  requisiteIds?: readonly string[];
+  seedDependencies?: boolean;
+}
+
 interface ResolvedProviderRef {
   providerId: string;
   branchId: string | null;
+}
+
+function selectRequisites(options: SeedRequisitesOptions) {
+  if (!options.requisiteIds) {
+    return REQUISITES;
+  }
+
+  const allowed = new Set(options.requisiteIds);
+  return REQUISITES.filter((requisite) => allowed.has(requisite.id));
+}
+
+function unique(values: string[]) {
+  return [...new Set(values)];
 }
 
 async function currencyIdByCodeMap(db: DbLike) {
@@ -90,11 +110,14 @@ function resolveRequisiteProvider(
   );
 }
 
-async function ensureDefaultBooks(db: DbLike): Promise<Map<string, string>> {
+async function ensureDefaultBooks(
+  db: DbLike,
+  organizationIds: readonly string[],
+): Promise<Map<string, string>> {
   const out = new Map<string, string>();
   const books = new DrizzleBooksStore(db);
 
-  for (const organizationId of Object.values(ORGANIZATION_IDS)) {
+  for (const organizationId of organizationIds) {
     const { bookId } = await books.ensureDefaultOrganizationBook({
       organizationId,
     });
@@ -108,8 +131,9 @@ async function upsertRequisites(
   db: DbLike,
   currencyIds: ReadonlyMap<string, string>,
   bicMap: ReadonlyMap<string, ResolvedProviderRef>,
+  requisites: readonly SeedRequisiteFixture[],
 ) {
-  for (const requisite of REQUISITES) {
+  for (const requisite of requisites) {
     const currencyId = currencyIds.get(requisite.currencyCode);
     if (!currencyId) {
       throw new Error(`Currency not found for code ${requisite.currencyCode}`);
@@ -258,9 +282,10 @@ async function upsertRequisites(
 async function upsertOrganizationBindings(
   db: DbLike,
   defaultBookIdByOrganizationId: ReadonlyMap<string, string>,
+  requisites: readonly SeedRequisiteFixture[],
 ) {
   const bookAccounts = new DrizzleBookAccountStore(db);
-  const organizationRequisites = REQUISITES.filter(
+  const organizationRequisites = requisites.filter(
     (
       requisite,
     ): requisite is SeedRequisiteFixture & { ownerType: "organization" } =>
@@ -300,22 +325,78 @@ async function upsertOrganizationBindings(
   }
 }
 
-export async function seedRequisites(db: DbLike) {
-  await seedCurrencies(db as Database);
-  await seedCounterparties(db);
-  await seedOrganizations(db);
-  await seedRequisiteProviders(db);
+export async function seedRequisites(
+  db: DbLike,
+  options: SeedRequisitesOptions = {},
+) {
+  const targetRequisites = selectRequisites(options);
+
+  if (options.seedDependencies ?? true) {
+    await seedCurrencies(db as Database);
+
+    if (
+      targetRequisites.some((requisite) => requisite.ownerType === "counterparty")
+    ) {
+      await seedCounterparties(db);
+    }
+
+    const organizationIds =
+      options.organizationIds ??
+      unique(
+        targetRequisites
+          .filter(
+            (
+              requisite,
+            ): requisite is SeedRequisiteFixture & { ownerType: "organization" } =>
+              requisite.ownerType === "organization",
+          )
+          .map((requisite) => requisite.ownerId),
+      );
+
+    if (organizationIds.length > 0) {
+      await seedOrganizations(db, { organizationIds });
+    }
+
+    const providerIds =
+      options.providerIds ??
+      unique(
+        targetRequisites
+          .map((requisite) => requisite.providerId)
+          .filter((providerId): providerId is string => Boolean(providerId)),
+      );
+
+    if (providerIds.length > 0) {
+      await seedRequisiteProviders(db, { providerIds });
+    }
+  }
 
   const currencyIds = await currencyIdByCodeMap(db);
   const bicMap = await bicToProviderBranchMap(db);
-  await upsertRequisites(db, currencyIds, bicMap);
-  const defaultBookIdByOrganizationId = await ensureDefaultBooks(db);
-  await upsertOrganizationBindings(db, defaultBookIdByOrganizationId);
+  await upsertRequisites(db, currencyIds, bicMap, targetRequisites);
 
-  const organizationRequisites = REQUISITES.filter(
+  const organizationIdsWithRequisites = unique(
+    targetRequisites
+      .filter(
+        (requisite): requisite is SeedRequisiteFixture & {
+          ownerType: "organization";
+        } => requisite.ownerType === "organization",
+      )
+      .map((requisite) => requisite.ownerId),
+  );
+  const defaultBookIdByOrganizationId = await ensureDefaultBooks(
+    db,
+    organizationIdsWithRequisites,
+  );
+  await upsertOrganizationBindings(
+    db,
+    defaultBookIdByOrganizationId,
+    targetRequisites,
+  );
+
+  const organizationRequisites = targetRequisites.filter(
     (requisite) => requisite.ownerType === "organization",
   );
-  const counterpartyRequisites = REQUISITES.filter(
+  const counterpartyRequisites = targetRequisites.filter(
     (requisite) => requisite.ownerType === "counterparty",
   );
 

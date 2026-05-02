@@ -7,6 +7,7 @@ import { seedBicDirectory } from "./bic-directory";
 import { seedCounterparties } from "./counterparties";
 import { seedCurrencies } from "./currencies";
 import { seedDealPayment } from "./deal-payment";
+import { seedRequiredManagedParties } from "./managed-parties";
 import { seedOrganizations } from "./organizations";
 import { seedPaymentRoutes } from "./payment-routes";
 import { seedRequisiteProviders } from "./requisite-providers";
@@ -39,6 +40,7 @@ export interface SeedOrchestratorDeps {
   seedCounterparties: SeedFn;
   seedCurrencies: SeedFn;
   seedDealPayment: SeedFn;
+  seedRequiredManagedParties: SeedFn;
   seedOrganizations: SeedFn;
   seedPaymentRoutes: SeedFn;
   seedRequisiteProviders: SeedFn;
@@ -61,16 +63,19 @@ export function createSeedOrchestrator(deps: SeedOrchestratorDeps) {
   ): Promise<void> {
     console.log("[seed:required] Starting required database seed...\n");
 
-    logStep(1, 4, "Accounting reference data");
+    logStep(1, 5, "Accounting reference data");
     await deps.seedAccounting(db);
 
-    logStep(2, 4, "Currencies");
+    logStep(2, 5, "Currencies");
     await deps.seedCurrencies(db);
 
-    logStep(3, 4, "CBR BIC directory");
+    logStep(3, 5, "CBR BIC directory");
     await deps.seedBicDirectory(db);
 
-    logStep(4, 4, "Bootstrap admin from env");
+    logStep(4, 5, "Managed production parties and requisites");
+    await deps.seedRequiredManagedParties(db);
+
+    logStep(5, 5, "Bootstrap admin from env");
     await deps.seedBootstrapAdminFromEnv(
       db,
       deps.hashPassword,
@@ -142,6 +147,7 @@ export function createDefaultSeedOrchestrator() {
     seedCounterparties,
     seedCurrencies,
     seedDealPayment,
+    seedRequiredManagedParties,
     seedOrganizations,
     seedPaymentRoutes,
     seedRequisiteProviders,

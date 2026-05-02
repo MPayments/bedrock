@@ -11,13 +11,30 @@ import {
 
 export { ORGANIZATION_IDS } from "./fixtures";
 
-export async function seedOrganizations(db: Database | Transaction) {
+export interface SeedOrganizationsOptions {
+  organizationIds?: readonly string[];
+}
+
+function selectOrganizations(options: SeedOrganizationsOptions) {
+  if (!options.organizationIds) {
+    return ORGANIZATIONS;
+  }
+
+  const allowed = new Set(options.organizationIds);
+  return ORGANIZATIONS.filter((organization) => allowed.has(organization.id));
+}
+
+export async function seedOrganizations(
+  db: Database | Transaction,
+  options: SeedOrganizationsOptions = {},
+) {
+  const targetOrganizations = selectOrganizations(options);
   const objectStorage = createSeedObjectStorage();
   const uploadAssets = Boolean(objectStorage);
   let seededFilesCount = 0;
 
   if (!uploadAssets) {
-    const organizationsWithAssets = ORGANIZATIONS.filter(
+    const organizationsWithAssets = targetOrganizations.filter(
       (organization) =>
         organization.signatureAssetFileName || organization.sealAssetFileName,
     ).length;
@@ -29,7 +46,7 @@ export async function seedOrganizations(db: Database | Transaction) {
     }
   }
 
-  for (const organization of ORGANIZATIONS) {
+  for (const organization of targetOrganizations) {
     const signatureKey =
       organization.signatureAssetFileName && objectStorage
         ? await uploadOrganizationAsset({
@@ -209,6 +226,6 @@ export async function seedOrganizations(db: Database | Transaction) {
   }
 
   console.log(
-    `[seed:organizations] Seeded ${ORGANIZATIONS.length} organizations (${seededFilesCount} with signature/seal files)`,
+    `[seed:organizations] Seeded ${targetOrganizations.length} organizations (${seededFilesCount} with signature/seal files)`,
   );
 }

@@ -13,6 +13,7 @@
     "db:seed:required": "tsx ./src/seeds/run-required.ts",
     "db:seed:local": "tsx ./src/seeds/run-local.ts",
     "db:seed:all": "tsx ./src/seeds/run-all.ts",
+    "db:seed:managed-parties": "tsx ./src/seeds/run-managed-parties.ts",
     "db:seed:accounting": "tsx ./src/seeds/run-accounting.ts",
     "db:seed:agreements": "tsx ./src/seeds/run-agreements.ts",
     "db:bootstrap:accounting": "tsx ./src/seeds/run-accounting.ts",
