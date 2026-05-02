@@ -88,6 +88,7 @@ type OrganizationGeneralEditorProps = {
   kindReadonly?: boolean;
   readOnlyNames?: boolean;
   headerActions?: ReactNode;
+  showActions?: boolean;
   showDates?: boolean;
   title?: string;
   description?: string;
@@ -255,6 +256,7 @@ export function OrganizationGeneralEditor({
   kindReadonly = false,
   readOnlyNames = false,
   headerActions,
+  showActions = true,
   showDates = true,
   title = "Общая информация",
   description = "Просмотр и редактирование общей информации организации.",
@@ -352,30 +354,36 @@ export function OrganizationGeneralEditor({
             <CardTitle className="flex items-center">{title}</CardTitle>
             <CardDescription>{description}</CardDescription>
           </div>
-          <div className="flex items-center gap-2">
-            <Button
-              type="submit"
-              form="organization-general-form"
-              disabled={submitDisabled}
-            >
-              {submitting ? (
-                <Spinner className="size-4" />
-              ) : (
-                <Save className="size-4" />
-              )}
-              {submitting ? submittingLabel : submitLabel}
-            </Button>
-            <Button
-              variant="outline"
-              type="button"
-              disabled={resetDisabled}
-              onClick={() => reset(resolvedInitialValues)}
-            >
-              <X className="size-4" />
-              Отменить
-            </Button>
-            {headerActions}
-          </div>
+          {showActions || headerActions ? (
+            <div className="flex items-center gap-2">
+              {showActions ? (
+                <>
+                  <Button
+                    type="submit"
+                    form="organization-general-form"
+                    disabled={submitDisabled}
+                  >
+                    {submitting ? (
+                      <Spinner className="size-4" />
+                    ) : (
+                      <Save className="size-4" />
+                    )}
+                    {submitting ? submittingLabel : submitLabel}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    type="button"
+                    disabled={resetDisabled}
+                    onClick={() => reset(resolvedInitialValues)}
+                  >
+                    <X className="size-4" />
+                    Отменить
+                  </Button>
+                </>
+              ) : null}
+              {headerActions}
+            </div>
+          ) : null}
         </div>
       </CardHeader>
       <CardContent>

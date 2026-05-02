@@ -1,5 +1,6 @@
 "use client";
 
+import { Loader2, RotateCcw, Save } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import type { PartyProfileBundleInput } from "@bedrock/parties/contracts";
@@ -21,6 +22,7 @@ import {
   toPartyProfileBundleInput,
 } from "@bedrock/sdk-parties-ui/lib/party-profile";
 import { Card, CardContent } from "@bedrock/sdk-ui/components/card";
+import { Button } from "@bedrock/sdk-ui/components/button";
 
 import { apiClient } from "@/lib/api-client";
 import { executeApiMutation } from "@/lib/api/mutation";
@@ -85,11 +87,14 @@ export function OrganizationCanonicalEditor({
     useState<OrganizationWorkspaceRecord | null>(null);
   const [overriddenPartyProfile, setOverriddenPartyProfile] =
     useState<PartyProfileBundleInput | null>(null);
+  const [generalDraft, setGeneralDraft] =
+    useState<OrganizationGeneralFormValues | null>(null);
   const [loading, setLoading] = useState(true);
   const [savingGeneral, setSavingGeneral] = useState(false);
   const [savingLegal, setSavingLegal] = useState(false);
   const [generalDirty, setGeneralDirty] = useState(false);
   const [legalDirty, setLegalDirty] = useState(false);
+  const [resetRevision, setResetRevision] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -118,8 +123,11 @@ export function OrganizationCanonicalEditor({
         );
 
         if (!cancelled) {
+          const nextGeneralValues = toGeneralFormValues(payload);
           setOrganization(payload);
           setOverriddenPartyProfile(null);
+          setGeneralDraft(nextGeneralValues);
+          onGeneralValuesChange?.(nextGeneralValues);
           setGeneralDirty(false);
           setLegalDirty(false);
         }
@@ -143,7 +151,7 @@ export function OrganizationCanonicalEditor({
     return () => {
       cancelled = true;
     };
-  }, [organizationId]);
+  }, [onGeneralValuesChange, organizationId]);
 
   const partyProfileSeed = useMemo(
     () =>
@@ -192,6 +200,242 @@ export function OrganizationCanonicalEditor({
     [organization],
   );
 
+  function resolveBasePartyProfileBundle(
+    currentOrganization: OrganizationWorkspaceRecord,
+  ): PartyProfileBundleInput | null {
+    if (currentOrganization.partyProfile) {
+      return toPartyProfileBundleInput(
+        currentOrganization.partyProfile,
+        partyProfileSeed,
+      );
+    }
+
+    if (currentOrganization.kind !== "legal_entity") {
+      return null;
+    }
+
+    return createSeededPartyProfileBundle({
+      fullName: currentOrganization.fullName,
+      shortName: currentOrganization.shortName,
+      countryCode: currentOrganization.country,
+    });
+  }
+
+  async function saveGeneral(values: OrganizationGeneralFormValues) {
+    if (!organization) {
+      return;
+    }
+
+    if (values.kind !== organization.kind) {
+      setError("Смена типа организации в CRM не поддерживается");
+      return;
+    }
+
+    setError(null);
+    setSavingGeneral(true);
+
+    const result = await executeApiMutation<OrganizationWorkspaceRecord>({
+      request: async () => {
+        const patchResponse = await apiClient.v1.organizations[":id"].$patch({
+          param: { id: organizationId },
+          json: {
+            shortName: values.shortName.trim(),
+            fullName: values.fullName.trim(),
+            country: values.country.trim() || null,
+            description: values.description.trim() || null,
+            externalRef: values.externalRef.trim() || null,
+          },
+        });
+
+        if (!patchResponse.ok) {
+          return patchResponse;
+        }
+
+        if (organization.kind === "legal_entity") {
+          const existingBundle =
+            overriddenPartyProfile ??
+            (organization.partyProfile
+              ? toPartyProfileBundleInput(
+                  organization.partyProfile,
+                  partyProfileSeed,
+                )
+              : createSeededPartyProfileBundle({
+                  fullName: values.fullName.trim(),
+                  shortName: values.shortName.trim(),
+                  countryCode: values.country.trim() || null,
+                }));
+
+          const nextFullNameI18n = updateLocalizedTextLocale({
+            baseValue: values.fullName.trim(),
+            localeMap: existingBundle.profile.fullNameI18n,
+            nextValue: values.fullNameEn.trim(),
+            locale: "en",
+          }).localeMap;
+          const nextShortNameI18n = updateLocalizedTextLocale({
+            baseValue: values.shortName.trim(),
+            localeMap: existingBundle.profile.shortNameI18n,
+            nextValue: values.shortNameEn.trim(),
+            locale: "en",
+          }).localeMap;
+
+          const bundle: PartyProfileBundleInput = {
+            ...existingBundle,
+            profile: {
+              ...existingBundle.profile,
+              fullName: values.fullName.trim(),
+              shortName: values.shortName.trim(),
+              fullNameI18n: nextFullNameI18n,
+              shortNameI18n: nextShortNameI18n,
+              countryCode: values.country.trim() || null,
+            },
+          };
+
+          const legalResponse = await apiClient.v1.organizations[":id"][
+            "party-profile"
+          ].$put({
+            param: { id: organizationId },
+            json: bundle,
+          });
+
+          if (!legalResponse.ok) {
+            return legalResponse;
+          }
+        }
+
+        return apiClient.v1.organizations[":id"].$get({
+          param: { id: organizationId },
+        });
+      },
+      fallbackMessage: "Не удалось сохранить организацию",
+      parseData: async (response) =>
+        readJsonWithSchema(response, OrganizationWorkspaceSchema),
+    });
+
+    setSavingGeneral(false);
+
+    if (!result.ok) {
+      setError(result.message);
+      return;
+    }
+
+    const nextGeneralValues = toGeneralFormValues(result.data);
+    const nextPartyProfile = result.data.partyProfile
+      ? toPartyProfileBundleInput(result.data.partyProfile, {
+          fullName: result.data.fullName,
+          shortName: result.data.shortName,
+          countryCode: result.data.country,
+        })
+      : null;
+
+    setOrganization(result.data);
+    setOverriddenPartyProfile(null);
+    setGeneralDraft(nextGeneralValues);
+    onGeneralValuesChange?.(nextGeneralValues);
+    onPartyProfileChange?.(nextPartyProfile);
+    setGeneralDirty(false);
+    setLegalDirty(false);
+    onSaved?.();
+    return nextGeneralValues;
+  }
+
+  async function saveLegal(bundle: PartyProfileBundleInput) {
+    if (!organization) {
+      return;
+    }
+
+    setError(null);
+    setSavingLegal(true);
+
+    const result = await executeApiMutation<OrganizationWorkspaceRecord>({
+      request: async () => {
+        const response = await apiClient.v1.organizations[":id"][
+          "party-profile"
+        ].$put({
+          param: { id: organizationId },
+          json: bundle,
+        });
+
+        if (!response.ok) {
+          return response;
+        }
+
+        return apiClient.v1.organizations[":id"].$get({
+          param: { id: organizationId },
+        });
+      },
+      fallbackMessage: "Не удалось сохранить юридические данные",
+      parseData: async (response) =>
+        readJsonWithSchema(response, OrganizationWorkspaceSchema),
+    });
+
+    setSavingLegal(false);
+
+    if (!result.ok) {
+      setError(result.message);
+      return;
+    }
+
+    const nextGeneralValues = toGeneralFormValues(result.data);
+    const nextPartyProfile = result.data.partyProfile
+      ? toPartyProfileBundleInput(result.data.partyProfile, {
+          fullName: result.data.fullName,
+          shortName: result.data.shortName,
+          countryCode: result.data.country,
+        })
+      : bundle;
+
+    setOrganization(result.data);
+    setOverriddenPartyProfile(null);
+    setGeneralDraft(nextGeneralValues);
+    onGeneralValuesChange?.(nextGeneralValues);
+    onPartyProfileChange?.(nextPartyProfile);
+    setLegalDirty(false);
+    onSaved?.();
+
+    return result.data.partyProfile ?? bundle;
+  }
+
+  async function handleSaveChanges() {
+    if (savingGeneral || savingLegal) {
+      return;
+    }
+
+    if (generalDirty) {
+      if (!generalDraft) {
+        return;
+      }
+
+      await saveGeneral(generalDraft);
+      return;
+    }
+
+    if (legalDirty && organization) {
+      const bundle =
+        overriddenPartyProfile ?? resolveBasePartyProfileBundle(organization);
+      if (bundle) {
+        await saveLegal(bundle);
+      }
+    }
+  }
+
+  function handleResetChanges() {
+    if (!organization || savingGeneral || savingLegal) {
+      return;
+    }
+
+    const nextGeneralValues = toGeneralFormValues(organization);
+    const nextPartyProfile = resolveBasePartyProfileBundle(organization);
+
+    setError(null);
+    setOverriddenPartyProfile(null);
+    setGeneralDraft(nextGeneralValues);
+    onGeneralValuesChange?.(nextGeneralValues);
+    onPartyProfileChange?.(nextPartyProfile);
+    setGeneralDirty(false);
+    setLegalDirty(false);
+    setResetRevision((current) => current + 1);
+  }
+
   if (loading) {
     return (
       <Card>
@@ -215,6 +459,7 @@ export function OrganizationCanonicalEditor({
   return (
     <div className="space-y-6">
       <OrganizationGeneralEditor
+        key={`general-${organization.id}-${resetRevision}`}
         initialValues={initialValues}
         createdAt={organization.createdAt}
         updatedAt={organization.updatedAt}
@@ -223,110 +468,13 @@ export function OrganizationCanonicalEditor({
         externalPatch={externalPatch}
         bilingualMode={bilingualMode}
         onDirtyChange={setGeneralDirty}
-        onValuesChange={onGeneralValuesChange}
-        kindReadonly
-        onSubmit={async (values) => {
-          if (values.kind !== organization.kind) {
-            setError("Смена типа организации в CRM не поддерживается");
-            return;
-          }
-
-          setError(null);
-          setSavingGeneral(true);
-
-          const result = await executeApiMutation<OrganizationWorkspaceRecord>({
-            request: async () => {
-              const patchResponse = await apiClient.v1.organizations[
-                ":id"
-              ].$patch({
-                param: { id: organizationId },
-                json: {
-                  shortName: values.shortName.trim(),
-                  fullName: values.fullName.trim(),
-                  country: values.country.trim() || null,
-                  description: values.description.trim() || null,
-                  externalRef: values.externalRef.trim() || null,
-                },
-              });
-
-              if (!patchResponse.ok) {
-                return patchResponse;
-              }
-
-              if (organization.kind === "legal_entity") {
-                const existingBundle = overriddenPartyProfile
-                  ? overriddenPartyProfile
-                  : organization.partyProfile
-                    ? toPartyProfileBundleInput(
-                        organization.partyProfile,
-                        partyProfileSeed,
-                      )
-                    : createSeededPartyProfileBundle({
-                        fullName: values.fullName.trim(),
-                        shortName: values.shortName.trim(),
-                        countryCode: values.country.trim() || null,
-                      });
-
-                const nextFullNameI18n = updateLocalizedTextLocale({
-                  baseValue: values.fullName.trim(),
-                  localeMap: existingBundle.profile.fullNameI18n,
-                  nextValue: values.fullNameEn.trim(),
-                  locale: "en",
-                }).localeMap;
-                const nextShortNameI18n = updateLocalizedTextLocale({
-                  baseValue: values.shortName.trim(),
-                  localeMap: existingBundle.profile.shortNameI18n,
-                  nextValue: values.shortNameEn.trim(),
-                  locale: "en",
-                }).localeMap;
-
-                const bundle: PartyProfileBundleInput = {
-                  ...existingBundle,
-                  profile: {
-                    ...existingBundle.profile,
-                    fullName: values.fullName.trim(),
-                    shortName: values.shortName.trim(),
-                    fullNameI18n: nextFullNameI18n,
-                    shortNameI18n: nextShortNameI18n,
-                    countryCode: values.country.trim() || null,
-                  },
-                };
-
-                const legalResponse = await apiClient.v1.organizations[":id"][
-                  "party-profile"
-                ].$put({
-                  param: { id: organizationId },
-                  json: bundle,
-                });
-
-                if (!legalResponse.ok) {
-                  return legalResponse;
-                }
-              }
-
-              return apiClient.v1.organizations[":id"].$get({
-                param: { id: organizationId },
-              });
-            },
-            fallbackMessage: "Не удалось сохранить организацию",
-            parseData: async (response) =>
-              readJsonWithSchema(response, OrganizationWorkspaceSchema),
-          });
-
-          setSavingGeneral(false);
-
-          if (!result.ok) {
-            setError(result.message);
-            return;
-          }
-
-          setOrganization(result.data);
-          setOverriddenPartyProfile(null);
-          setGeneralDirty(false);
-          setLegalDirty(false);
-          onSaved?.();
-          return toGeneralFormValues(result.data);
+        onValuesChange={(values) => {
+          setGeneralDraft(values);
+          onGeneralValuesChange?.(values);
         }}
+        kindReadonly
+        onSubmit={saveGeneral}
+        showActions={false}
         submitLabel="Сохранить"
         submittingLabel="Сохранение..."
         title="Организация"
@@ -334,6 +482,7 @@ export function OrganizationCanonicalEditor({
       />
       {organization.kind === "legal_entity" ? (
         <PartyProfileEditor
+          key={`party-profile-${organization.id}-${resetRevision}`}
           bundle={effectiveBundle}
           seed={partyProfileSeed}
           localizedTextVariant={localizedTextVariant}
@@ -344,52 +493,40 @@ export function OrganizationCanonicalEditor({
             setOverriddenPartyProfile(bundle);
             onPartyProfileChange?.(bundle);
           }}
+          showActions={false}
           showLocalizedTextModeSwitcher={false}
-          onSubmit={async (bundle: PartyProfileBundleInput) => {
-            setError(null);
-            setSavingLegal(true);
-
-            const result = await executeApiMutation<OrganizationWorkspaceRecord>(
-              {
-                request: async () => {
-                  const response = await apiClient.v1.organizations[":id"][
-                    "party-profile"
-                  ].$put({
-                    param: { id: organizationId },
-                    json: bundle,
-                  });
-
-                  if (!response.ok) {
-                    return response;
-                  }
-
-                  return apiClient.v1.organizations[":id"].$get({
-                    param: { id: organizationId },
-                  });
-                },
-                fallbackMessage:
-                  "Не удалось сохранить юридические данные",
-                parseData: async (response) =>
-                  readJsonWithSchema(response, OrganizationWorkspaceSchema),
-              },
-            );
-
-            setSavingLegal(false);
-
-            if (!result.ok) {
-              setError(result.message);
-              return;
-            }
-
-            setOrganization(result.data);
-            setOverriddenPartyProfile(null);
-            setLegalDirty(false);
-            onSaved?.();
-
-            return result.data.partyProfile ?? bundle;
-          }}
+          onSubmit={saveLegal}
           title="Юридическое лицо"
         />
+      ) : null}
+      {generalDirty || legalDirty ? (
+        <div className="sticky bottom-0 z-20 flex flex-wrap justify-end gap-2 border-t bg-background/95 px-4 py-3 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur">
+          <Button
+            disabled={savingGeneral || savingLegal}
+            onClick={handleResetChanges}
+            variant="outline"
+            type="button"
+          >
+            <RotateCcw className="mr-2 h-4 w-4" />
+            Отменить изменения
+          </Button>
+          <Button
+            disabled={savingGeneral || savingLegal}
+            onClick={() => {
+              void handleSaveChanges();
+            }}
+            type="button"
+          >
+            {savingGeneral || savingLegal ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="mr-2 h-4 w-4" />
+            )}
+            {savingGeneral || savingLegal
+              ? "Сохранение..."
+              : "Сохранить изменения"}
+          </Button>
+        </div>
       ) : null}
     </div>
   );
